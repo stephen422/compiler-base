@@ -9,6 +9,9 @@ else ()
   message ("No clang")
 endif ()
 
+# Enable C++1z standards
+add_definitions (-std=c++1z)
+
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-add_executable (compiler main.cc)
+add_executable (compiler Source.cc)
