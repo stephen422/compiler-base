@@ -18,7 +18,7 @@ void use_read(std::ifstream& in) {
   auto size = in.tellg();
   in.seekg(0, std::ios::beg);
 
-  std::vector<char> buffer{size};
+  std::vector<char> buffer(size);
   in.read(buffer.data(), size);
 }
 
