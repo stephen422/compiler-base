@@ -3,7 +3,7 @@ project (compiler-base)
 
 include_directories ("${PROJECT_BINARY_DIR}")
 
-if ("${CMAKE_CXX_COMPILER}" STREQUAL "Clang")
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   message ("Hi clang!")
 else ()
   message ("No clang")
