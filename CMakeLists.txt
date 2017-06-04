@@ -26,4 +26,4 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 else ()
 endif ()
 
-add_executable (compiler Source.cc)
+add_executable (compiler main.cc Source.cc)
