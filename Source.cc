@@ -1,21 +1,22 @@
-#include <iostream>
+#include "Source.h"
 #include <fstream>
+#include <iostream>
 #include <sstream>
 #include <vector>
-#include "Source.h"
 
-void use_stringstream(std::ifstream& in) {
+void use_stringstream(std::ifstream &in) {
   std::stringstream sstr;
   sstr << in.rdbuf();
 }
 
-void use_read(std::ifstream& in) {
+void use_read(std::ifstream &in) {
   // This is ~2x faster than the 'stringstream << buf.rdbuf()' method
   // (https://stackoverflow.com/questions/18816126/c-read-the-whole-file-in-buffer).
   // Might try to rewrite this to use code-level buffering, but doubt
   // that will ever be necessary...
   in.seekg(0, std::ios::end);
   auto size = in.tellg();
+  std::cout << "size: " << size << std::endl;
   in.seekg(0, std::ios::beg);
 
   std::vector<char> buffer(size);
@@ -23,8 +24,15 @@ void use_read(std::ifstream& in) {
 }
 
 int main(int argc, char **argv) {
+  if (argc < 2)
+    return 1;
+
   std::ifstream file{argv[1], std::ios::binary};
+  if (!file) {
+    std::cerr << "error: " << strerror(errno) << std::endl;
+    return 1;
+  }
   use_read(file);
-  //use_stringstream(file);
+  // use_stringstream(file);
   return 0;
 }
