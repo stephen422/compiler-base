@@ -4,6 +4,7 @@ project (compiler-base)
 include_directories ("${PROJECT_BINARY_DIR}")
 
 add_definitions (-std=c++1z)
+set (CMAKE_BUILD_TYPE Debug)
 
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
