@@ -1,9 +1,9 @@
-#include <iostream>
-#include <fstream>
-#include <cstring>
 #include "Lexer.h"
+#include <cstring>
+#include <fstream>
+#include <iostream>
 
-extern void use_read(std::ifstream& in);
+extern void use_read(std::ifstream &in);
 
 int main(int argc, char **argv) {
   if (argc < 2) {

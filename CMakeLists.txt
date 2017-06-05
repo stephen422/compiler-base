@@ -21,7 +21,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     include_directories ("${LIBCXX_PATH}/include/c++/v1")
     link_directories ("${LIBCXX_PATH}/lib")
     # Linking phase calls clang; supply it with -stdlib again
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -v")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
   endif ()
 else ()
 endif ()
