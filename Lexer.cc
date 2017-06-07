@@ -1,4 +1,7 @@
 #include "Lexer.h"
 
-Lexer::Lexer(const std::string &path) {
+void Lexer::Lex() {
+  std::cout << "File size: " << src.buffer().size() << std::endl;
+  std::cout << "Dump of buffer:\n";
+  std::cout << src.buffer().data();
 }

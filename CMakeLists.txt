@@ -5,6 +5,7 @@ include_directories ("${PROJECT_BINARY_DIR}")
 
 add_definitions (-std=c++1z)
 set (CMAKE_BUILD_TYPE Debug)
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 
 # Force colored output for Ninja
 if (CMAKE_GENERATOR MATCHES "Ninja")
@@ -26,4 +27,4 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 else ()
 endif ()
 
-add_executable (compiler main.cc Source.cc)
+add_executable (compiler main.cc Source.cc Lexer.cc)

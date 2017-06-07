@@ -11,12 +11,9 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  std::ifstream file{argv[1], std::ios::binary};
-  if (!file) {
-    std::cerr << "error: " << strerror(errno) << std::endl;
-    return 1;
-  }
-  use_read(file);
-  // use_stringstream(file);
+  Source src{argv[1]};
+  Lexer lexer{src};
+  lexer.Lex();
+
   return 0;
 }
