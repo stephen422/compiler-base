@@ -1,9 +1,9 @@
 // -*- C++ -*-
 
 #include "Source.h"
+#include <algorithm>
 #include <string>
 #include <string_view>
-#include <algorithm>
 
 /// Represents a lexer state machine.
 /// This lexer assumes that the source data will outlive it.
@@ -17,7 +17,10 @@ class Lexer {
   std::string_view::iterator look;
 
   /// Returns the end pos of the source.
-  std::string_view::iterator end() const { return std::cend(sv); }
+  std::string_view::iterator eos() const { return std::cend(sv); }
+
+  /// Lex the next identifier.
+  const std::string lex_ident();
 
 public:
   /// Make a lexer for the given file.
@@ -28,5 +31,5 @@ public:
   /// would outlive the lexer.
   Lexer(std::string_view sv);
 
-  void Lex();
+  std::string lex();
 };

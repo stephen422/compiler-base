@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
 
   Source src{argv[1]};
   Lexer lexer{src};
-  lexer.Lex();
+  lexer.lex();
 
   return 0;
 }
