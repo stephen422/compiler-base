@@ -4,6 +4,19 @@
 #include <algorithm>
 #include <string>
 #include <string_view>
+#include <variant>
+
+struct Ident {
+  const std::string name;
+};
+
+struct Number {
+  const std::string value;
+};
+
+struct Eof {};
+
+using Token = std::variant<Ident, Number, Eof>;
 
 /// Represents a lexer state machine.
 /// This lexer assumes that the source data will outlive it.
@@ -20,7 +33,10 @@ class Lexer {
   std::string_view::iterator eos() const { return std::cend(sv); }
 
   /// Lex the next identifier.
-  const std::string lex_ident();
+  const Ident lex_ident();
+
+  /// Lex the next numeric literal.
+  const Number lex_numeric();
 
   /// Move current pos to the first non-whitespace char.
   void skip_whitespace();
@@ -34,5 +50,5 @@ public:
   /// would outlive the lexer.
   Lexer(std::string_view sv);
 
-  std::string lex();
+  Token lex();
 };

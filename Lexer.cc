@@ -1,15 +1,22 @@
 #include "Lexer.h"
 #include <cctype>
 
-const std::string Lexer::lex_ident() {
+const Ident Lexer::lex_ident() {
   auto isalpha = [](char c) { return std::isalnum(c) || c == '_'; };
   auto end = std::find_if_not(look, eos(), isalpha);
   auto token = std::string(look, end);
   look = end;
-  return token;
+  return Ident{.name = token};
 }
 
-std::string Lexer::lex() {
+const Number Lexer::lex_numeric() {
+  auto end = std::find_if_not(look, eos(), isdigit);
+  auto token = std::string(look, end);
+  look = end;
+  return Number{.value = token};
+}
+
+Token Lexer::lex() {
   std::cout << "File size: " << src.buffer().size() << std::endl;
   std::cout << "Current pos: " << look - std::cbegin(sv) << std::endl;
 
@@ -22,10 +29,12 @@ std::string Lexer::lex() {
 
   // Identifier starts with an alphabet or an underscore.
   if (std::isalpha(*look) || *look == '_') {
-    std::cout << "ident: [" << lex_ident() << "]\n";
+    std::cout << "ident: [" << lex_ident().name << "]\n";
+  } else if (std::isdigit(*look)) {
+    std::cout << "numeric: [" << lex_numeric().value << "]\n";
   } else if (look == eos()) {
     std::cout << "End of file\n";
-    return "EOF";
+    return Eof{};
   } else {
     std::cout << "not ident\n";
     look++;
@@ -33,7 +42,7 @@ std::string Lexer::lex() {
 
   std::cout << "Current pos: " << look - std::cbegin(sv) << std::endl;
 
-  return "token";
+  return Ident{.name = "token"};
 }
 
 void Lexer::skip_whitespace() {
