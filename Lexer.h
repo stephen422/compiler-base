@@ -22,6 +22,9 @@ class Lexer {
   /// Lex the next identifier.
   const std::string lex_ident();
 
+  /// Move current pos to the first non-whitespace char.
+  void skip_whitespace();
+
 public:
   /// Make a lexer for the given file.
   Lexer(Source &src)

@@ -14,6 +14,12 @@ std::string Lexer::lex() {
   std::cout << "Current pos: " << look - std::cbegin(sv) << std::endl;
 
   std::cout << "[" << *look << "]: ";
+
+  // Skip whitespace at the beginning of the lex.
+  // This could be done at the end of the lex, but that requires additional
+  // operation for sources that contains whitespace at the start.
+  skip_whitespace();
+
   // Identifier starts with an alphabet or an underscore.
   if (std::isalpha(*look) || *look == '_') {
     std::cout << "ident: [" << lex_ident() << "]\n";
@@ -28,4 +34,8 @@ std::string Lexer::lex() {
   std::cout << "Current pos: " << look - std::cbegin(sv) << std::endl;
 
   return "token";
+}
+
+void Lexer::skip_whitespace() {
+  look = std::find_if_not(look, eos(), isspace);
 }
