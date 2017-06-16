@@ -2,8 +2,8 @@
 #include <cctype>
 
 const std::string Lexer::lex_ident() {
-  auto end = std::find_if_not(
-      look, eos(), [](char c) { return std::isalnum(c) || c == '_'; });
+  auto isalpha = [](char c) { return std::isalnum(c) || c == '_'; };
+  auto end = std::find_if_not(look, eos(), isalpha);
   auto token = std::string(look, end);
   look = end;
   return token;
