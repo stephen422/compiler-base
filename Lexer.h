@@ -44,7 +44,7 @@ class Lexer {
 public:
   /// Make a lexer for the given file.
   Lexer(Source &src)
-      : src(src), sv(src.buffer().data()), look(std::cbegin(sv)) {}
+      : src(src), sv(src.buffer().data(), src.buffer().size()), look(std::cbegin(sv)) {}
 
   /// Make a Lexer from the given memory buffer.  Assumes the buffer
   /// would outlive the lexer.

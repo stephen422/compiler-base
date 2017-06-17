@@ -17,30 +17,31 @@ const Number Lexer::lex_numeric() {
 }
 
 Token Lexer::lex() {
-  std::cout << "File size: " << src.buffer().size() << std::endl;
-  std::cout << "Current pos: " << look - std::cbegin(sv) << std::endl;
-
-  std::cout << "[" << *look << "]: ";
+  auto total = std::cend(sv) - std::cbegin(sv);
+  std::cout << "Current pos: " << look - std::cbegin(sv) << " / " << total
+            << std::endl;
 
   // Skip whitespace at the beginning of the lex.
   // This could be done at the end of the lex, but that requires additional
   // operation for sources that contains whitespace at the start.
   skip_whitespace();
 
+  std::cout << "Skipped pos: " << look - std::cbegin(sv) << " / " << total
+            << std::endl;
+
   // Identifier starts with an alphabet or an underscore.
-  if (std::isalpha(*look) || *look == '_') {
+  if (look == eos()) {
+    std::cout << "eos\n";
+    return Eof{};
+  } else if (std::isalpha(*look) || *look == '_') {
     std::cout << "ident: [" << lex_ident().s << "]\n";
   } else if (std::isdigit(*look)) {
     std::cout << "numeric: [" << lex_numeric().s << "]\n";
-  } else if (look == eos()) {
-    std::cout << "End of file\n";
-    return Eof{};
   } else {
-    std::cout << "not ident\n";
-    look++;
+    // std::cerr << "lex error: [" << *look << "]: Unrecognized token type\n";
+    std::cout << eos() - look << " chars left to eos\n";
+    throw std::string{"Unrecognized token type"};
   }
-
-  std::cout << "Current pos: " << look - std::cbegin(sv) << std::endl;
 
   return Ident{"token"};
 }

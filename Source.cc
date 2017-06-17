@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <cstring>
 
 void use_stringstream(std::ifstream &in) {
   std::stringstream sstr;

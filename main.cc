@@ -13,7 +13,9 @@ int main(int argc, char **argv) {
 
   Source src{argv[1]};
   Lexer lexer{src};
-  lexer.lex();
+
+  while (!std::holds_alternative<Eof>(lexer.lex())) {
+  }
 
   return 0;
 }
