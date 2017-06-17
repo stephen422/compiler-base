@@ -5,11 +5,15 @@ include_directories ("${PROJECT_BINARY_DIR}")
 
 add_definitions (-std=c++1z)
 set (CMAKE_BUILD_TYPE Debug)
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -Wextra -fsanitize=address")
 
 # Force colored output for Ninja
 if (CMAKE_GENERATOR MATCHES "Ninja")
-  add_definitions (-fcolor-diagnostics)
+  if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_definitions (-fcolor-diagnostics)
+  elseif (CMAKE_CXX_COMPILER_ID MATCHES "gcc")
+    add_definitions (-fdiagnostics-color=always)
+  endif ()
 endif ()
 
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
