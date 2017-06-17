@@ -6,14 +6,14 @@ const Ident Lexer::lex_ident() {
   auto end = std::find_if_not(look, eos(), isalpha);
   auto token = std::string(look, end);
   look = end;
-  return Ident{.name = token};
+  return Ident{token};
 }
 
 const Number Lexer::lex_numeric() {
   auto end = std::find_if_not(look, eos(), isdigit);
   auto token = std::string(look, end);
   look = end;
-  return Number{.value = token};
+  return Number{token};
 }
 
 Token Lexer::lex() {
@@ -29,9 +29,9 @@ Token Lexer::lex() {
 
   // Identifier starts with an alphabet or an underscore.
   if (std::isalpha(*look) || *look == '_') {
-    std::cout << "ident: [" << lex_ident().name << "]\n";
+    std::cout << "ident: [" << lex_ident().s << "]\n";
   } else if (std::isdigit(*look)) {
-    std::cout << "numeric: [" << lex_numeric().value << "]\n";
+    std::cout << "numeric: [" << lex_numeric().s << "]\n";
   } else if (look == eos()) {
     std::cout << "End of file\n";
     return Eof{};
@@ -42,7 +42,7 @@ Token Lexer::lex() {
 
   std::cout << "Current pos: " << look - std::cbegin(sv) << std::endl;
 
-  return Ident{.name = "token"};
+  return Ident{"token"};
 }
 
 void Lexer::skip_whitespace() {

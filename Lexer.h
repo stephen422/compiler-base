@@ -7,11 +7,11 @@
 #include <variant>
 
 struct Ident {
-  const std::string name;
+  const std::string s;
 };
 
 struct Number {
-  const std::string value;
+  const std::string s;
 };
 
 struct Eof {};
