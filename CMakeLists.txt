@@ -5,7 +5,7 @@ include_directories ("${PROJECT_BINARY_DIR}")
 
 add_definitions (-std=c++1z)
 set (CMAKE_BUILD_TYPE Debug)
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -Wextra -fsanitize=address")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -fsanitize=address -fno-omit-frame-pointer")
 
 # Force colored output for Ninja
 if (CMAKE_GENERATOR MATCHES "Ninja")
@@ -31,4 +31,11 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 else ()
 endif ()
 
+# Creates executable target "compiler".
 add_executable (compiler main.cc Source.cc Lexer.cc)
+
+# Should be below the add_executable () line to avoid complaining about
+# nonexistent target.
+add_custom_command(TARGET compiler
+  POST_BUILD
+  COMMAND "dsymutil" $<TARGET_FILE:compiler>)
