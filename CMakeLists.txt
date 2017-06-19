@@ -11,7 +11,7 @@ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -fsanitize=address -fno-o
 if (CMAKE_GENERATOR MATCHES "Ninja")
   if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_definitions (-fcolor-diagnostics)
-  elseif (CMAKE_CXX_COMPILER_ID MATCHES "gcc")
+  elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     add_definitions (-fdiagnostics-color=always)
   endif ()
 endif ()
