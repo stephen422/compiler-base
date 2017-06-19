@@ -14,7 +14,11 @@ int main(int argc, char **argv) {
   Source src{argv[1]};
   Lexer lexer{src};
 
-  while (!std::holds_alternative<Eof>(lexer.lex())) {
+  while (true) {
+    auto token = lexer.lex();
+
+    if (std::holds_alternative<Eos>(token))
+      break;
   }
 
   return 0;

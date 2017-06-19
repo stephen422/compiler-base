@@ -9,34 +9,46 @@ const Ident Lexer::lex_ident() {
   return Ident{token};
 }
 
-const Number Lexer::lex_numeric() {
+const Number Lexer::lex_number() {
   auto end = std::find_if_not(look, eos(), isdigit);
   auto token = std::string(look, end);
   look = end;
   return Number{token};
 }
 
+template <typename T> const Token Lexer::lex_single() {
+  look++;
+  return T{};
+}
+
 Token Lexer::lex() {
   auto total = std::cend(sv) - std::cbegin(sv);
-  std::cout << "Current pos: " << look - std::cbegin(sv) << " / " << total
-            << std::endl;
 
   // Skip whitespace at the beginning of the lex.
   // This could be done at the end of the lex, but that requires additional
   // operation for sources that contains whitespace at the start.
   skip_whitespace();
 
-  std::cout << "Skipped pos: " << look - std::cbegin(sv) << " / " << total
-            << std::endl;
+  std::cout << "pos " << look - std::cbegin(sv) << "/" << total << ": ";
 
   // Identifier starts with an alphabet or an underscore.
   if (look == eos()) {
     std::cout << "eos\n";
-    return Eof{};
+    return Eos{};
   } else if (std::isalpha(*look) || *look == '_') {
-    std::cout << "ident: [" << lex_ident().s << "]\n";
+    auto tok = lex_ident();
+    std::cout << "ident [" << tok.s << "]\n";
+    return tok;
   } else if (std::isdigit(*look)) {
-    std::cout << "numeric: [" << lex_numeric().s << "]\n";
+    auto tok = lex_number();
+    std::cout << "number [" << tok.s << "]\n";
+    return tok;
+  } else if (*look == '.') {
+    std::cout << "dot\n";
+    return lex_single<Dot>();
+  } else if (*look == ',') {
+    std::cout << "comma\n";
+    return lex_single<Comma>();
   } else {
     // std::cerr << "lex error: [" << *look << "]: Unrecognized token type\n";
     std::cout << eos() - look << " chars left to eos\n";
@@ -46,6 +58,4 @@ Token Lexer::lex() {
   return Ident{"token"};
 }
 
-void Lexer::skip_whitespace() {
-  look = std::find_if_not(look, eos(), isspace);
-}
+void Lexer::skip_whitespace() { look = std::find_if_not(look, eos(), isspace); }

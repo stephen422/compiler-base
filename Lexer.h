@@ -14,9 +14,18 @@ struct Number {
   const std::string s;
 };
 
-struct Eof {};
+struct String {
+  const std::string s;
+};
 
-using Token = std::variant<Ident, Number, Eof>;
+struct Dot {};
+struct Comma {};
+struct Colon {};
+struct Semicolon {};
+struct Eos {};
+
+using Token =
+    std::variant<Ident, Number, String, Dot, Comma, Colon, Semicolon, Eos>;
 
 /// Represents a lexer state machine.
 /// This lexer assumes that the source data will outlive it.
@@ -35,8 +44,12 @@ class Lexer {
   /// Lex the next identifier.
   const Ident lex_ident();
 
-  /// Lex the next numeric literal.
-  const Number lex_numeric();
+  /// Lex the next number literal.
+  const Number lex_number();
+
+  /// Lex any token that consists of a single character, such as
+  /// '.', ';', '(', ')', etc.
+  template <typename T> const Token lex_single();
 
   /// Move current pos to the first non-whitespace char.
   void skip_whitespace();
@@ -44,11 +57,13 @@ class Lexer {
 public:
   /// Make a lexer for the given file.
   Lexer(Source &src)
-      : src(src), sv(src.buffer().data(), src.buffer().size()), look(std::cbegin(sv)) {}
+      : src(src), sv(src.buffer().data(), src.buffer().size()),
+        look(std::cbegin(sv)) {}
 
   /// Make a Lexer from the given memory buffer.  Assumes the buffer
   /// would outlive the lexer.
   Lexer(std::string_view sv);
 
+  /// Lex the current token and advance to the next one.
   Token lex();
 };
