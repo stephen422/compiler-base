@@ -1,6 +1,8 @@
 cmake_minimum_required (VERSION 2.6)
 project (compiler-base)
 
+enable_testing ()
+
 include_directories ("${PROJECT_BINARY_DIR}")
 
 add_definitions (-std=c++1z)
@@ -39,3 +41,23 @@ add_executable (compiler main.cc Source.cc Lexer.cc)
 add_custom_command(TARGET compiler
   POST_BUILD
   COMMAND "dsymutil" $<TARGET_FILE:compiler>)
+
+### Testing
+
+# Creates the test target.
+add_executable (compiler-test EXCLUDE_FROM_ALL test.cc Source.cc Lexer.cc)
+
+# Use "env CTEST_OUTPUT_ON_FAILURE=1 ninja test" to see output on fail.
+add_test (NAME test COMMAND compiler-test "--use-colour" "yes")
+
+# Workaround of the cmake bug of 'test' not depending on its test target [1].
+# Use "ninja check" to rebuild the target on demand and then run the test.
+#
+# This also solves the problem of CTest not outputting anything even on test
+# failure, which in case of "ninja test" should be solved by explicitly setting
+# env $CTEST_OUTPUT_ON_FAILURE to 1.
+#
+# [1] https://stackoverflow.com/questions/733475/cmake-ctest-make-test-doesnt-build-tests
+
+add_custom_target (check COMMAND ${CMAKE_CTEST_COMMAND} "--output-on-failure"
+  DEPENDS compiler-test)

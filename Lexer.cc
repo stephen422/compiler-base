@@ -43,6 +43,18 @@ Token Lexer::lex() {
     auto tok = lex_number();
     std::cout << "number [" << tok.s << "]\n";
     return tok;
+  } else if (*look == '(') {
+    std::cout << "lparen\n";
+    return lex_single<Lparen>();
+  } else if (*look == ')') {
+    std::cout << "rparen\n";
+    return lex_single<Rparen>();
+  } else if (*look == '{') {
+    std::cout << "lbrace\n";
+    return lex_single<Lbrace>();
+  } else if (*look == '}') {
+    std::cout << "rbrace\n";
+    return lex_single<Rbrace>();
   } else if (*look == '.') {
     std::cout << "dot\n";
     return lex_single<Dot>();

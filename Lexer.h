@@ -18,14 +18,18 @@ struct String {
   const std::string s;
 };
 
+struct Lparen {};
+struct Rparen {};
+struct Lbrace {};
+struct Rbrace {};
 struct Dot {};
 struct Comma {};
 struct Colon {};
 struct Semicolon {};
 struct Eos {};
 
-using Token =
-    std::variant<Ident, Number, String, Dot, Comma, Colon, Semicolon, Eos>;
+using Token = std::variant<Ident, Number, String, Lparen, Rparen, Lbrace,
+                           Rbrace, Dot, Comma, Colon, Semicolon, Eos>;
 
 /// Represents a lexer state machine.
 /// This lexer assumes that the source data will outlive it.
