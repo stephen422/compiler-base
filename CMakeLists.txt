@@ -9,6 +9,13 @@ add_definitions (-std=c++1z)
 set (CMAKE_BUILD_TYPE Debug)
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -fsanitize=address -fno-omit-frame-pointer")
 
+# Compiler invocation switch
+set (COMPILER_VERBOSE "" CACHE PATH "Print verbose compiler invocation.")
+
+if (COMPILER_VERBOSE)
+  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -v")
+endif ()
+
 # Force colored output for Ninja
 if (CMAKE_GENERATOR MATCHES "Ninja")
   if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
