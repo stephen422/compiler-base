@@ -36,11 +36,13 @@ endif ()
 # Creates executable target "compiler".
 add_executable (compiler main.cc Source.cc Lexer.cc)
 
-# Should be below the add_executable () line to avoid complaining about
-# nonexistent target.
-add_custom_command(TARGET compiler
-  POST_BUILD
-  COMMAND "dsymutil" $<TARGET_FILE:compiler>)
+if (APPLE)
+  # Should be below the add_executable () line to avoid complaining about
+  # nonexistent target.
+  add_custom_command(TARGET compiler
+    POST_BUILD
+    COMMAND "dsymutil" $<TARGET_FILE:compiler>)
+endif ()
 
 ### Testing
 
