@@ -10,7 +10,7 @@ set (CMAKE_BUILD_TYPE Debug)
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -fsanitize=address -fno-omit-frame-pointer")
 
 # Compiler invocation switch
-set (COMPILER_VERBOSE "" CACHE PATH "Print verbose compiler invocation.")
+option (COMPILER_VERBOSE "Print verbose compiler invocation" OFF)
 
 if (COMPILER_VERBOSE)
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -v")
