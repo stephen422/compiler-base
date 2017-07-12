@@ -22,14 +22,33 @@ struct Lparen {};
 struct Rparen {};
 struct Lbrace {};
 struct Rbrace {};
+struct Lbracket {};
+struct Rbracket {};
+struct Lesserthan {};
+struct Greaterthan {};
 struct Dot {};
 struct Comma {};
 struct Colon {};
 struct Semicolon {};
+struct Doublequote {};
+struct Quote {};
+struct Equals {};
+struct Plus {};
+struct Minus {};
+struct Star {};
+struct Ampersand {};
+struct Caret {};
+struct Tilde {};
+struct Slash {};
+struct Backslash {};
+struct Bang {};
+struct Question {};
+struct Hash {};
+struct Bar {};
 struct Eos {};
 
 using Token = std::variant<Ident, Number, String, Lparen, Rparen, Lbrace,
-                           Rbrace, Dot, Comma, Colon, Semicolon, Eos>;
+                           Rbrace, Lbracket, Rbracket, Lesserthan, Greaterthan, Dot, Comma, Colon, Semicolon, Doublequote, Quote, Equals, Plus, Minus, Star, Ampersand, Caret, Tilde, Slash, Backslash, Bang, Question, Hash, Bar, Eos>;
 
 /// Represents a lexer state machine.
 /// This lexer assumes that the source data will outlive it.

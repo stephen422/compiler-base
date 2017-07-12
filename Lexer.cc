@@ -55,14 +55,74 @@ Token Lexer::lex() {
   } else if (*look == '}') {
     std::cout << "rbrace\n";
     return lex_single<Rbrace>();
+  } else if (*look == '[') {
+    std::cout << "lbrace\n";
+    return lex_single<Lbrace>();
+  } else if (*look == ']') {
+    std::cout << "rbrace\n";
+    return lex_single<Rbrace>();
+  } else if (*look == '<') {
+    std::cout << "lesserthan\n";
+    return lex_single<Lesserthan>();
+  } else if (*look == '>') {
+    std::cout << "greaterthan\n";
+    return lex_single<Greaterthan>();
   } else if (*look == '.') {
     std::cout << "dot\n";
     return lex_single<Dot>();
   } else if (*look == ',') {
     std::cout << "comma\n";
     return lex_single<Comma>();
+  } else if (*look == ':') {
+    std::cout << "colon\n";
+    return lex_single<Colon>();
+  } else if (*look == ';') {
+    std::cout << "semicolon\n";
+    return lex_single<Semicolon>();
+  } else if (*look == '"') {
+    std::cout << "doublequote\n";
+    return lex_single<Doublequote>();
+  } else if (*look == '\'') {
+    std::cout << "quote\n";
+    return lex_single<Quote>();
+  } else if (*look == '=') {
+    std::cout << "equals\n";
+    return lex_single<Equals>();
+  } else if (*look == '+') {
+    std::cout << "plus\n";
+    return lex_single<Plus>();
+  } else if (*look == '-') {
+    std::cout << "minus\n";
+    return lex_single<Minus>();
+  } else if (*look == '*') {
+    std::cout << "star\n";
+    return lex_single<Star>();
+  } else if (*look == '&') {
+    std::cout << "ampersand\n";
+    return lex_single<Ampersand>();
+  } else if (*look == '^') {
+    std::cout << "caret\n";
+    return lex_single<Caret>();
+  } else if (*look == '/') {
+    std::cout << "slash\n";
+    return lex_single<Slash>();
+  } else if (*look == '\\') {
+    std::cout << "backslash\n";
+    return lex_single<Backslash>();
+  } else if (*look == '!') {
+    std::cout << "bang\n";
+    return lex_single<Bang>();
+  } else if (*look == '?') {
+    std::cout << "question\n";
+    return lex_single<Question>();
+  } else if (*look == '#') {
+    std::cout << "hash\n";
+    return lex_single<Hash>();
+  } else if (*look == '|') {
+    std::cout << "bar\n";
+    return lex_single<Bar>();
   } else {
-    // std::cerr << "lex error: [" << *look << "]: Unrecognized token type\n";
+    std::cerr << "lex error: [" << *look << "]: Unrecognized token type\n";
     std::cout << eos() - look << " chars left to eos\n";
     throw std::string{"Unrecognized token type"};
   }
