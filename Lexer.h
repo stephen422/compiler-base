@@ -64,19 +64,6 @@ class Lexer {
   /// Returns the end pos of the source.
   std::string_view::iterator eos() const { return std::cend(sv); }
 
-  /// Lex the next identifier.
-  const Ident lex_ident();
-
-  /// Lex the next number literal.
-  const Number lex_number();
-
-  /// Lex the next string literal.
-  const String lex_string();
-
-  /// Lex any token that consists of a single character, such as
-  /// '.', ';', '(', ')', etc.
-  template <typename T> const Token lex_single();
-
   /// Move current pos to the first non-whitespace char.
   void skip_whitespace();
 
@@ -92,4 +79,17 @@ public:
 
   /// Lex the current token and advance to the next one.
   Token lex();
+
+  /// Lex the next identifier.
+  const Ident lex_ident();
+
+  /// Lex the next number literal.
+  const Number lex_number();
+
+  /// Lex the next string literal.
+  const String lex_string();
+
+  /// Lex any token that consists of a single character, such as
+  /// '.', ';', '(', ')', etc.
+  template <typename T> const Token lex_single();
 };

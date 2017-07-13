@@ -11,7 +11,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  Source src{argv[1]};
+  auto src = source_from_file(argv[1]);
   Lexer lexer{src};
 
   while (true) {

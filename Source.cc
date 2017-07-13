@@ -9,7 +9,7 @@ void use_stringstream(std::ifstream &in) {
   sstr << in.rdbuf();
 }
 
-static void readFile(const std::string &path, std::vector<char> &buf) {
+Source source_from_file(const std::string &path) {
   std::ifstream in{path, std::ios::binary};
   if (!in) {
     std::cerr << strerror(errno) << std::endl;
@@ -18,23 +18,15 @@ static void readFile(const std::string &path, std::vector<char> &buf) {
 
   // This is ~2x faster than the 'stringstream << buf.rdbuf()' method
   // (https://stackoverflow.com/questions/18816126/c-read-the-whole-file-in-buffer).
-  // Might try to rewrite this to use code-level buffering, but doubt
-  // that will ever be necessary...
+  // Might try to rewrite this to use code-level buffering, but I doubt that
+  // will ever be necessary...
+
   in.seekg(0, std::ios::end);
   auto size = in.tellg();
   in.seekg(0, std::ios::beg);
 
-  // FIXME reserve / resize?
-  buf.resize(size);
+  std::vector<char> buf(size);
   in.read(buf.data(), size);
   buf.resize(in.tellg());
-}
-
-const std::vector<char> &Source::buffer() {
-  if (!read) {
-    readFile(path, buf);
-    read = true;
-  }
-
-  return buf;
+  return Source{std::move(buf)};
 }

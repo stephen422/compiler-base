@@ -2,6 +2,9 @@
 #include "catch.hpp"
 #include "Lexer.h"
 
-TEST_CASE( "Identifier lexing", "[lex_ident]" ) {
-  REQUIRE ( 1 == 0 );
+TEST_CASE( "String lexing", "[lex_string]" ) {
+  Source src{"\"Hello, there!\""};
+  Lexer lexer{src};
+  auto tok = lexer.lex_string();
+  REQUIRE ( tok.s == "\"Hello, there!\"" );
 }
