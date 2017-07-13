@@ -70,6 +70,9 @@ class Lexer {
   /// Lex the next number literal.
   const Number lex_number();
 
+  /// Lex the next string literal.
+  const String lex_string();
+
   /// Lex any token that consists of a single character, such as
   /// '.', ';', '(', ')', etc.
   template <typename T> const Token lex_single();

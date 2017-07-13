@@ -16,6 +16,22 @@ const Number Lexer::lex_number() {
   return Number{token};
 }
 
+const String Lexer::lex_string() {
+  auto end = look + 1;
+  for (; end != eos(); end = std::find_if(look, eos(), [](char c) { return (c == '\\') || (c == '"'); })) {
+    if (*end == '"')
+      break;
+    // Skip the escaped character
+    end += 2;
+  }
+  // Range is end-exclusive
+  end++;
+
+  auto token = std::string(look, end);
+  look = end;
+  return String{token};
+}
+
 template <typename T> const Token Lexer::lex_single() {
   look++;
   return T{};
@@ -80,8 +96,9 @@ Token Lexer::lex() {
     std::cout << "semicolon\n";
     return lex_single<Semicolon>();
   } else if (*look == '"') {
-    std::cout << "doublequote\n";
-    return lex_single<Doublequote>();
+    auto tok = lex_string();
+    std::cout << "string [" << tok.s << "]\n";
+    return tok;
   } else if (*look == '\'') {
     std::cout << "quote\n";
     return lex_single<Quote>();
