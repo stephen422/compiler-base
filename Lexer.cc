@@ -4,16 +4,16 @@
 const Ident Lexer::lex_ident() {
   auto isalpha = [](char c) { return std::isalnum(c) || c == '_'; };
   auto end = std::find_if_not(look, eos(), isalpha);
-  auto token = std::string(look, end);
+  auto s = std::string(look, end);
   look = end;
-  return Ident{token};
+  return Ident{s};
 }
 
 const Number Lexer::lex_number() {
   auto end = std::find_if_not(look, eos(), isdigit);
-  auto token = std::string(look, end);
+  auto s = std::string(look, end);
   look = end;
-  return Number{token};
+  return Number{s};
 }
 
 const String Lexer::lex_string() {
@@ -27,9 +27,16 @@ const String Lexer::lex_string() {
   // Range is end-exclusive
   end++;
 
-  auto token = std::string(look, end);
+  auto s = std::string(look, end);
   look = end;
-  return String{token};
+  return String{s};
+}
+
+const Comment Lexer::lex_comment() {
+  auto end = std::find(look, eos(), '\n');
+  auto s = std::string(look, end);
+  look = end;
+  return Comment{s};
 }
 
 template <typename T> const Token Lexer::lex_single() {
@@ -114,15 +121,20 @@ Token Lexer::lex() {
   } else if (*look == '*') {
     std::cout << "star\n";
     return lex_single<Star>();
+  } else if (*look == '/') {
+    // Slashes may be either divides or comments
+    if (look + 1 != eos() && *(look + 1) == '/') {
+      std::cout << "comment\n";
+      return lex_comment();
+    }
+    std::cout << "slash\n";
+    return lex_single<Slash>();
   } else if (*look == '&') {
     std::cout << "ampersand\n";
     return lex_single<Ampersand>();
   } else if (*look == '^') {
     std::cout << "caret\n";
     return lex_single<Caret>();
-  } else if (*look == '/') {
-    std::cout << "slash\n";
-    return lex_single<Slash>();
   } else if (*look == '\\') {
     std::cout << "backslash\n";
     return lex_single<Backslash>();

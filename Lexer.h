@@ -18,6 +18,10 @@ struct String {
   const std::string s;
 };
 
+struct Comment {
+  const std::string s;
+};
+
 struct Lparen {};
 struct Rparen {};
 struct Lbrace {};
@@ -47,7 +51,7 @@ struct Hash {};
 struct Bar {};
 struct Eos {};
 
-using Token = std::variant<Ident, Number, String, Lparen, Rparen, Lbrace,
+using Token = std::variant<Ident, Number, String, Comment, Lparen, Rparen, Lbrace,
                            Rbrace, Lbracket, Rbracket, Lesserthan, Greaterthan, Dot, Comma, Colon, Semicolon, Doublequote, Quote, Equals, Plus, Minus, Star, Ampersand, Caret, Tilde, Slash, Backslash, Bang, Question, Hash, Bar, Eos>;
 
 /// Represents a lexer state machine.
@@ -88,6 +92,9 @@ public:
 
   /// Lex the next string literal.
   const String lex_string();
+
+  /// Lex the next single-line comment.
+  const Comment lex_comment();
 
   /// Lex any token that consists of a single character, such as
   /// '.', ';', '(', ')', etc.
