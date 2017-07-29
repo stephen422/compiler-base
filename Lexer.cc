@@ -135,6 +135,12 @@ Token Lexer::lex() {
   } else if (*look == '^') {
     std::cout << "caret\n";
     return lex_single<Caret>();
+  } else if (*look == '~') {
+    std::cout << "tilde\n";
+    return lex_single<Tilde>();
+  } else if (*look == '/') {
+    std::cout << "slash\n";
+    return lex_single<Slash>();
   } else if (*look == '\\') {
     std::cout << "backslash\n";
     return lex_single<Backslash>();

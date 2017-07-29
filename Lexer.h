@@ -51,8 +51,12 @@ struct Hash {};
 struct Bar {};
 struct Eos {};
 
-using Token = std::variant<Ident, Number, String, Comment, Lparen, Rparen, Lbrace,
-                           Rbrace, Lbracket, Rbracket, Lesserthan, Greaterthan, Dot, Comma, Colon, Semicolon, Doublequote, Quote, Equals, Plus, Minus, Star, Ampersand, Caret, Tilde, Slash, Backslash, Bang, Question, Hash, Bar, Eos>;
+using Token =
+    std::variant<Ident, Number, String, Comment, Lparen, Rparen, Lbrace, Rbrace,
+                 Lbracket, Rbracket, Lesserthan, Greaterthan, Dot, Comma, Colon,
+                 Semicolon, Doublequote, Quote, Equals, Plus, Minus, Star,
+                 Ampersand, Caret, Tilde, Slash, Backslash, Bang, Question,
+                 Hash, Bar, Eos>;
 
 /// Represents a lexer state machine.
 /// This lexer assumes that the source data will outlive it.
