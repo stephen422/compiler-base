@@ -23,6 +23,12 @@ TEST_CASE( "String lexing", "[lex_string]" ) {
     auto tok = lexer.lex_string();
     REQUIRE( tok.s == "\"\\\"\\n\\\"\\t\\\"\"" );
   }
+  SECTION("meets EOS") {
+    Source src{"\"Hello,"};
+    Lexer lexer{src};
+    auto tok = lexer.lex_string();
+    REQUIRE( tok.s == "\"Hello," );
+  }
 }
 
 TEST_CASE( "Comment lexing", "[lex_comment]" ) {

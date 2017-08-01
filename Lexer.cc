@@ -21,7 +21,7 @@ const String Lexer::lex_string() {
   for (; end != eos(); end = std::find_if(end, eos(), [](char c) { return (c == '\\') || (c == '"'); })) {
     if (*end == '"')
       break;
-    // Skip the escaped character
+    // Skip the escaped character '\x'
     end += 2;
   }
   // Range is end-exclusive
@@ -124,8 +124,9 @@ Token Lexer::lex() {
   } else if (*look == '/') {
     // Slashes may be either divides or comments
     if (look + 1 != eos() && *(look + 1) == '/') {
-      std::cout << "comment\n";
-      return lex_comment();
+      auto tok = lex_comment();
+      std::cout << "comment: [" << tok.s << "]\n";
+      return tok;
     }
     std::cout << "slash\n";
     return lex_single<Slash>();

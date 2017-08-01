@@ -18,6 +18,10 @@ struct String {
   const std::string s;
 };
 
+struct Character {
+  const std::string s;
+};
+
 struct Comment {
   const std::string s;
 };
@@ -52,7 +56,7 @@ struct Bar {};
 struct Eos {};
 
 using Token =
-    std::variant<Ident, Number, String, Comment, Lparen, Rparen, Lbrace, Rbrace,
+    std::variant<Ident, Number, String, Character, Comment, Lparen, Rparen, Lbrace, Rbrace,
                  Lbracket, Rbracket, Lesserthan, Greaterthan, Dot, Comma, Colon,
                  Semicolon, Doublequote, Quote, Equals, Plus, Minus, Star,
                  Ampersand, Caret, Tilde, Slash, Backslash, Bang, Question,
