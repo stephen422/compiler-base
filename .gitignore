@@ -30,3 +30,6 @@
 *.exe
 *.out
 *.app
+compiler-base
+
+test.txt
