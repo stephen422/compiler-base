@@ -56,6 +56,18 @@ func (l *Lexer) lexIdent() string {
 	return string(l.src[off:l.off])
 }
 
+func (l *Lexer) lexString() string {
+	off := l.off
+	l.next() // beginning quote
+	for ; l.look != '"'; l.next() {
+		if l.look == '\\' {
+			l.next()
+		}
+	}
+	l.next() // ending quote
+	return string(l.src[off:l.off])
+}
+
 func isLetter(r rune) bool {
 	return 'a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' || r == '_' || r >= utf8.RuneSelf && unicode.IsLetter(r)
 }
@@ -75,9 +87,11 @@ func (l *Lexer) Lex() {
 
 	if isLetter(l.look) {
 		fmt.Printf("[%v]\n", l.lexIdent())
+	} else if l.look == '"' {
+		fmt.Printf("[%v]\n", l.lexString())
 	} else {
-		fmt.Fprintf(os.Stderr, "error: unrecognized token")
-		os.Exit(1)
+		fmt.Fprintf(os.Stderr, "unrecognized token: [%c]\n", l.look)
+		l.next()
 	}
 }
 
