@@ -21,7 +21,7 @@ type Lexer struct {
 func New(filename string) *Lexer {
 	src, err := ioutil.ReadFile(filename)
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
 	}
 
 	l := Lexer{filename, src, 0, 0, 0}
