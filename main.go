@@ -26,6 +26,7 @@ func New(filename string) *Lexer {
 
 	l := Lexer{filename, src, 0, 0, 0}
 	l.next()
+	l.skipWhitespace() // at the file beginning
 	return &l
 }
 
@@ -83,8 +84,6 @@ func (l *Lexer) skipWhitespace() {
 }
 
 func (l *Lexer) Lex() {
-	l.skipWhitespace()
-
 	if isLetter(l.look) {
 		fmt.Printf("[%v]\n", l.lexIdent())
 	} else if l.look == '"' {
@@ -93,6 +92,8 @@ func (l *Lexer) Lex() {
 		fmt.Fprintf(os.Stderr, "unrecognized token: [%c]\n", l.look)
 		l.next()
 	}
+
+	l.skipWhitespace()
 }
 
 func (l *Lexer) debug() {
