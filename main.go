@@ -69,6 +69,23 @@ func (l *Lexer) lexString() string {
 	return string(l.src[off:l.off])
 }
 
+func (l *Lexer) lexNumber() string {
+	off := l.off
+	l.skipNumbers()
+	// Decimal
+	if l.look == '.' {
+		l.next()
+		l.skipNumbers()
+	}
+	return string(l.src[off:l.off])
+}
+
+func (l *Lexer) skipNumbers() {
+	for isDigit(l.look) {
+		l.next()
+	}
+}
+
 func isLetter(r rune) bool {
 	return 'a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' || r == '_' || r >= utf8.RuneSelf && unicode.IsLetter(r)
 }
@@ -84,16 +101,21 @@ func (l *Lexer) skipWhitespace() {
 }
 
 func (l *Lexer) Lex() {
+	var lit string
+
 	if isLetter(l.look) {
-		fmt.Printf("[%v]\n", l.lexIdent())
+		lit = l.lexIdent()
+	} else if isDigit(l.look) {
+		lit = l.lexNumber()
 	} else if l.look == '"' {
-		fmt.Printf("[%v]\n", l.lexString())
+		lit = l.lexString()
 	} else {
 		fmt.Fprintf(os.Stderr, "unrecognized token: [%c]\n", l.look)
 		l.next()
 	}
 
 	l.skipWhitespace()
+	fmt.Printf("[%v]\n", lit)
 }
 
 func (l *Lexer) debug() {
