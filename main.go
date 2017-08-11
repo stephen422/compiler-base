@@ -111,7 +111,7 @@ func (l *Lexer) Lex() {
 		lit = l.lexString()
 	} else {
 		fmt.Fprintf(os.Stderr, "unrecognized token: [%c]\n", l.look)
-		l.next()
+		os.Exit(1)
 	}
 
 	l.skipWhitespace()
