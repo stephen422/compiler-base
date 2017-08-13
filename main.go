@@ -10,6 +10,14 @@ import (
 
 const EOF = -1
 
+type Token int
+
+const (
+	STRING Token = iota
+	INTEGER
+	DECIMAL
+)
+
 type Lexer struct {
 	filename string
 	src      []byte
@@ -69,15 +77,18 @@ func (l *Lexer) lexString() string {
 	return string(l.src[off:l.off])
 }
 
-func (l *Lexer) lexNumber() string {
+func (l *Lexer) lexNumber() (tok Token, lit string) {
 	off := l.off
 	l.skipNumbers()
+	tok = INTEGER
 	// Decimal
 	if l.look == '.' {
 		l.next()
 		l.skipNumbers()
+		tok = DECIMAL
 	}
-	return string(l.src[off:l.off])
+	lit = string(l.src[off:l.off])
+	return
 }
 
 func (l *Lexer) skipNumbers() {
@@ -106,7 +117,7 @@ func (l *Lexer) Lex() {
 	if isLetter(l.look) {
 		lit = l.lexIdent()
 	} else if isDigit(l.look) {
-		lit = l.lexNumber()
+		_, lit = l.lexNumber()
 	} else if l.look == '"' {
 		lit = l.lexString()
 	} else {
