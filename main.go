@@ -8,14 +8,15 @@ import (
 	"unicode/utf8"
 )
 
-const EOF = -1
-
 type Token int
 
 const (
-	STRING Token = iota
+	IDENT Token = iota
 	INTEGER
 	DECIMAL
+	STRING
+
+	EOF = -1
 )
 
 type Lexer struct {
@@ -111,22 +112,21 @@ func (l *Lexer) skipWhitespace() {
 	}
 }
 
-func (l *Lexer) Lex() {
-	var lit string
-
+func (l *Lexer) Lex() (tok Token, lit string) {
 	if isLetter(l.look) {
+		tok = IDENT
 		lit = l.lexIdent()
 	} else if isDigit(l.look) {
-		_, lit = l.lexNumber()
+		tok, lit = l.lexNumber()
 	} else if l.look == '"' {
+		tok = STRING
 		lit = l.lexString()
 	} else {
 		fmt.Fprintf(os.Stderr, "unrecognized token: [%c]\n", l.look)
 		os.Exit(1)
 	}
-
 	l.skipWhitespace()
-	fmt.Printf("[%v]\n", lit)
+	return
 }
 
 func (l *Lexer) debug() {
@@ -145,8 +145,8 @@ func main() {
 	}
 
 	l := New(os.Args[1])
-	fmt.Println("Read finished!")
 	for l.look != EOF {
-		l.Lex()
+		_, lit := l.Lex()
+		fmt.Printf("[%v]\n", lit)
 	}
 }
