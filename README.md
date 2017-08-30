@@ -1,14 +1,14 @@
 compiler-base
 =============
 
-A simple compiler project for building a systems programming language.
+A simple compiler project for building a simple functional programming language.
 
-Main goals of the language:
+Coarse design goals:
 
-* Built-in static analysis tools (searching & refactoring)
+* Strong focus on functional programming
 
-* Simple constructs with safe memory management
+* Dynamically-typed by default, support gradual typing
 
-* Fast compilation speed
+* Embeddable with a small, self-contained VM
 
 Copyright 2017 Hansung Kim
