@@ -7,7 +7,7 @@ type token =
   | EOL
   | EOF
 
-type loc = (int * int)
+type loc = (int * int) (* row, col *)
 
 let digit = [%sedlex.regexp? '0'..'9']
 
@@ -30,7 +30,7 @@ let rec lex env lexbuf =
     print_endline "EOL";
     lex_newline env lexbuf
 
-  (* skip whitespace (other than '\n') *)
+  (* other than \n *)
   | Plus white_space ->
     lex env lexbuf
 
@@ -61,10 +61,12 @@ and lex_newline env lexbuf =
   env, locate env lexbuf, EOL
 
 and lex_all env lexbuf =
-  let env, _, token = lex env lexbuf in
+  let env, loc, token = lex env lexbuf in
   match token with
   | EOF -> ()
-  | _ -> lex_all env lexbuf
+  | _ ->
+    print_endline "done";
+    lex_all env lexbuf
 
 let () =
   let ch = open_in_bin Sys.argv.(1) in
