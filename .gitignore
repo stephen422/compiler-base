@@ -1,6 +1,7 @@
 # OCaml
 *.cmi
 *.cmo
+*.byte
 
 # Prerequisites
 *.d

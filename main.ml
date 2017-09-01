@@ -4,6 +4,7 @@ open Printf
 type token =
   | NUMBER
   | IDENTIFIER
+  | STRING of string (* lit *)
   | EOL
   | EOF
 
@@ -45,6 +46,12 @@ let rec lex env lexbuf =
     print_endline (Sedlexing.Utf8.lexeme lexbuf);
     env, locate env lexbuf, IDENTIFIER
 
+  | '"' ->
+    print_string "STRING: ";
+    let lit = Buffer.create 16 in
+    let token = lex_string lit lexbuf in
+    env, locate env lexbuf, token
+
   | eof ->
     print_endline "EOF";
     env, locate env lexbuf, EOF
@@ -59,6 +66,24 @@ and lex_newline env lexbuf =
   let env = {bol_line = env.bol_line + 1;
              bol_offset; } in
   env, locate env lexbuf, EOL
+
+and lex_string lit lexbuf =
+  match%sedlex lexbuf with
+  | '"' ->
+    STRING (Buffer.contents lit)
+
+  | '\\', any ->
+    let s = Sedlexing.Utf8.lexeme lexbuf in
+    Buffer.add_string lit s;
+    lex_string lit lexbuf
+
+  | any ->
+    let s = Sedlexing.Utf8.lexeme lexbuf in
+    Buffer.add_string lit s;
+    lex_string lit lexbuf
+
+  | _ ->
+    failwith "unreachable"
 
 and lex_all env lexbuf =
   let env, loc, token = lex env lexbuf in
