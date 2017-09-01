@@ -2,9 +2,9 @@ open Sedlexing
 open Printf
 
 type token =
-  | NUMBER
-  | IDENTIFIER
-  | STRING of string (* lit *)
+  | NUMBER of string (* lit *)
+  | IDENTIFIER of string
+  | STRING of string
   | EOL
   | EOF
 
@@ -16,9 +16,9 @@ type env =
   }
 
 let pretty_print = function
-  | NUMBER -> "NUMBER"
-  | IDENTIFIER -> "IDENTIFIER"
-  | STRING s -> "STRING: [" ^ s ^ "]"
+  | NUMBER lit -> "NUMBER: [" ^ lit ^ "]"
+  | IDENTIFIER lit -> "IDENTIFIER: [" ^ lit ^ "]"
+  | STRING lit -> "STRING: [" ^ lit ^ "]"
   | EOL -> "EOL"
   | _ -> "unknown"
 
@@ -41,11 +41,13 @@ let rec lex env lexbuf =
     lex env lexbuf
 
   | digit ->
-    env, locate env lexbuf, NUMBER
+    let lit = Sedlexing.Utf8.lexeme lexbuf in
+    env, locate env lexbuf, NUMBER lit
 
   (* identifiers *)
   | id_start, Star id_continue ->
-    env, locate env lexbuf, IDENTIFIER
+    let lit = Sedlexing.Utf8.lexeme lexbuf in
+    env, locate env lexbuf, IDENTIFIER lit
 
   | '"' ->
     let lit = Buffer.create 16 in
@@ -64,7 +66,7 @@ and lex_newline env lexbuf =
   let bol_offset = Sedlexing.lexeme_end lexbuf in
   let loc = locate env lexbuf in
   let next_env = {bol_line = env.bol_line + 1;
-             bol_offset; } in
+                  bol_offset; } in
   next_env, loc, EOL
 
 and lex_string lit lexbuf =
