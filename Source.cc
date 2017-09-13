@@ -1,15 +1,15 @@
 #include "Source.h"
+#include <cstring>
 #include <fstream>
 #include <sstream>
 #include <vector>
-#include <cstring>
 
-void use_stringstream(std::ifstream &in) {
+void use_stringstream(std::ifstream& in) {
   std::stringstream sstr;
   sstr << in.rdbuf();
 }
 
-Source source_from_file(const std::string &path) {
+Source source_from_file(const std::string& path) {
   std::ifstream in{path, std::ios::binary};
   if (!in) {
     std::cerr << strerror(errno) << std::endl;

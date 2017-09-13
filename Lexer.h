@@ -56,18 +56,18 @@ struct Bar {};
 struct Eos {};
 
 using Token =
-    std::variant<Ident, Number, String, Character, Comment, Lparen, Rparen, Lbrace, Rbrace,
-                 Lbracket, Rbracket, Lesserthan, Greaterthan, Dot, Comma, Colon,
-                 Semicolon, Doublequote, Quote, Equals, Plus, Minus, Star,
-                 Ampersand, Caret, Tilde, Slash, Backslash, Bang, Question,
-                 Hash, Bar, Eos>;
+    std::variant<Ident, Number, String, Character, Comment, Lparen, Rparen,
+                 Lbrace, Rbrace, Lbracket, Rbracket, Lesserthan, Greaterthan,
+                 Dot, Comma, Colon, Semicolon, Doublequote, Quote, Equals, Plus,
+                 Minus, Star, Ampersand, Caret, Tilde, Slash, Backslash, Bang,
+                 Question, Hash, Bar, Eos>;
 
 /// Represents a lexer state machine.
 /// This lexer assumes that the source data will outlive it.
 class Lexer {
   /// The source being lexed.
   /// Should outlive this lexer.
-  Source &src;
+  Source& src;
   std::string_view sv;
 
   // The lookahead pos.
@@ -81,7 +81,7 @@ class Lexer {
 
 public:
   /// Make a lexer for the given file.
-  Lexer(Source &src)
+  Lexer(Source& src)
       : src(src), sv(src.buffer().data(), src.buffer().size()),
         look(std::cbegin(sv)) {}
 

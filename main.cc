@@ -3,9 +3,9 @@
 #include <fstream>
 #include <iostream>
 
-extern void use_read(std::ifstream &in);
+extern void use_read(std::ifstream& in);
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   if (argc < 2) {
     std::cerr << "No filename specified\n";
     return 1;

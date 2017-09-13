@@ -18,7 +18,9 @@ const Number Lexer::lex_number() {
 
 const String Lexer::lex_string() {
   auto end = look + 1;
-  for (; end != eos(); end = std::find_if(end, eos(), [](char c) { return (c == '\\') || (c == '"'); })) {
+  for (; end != eos(); end = std::find_if(end, eos(), [](char c) {
+                         return (c == '\\') || (c == '"');
+                       })) {
     if (*end == '"')
       break;
     // Skip the escaped character '\x'
