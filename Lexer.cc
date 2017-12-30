@@ -1,4 +1,4 @@
-#include "Lexer.h"
+#include "Lexer.hh"
 #include <cctype>
 
 const Ident Lexer::lex_ident() {

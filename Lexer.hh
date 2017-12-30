@@ -1,6 +1,4 @@
-// -*- C++ -*-
-
-#include "Source.h"
+#include "Source.hh"
 #include <algorithm>
 #include <string>
 #include <string_view>

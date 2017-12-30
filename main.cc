@@ -1,4 +1,4 @@
-#include "Lexer.h"
+#include "Lexer.hh"
 #include <cstring>
 #include <fstream>
 #include <iostream>
