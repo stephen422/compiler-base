@@ -62,11 +62,11 @@ Token Lexer::lex() {
     return Eos{};
   } else if (std::isalpha(*look) || *look == '_') {
     auto tok = lex_ident();
-    std::cout << "ident [" << tok.s << "]\n";
+    std::cout << "ident [" << tok.lit << "]\n";
     return tok;
   } else if (std::isdigit(*look)) {
     auto tok = lex_number();
-    std::cout << "number [" << tok.s << "]\n";
+    std::cout << "number [" << tok.lit << "]\n";
     return tok;
   } else if (*look == '(') {
     std::cout << "lparen\n";
@@ -106,7 +106,7 @@ Token Lexer::lex() {
     return lex_single<Semicolon>();
   } else if (*look == '"') {
     auto tok = lex_string();
-    std::cout << "string [" << tok.s << "]\n";
+    std::cout << "string [" << tok.lit << "]\n";
     return tok;
   } else if (*look == '\'') {
     std::cout << "quote\n";
@@ -127,7 +127,7 @@ Token Lexer::lex() {
     // Slashes may be either divides or comments
     if (look + 1 != eos() && *(look + 1) == '/') {
       auto tok = lex_comment();
-      std::cout << "comment: [" << tok.s << "]\n";
+      std::cout << "comment: [" << tok.lit << "]\n";
       return tok;
     }
     std::cout << "slash\n";

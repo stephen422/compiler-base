@@ -5,9 +5,9 @@ enable_testing ()
 
 include_directories ("${PROJECT_BINARY_DIR}")
 
-add_definitions (-std=c++1z)
+add_definitions (-std=c++17)
 set (CMAKE_BUILD_TYPE Debug)
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -fsanitize=address -fno-omit-frame-pointer")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -fno-omit-frame-pointer")
 
 # Compiler invocation switch
 option (COMPILER_VERBOSE "Print verbose compiler invocation" OFF)
@@ -33,9 +33,10 @@ set (LIBCXX_PATH "" CACHE PATH "doc")
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   if (LIBCXX_PATH)
     include_directories ("${LIBCXX_PATH}/include/c++/v1")
-    link_directories ("${LIBCXX_PATH}/lib")
+    # link_directories ("${LIBCXX_PATH}/lib")
     # Linking phase calls clang; supply it with -stdlib again
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath=${LIBCXX_PATH}")
   endif ()
 else ()
 endif ()

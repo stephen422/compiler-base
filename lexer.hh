@@ -5,23 +5,23 @@
 #include <variant>
 
 struct Ident {
-  const std::string s;
+  const std::string lit;
 };
 
 struct Number {
-  const std::string s;
+  const std::string lit;
 };
 
 struct String {
-  const std::string s;
+  const std::string lit;
 };
 
 struct Character {
-  const std::string s;
+  const std::string lit;
 };
 
 struct Comment {
-  const std::string s;
+  const std::string lit;
 };
 
 struct Lparen {};
@@ -59,6 +59,11 @@ using Token =
                  Dot, Comma, Colon, Semicolon, Doublequote, Quote, Equals, Plus,
                  Minus, Star, Ampersand, Caret, Tilde, Slash, Backslash, Bang,
                  Question, Hash, Bar, Eos>;
+
+enum class Keywords {
+  fn,
+  int_
+};
 
 /// Represents a lexer state machine.
 /// This lexer assumes that the source data will outlive it.

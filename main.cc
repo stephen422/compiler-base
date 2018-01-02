@@ -19,6 +19,10 @@ int main(int argc, char** argv) {
 
     if (std::holds_alternative<Eos>(token))
       break;
+
+    if (std::holds_alternative<Ident>(token)) {
+      std::cout << std::get<String>(token).lit << std::endl;
+    }
   }
 
   return 0;
