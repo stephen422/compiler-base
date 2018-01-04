@@ -1,4 +1,4 @@
-#include "Lexer.hh"
+#include "lexer.hh"
 #include <cctype>
 
 const Ident Lexer::lex_ident() {
@@ -166,6 +166,13 @@ Token Lexer::lex() {
   }
 
   return Ident{"token"};
+}
+
+Token Lexer::peek() {
+  auto save = look;
+  auto token = lex();
+  look = save;
+  return token;
 }
 
 void Lexer::skip_whitespace() { look = std::find_if_not(look, eos(), isspace); }

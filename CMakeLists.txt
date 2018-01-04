@@ -42,7 +42,7 @@ else ()
 endif ()
 
 # Creates executable target "compiler".
-add_executable (compiler main.cc Source.cc Lexer.cc)
+add_executable (compiler main.cc parse.cc lexer.cc source.cc)
 
 if (APPLE)
   # Should be below the add_executable () line to avoid complaining about
@@ -55,7 +55,7 @@ endif ()
 ### Testing
 
 # Creates the test target.
-add_executable (compiler-test EXCLUDE_FROM_ALL test.cc Source.cc Lexer.cc)
+add_executable (compiler-test EXCLUDE_FROM_ALL test.cc parse.cc lexer.cc source.cc)
 
 # Use "env CTEST_OUTPUT_ON_FAILURE=1 ninja test" to see output on fail.
 add_test (NAME test COMMAND compiler-test "--use-colour" "yes")

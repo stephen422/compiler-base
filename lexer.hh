@@ -1,4 +1,7 @@
-#include "Source.hh"
+#ifndef LEXER_H
+#define LEXER_H
+
+#include "source.hh"
 #include <algorithm>
 #include <string>
 #include <string_view>
@@ -95,6 +98,9 @@ public:
   /// Lex the current token and advance to the next one.
   Token lex();
 
+  /// Peek the next token without consuming it.
+  Token peek();
+
   /// Lex the next identifier.
   const Ident lex_ident();
 
@@ -111,3 +117,5 @@ public:
   /// '.', ';', '(', ')', etc.
   template <typename T> const Token lex_single();
 };
+
+#endif
