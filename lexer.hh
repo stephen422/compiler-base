@@ -63,6 +63,8 @@ using Token =
                  Minus, Star, Ampersand, Caret, Tilde, Slash, Backslash, Bang,
                  Question, Hash, Bar, Eos>;
 
+std::ostream& operator<<(std::ostream& os, const Token& token);
+
 enum class Keywords {
   fn,
   int_

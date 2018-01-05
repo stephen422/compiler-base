@@ -1,6 +1,79 @@
 #include "lexer.hh"
 #include <cctype>
 
+template <typename T>
+void print_literal(std::ostream& os, const Token& token) {
+  auto& tok = std::get<T>(token);
+  os << " [" << tok.lit << "]";
+}
+
+std::ostream& operator<<(std::ostream& os, const Token& token) {
+#define IS_TYPE(a, t) std::holds_alternative<t>(a)
+  if (IS_TYPE(token, Ident)) {
+    os << "ident";
+    print_literal<Ident>(os, token);
+  } else if (IS_TYPE(token, Number)) {
+    os << "number";
+    print_literal<Number>(os, token);
+  } else if (IS_TYPE(token, String)) {
+    os << "string";
+    print_literal<String>(os, token);
+  } else if (IS_TYPE(token, Lparen)) {
+    os << "lparen";
+  } else if (IS_TYPE(token, Rparen)) {
+    os << "rparen";
+  } else if (IS_TYPE(token, Lbrace)) {
+    os << "lbrace";
+  } else if (IS_TYPE(token, Rbrace)) {
+    os << "rbrace";
+  } else if (IS_TYPE(token, Lesserthan)) {
+    os << "lesserthan";
+  } else if (IS_TYPE(token, Greaterthan)) {
+    os << "greaterthan";
+  } else if (IS_TYPE(token, Dot)) {
+    os << "dot";
+  } else if (IS_TYPE(token, Comma)) {
+    os << "comma";
+  } else if (IS_TYPE(token, Colon)) {
+    os << "colon";
+  } else if (IS_TYPE(token, Semicolon)) {
+    os << "semicolon";
+  } else if (IS_TYPE(token, Quote)) {
+    os << "quote";
+  } else if (IS_TYPE(token, Equals)) {
+    os << "equals";
+  } else if (IS_TYPE(token, Plus)) {
+    os << "plus";
+  } else if (IS_TYPE(token, Minus)) {
+    os << "minus";
+  } else if (IS_TYPE(token, Star)) {
+    os << "star";
+  } else if (IS_TYPE(token, Ampersand)) {
+    os << "ampersand";
+  } else if (IS_TYPE(token, Caret)) {
+    os << "caret";
+  } else if (IS_TYPE(token, Tilde)) {
+    os << "tilde";
+  } else if (IS_TYPE(token, Slash)) {
+    os << "slash";
+  } else if (IS_TYPE(token, Backslash)) {
+    os << "backslash";
+  } else if (IS_TYPE(token, Bang)) {
+    os << "bang";
+  } else if (IS_TYPE(token, Question)) {
+    os << "question";
+  } else if (IS_TYPE(token, Hash)) {
+    os << "hash";
+  } else if (IS_TYPE(token, Bar)) {
+    os << "bar";
+  } else if (IS_TYPE(token, Eos)) {
+    os << "eos";
+  } else {
+    os << "unrecognized token";
+  }
+  return os;
+}
+
 const Ident Lexer::lex_ident() {
   auto isalpha = [](char c) { return std::isalnum(c) || c == '_'; };
   auto end = std::find_if_not(look, eos(), isalpha);
@@ -58,110 +131,77 @@ Token Lexer::lex() {
 
   // Identifier starts with an alphabet or an underscore.
   if (look == eos()) {
-    std::cout << "eos\n";
     return Eos{};
   } else if (std::isalpha(*look) || *look == '_') {
     auto tok = lex_ident();
-    std::cout << "ident [" << tok.lit << "]\n";
     return tok;
   } else if (std::isdigit(*look)) {
     auto tok = lex_number();
-    std::cout << "number [" << tok.lit << "]\n";
     return tok;
   } else if (*look == '(') {
-    std::cout << "lparen\n";
     return lex_single<Lparen>();
   } else if (*look == ')') {
-    std::cout << "rparen\n";
     return lex_single<Rparen>();
   } else if (*look == '{') {
-    std::cout << "lbrace\n";
     return lex_single<Lbrace>();
   } else if (*look == '}') {
-    std::cout << "rbrace\n";
     return lex_single<Rbrace>();
   } else if (*look == '[') {
-    std::cout << "lbrace\n";
     return lex_single<Lbrace>();
   } else if (*look == ']') {
-    std::cout << "rbrace\n";
     return lex_single<Rbrace>();
   } else if (*look == '<') {
-    std::cout << "lesserthan\n";
     return lex_single<Lesserthan>();
   } else if (*look == '>') {
-    std::cout << "greaterthan\n";
     return lex_single<Greaterthan>();
   } else if (*look == '.') {
-    std::cout << "dot\n";
     return lex_single<Dot>();
   } else if (*look == ',') {
-    std::cout << "comma\n";
     return lex_single<Comma>();
   } else if (*look == ':') {
-    std::cout << "colon\n";
     return lex_single<Colon>();
   } else if (*look == ';') {
-    std::cout << "semicolon\n";
     return lex_single<Semicolon>();
   } else if (*look == '"') {
     auto tok = lex_string();
-    std::cout << "string [" << tok.lit << "]\n";
     return tok;
   } else if (*look == '\'') {
-    std::cout << "quote\n";
     return lex_single<Quote>();
   } else if (*look == '=') {
-    std::cout << "equals\n";
     return lex_single<Equals>();
   } else if (*look == '+') {
-    std::cout << "plus\n";
     return lex_single<Plus>();
   } else if (*look == '-') {
-    std::cout << "minus\n";
     return lex_single<Minus>();
   } else if (*look == '*') {
-    std::cout << "star\n";
     return lex_single<Star>();
   } else if (*look == '/') {
     // Slashes may be either divides or comments
     if (look + 1 != eos() && *(look + 1) == '/') {
       auto tok = lex_comment();
-      std::cout << "comment: [" << tok.lit << "]\n";
       return tok;
     }
-    std::cout << "slash\n";
     return lex_single<Slash>();
   } else if (*look == '&') {
-    std::cout << "ampersand\n";
     return lex_single<Ampersand>();
   } else if (*look == '^') {
-    std::cout << "caret\n";
     return lex_single<Caret>();
   } else if (*look == '~') {
-    std::cout << "tilde\n";
     return lex_single<Tilde>();
   } else if (*look == '/') {
-    std::cout << "slash\n";
     return lex_single<Slash>();
   } else if (*look == '\\') {
-    std::cout << "backslash\n";
     return lex_single<Backslash>();
   } else if (*look == '!') {
-    std::cout << "bang\n";
     return lex_single<Bang>();
   } else if (*look == '?') {
-    std::cout << "question\n";
     return lex_single<Question>();
   } else if (*look == '#') {
-    std::cout << "hash\n";
     return lex_single<Hash>();
   } else if (*look == '|') {
-    std::cout << "bar\n";
     return lex_single<Bar>();
   } else {
     std::cerr << "lex error: [" << *look << "]: Unrecognized token type\n";
-    std::cout << eos() - look << " chars left to eos\n";
     throw std::string{"Unrecognized token type"};
   }
 

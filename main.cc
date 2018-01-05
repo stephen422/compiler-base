@@ -16,17 +16,14 @@ int main(int argc, char** argv) {
   Lexer lexer{src};
 
   while (true) {
-    auto token = lexer.peek();
+    auto token = lexer.lex();
+    std::cout << token << std::endl;
 
     if (std::holds_alternative<Eos>(token))
       break;
-
-    if (std::holds_alternative<Ident>(token)) {
-      std::cout << std::get<Ident>(token).lit << std::endl;
-    }
   }
 
-  Parser p{lexer};
-  p.parse();
+  //Parser p{lexer};
+  //p.parse();
   return 0;
 }
