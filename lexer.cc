@@ -7,66 +7,69 @@ void print_literal(std::ostream& os, const Token& token) {
   os << " [" << tok.lit << "]";
 }
 
+template <typename T>
+bool is_type(const Token& token) {
+  return std::holds_alternative<T>(token);
+}
 std::ostream& operator<<(std::ostream& os, const Token& token) {
-#define IS_TYPE(a, t) std::holds_alternative<t>(a)
-  if (IS_TYPE(token, Ident)) {
+  if (is_type<Ident>(token)) {
     os << "ident";
     print_literal<Ident>(os, token);
-  } else if (IS_TYPE(token, Number)) {
+  } else if (is_type<Number>(token)) {
     os << "number";
     print_literal<Number>(os, token);
-  } else if (IS_TYPE(token, String)) {
+  } else if (is_type<String>(token)) {
     os << "string";
     print_literal<String>(os, token);
-  } else if (IS_TYPE(token, Lparen)) {
+  } else if (is_type<Lparen>(token)) {
     os << "lparen";
-  } else if (IS_TYPE(token, Rparen)) {
+  } else if (is_type<Rparen>(token)) {
     os << "rparen";
-  } else if (IS_TYPE(token, Lbrace)) {
+  } else if (is_type<Lbrace>(token)) {
     os << "lbrace";
-  } else if (IS_TYPE(token, Rbrace)) {
+  } else if (is_type<Rbrace>(token)) {
     os << "rbrace";
-  } else if (IS_TYPE(token, Lesserthan)) {
+  } else if (is_type<Lesserthan>(token)) {
     os << "lesserthan";
-  } else if (IS_TYPE(token, Greaterthan)) {
+  } else if (is_type<Greaterthan>(token)) {
     os << "greaterthan";
-  } else if (IS_TYPE(token, Dot)) {
+  } else if (is_type<Dot>(token)) {
     os << "dot";
-  } else if (IS_TYPE(token, Comma)) {
+  } else if (is_type<Comma>(token)) {
     os << "comma";
-  } else if (IS_TYPE(token, Colon)) {
+  } else if (is_type<Colon>(token)) {
     os << "colon";
-  } else if (IS_TYPE(token, Semicolon)) {
+  } else if (is_type<Semicolon>(token)) {
     os << "semicolon";
-  } else if (IS_TYPE(token, Quote)) {
+  } else if (is_type<Quote>(token)) {
     os << "quote";
-  } else if (IS_TYPE(token, Equals)) {
+  } else if (is_type<Equals>(token)) {
     os << "equals";
-  } else if (IS_TYPE(token, Plus)) {
+  } else if (is_type<Plus>(token)) {
     os << "plus";
-  } else if (IS_TYPE(token, Minus)) {
+  } else if (is_type<Minus>(token)) {
     os << "minus";
-  } else if (IS_TYPE(token, Star)) {
+  } else if (is_type<Star>(token)) {
     os << "star";
-  } else if (IS_TYPE(token, Ampersand)) {
+  } else if (is_type<Ampersand>(token)) {
     os << "ampersand";
-  } else if (IS_TYPE(token, Caret)) {
+  } else if (is_type<Caret>(token)) {
     os << "caret";
-  } else if (IS_TYPE(token, Tilde)) {
+  } else if (is_type<Tilde>(token)) {
     os << "tilde";
-  } else if (IS_TYPE(token, Slash)) {
+  } else if (is_type<Slash>(token)) {
     os << "slash";
-  } else if (IS_TYPE(token, Backslash)) {
+  } else if (is_type<Backslash>(token)) {
     os << "backslash";
-  } else if (IS_TYPE(token, Bang)) {
+  } else if (is_type<Bang>(token)) {
     os << "bang";
-  } else if (IS_TYPE(token, Question)) {
+  } else if (is_type<Question>(token)) {
     os << "question";
-  } else if (IS_TYPE(token, Hash)) {
+  } else if (is_type<Hash>(token)) {
     os << "hash";
-  } else if (IS_TYPE(token, Bar)) {
+  } else if (is_type<Bar>(token)) {
     os << "bar";
-  } else if (IS_TYPE(token, Eos)) {
+  } else if (is_type<Eos>(token)) {
     os << "eos";
   } else {
     os << "unrecognized token";
