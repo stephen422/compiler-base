@@ -32,11 +32,10 @@ set (LIBCXX_PATH "" CACHE PATH "doc")
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   if (LIBCXX_PATH)
-    include_directories ("${LIBCXX_PATH}/include/c++/v1")
-    link_directories ("${LIBCXX_PATH}/lib64")
+    link_directories ("${LIBCXX_PATH}")
     # Linking phase calls clang; supply it with -stdlib again
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath ${LIBCXX_PATH}/lib64")
+    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath ${LIBCXX_PATH}")
   endif ()
 else ()
 endif ()
