@@ -21,6 +21,7 @@ static char *readFile(const char *filename, long *filesize) {
 		return 0;
 	}
 	fread(s, *filesize, 1, f);
+	s[*filesize] = '\0';
 	fclose(f);
 	return s;
 }
