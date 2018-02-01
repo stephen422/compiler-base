@@ -1,7 +1,7 @@
 CFLAGS ?= -g -Wall
 PROG := cmp
 
-all: main.o lexer.o
+$(PROG): main.o lexer.o
 	$(CC) -o $(PROG) $^
 
 .c.o:
