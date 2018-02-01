@@ -3,17 +3,16 @@
 
 typedef struct Lexer {
 	char *filename;
-	long srcSize;
+	long src_size;
 	char *src;
 
-	char *look;	// lookahead character
-	int off;	// lookahead character offset
-	int rdOff;	// file reading offset (one character after look)
+	char ch;	/* lookahead character */
+	int off;	/* lookahead character offset */
+	int rd_off;	/* file reading offset (one character after look) */
+	int line_off;	/* current line offset */
 } Lexer;
 
 int lexer_init(Lexer *l, const char *filename);
 void lexer_free(Lexer *l);
-
-static void next(Lexer *l);
 
 #endif
