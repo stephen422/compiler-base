@@ -4,7 +4,7 @@
 #include <errno.h>
 #include "lexer.h"
 
-static char *readFile(const char *filename, long *filesize) {
+static char *readfile(const char *filename, long *filesize) {
 	FILE *f = fopen(filename, "rb");
 	if (!f) {
 		fprintf(stderr, "%s: %s\n", filename, strerror(errno));
@@ -26,17 +26,17 @@ static char *readFile(const char *filename, long *filesize) {
 	return s;
 }
 
-int lexerInit(Lexer *l, const char *filename) {
+int lexer_init(Lexer *l, const char *filename) {
 	l->filename = calloc(256, 1);
 	l->filename = strncpy((char *)l->filename, filename, 255);
-	l->src = readFile(filename, &l->srcSize);
+	l->src = readfile(filename, &l->srcSize);
 	l->look = NULL;
 	l->off = 0;
 	l->rdOff = 0;
 	return 1;
 }
 
-void lexerFree(Lexer *l) {
+void lexer_free(Lexer *l) {
 	free(l->filename);
 	free(l->src);
 }

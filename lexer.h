@@ -11,8 +11,8 @@ typedef struct Lexer {
 	int rdOff;	// file reading offset (one character after look)
 } Lexer;
 
-int lexerInit(Lexer *l, const char *filename);
-void lexerFree(Lexer *l);
+int lexer_init(Lexer *l, const char *filename);
+void lexer_free(Lexer *l);
 
 static void next(Lexer *l);
 

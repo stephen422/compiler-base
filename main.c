@@ -3,9 +3,9 @@
 
 int main(int argc, char **argv) {
 	Lexer lex;
-	lexerInit(&lex, argv[1]);
+	lexer_init(&lex, argv[1]);
 	printf("%s\n", lex.src);
 	printf("filesize: %ld\n", lex.srcSize);
-	lexerFree(&lex);
+	lexer_free(&lex);
 	return 0;
 }
