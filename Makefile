@@ -1,4 +1,4 @@
-CFLAGS ?= -g -Wall
+CFLAGS += -g -Wall -Wextra
 PROG := cmp
 
 $(PROG): main.o lexer.o
@@ -6,6 +6,9 @@ $(PROG): main.o lexer.o
 
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+main.o: main.c lexer.h
+lexer.o: lexer.c lexer.h
 
 .PHONY: clean
 clean:
