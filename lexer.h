@@ -3,7 +3,7 @@
 
 typedef struct Lexer {
 	char *filename;
-	long src_size;
+	long src_len;
 	char *src;
 
 	char ch;	/* lookahead character */
@@ -13,6 +13,7 @@ typedef struct Lexer {
 } Lexer;
 
 int lexer_init(Lexer *l, const char *filename);
+void lexer_next(Lexer *l, int *tok);
 void lexer_free(Lexer *l);
 
 #endif
