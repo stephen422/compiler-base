@@ -1,4 +1,4 @@
-CFLAGS += -g -Wall -Wextra
+CFLAGS += -g -std=c90 -pedantic -Wall -Wextra
 PROG := cmp
 
 $(PROG): main.o lexer.o
