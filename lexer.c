@@ -32,14 +32,10 @@ static void step(Lexer *l)
 {
     if (l->rd_off < l->src_len) {
         l->off = l->rd_off;
-        if (l->ch == '\n')
-            l->line_off = l->off;
         l->ch = l->src[l->rd_off];
         l->rd_off++;
     } else {
         l->off = l->src_len;
-        if (l->ch == '\n')
-            l->line_off = l->off;
         l->ch = 0;
     }
 }
@@ -120,7 +116,12 @@ int lexer_next(Lexer *l)
             case 0: {
                 return TOK_EOF;
             }
-            case ' ': case '\t': case '\n': {
+            case '\n': {
+                l->line_off = l->off;
+                step(l);
+                break;
+            }
+            case ' ': case '\t': {
                 step(l);
                 break;
             }
