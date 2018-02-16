@@ -4,7 +4,7 @@
 
 int main(int argc, char **argv) {
     Lexer lex;
-    int tok = 1;
+    int tok;
 
     if (argc < 2) {
         fprintf(stderr, "usage: %s FILE\n", argv[0]);
@@ -12,12 +12,13 @@ int main(int argc, char **argv) {
     }
 
     lexer_init(&lex, argv[1]);
-    while (tok != TOK_EOF) {
-        if (tok == TOK_ERR) {
-            fprintf(stderr, "Unknown token: %c\n", lex.ch);
-            break;
+    tok = lexer_next(&lex);
+    for (; tok != TOK_EOF; tok = lexer_next(&lex)) {
+        if (tok == TOK_IDENT) {
+            printf("[%s] (len:%ld)\n", lex.sb.s, lex.sb.len);
+        } else {
+            printf("[%c]\n", tok);
         }
-        tok = lexer_next(&lex);
     }
     printf("%ld\n", lex.off);
     lexer_free(&lex);
