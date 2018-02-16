@@ -9,12 +9,10 @@ static char *readfile(const char *filename, long *filesize)
 {
     FILE *f = fopen(filename, "r");
     char *s;
-
     if (!f) {
         fprintf(stderr, "%s: %s\n", filename, strerror(errno));
         return 0;
     }
-
     fseek(f, 0, SEEK_END);
     *filesize = ftell(f);
     rewind(f);
@@ -54,8 +52,7 @@ int lexer_init(Lexer *l, const char *filename)
     l->ch = 0;
     l->off = 0;
     l->rd_off = 0;
-
-    /* Start the engine */
+    memset(&l->sb, 0, sizeof(l->sb));
     step(l);
     return 1;
 }
@@ -64,6 +61,7 @@ void lexer_free(Lexer *l)
 {
     free(l->filename);
     free(l->src);
+    free(l->sb.s);
 }
 
 static void skip_whitespace(Lexer *l)
@@ -72,68 +70,52 @@ static void skip_whitespace(Lexer *l)
         step(l);
 }
 
-static char *make_lit(Lexer *l, long start, long end, int *lit_len)
+static void save_lit(Lexer *l, long start, long end)
 {
-    char *s;
-
-    s = malloc(end - start + 1);
-    if (!s) {
-        fprintf(stderr, "out of memory\n");
-        exit(1);
+    long len = end - start;
+    if (len > l->sb.len) {
+        char *s = realloc(l->sb.s, len + 1);
+        if (!s) {
+            fprintf(stderr, "out of memory\n");
+            exit(1);
+        }
+        l->sb.s = s;
     }
-    memcpy(s, l->src + start, end - start);
-    s[end - start] = '\0';
-    *lit_len = end - start;
-
-    return s;
+    memcpy(l->sb.s, l->src + start, len);
+    l->sb.s[len] = '\0';
+    l->sb.len = len;
 }
 
-static void lex_ident(Lexer *l, char **lit, int *lit_len)
+static void lex_ident(Lexer *l)
 {
     long off = l->off;
     while (isalnum(l->ch))
         step(l);
-    *lit = make_lit(l, off, l->off, lit_len);
+    save_lit(l, off, l->off);
 }
 
-Token lexer_next(Lexer *l, char **lit, int *lit_len)
+int lexer_next(Lexer *l)
 {
-    Token tok;
-
-    /*
-     * Skip whitespace at the beginning of the lex.
-     * This could be done at the end of the lex, but that requires additional
-     * operation for sources that contains whitespace at the start.
-     */
     skip_whitespace(l);
-
+    strbuf_reset(&l->sb);
     switch (l->ch) {
-        case 0:
-            tok = TOK_EOF;
-            break;
-        case '0': case '1': case '2':
-        case '3': case '4': case '5':
-        case '6': case '7': case '8':
-        case '9':
-            tok = TOK_NUM;
-            break;
-        case '#':
-            tok = TOK_HASH;
-            break;
-        case '<':
-            tok = TOK_LT;
-            break;
+        case 0: {
+            return TOK_EOF;
+        }
+        case '0': case '1': case '2': case '3': case '4':
+        case '5': case '6': case '7': case '8': case '9': {
+            step(l);
+            return TOK_NUM;
+        }
         default: {
             if (isalpha(l->ch)) {
-                lex_ident(l, lit, lit_len);
-                tok = TOK_IDENT;
-            } else {
-                tok = TOK_ERR;
+                lex_ident(l);
+                return TOK_IDENT;
+            } else { // single-char tokens
+                int c = l->ch;
+                step(l);
+                return c;
             }
-            break;
         }
     }
-    step(l);
-
-    return tok;
 }
