@@ -10,8 +10,8 @@ static char *readfile(const char *filename, long *filesize)
     FILE *f = fopen(filename, "r");
     char *s;
     if (!f) {
-        fprintf(stderr, "%s: %s\n", filename, strerror(errno));
-        return 0;
+        fprintf(stderr, "error: %s: %s\n", filename, strerror(errno));
+        exit(EXIT_FAILURE);
     }
     fseek(f, 0, SEEK_END);
     *filesize = ftell(f);
@@ -64,12 +64,6 @@ void lexer_free(Lexer *l)
     free(l->sb.s);
 }
 
-static void skip_whitespace(Lexer *l)
-{
-    while (l->ch == ' ' || l->ch == '\t' || l->ch == '\n')
-        step(l);
-}
-
 static void save_lit(Lexer *l, long start, long end)
 {
     long len = end - start;
@@ -77,7 +71,7 @@ static void save_lit(Lexer *l, long start, long end)
         char *s = realloc(l->sb.s, len + 1);
         if (!s) {
             fprintf(stderr, "out of memory\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         l->sb.s = s;
     }
@@ -86,11 +80,34 @@ static void save_lit(Lexer *l, long start, long end)
     l->sb.len = len;
 }
 
+static void skip_whitespace(Lexer *l)
+{
+    while (l->ch == ' ' || l->ch == '\t' || l->ch == '\n')
+        step(l);
+}
+
+static void skip_numbers(Lexer *l) {
+    while (isdigit(l->ch))
+        step(l);
+}
+
+
 static void lex_ident(Lexer *l)
 {
     long off = l->off;
     while (isalnum(l->ch))
         step(l);
+    save_lit(l, off, l->off);
+}
+
+static void lex_number(Lexer *l)
+{
+    long off = l->off;
+    skip_numbers(l);
+    if (l->ch == '.') {
+        step(l);
+        skip_numbers(l);
+    }
     save_lit(l, off, l->off);
 }
 
@@ -104,7 +121,7 @@ int lexer_next(Lexer *l)
         }
         case '0': case '1': case '2': case '3': case '4':
         case '5': case '6': case '7': case '8': case '9': {
-            step(l);
+            lex_number(l);
             return TOK_NUM;
         }
         default: {
