@@ -19,8 +19,8 @@ static char *readfile(const char *filename, long *filesize)
 
     s = malloc(*filesize + 1);
     if (!s) {
-        fprintf(stderr, "%s\n", strerror(errno));
-        return 0;
+        fprintf(stderr, "out of memory\n");
+        exit(EXIT_FAILURE);
     }
     fread(s, *filesize, 1, f);
     s[*filesize] = '\0';
@@ -46,8 +46,9 @@ static void step(Lexer *l)
 
 int lexer_init(Lexer *l, const char *filename)
 {
-    l->filename = calloc(256, 1);
-    l->filename = strncpy((char *)l->filename, filename, 255);
+    l->filename = malloc(256);
+    l->filename = memcpy(l->filename, filename, 255);
+    l->filename[255] = '\0';
     l->src = readfile(filename, &l->src_len);
     l->ch = 0;
     l->off = 0;
@@ -91,7 +92,6 @@ static void skip_numbers(Lexer *l) {
         step(l);
 }
 
-
 static void lex_ident(Lexer *l)
 {
     long off = l->off;
@@ -113,25 +113,40 @@ static void lex_number(Lexer *l)
 
 int lexer_next(Lexer *l)
 {
-    skip_whitespace(l);
     strbuf_reset(&l->sb);
-    switch (l->ch) {
-        case 0: {
-            return TOK_EOF;
-        }
-        case '0': case '1': case '2': case '3': case '4':
-        case '5': case '6': case '7': case '8': case '9': {
-            lex_number(l);
-            return TOK_NUM;
-        }
-        default: {
-            if (isalpha(l->ch)) {
-                lex_ident(l);
-                return TOK_IDENT;
-            } else { // single-char tokens
-                int c = l->ch;
+
+    for (;;) {
+        switch (l->ch) {
+            case 0: {
+                return TOK_EOF;
+            }
+            case ' ': case '\t': case '\n': {
                 step(l);
-                return c;
+                break;
+            }
+            case '-': {
+                step(l);
+                if (l->ch != '-')
+                    return '-';
+                // comment
+                while (l->ch != '\n')
+                    step(l);
+                break;
+            }
+            case '0': case '1': case '2': case '3': case '4':
+            case '5': case '6': case '7': case '8': case '9': {
+                lex_number(l);
+                return TOK_NUM;
+            }
+            default: {
+                if (isalpha(l->ch)) {
+                    lex_ident(l);
+                    return TOK_IDENT;
+                } else { // single-char tokens
+                    int c = l->ch;
+                    step(l);
+                    return c;
+                }
             }
         }
     }

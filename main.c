@@ -16,8 +16,6 @@ int main(int argc, char **argv) {
     for (; tok != TOK_EOF; tok = lexer_next(&lex)) {
         switch (tok) {
             case TOK_IDENT:
-                printf("[%s] (len:%ld)\n", lex.sb.s, lex.sb.len);
-                break;
             case TOK_NUM:
                 printf("[%s]\n", lex.sb.s);
                 break;
