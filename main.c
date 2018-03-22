@@ -12,12 +12,11 @@ int main(int argc, char **argv) {
     }
 
     lexer_init(&lex, argv[1]);
-    tok = lexer_next(&lex);
-    for (; tok != TOK_EOF; tok = lexer_next(&lex)) {
+    while ((tok = lexer_next(&lex)) != TOK_EOF) {
         switch (tok) {
             case TOK_IDENT:
             case TOK_NUM:
-                printf("[%s]\n", lex.sb.s);
+                printf("length: %ld\n", lex.off - lex.lit);
                 break;
             default:
                 printf("[%c]\n", tok);
