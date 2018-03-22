@@ -61,22 +61,6 @@ void lexer_free(Lexer *l)
     free(l->sb.s);
 }
 
-static void save_lit(Lexer *l, long start, long end)
-{
-    long len = end - start;
-    if (len > l->sb.len) {
-        char *s = realloc(l->sb.s, len + 1);
-        if (!s) {
-            fprintf(stderr, "out of memory\n");
-            exit(EXIT_FAILURE);
-        }
-        l->sb.s = s;
-    }
-    memcpy(l->sb.s, l->src + start, len);
-    l->sb.s[len] = '\0';
-    l->sb.len = len;
-}
-
 static void skip_whitespace(Lexer *l)
 {
     while (l->ch == ' ' || l->ch == '\t' || l->ch == '\n')
@@ -93,7 +77,7 @@ static void lex_ident(Lexer *l)
     long off = l->off;
     while (isalnum(l->ch))
         step(l);
-    save_lit(l, off, l->off);
+    l->lit = off;
 }
 
 static void lex_number(Lexer *l)
@@ -104,7 +88,7 @@ static void lex_number(Lexer *l)
         step(l);
         skip_numbers(l);
     }
-    save_lit(l, off, l->off);
+    l->lit = off;
 }
 
 int lexer_next(Lexer *l)

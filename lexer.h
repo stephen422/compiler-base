@@ -29,6 +29,7 @@ typedef struct Lexer {
     long rd_off;   // file reading offset (one character after lookahead)
     long line_off; // current line offset
     Strbuf sb;     // current token in string
+    long lit;      // start of the last token literal
 } Lexer;
 
 int lexer_init(Lexer *l, const char *filename);
