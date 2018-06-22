@@ -4,11 +4,12 @@ PROG := cmp
 $(PROG): main.o source.o lexer.o
 	$(CXX) -o $(PROG) $^
 
-.cc.o:
+%.o: %.cc
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-main.cc: parse.hh lexer.hh
-lexer.o: lexer.cc lexer.hh
+main.o: parse.hh lexer.hh
+lexer.o: lexer.hh source.hh
+source.o: source.hh
 
 .PHONY: clean
 clean:
