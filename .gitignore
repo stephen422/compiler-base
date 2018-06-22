@@ -27,6 +27,7 @@
 *.lib
 
 # Executables
+cmp
 build*/
 *.exe
 *.out
