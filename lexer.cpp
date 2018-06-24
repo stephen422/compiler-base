@@ -1,11 +1,10 @@
 #include "lexer.hpp"
-#include "lexer.hpp"
 #include <cctype>
 
 template <typename T>
 void print_literal(std::ostream& os, const Token& token) {
-  auto& tok = std::get<T>(token);
-  os << " [" << tok.lit << "]";
+    auto& tok = std::get<T>(token);
+    os << " [" << tok.lit << "]";
 }
 
 template <typename T>
@@ -78,7 +77,7 @@ std::ostream& operator<<(std::ostream& os, const Token& token) {
   return os;
 }
 
-const Ident Lexer::lex_ident() {
+Token_ Lexer::lex_ident() {
   auto isalpha = [](char c) { return std::isalnum(c) || c == '_'; };
   auto end = std::find_if_not(look, eos(), isalpha);
   auto s = std::string(look, end);
@@ -114,107 +113,61 @@ const String Lexer::lex_string() {
 }
 
 const Comment Lexer::lex_comment() {
-  auto end = std::find(look, eos(), '\n');
-  auto s = std::string(look, end);
-  look = end;
-  return Comment{s};
+    auto end = std::find(look, eos(), '\n');
+    auto s = std::string(look, end);
+    look = end;
+    return Comment{s};
 }
 
-template <typename T> const Token Lexer::lex_single() {
-  look++;
-  return T{};
+Token_ Lexer::lex_symbol() {
+    // There may be mismatches
+    auto type = static_cast<Token_::Type>(this->pos());
+    this->look++;
+    return Token_{type, this->pos()};
 }
 
-Token Lexer::lex() {
-  auto total = std::cend(sv) - std::cbegin(sv);
+Token_ Lexer::lex() {
+    auto total = std::cend(sv) - std::cbegin(sv);
 
-  // Skip whitespace at the beginning of the lex.
-  // This could be done at the end of the lex, but that requires additional
-  // operation for sources that contains whitespace at the start.
-  skip_whitespace();
+    // Skip whitespace at the beginning of the lex.
+    // This could be done at the end of the lex, but that requires additional
+    // operation for sources that contains whitespace at the start.
+    skip_whitespace();
 
-  std::cout << "pos " << look - std::cbegin(sv) << "/" << total << ": ";
+    std::cout << "pos " << look - std::cbegin(sv) << "/" << total << ": ";
 
-  // Identifier starts with an alphabet or an underscore.
-  if (look == eos()) {
-    return Eos{};
-  } else if (std::isalpha(*look) || *look == '_') {
-    auto tok = lex_ident();
-    return tok;
-  } else if (std::isdigit(*look)) {
-    auto tok = lex_number();
-    return tok;
-  } else if (*look == '(') {
-    return lex_single<Lparen>();
-  } else if (*look == ')') {
-    return lex_single<Rparen>();
-  } else if (*look == '{') {
-    return lex_single<Lbrace>();
-  } else if (*look == '}') {
-    return lex_single<Rbrace>();
-  } else if (*look == '[') {
-    return lex_single<Lbrace>();
-  } else if (*look == ']') {
-    return lex_single<Rbrace>();
-  } else if (*look == '<') {
-    return lex_single<Lesserthan>();
-  } else if (*look == '>') {
-    return lex_single<Greaterthan>();
-  } else if (*look == '.') {
-    return lex_single<Dot>();
-  } else if (*look == ',') {
-    return lex_single<Comma>();
-  } else if (*look == ':') {
-    return lex_single<Colon>();
-  } else if (*look == ';') {
-    return lex_single<Semicolon>();
-  } else if (*look == '"') {
-    auto tok = lex_string();
-    return tok;
-  } else if (*look == '\'') {
-    return lex_single<Quote>();
-  } else if (*look == '=') {
-    return lex_single<Equals>();
-  } else if (*look == '+') {
-    return lex_single<Plus>();
-  } else if (*look == '-') {
-    return lex_single<Minus>();
-  } else if (*look == '*') {
-    return lex_single<Star>();
-  } else if (*look == '/') {
-    // Slashes may be either divides or comments
-    if (look + 1 != eos() && *(look + 1) == '/') {
-      auto tok = lex_comment();
-      return tok;
+    // Identifier starts with an alphabet or an underscore.
+    if (look == eos()) {
+        return Token_{Token_::Type::Eos, this->pos()};
+    } else if (std::isalpha(*look) || *look == '_') {
+        // auto tok = lex_ident();
+        look++;
+        return Token_{Token_::Type::Ident, this->pos()};
+    } else if (std::isdigit(*look)) {
+        // auto tok = lex_number();
+        look++;
+        return Token_{Token_::Type::Number, this->pos()};
+    } else if (*look == '"') {
+        // auto tok = lex_string();
+        look++;
+        return Token_{Token_::Type::String, this->pos()};
+    } else if (*look == '/') {
+        // Slashes may be either divides or comments
+        if (look + 1 != eos() && *(look + 1) == '/') {
+            // auto tok = lex_comment();
+        }
+        look++;
+        return Token_{Token_::Type::Ident, this->pos(), "BAD"};
+    } else {
+        return lex_symbol();
+        // std::cerr << "lex error: [" << *look << "]: Unrecognized token type\n";
+        // throw std::string{"Unrecognized token type"};
     }
-    return lex_single<Slash>();
-  } else if (*look == '&') {
-    return lex_single<Ampersand>();
-  } else if (*look == '^') {
-    return lex_single<Caret>();
-  } else if (*look == '~') {
-    return lex_single<Tilde>();
-  } else if (*look == '/') {
-    return lex_single<Slash>();
-  } else if (*look == '\\') {
-    return lex_single<Backslash>();
-  } else if (*look == '!') {
-    return lex_single<Bang>();
-  } else if (*look == '?') {
-    return lex_single<Question>();
-  } else if (*look == '#') {
-    return lex_single<Hash>();
-  } else if (*look == '|') {
-    return lex_single<Bar>();
-  } else {
-    std::cerr << "lex error: [" << *look << "]: Unrecognized token type\n";
-    throw std::string{"Unrecognized token type"};
-  }
 
-  return Ident{"token"};
+    return Token_{Token_::Type::Ident, this->pos(), "BAD"};
 }
 
-Token Lexer::peek() {
+Token_ Lexer::peek() {
   auto save = look;
   auto token = lex();
   look = save;

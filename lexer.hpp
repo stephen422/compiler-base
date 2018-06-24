@@ -82,6 +82,11 @@ const std::string token_names[] = {
 
 struct Token_ {
     enum class Type;
+
+    Token_(Type type, size_t pos) : type(type), pos(pos) {}
+    Token_(Type type, size_t pos, std::string lit)
+        : type(type), pos(pos), lit(std::move(lit)) {}
+
     Type type;
     size_t pos;
     std::string lit;
@@ -146,13 +151,13 @@ public:
         look(std::cbegin(sv)) {}
 
     /// Lex the current token and advance to the next one.
-    Token lex();
+    Token_ lex();
 
     /// Peek the next token without consuming it.
-    Token peek();
+    Token_ peek();
 
     /// Lex the next identifier.
-    const Ident lex_ident();
+    Token_ lex_ident();
 
     /// Lex the next number literal.
     const Number lex_number();
@@ -165,7 +170,7 @@ public:
 
     /// Lex any token that consists of a single character, such as
     /// '.', ';', '(', ')', etc.
-    template <typename T> const Token lex_single();
+    Token_ lex_symbol();
 
 private:
     Source &src;
@@ -174,7 +179,7 @@ private:
     // The lookahead pos.
     std::string_view::iterator look;
 
-    /// Returns the end pos of the source.
+    size_t pos() const { return this->look - std::cbegin(sv); }
     std::string_view::iterator eos() const { return std::cend(sv); }
 
     /// Move current pos to the first non-whitespace char.
