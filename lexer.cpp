@@ -1,4 +1,5 @@
-#include "lexer.hh"
+#include "lexer.hpp"
+#include "lexer.hpp"
 #include <cctype>
 
 template <typename T>

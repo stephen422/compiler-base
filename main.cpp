@@ -1,5 +1,5 @@
-#include "lexer.hh"
-#include "parse.hh"
+#include "lexer.hpp"
+#include "parse.hpp"
 #include <cstring>
 #include <fstream>
 #include <iostream>

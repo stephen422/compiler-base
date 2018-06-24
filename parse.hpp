@@ -1,7 +1,7 @@
 #ifndef PARSE_H
 #define PARSE_H
 
-#include "lexer.hh"
+#include "lexer.hpp"
 
 class Parser {
 public:

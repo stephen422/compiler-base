@@ -1,3 +1,6 @@
+#ifndef SOURCE_H
+#define SOURCE_H
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -11,3 +14,5 @@ struct Source {
     const std::string path;
     std::vector<char> buf;
 };
+
+#endif

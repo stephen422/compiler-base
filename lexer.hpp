@@ -1,7 +1,7 @@
 #ifndef LEXER_H
 #define LEXER_H
 
-#include "source.hh"
+#include "source.hpp"
 #include <algorithm>
 #include <string>
 #include <string_view>
@@ -88,10 +88,7 @@ struct Token_ {
 };
 
 enum class Token_::Type {
-    Ident = 256, // avoid ASCII
-    Number,
-    String,
-    Char,
+    Eos = 0,
     Lparen = '(',
     Rparen = ')',
     Lbrace = '{',
@@ -119,7 +116,10 @@ enum class Token_::Type {
     Question = '?',
     Hash = '#',
     Bar = '-',
-    Eos = 0,
+    Ident = 256, // skip ASCII
+    Number,
+    String,
+    Char,
 };
 
 using Token =
