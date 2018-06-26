@@ -83,13 +83,13 @@ const std::string token_names[] = {
 struct Token_ {
     enum class Type;
 
-    Token_(Type type, size_t pos) : type(type), pos(pos) {}
-    Token_(Type type, size_t pos, std::string lit)
-        : type(type), pos(pos), lit(std::move(lit)) {}
-
     Type type;
     size_t pos;
     std::string lit;
+
+    Token_(Type type, size_t pos) : type(type), pos(pos) {}
+    Token_(Type type, size_t pos, std::string lit)
+        : type(type), pos(pos), lit(std::move(lit)) {}
 };
 
 enum class Token_::Type {

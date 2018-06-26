@@ -80,14 +80,14 @@ std::ostream& operator<<(std::ostream& os, const Token& token) {
 Token_ Lexer::lex_ident() {
   auto isalpha = [](char c) { return std::isalnum(c) || c == '_'; };
   auto end = std::find_if_not(look, eos(), isalpha);
-  auto s = std::string(look, end);
+  std::string s{look, end};
   look = end;
-  return Ident{s};
+  return Token_{Token_::Type::Ident, pos(), s};
 }
 
 const Number Lexer::lex_number() {
   auto end = std::find_if_not(look, eos(), isdigit);
-  auto s = std::string(look, end);
+  std::string s{look, end};
   look = end;
   return Number{s};
 }
@@ -107,14 +107,14 @@ const String Lexer::lex_string() {
   // Range is end-exclusive
   end++;
 
-  auto s = std::string(look, end);
+  std::string s{look, end};
   look = end;
   return String{s};
 }
 
 const Comment Lexer::lex_comment() {
     auto end = std::find(look, eos(), '\n');
-    auto s = std::string(look, end);
+    std::string s{look, end};
     look = end;
     return Comment{s};
 }
