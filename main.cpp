@@ -17,7 +17,8 @@ int main(int argc, char** argv) {
 
     while (true) {
         auto token = lexer.lex();
-        std::cout << static_cast<char>(token.type) << std::endl;
+        //std::cout << static_cast<char>(token.type) << std::endl;
+        std::cout << token << std::endl;
 
         if (token.type == TokenType::Eos)
             break;

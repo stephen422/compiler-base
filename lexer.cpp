@@ -71,7 +71,7 @@ std::ostream& operator<<(std::ostream& os, const Token_& token) {
         os << "unrecognized token";
     }
     */
-    os << "something";
+    os << "something (" << token.lit << ")";
     return os;
 }
 
@@ -133,7 +133,7 @@ Token_ Lexer::lex() {
 
     // Identifier starts with an alphabet or an underscore.
     if (look == eos()) {
-        return Token_{TokenType::Eos, this->pos()};
+        return Token_{TokenType::Eos, pos()};
     } else if (std::isalpha(*look) || *look == '_') {
         auto tok = lex_ident();
         return tok;
@@ -155,7 +155,7 @@ Token_ Lexer::lex() {
         // throw std::string{"Unrecognized token type"};
     }
 
-    return Token_{TokenType::Ident, this->pos(), "BAD"};
+    return Token_{TokenType::Ident, pos(), "BAD"};
 }
 
 Token_ Lexer::peek() {
