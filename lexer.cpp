@@ -80,14 +80,14 @@ Token_ Lexer::lex_ident() {
     auto end = std::find_if_not(look, eos(), isalpha);
     std::string lit{look, end};
     look = end;
-    return Token_{Token_::Type::Ident, pos(), lit};
+    return Token_{TokenType::Ident, pos(), lit};
 }
 
 Token_ Lexer::lex_number() {
     auto end = std::find_if_not(look, eos(), isdigit);
     std::string lit{look, end};
     look = end;
-    return Token_{Token_::Type::Number, pos(), lit};
+    return Token_{TokenType::Number, pos(), lit};
 }
 
 Token_ Lexer::lex_string() {
@@ -107,36 +107,33 @@ Token_ Lexer::lex_string() {
 
     std::string lit{look, end};
     look = end;
-    return Token_{Token_::Type::String, pos(), lit};
+    return Token_{TokenType::String, pos(), lit};
 }
 
 Token_ Lexer::lex_comment() {
     auto end = std::find(look, eos(), '\n');
     std::string lit{look, end};
     look = end;
-    return Token_{Token_::Type::Comment, pos(), lit};
+    return Token_{TokenType::Comment, pos(), lit};
 }
 
 Token_ Lexer::lex_symbol() {
     // There may be mismatches
-    auto type = static_cast<Token_::Type>(*look);
+    auto type = static_cast<TokenType>(*look);
     look++;
     return Token_{type, pos()};
 }
 
 Token_ Lexer::lex() {
-    auto total = std::cend(sv) - std::cbegin(sv);
-
-    // Skip whitespace at the beginning of the lex.
-    // This could be done at the end of the lex, but that requires additional
-    // operation for sources that contains whitespace at the start.
     skip_whitespace();
 
+    // debug
+    auto total = std::cend(sv) - std::cbegin(sv);
     std::cout << "pos " << look - std::cbegin(sv) << "/" << total << ": ";
 
     // Identifier starts with an alphabet or an underscore.
     if (look == eos()) {
-        return Token_{Token_::Type::Eos, this->pos()};
+        return Token_{TokenType::Eos, this->pos()};
     } else if (std::isalpha(*look) || *look == '_') {
         auto tok = lex_ident();
         return tok;
@@ -158,7 +155,7 @@ Token_ Lexer::lex() {
         // throw std::string{"Unrecognized token type"};
     }
 
-    return Token_{Token_::Type::Ident, this->pos(), "BAD"};
+    return Token_{TokenType::Ident, this->pos(), "BAD"};
 }
 
 Token_ Lexer::peek() {

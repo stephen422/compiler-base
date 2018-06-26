@@ -19,12 +19,12 @@ int main(int argc, char** argv) {
         auto token = lexer.lex();
         std::cout << static_cast<char>(token.type) << std::endl;
 
-        if (token.type == Token_::Type::Eos)
+        if (token.type == TokenType::Eos)
             break;
     }
 
     //Parser p{lexer};
     //p.parse();
-    std::cout << static_cast<int>(Token_::Type::Ident) << std::endl;
+    std::cout << static_cast<int>(TokenType::Ident) << std::endl;
     return 0;
 }

@@ -7,19 +7,7 @@
 #include <string_view>
 #include <variant>
 
-struct Token_ {
-    enum class Type;
-
-    Type type;
-    size_t pos;
-    std::string lit;
-
-    Token_(Type type, size_t pos) : type(type), pos(pos) {}
-    Token_(Type type, size_t pos, std::string lit)
-        : type(type), pos(pos), lit(std::move(lit)) {}
-};
-
-enum class Token_::Type {
+enum class TokenType {
     Eos = 0,
     Lparen = '(',
     Rparen = ')',
@@ -55,6 +43,16 @@ enum class Token_::Type {
     Comment,
 };
 
+struct Token_ {
+    TokenType type;
+    size_t pos;
+    std::string lit;
+
+    Token_(TokenType type, size_t pos) : type(type), pos(pos) {}
+    Token_(TokenType type, size_t pos, std::string lit)
+        : type(type), pos(pos), lit(std::move(lit)) {}
+};
+
 std::ostream& operator<<(std::ostream& os, const Token_& token);
 
 enum class Keywords {
@@ -77,28 +75,16 @@ public:
     /// Peek the next token without consuming it.
     Token_ peek();
 
-    /// Lex the next identifier.
-    Token_ lex_ident();
-
-    /// Lex the next number literal.
-    Token_ lex_number();
-
-    /// Lex the next string literal.
-    Token_ lex_string();
-
-    /// Lex the next single-line comment.
-    Token_ lex_comment();
-
-    /// Lex any token that consists of a single character, such as
-    /// '.', ';', '(', ')', etc.
-    Token_ lex_symbol();
-
 private:
     Source &src;
     std::string_view sv;
-
-    // The lookahead pos.
     std::string_view::iterator look;
+
+    Token_ lex_ident();
+    Token_ lex_number();
+    Token_ lex_string();
+    Token_ lex_comment();
+    Token_ lex_symbol();
 
     size_t pos() const { return this->look - std::cbegin(sv); }
     std::string_view::iterator eos() const { return std::cend(sv); }
