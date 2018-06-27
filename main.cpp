@@ -20,12 +20,12 @@ int main(int argc, char** argv) {
         //std::cout << static_cast<char>(token.type) << std::endl;
         std::cout << token << std::endl;
 
-        if (token.type == TokenType::Eos)
+        if (token.type == TokenType::eos)
             break;
     }
 
     //Parser p{lexer};
     //p.parse();
-    std::cout << static_cast<int>(TokenType::Ident) << std::endl;
+    std::cout << static_cast<int>(TokenType::ident) << std::endl;
     return 0;
 }

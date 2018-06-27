@@ -5,42 +5,41 @@
 #include <algorithm>
 #include <string>
 #include <string_view>
-#include <variant>
 
 enum class TokenType {
-    Eos = 0,
-    Lparen = '(',
-    Rparen = ')',
-    Lbrace = '{',
-    Rbrace = '}',
-    Lbracket = '[',
-    Rbracket = ']',
-    Lesserthan = '<',
-    Greaterthan = '>',
-    Dot = '.',
-    Comma = ',',
-    Colon = ':',
-    Semicolon = ';',
-    Doublequote = '"',
-    Quote = '\'',
-    Equals = '=',
-    Plus = '+',
-    Minus = '-',
-    Star = '*',
-    Ampersand = '&',
-    Caret = '^',
-    Tilde = '~',
-    Slash = '/',
-    Backslash = '\\',
-    Bang = '!',
-    Question = '?',
-    Hash = '#',
-    Bar = '-',
-    Ident = 256, // skip ASCII
-    Number,
-    String,
-    Char,
-    Comment,
+    eos = 0,
+    lparen = '(',
+    rparen = ')',
+    lbrace = '{',
+    rbrace = '}',
+    lbracket = '[',
+    rbracket = ']',
+    lesserthan = '<',
+    greaterthan = '>',
+    dot = '.',
+    comma = ',',
+    colon = ':',
+    semicolon = ';',
+    doublequote = '"',
+    quote = '\'',
+    equals = '=',
+    plus = '+',
+    minus = '-',
+    star = '*',
+    ampersand = '&',
+    caret = '^',
+    tilde = '~',
+    slash = '/',
+    backslash = '\\',
+    bang = '!',
+    question = '?',
+    hash = '#',
+    bar = '-',
+    ident = 256, // skip ASCII
+    number,
+    string,
+    character,
+    comment,
 };
 
 struct Token_ {
@@ -61,10 +60,10 @@ enum class Keywords {
 };
 
 /// Represents a lexer state machine.
-/// This lexer assumes that the source data will outlive it.
+/// Assumes that the associated Source outlives it.
 class Lexer {
 public:
-    /// Make a lexer for the given file.
+    /// Make a lexer for the given source.
     Lexer(Source& src)
         : src(src), sv(src.buf.data(), src.buf.size()),
         look(std::cbegin(sv)) {}

@@ -80,14 +80,14 @@ Token_ Lexer::lex_ident() {
     auto end = std::find_if_not(look, eos(), isalpha);
     std::string lit{look, end};
     look = end;
-    return Token_{TokenType::Ident, pos(), lit};
+    return Token_{TokenType::ident, pos(), lit};
 }
 
 Token_ Lexer::lex_number() {
     auto end = std::find_if_not(look, eos(), isdigit);
     std::string lit{look, end};
     look = end;
-    return Token_{TokenType::Number, pos(), lit};
+    return Token_{TokenType::number, pos(), lit};
 }
 
 Token_ Lexer::lex_string() {
@@ -107,14 +107,14 @@ Token_ Lexer::lex_string() {
 
     std::string lit{look, end};
     look = end;
-    return Token_{TokenType::String, pos(), lit};
+    return Token_{TokenType::string, pos(), lit};
 }
 
 Token_ Lexer::lex_comment() {
     auto end = std::find(look, eos(), '\n');
     std::string lit{look, end};
     look = end;
-    return Token_{TokenType::Comment, pos(), lit};
+    return Token_{TokenType::comment, pos(), lit};
 }
 
 Token_ Lexer::lex_symbol() {
@@ -133,7 +133,7 @@ Token_ Lexer::lex() {
 
     // Identifier starts with an alphabet or an underscore.
     if (look == eos()) {
-        return Token_{TokenType::Eos, pos()};
+        return Token_{TokenType::eos, pos()};
     } else if (std::isalpha(*look) || *look == '_') {
         auto tok = lex_ident();
         return tok;
@@ -155,7 +155,7 @@ Token_ Lexer::lex() {
         // throw std::string{"Unrecognized token type"};
     }
 
-    return Token_{TokenType::Ident, pos(), "BAD"};
+    return Token_{TokenType::ident, pos(), "BAD"};
 }
 
 Token_ Lexer::peek() {
