@@ -1,7 +1,7 @@
 #ifndef LEXER_H
 #define LEXER_H
 
-#include "source.hpp"
+#include "source.h"
 #include <algorithm>
 #include <string>
 #include <string_view>

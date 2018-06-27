@@ -1,5 +1,4 @@
-#include "parse.hpp"
-#include "parse.hpp"
+#include "parse.h"
 #include <iostream>
 
 void Parser::parse() {

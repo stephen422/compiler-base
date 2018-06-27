@@ -8,9 +8,9 @@ $(PROG): main.o source.o lexer.o
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-main.o: parse.hpp lexer.hpp
-lexer.o: lexer.hpp source.hpp
-source.o: source.hpp
+main.o: parse.h lexer.h
+lexer.o: lexer.h source.h
+source.o: source.h
 
 .PHONY: clean
 clean:

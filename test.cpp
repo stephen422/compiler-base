@@ -1,6 +1,6 @@
 #define CATCH_CONFIG_MAIN
 #include "Lexer.h"
-#include "catch.hpp"
+#include "catch.h"
 
 TEST_CASE("String lexing", "[lex_string]") {
   SECTION("no escape chars") {
