@@ -34,12 +34,44 @@ enum class TokenType {
     bang = '!',
     question = '?',
     hash = '#',
-    bar = '-',
+    dash = '-',
     ident = 256, // skip ASCII
     number,
     string,
     character,
     comment,
+    none // not found
+};
+
+// TODO: map maybe better?
+const std::vector<std::pair<TokenType, std::string>> token_map {
+    {TokenType::doublequote, "\""},
+    {TokenType::quote, "'"},
+    {TokenType::slash, "/"},
+    {TokenType::lparen, "("},
+    {TokenType::rparen, ")"},
+    {TokenType::lbrace, "{"},
+    {TokenType::rbrace, "}"},
+    {TokenType::lbracket, "["},
+    {TokenType::rbracket, "]"},
+    {TokenType::lesserthan, "<"},
+    {TokenType::greaterthan, ">"},
+    {TokenType::dot, "."},
+    {TokenType::comma, ","},
+    {TokenType::colon, ":"},
+    {TokenType::semicolon, ";"},
+    {TokenType::equals, "="},
+    {TokenType::plus, "+"},
+    {TokenType::minus, "-"},
+    {TokenType::star, "*"},
+    {TokenType::ampersand, "&"},
+    {TokenType::caret, "^"},
+    {TokenType::tilde, "~"},
+    {TokenType::backslash, "\\"},
+    {TokenType::bang, "!"},
+    {TokenType::question, "?"},
+    {TokenType::hash, "#"},
+    {TokenType::dash, "-"},
 };
 
 struct Token_ {

@@ -79,15 +79,17 @@ Token_ Lexer::lex_ident() {
     auto isalpha = [](char c) { return std::isalnum(c) || c == '_'; };
     auto end = std::find_if_not(look, eos(), isalpha);
     std::string lit{look, end};
+    Token_ token{TokenType::ident, pos(), lit};
     look = end;
-    return Token_{TokenType::ident, pos(), lit};
+    return token;
 }
 
 Token_ Lexer::lex_number() {
     auto end = std::find_if_not(look, eos(), isdigit);
     std::string lit{look, end};
+    Token_ token{TokenType::number, pos(), lit};
     look = end;
-    return Token_{TokenType::number, pos(), lit};
+    return token;
 }
 
 Token_ Lexer::lex_string() {
@@ -106,22 +108,29 @@ Token_ Lexer::lex_string() {
     end++;
 
     std::string lit{look, end};
+    Token_ token{TokenType::string, pos(), lit};
     look = end;
-    return Token_{TokenType::string, pos(), lit};
+    return token;
 }
 
 Token_ Lexer::lex_comment() {
     auto end = std::find(look, eos(), '\n');
     std::string lit{look, end};
+    Token_ token{TokenType::comment, pos(), lit};
     look = end;
-    return Token_{TokenType::comment, pos(), lit};
+    return token;
 }
 
 Token_ Lexer::lex_symbol() {
-    // There may be mismatches
-    auto type = static_cast<TokenType>(*look);
-    look++;
-    return Token_{type, pos()};
+    for (auto &[type, lit] : token_map) {
+        std::string_view sv{look, lit.length()};
+        if (sv == lit) {
+            Token_ token{type, pos(), lit};
+            look += lit.length();
+            return token;
+        }
+    }
+    return Token_{TokenType::none, pos()};
 }
 
 Token_ Lexer::lex() {
@@ -135,12 +144,13 @@ Token_ Lexer::lex() {
     if (look == eos()) {
         return Token_{TokenType::eos, pos()};
     } else if (std::isalpha(*look) || *look == '_') {
-        auto tok = lex_ident();
-        return tok;
+        return lex_ident();
     } else if (std::isdigit(*look)) {
-        auto tok = lex_number();
-        return tok;
-    } else if (*look == '"') {
+        return lex_number();
+    }
+
+    /*
+    else if (*look == '"') {
         auto tok = lex_string();
         return tok;
     } else if (*look == '/') {
@@ -154,8 +164,15 @@ Token_ Lexer::lex() {
         // std::cerr << "lex error: [" << *look << "]: Unrecognized token type\n";
         // throw std::string{"Unrecognized token type"};
     }
+    */
 
-    return Token_{TokenType::ident, pos(), "BAD"};
+    // Otherwise, it's a literal or a symbol.
+    auto sym = lex_symbol();
+    if (sym.type == TokenType::none) {
+        std::cerr << "lex error: [" << *look << "]: Unrecognized token type\n";
+        return Token_{TokenType::ident, pos(), "BAD"};
+    }
+    return sym;
 }
 
 Token_ Lexer::peek() {
