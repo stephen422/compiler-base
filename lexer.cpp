@@ -7,71 +7,7 @@ void print_literal(std::ostream& os, const Token_& token) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Token_& token) {
-    /*
-    if (is_type<Ident>(token)) {
-        os << "ident";
-        print_literal<Ident>(os, token);
-    } else if (is_type<Number>(token)) {
-        os << "number";
-        print_literal<Number>(os, token);
-    } else if (is_type<String>(token)) {
-        os << "string";
-        print_literal<String>(os, token);
-    } else if (is_type<Lparen>(token)) {
-        os << "lparen";
-    } else if (is_type<Rparen>(token)) {
-        os << "rparen";
-    } else if (is_type<Lbrace>(token)) {
-        os << "lbrace";
-    } else if (is_type<Rbrace>(token)) {
-        os << "rbrace";
-    } else if (is_type<Lesserthan>(token)) {
-        os << "lesserthan";
-    } else if (is_type<Greaterthan>(token)) {
-        os << "greaterthan";
-    } else if (is_type<Dot>(token)) {
-        os << "dot";
-    } else if (is_type<Comma>(token)) {
-        os << "comma";
-    } else if (is_type<Colon>(token)) {
-        os << "colon";
-    } else if (is_type<Semicolon>(token)) {
-        os << "semicolon";
-    } else if (is_type<Quote>(token)) {
-        os << "quote";
-    } else if (is_type<Equals>(token)) {
-        os << "equals";
-    } else if (is_type<Plus>(token)) {
-        os << "plus";
-    } else if (is_type<Minus>(token)) {
-        os << "minus";
-    } else if (is_type<Star>(token)) {
-        os << "star";
-    } else if (is_type<Ampersand>(token)) {
-        os << "ampersand";
-    } else if (is_type<Caret>(token)) {
-        os << "caret";
-    } else if (is_type<Tilde>(token)) {
-        os << "tilde";
-    } else if (is_type<Slash>(token)) {
-        os << "slash";
-    } else if (is_type<Backslash>(token)) {
-        os << "backslash";
-    } else if (is_type<Bang>(token)) {
-        os << "bang";
-    } else if (is_type<Question>(token)) {
-        os << "question";
-    } else if (is_type<Hash>(token)) {
-        os << "hash";
-    } else if (is_type<Bar>(token)) {
-        os << "bar";
-    } else if (is_type<Eos>(token)) {
-        os << "eos";
-    } else {
-        os << "unrecognized token";
-    }
-    */
-    os << "something (" << token.lit << ")";
+    os << "[" << token.lit << "]";
     return os;
 }
 
@@ -130,7 +66,7 @@ Token_ Lexer::lex_symbol() {
             return token;
         }
     }
-    return Token_{TokenType::none, pos()};
+    return Token_{TokenType::none, pos(), std::string{*look}};
 }
 
 Token_ Lexer::lex() {
@@ -168,10 +104,6 @@ Token_ Lexer::lex() {
 
     // Otherwise, it's a literal or a symbol.
     auto sym = lex_symbol();
-    if (sym.type == TokenType::none) {
-        std::cerr << "lex error: [" << *look << "]: Unrecognized token type\n";
-        return Token_{TokenType::ident, pos(), "BAD"};
-    }
     return sym;
 }
 

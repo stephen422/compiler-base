@@ -2,4 +2,5 @@ fn main() -> int {
     let a = 5;
     var b = 3;
     return 0;
+    @
 }

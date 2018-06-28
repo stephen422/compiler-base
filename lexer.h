@@ -96,8 +96,8 @@ enum class Keywords {
 class Lexer {
 public:
     /// Make a lexer for the given source.
-    Lexer(Source& src)
-        : src(src), sv(src.buf.data(), src.buf.size()),
+    Lexer(Source& s)
+        : src(s), sv(src.buf.data(), src.buf.size()),
         look(std::cbegin(sv)) {}
 
     /// Lex the current token and advance to the next one.
