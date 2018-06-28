@@ -3,7 +3,7 @@ CXXFLAGS += -g -std=c++17 -pedantic -Wall -Wextra
 PROG := cmp
 
 $(PROG): main.o source.o lexer.o
-	$(CXX) -o $(PROG) $^
+	$(CXX) -o $(PROG) $^ $(LDFLAGS)
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
