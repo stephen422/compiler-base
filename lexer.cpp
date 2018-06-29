@@ -104,6 +104,23 @@ Token_ Lexer::lex() {
 
     // Otherwise, it's a literal or a symbol.
     auto sym = lex_symbol();
+
+    switch (sym.type) {
+    case TokenType::doublequote: {
+        look--;
+        return lex_string();
+    }
+    case TokenType::slash: {
+        if (lex_symbol().type == TokenType::slash) {
+            look -= 2;
+            return lex_comment();
+        } else {
+            // FIXME no look--?
+            return sym;
+        }
+    }
+    default: { break; }
+    }
     return sym;
 }
 
