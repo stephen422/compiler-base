@@ -2,33 +2,33 @@
 #include <cctype>
 
 template <typename T>
-void print_literal(std::ostream& os, const Token_& token) {
+void print_literal(std::ostream& os, const Token& token) {
     os << " [" << token.lit << "]";
 }
 
-std::ostream& operator<<(std::ostream& os, const Token_& token) {
+std::ostream& operator<<(std::ostream& os, const Token& token) {
     os << "[" << token.lit << "]";
     return os;
 }
 
-Token_ Lexer::lex_ident() {
+Token Lexer::lex_ident() {
     auto isalpha = [](char c) { return std::isalnum(c) || c == '_'; };
     auto end = std::find_if_not(look, eos(), isalpha);
     std::string lit{look, end};
-    Token_ token{TokenType::ident, pos(), lit};
+    Token token{TokenType::ident, pos(), lit};
     look = end;
     return token;
 }
 
-Token_ Lexer::lex_number() {
+Token Lexer::lex_number() {
     auto end = std::find_if_not(look, eos(), isdigit);
     std::string lit{look, end};
-    Token_ token{TokenType::number, pos(), lit};
+    Token token{TokenType::number, pos(), lit};
     look = end;
     return token;
 }
 
-Token_ Lexer::lex_string() {
+Token Lexer::lex_string() {
     auto end = look + 1;
     while (end != eos()) {
         end = std::find_if(end, eos(),
@@ -44,38 +44,38 @@ Token_ Lexer::lex_string() {
     end++;
 
     std::string lit{look, end};
-    Token_ token{TokenType::string, pos(), lit};
+    Token token{TokenType::string, pos(), lit};
     look = end;
     return token;
 }
 
-Token_ Lexer::lex_comment() {
+Token Lexer::lex_comment() {
     auto end = std::find(look, eos(), '\n');
     std::string lit{look, end};
-    Token_ token{TokenType::comment, pos(), lit};
+    Token token{TokenType::comment, pos(), lit};
     look = end;
     return token;
 }
 
-Token_ Lexer::lex_symbol() {
+Token Lexer::lex_symbol() {
     for (auto &[type, lit] : token_map) {
         std::string_view sv{look, lit.length()};
         if (sv == lit) {
-            Token_ token{type, pos(), lit};
+            Token token{type, pos(), lit};
             look += lit.length();
             return token;
         }
     }
-    return Token_{TokenType::none, pos(), std::string{*look}};
+    return Token{TokenType::none, pos(), std::string{*look}};
 }
 
-Token_ Lexer::lex() {
+Token Lexer::lex() {
     skip_whitespace();
 
     switch (*look) {
     case 0:
         if (look == eos())
-            return Token_{TokenType::eos, pos()};
+            return Token{TokenType::eos, pos()};
         throw std::string{"Unexpected null character"};
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
@@ -142,7 +142,7 @@ Token_ Lexer::lex() {
     // return sym;
 }
 
-Token_ Lexer::peek() {
+Token Lexer::peek() {
   auto save = look;
   auto token = lex();
   look = save;

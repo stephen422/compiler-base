@@ -73,17 +73,17 @@ static const std::pair<TokenType, std::string> token_map[] {
     {TokenType::dash, "-"},
 };
 
-struct Token_ {
+struct Token {
     TokenType type;
     size_t pos;
     std::string lit;
 
-    Token_(TokenType type, size_t pos) : type(type), pos(pos) {}
-    Token_(TokenType type, size_t pos, std::string lit)
+    Token(TokenType type, size_t pos) : type(type), pos(pos) {}
+    Token(TokenType type, size_t pos, std::string lit)
         : type(type), pos(pos), lit(std::move(lit)) {}
 };
 
-std::ostream& operator<<(std::ostream& os, const Token_& token);
+std::ostream& operator<<(std::ostream& os, const Token& token);
 
 enum class Keywords {
     fn,
@@ -100,21 +100,21 @@ public:
         look(std::cbegin(sv)) {}
 
     /// Lex the current token and advance to the next one.
-    Token_ lex();
+    Token lex();
 
     /// Peek the next token without consuming it.
-    Token_ peek();
+    Token peek();
 
 private:
     Source &src;
     std::string_view sv;
     std::string_view::iterator look;
 
-    Token_ lex_ident();
-    Token_ lex_number();
-    Token_ lex_string();
-    Token_ lex_comment();
-    Token_ lex_symbol();
+    Token lex_ident();
+    Token lex_number();
+    Token lex_string();
+    Token lex_comment();
+    Token lex_symbol();
 
     size_t pos() const { return this->look - std::cbegin(sv); }
     std::string_view::iterator eos() const { return std::cend(sv); }
