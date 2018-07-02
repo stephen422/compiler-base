@@ -72,18 +72,36 @@ Token_ Lexer::lex_symbol() {
 Token_ Lexer::lex() {
     skip_whitespace();
 
-    // debug
-    auto total = std::cend(sv) - std::cbegin(sv);
-    std::cout << "pos " << look - std::cbegin(sv) << "/" << total << ": ";
+    switch (*look) {
+    case 0:
+        if (look == eos())
+            return Token_{TokenType::eos, pos()};
+        throw std::string{"Unexpected null character"};
+    case '0': case '1': case '2': case '3': case '4':
+    case '5': case '6': case '7': case '8': case '9':
+        return lex_number();
+    case 'A': case 'B': case 'C': case 'D': case 'E': case 'F': case 'G':
+    case 'H': case 'I': case 'J': case 'K': case 'L': case 'M': case 'N':
+    case 'O': case 'P': case 'Q': case 'R': case 'S': case 'T': case 'U':
+    case 'V': case 'W': case 'X': case 'Y': case 'Z':
+    case 'a': case 'b': case 'c': case 'd': case 'e': case 'f': case 'g':
+    case 'h': case 'i': case 'j': case 'k': case 'l': case 'm': case 'n':
+    case 'o': case 'p': case 'q': case 'r': case 's': case 't': case 'u':
+    case 'v': case 'w': case 'x': case 'y': case 'z':
+    case '_':
+        return lex_ident();
+    case '"':
+        return lex_string();
+    default:
+        return lex_symbol();
+    }
 
     // Identifier starts with an alphabet or an underscore.
-    if (look == eos()) {
-        return Token_{TokenType::eos, pos()};
-    } else if (std::isalpha(*look) || *look == '_') {
-        return lex_ident();
-    } else if (std::isdigit(*look)) {
-        return lex_number();
-    }
+    // if (std::isalpha(*look) || *look == '_') {
+    //     return lex_ident();
+    // } else if (std::isdigit(*look)) {
+    //     return lex_number();
+    // }
 
     /*
     else if (*look == '"') {
@@ -103,25 +121,25 @@ Token_ Lexer::lex() {
     */
 
     // Otherwise, it's a literal or a symbol.
-    auto sym = lex_symbol();
+    // auto sym = lex_symbol();
 
-    switch (sym.type) {
-    case TokenType::doublequote: {
-        look--;
-        return lex_string();
-    }
-    case TokenType::slash: {
-        if (lex_symbol().type == TokenType::slash) {
-            look -= 2;
-            return lex_comment();
-        } else {
-            // FIXME no look--?
-            return sym;
-        }
-    }
-    default: { break; }
-    }
-    return sym;
+    // switch (sym.type) {
+    // case TokenType::doublequote: {
+    //     look--;
+    //     return lex_string();
+    // }
+    // case TokenType::slash: {
+    //     if (lex_symbol().type == TokenType::slash) {
+    //         look -= 2;
+    //         return lex_comment();
+    //     } else {
+    //         // FIXME no look--?
+    //         return sym;
+    //     }
+    // }
+    // default: { break; }
+    // }
+    // return sym;
 }
 
 Token_ Lexer::peek() {
