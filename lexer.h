@@ -44,7 +44,7 @@ enum class TokenType {
 };
 
 // TODO: map maybe better?
-const std::vector<std::pair<TokenType, std::string>> token_map {
+static const std::pair<TokenType, std::string> token_map[] {
     {TokenType::doublequote, "\""},
     {TokenType::quote, "'"},
     {TokenType::slash, "/"},
