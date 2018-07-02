@@ -29,6 +29,7 @@
 # Executables
 cmp
 build*/
+*.s
 *.exe
 *.out
 *.app
