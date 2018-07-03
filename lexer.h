@@ -3,6 +3,7 @@
 
 #include "source.h"
 #include <algorithm>
+#include <map>
 #include <string>
 #include <string_view>
 
@@ -40,10 +41,29 @@ enum class TokenType {
     string,
     character,
     comment,
+    kw_timescale,
+    kw_include,
+    kw_define,
+    kw_parameter,
+    kw_module,
+    kw_endmodule,
+    kw_input,
+    kw_output,
+    kw_inout,
+    kw_reg,
+    kw_wire,
+    kw_assign,
+    kw_always,
+    kw_posedge,
+    kw_negedge,
+    kw_if,
+    kw_else,
+    kw_begin,
+    kw_end,
     none // not found
 };
 
-static const std::pair<TokenType, std::string> token_map[] {
+static const std::pair<TokenType, std::string> symbol_map[] {
     {TokenType::doublequote, "\""},
     {TokenType::quote, "'"},
     {TokenType::slash, "/"},
@@ -73,6 +93,28 @@ static const std::pair<TokenType, std::string> token_map[] {
     {TokenType::dash, "-"},
 };
 
+static const std::map<std::string, TokenType> keyword_map {
+    {"timescale", TokenType::kw_timescale},
+    {"include", TokenType::kw_include},
+    {"define", TokenType::kw_define},
+    {"parameter", TokenType::kw_parameter},
+    {"module", TokenType::kw_module},
+    {"endmodule", TokenType::kw_endmodule},
+    {"input", TokenType::kw_input},
+    {"output", TokenType::kw_output},
+    {"inout", TokenType::kw_inout},
+    {"reg", TokenType::kw_reg},
+    {"wire", TokenType::kw_wire},
+    {"assign", TokenType::kw_assign},
+    {"always", TokenType::kw_always},
+    {"posedge", TokenType::kw_posedge},
+    {"negedge", TokenType::kw_negedge},
+    {"if", TokenType::kw_if},
+    {"else", TokenType::kw_else},
+    {"begin", TokenType::kw_begin},
+    {"end", TokenType::kw_end},
+};
+
 struct Token {
     TokenType type;
     size_t pos;
@@ -84,11 +126,6 @@ struct Token {
 };
 
 std::ostream& operator<<(std::ostream& os, const Token& token);
-
-enum class Keywords {
-    fn,
-    int_
-};
 
 /// Represents a lexer state machine.
 /// Assumes that the associated Source outlives it.

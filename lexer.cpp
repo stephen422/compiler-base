@@ -11,11 +11,23 @@ std::ostream& operator<<(std::ostream& os, const Token& token) {
     return os;
 }
 
+// Side note: upon quick testing, std::find families are as fast as or even
+// faster than C loops (thanks to loop unrolling).
+
 Token Lexer::lex_ident() {
     auto isalpha = [](char c) { return std::isalnum(c) || c == '_'; };
     auto end = std::find_if_not(look, eos(), isalpha);
     std::string lit{look, end};
-    Token token{TokenType::ident, pos(), lit};
+    TokenType type;
+
+    auto match = keyword_map.find(lit);
+    if (match != keyword_map.end()) {
+        type = match->second;
+    } else {
+        type = TokenType::ident;
+    }
+
+    Token token{type, pos(), lit};
     look = end;
     return token;
 }
@@ -58,7 +70,7 @@ Token Lexer::lex_comment() {
 }
 
 Token Lexer::lex_symbol() {
-    for (auto &[type, lit] : token_map) {
+    for (auto &[type, lit] : symbol_map) {
         std::string_view sv{look, lit.length()};
         if (sv == lit) {
             Token token{type, pos(), lit};
