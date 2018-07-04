@@ -1,25 +1,19 @@
 #include "lexer.h"
 #include <cctype>
 
-template <typename T>
-void print_literal(std::ostream& os, const Token& token) {
-    os << " [" << token.lit << "]";
-}
-
 std::ostream& operator<<(std::ostream& os, const Token& token) {
     os << "[" << token.lit << "]";
     return os;
 }
 
 // Side note: upon quick testing, std::find families are as fast as or even
-// faster than C loops (thanks to loop unrolling).
+// faster than C loops, thanks to loop unrolling.
 
 Token Lexer::lex_ident() {
     auto isalpha = [](char c) { return std::isalnum(c) || c == '_'; };
     auto end = std::find_if_not(look, eos(), isalpha);
-    std::string lit{look, end};
-    TokenType type;
 
+    TokenType type;
     auto match = keyword_map.find(lit);
     if (match != keyword_map.end()) {
         type = match->second;
@@ -27,6 +21,7 @@ Token Lexer::lex_ident() {
         type = TokenType::ident;
     }
 
+    std::string lit{look, end};
     Token token{type, pos(), lit};
     look = end;
     return token;
@@ -131,27 +126,6 @@ Token Lexer::lex() {
         // throw std::string{"Unrecognized token type"};
     }
     */
-
-    // Otherwise, it's a literal or a symbol.
-    // auto sym = lex_symbol();
-
-    // switch (sym.type) {
-    // case TokenType::doublequote: {
-    //     look--;
-    //     return lex_string();
-    // }
-    // case TokenType::slash: {
-    //     if (lex_symbol().type == TokenType::slash) {
-    //         look -= 2;
-    //         return lex_comment();
-    //     } else {
-    //         // FIXME no look--?
-    //         return sym;
-    //     }
-    // }
-    // default: { break; }
-    // }
-    // return sym;
 }
 
 Token Lexer::peek() {
