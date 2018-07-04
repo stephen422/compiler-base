@@ -9,6 +9,7 @@
 
 enum class TokenType {
     eos,
+    arrow,
     lparen,
     rparen,
     lbrace,
@@ -63,8 +64,11 @@ enum class TokenType {
     none // not found
 };
 
+// This is under linear search, so it is better to place more frequently used
+// symbols at the top.
 static const std::pair<TokenType, std::string> symbol_map[] {
     {TokenType::doublequote, "\""},
+    {TokenType::arrow, "->"},
     {TokenType::quote, "'"},
     {TokenType::slash, "/"},
     {TokenType::lparen, "("},
