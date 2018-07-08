@@ -105,9 +105,7 @@ int lexer_init(Lexer *l, const char *filename) {
     l->src = readfile(filename, &l->srclen);
     l->off = 0;
     l->start = 0;
-    l->ch = 0;
-    if (l->srclen > 0)
-	l->ch = l->src[0];
+    l->ch = l->src[0];
     memset(&l->sb, 0, sizeof(l->sb));
     return 1;
 }
@@ -141,11 +139,6 @@ void token_free(Token *t) {
     free(t);
 }
 
-static void skip_numbers(Lexer *l) {
-    while (isdigit(l->ch))
-        step(l);
-}
-
 static Token *lex_ident(Lexer *l) {
     while (isalnum(l->ch) || l->ch == '_')
         step(l);
@@ -155,6 +148,11 @@ static Token *lex_ident(Lexer *l) {
 	}
     }
     return make_token_with_text(l, TOK_IDENT);
+}
+
+static void skip_numbers(Lexer *l) {
+    while (isdigit(l->ch))
+        step(l);
 }
 
 static Token *lex_number(Lexer *l) {
