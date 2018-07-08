@@ -127,13 +127,6 @@ void token_free(Token *t) {
     free(t);
 }
 
-#if 0
-static void skip_whitespace(Lexer *l) {
-    while (l->ch == ' ' || l->ch == '\t' || l->ch == '\n')
-        step(l);
-}
-#endif
-
 static void skip_numbers(Lexer *l) {
     while (isdigit(l->ch))
         step(l);
