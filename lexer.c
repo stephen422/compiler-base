@@ -76,28 +76,6 @@ static char *readfile(const char *filename, long *filesize) {
     return s;
 }
 
-static void step(Lexer *l) {
-    if (l->off + 1 < l->srclen) {
-        l->off++;
-        l->ch = l->src[l->off];
-    } else {
-        l->off = l->srclen;
-        l->ch = 0;
-    }
-}
-
-// NOTE: more strict?
-static void consume(Lexer *l, long n) {
-    for (long i = 0; i < n; i++)
-	step(l);
-}
-
-static char lookn(Lexer *l, long n) {
-    if (l->off + n < l->srclen)
-        return l->src[l->off + n];
-    return '\0';
-}
-
 int lexer_init(Lexer *l, const char *filename) {
     l->filename = malloc(256);
     l->filename = memcpy(l->filename, filename, 255);
@@ -114,6 +92,28 @@ void lexer_free(Lexer *l) {
     free(l->filename);
     free(l->src);
     free(l->sb.s);
+}
+
+static void step(Lexer *l) {
+    if (l->off + 1 < l->srclen) {
+        l->off++;
+        l->ch = l->src[l->off];
+    } else {
+        l->off = l->srclen;
+        l->ch = 0;
+    }
+}
+
+// NOTE: more strict?
+static void consume(Lexer *l, long n) {
+    for (long i = 0; i < n; i++)
+        step(l);
+}
+
+static char lookn(Lexer *l, long n) {
+    if (l->off + n < l->srclen)
+        return l->src[l->off + n];
+    return '\0';
 }
 
 static Token *make_token(Lexer *l, TokenType type) {
@@ -135,7 +135,7 @@ static Token *make_token_with_text(Lexer *l, TokenType type) {
 
 void token_free(Token *t) {
     if (t->lit)
-	free(t->lit);
+        free(t->lit);
     free(t);
 }
 
@@ -143,9 +143,9 @@ static Token *lex_ident(Lexer *l) {
     while (isalnum(l->ch) || l->ch == '_')
         step(l);
     for (const struct TokenMap *m = &keywords[0]; m->text != NULL; m++) {
-	if (!strncmp(m->text, l->src + l->start, l->off - l->start)) {
-	    return make_token(l, m->type);
-	}
+        if (!strncmp(m->text, l->src + l->start, l->off - l->start)) {
+            return make_token(l, m->type);
+        }
     }
     return make_token_with_text(l, TOK_IDENT);
 }
@@ -166,11 +166,10 @@ static Token *lex_number(Lexer *l) {
 
 // NOTE: taken from ponyc
 static Token *lex_symbol(Lexer *l) {
-    // NOTE: look_n()s into a temp buffer?
     for (const struct TokenMap *m = &symbols[0]; m->text != NULL; m++) {
         for (int i = 0; m->text[i] == '\0' || m->text[i] == lookn(l, i); i++) {
             if (m->text[i] == '\0') {
-		consume(l, i);
+                consume(l, i);
                 return make_token(l, m->type);
             }
         }
@@ -183,7 +182,7 @@ Token *lexer_next(Lexer *l) {
     strbuf_reset(&l->sb);
 
     for (;;) {
-	l->start = l->off;
+        l->start = l->off;
 
         switch (l->ch) {
             case 0: {
@@ -197,7 +196,7 @@ Token *lexer_next(Lexer *l) {
             case ' ': case '\t': {
                 step(l);
                 break;
-	    }
+            }
             case '/': {
                 step(l);
                 if (l->ch != '/')
@@ -210,7 +209,7 @@ Token *lexer_next(Lexer *l) {
             case '0': case '1': case '2': case '3': case '4':
             case '5': case '6': case '7': case '8': case '9': {
                 return lex_number(l);
-	    }
+            }
             default: {
                 if (isalpha(l->ch) || l->ch == '_') {
                     return lex_ident(l);
