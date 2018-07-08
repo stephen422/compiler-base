@@ -1,6 +1,6 @@
 fn main() -> int {
     // This is a line comment.
     let a = 3;
-    let b = 4 / 3;
+    let b = 4.3 / 3.1415926535;
     return a;
 }

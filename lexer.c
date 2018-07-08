@@ -93,7 +93,7 @@ int lexer_init(Lexer *l, const char *filename) {
     l->ch = 0;
     if (l->srclen > 0)
 	l->ch = l->src[0];
-    l->lit = 0;
+    l->start = 0;
     memset(&l->sb, 0, sizeof(l->sb));
     return 1;
 }
@@ -108,14 +108,15 @@ static Token *make_token(Lexer *l, TokenType type) {
     Token *t = malloc(sizeof(Token));
     memset(t, 0, sizeof(Token));
     t->type = type;
+    t->pos = l->start;
     return t;
 }
 
 static Token *make_token_with_text(Lexer *l, TokenType type) {
     Token *t = make_token(l, type);
-    t->litlen = l->off - l->lit;
+    t->litlen = l->off - l->start;
     t->lit = malloc(t->litlen + 1);
-    memcpy(t->lit, l->src + l->lit, t->litlen);
+    memcpy(t->lit, l->src + l->start, t->litlen);
     t->lit[t->litlen] = '\0';
     return t;
 }
@@ -139,20 +140,20 @@ static void skip_numbers(Lexer *l) {
 }
 
 static Token *lex_ident(Lexer *l) {
-    l->lit = l->off;
+    l->start = l->off;
     while (isalnum(l->ch))
         step(l);
     return make_token_with_text(l, TOK_IDENT);
 }
 
 static Token *lex_number(Lexer *l) {
-    l->lit = l->off;
+    l->start = l->off;
     skip_numbers(l);
     if (l->ch == '.') {
         step(l);
         skip_numbers(l);
     }
-    return make_token(l, TOK_NUM);
+    return make_token_with_text(l, TOK_NUM);
 }
 
 // NOTE: taken from ponyc
@@ -174,6 +175,8 @@ Token *lexer_next(Lexer *l) {
     strbuf_reset(&l->sb);
 
     for (;;) {
+	l->start = l->off;
+
         switch (l->ch) {
             case 0: {
                 return make_token(l, TOK_EOF);

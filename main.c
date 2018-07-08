@@ -17,13 +17,18 @@ int main(int argc, char **argv) {
         switch (tok->type) {
 	case TOK_IDENT:
 	case TOK_NUM : {
-	    printf("length: %ld\n", lex.off - lex.lit);
+	    printf("%s", (tok->type == TOK_IDENT) ? "ident" : "num");
 	    if (tok->lit)
-		printf("lit: [%s]\n", tok->lit);
+		printf(" [%s]\n", tok->lit);
+	    else
+		printf("\n");
 	    break;
         }
+	case TOK_ERR: {
+	    printf("Lex error occurred\n");
+	}
         default:
-	    printf("[%c]\n", tok->type);
+	    printf("symbol (type %d)\n", tok->type);
 	    break;
         }
 	token_free(tok);
