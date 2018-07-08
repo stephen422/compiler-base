@@ -34,6 +34,17 @@ typedef enum TokenType {
     TOK_HASH,
     TOK_DASH,
     TOK_ARROW,
+
+    // Keywords
+    TOK_FN,
+    TOK_LET,
+    TOK_VAR,
+    TOK_RETURN,
+    TOK_INT,
+    TOK_IF,
+    TOK_ELSE,
+    TOK_FOR,
+
     TOK_ERR
 } TokenType;
 

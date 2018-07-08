@@ -5,10 +5,12 @@
 #include <errno.h>
 #include "lexer.h"
 
-struct SymbolMap {
+struct TokenMap {
     const char *text;
     TokenType type;
-} symbols[] = {
+};
+
+static struct TokenMap symbols[] = {
     {"->", TOK_ARROW},
     {"/", TOK_SLASH},
     {"(", TOK_LPAREN},
@@ -37,6 +39,18 @@ struct SymbolMap {
     {"?", TOK_QUESTION},
     {"#", TOK_HASH},
     {"-", TOK_DASH},
+    {NULL, 0}
+};
+
+static struct TokenMap keywords[] = {
+    {"fn", TOK_FN},
+    {"let", TOK_LET},
+    {"var", TOK_VAR},
+    {"return", TOK_RETURN},
+    {"int", TOK_INT},
+    {"if", TOK_IF},
+    {"else", TOK_ELSE},
+    {"for", TOK_FOR},
     {NULL, 0}
 };
 
@@ -135,6 +149,11 @@ static void skip_numbers(Lexer *l) {
 static Token *lex_ident(Lexer *l) {
     while (isalnum(l->ch) || l->ch == '_')
         step(l);
+    for (const struct TokenMap *m = &keywords[0]; m->text != NULL; m++) {
+	if (!strncmp(m->text, l->src + l->start, l->off - l->start)) {
+	    return make_token(l, m->type);
+	}
+    }
     return make_token_with_text(l, TOK_IDENT);
 }
 
@@ -150,7 +169,7 @@ static Token *lex_number(Lexer *l) {
 // NOTE: taken from ponyc
 static Token *lex_symbol(Lexer *l) {
     // NOTE: look_n()s into a temp buffer?
-    for (const struct SymbolMap *m = &symbols[0]; m->text != NULL; m++) {
+    for (const struct TokenMap *m = &symbols[0]; m->text != NULL; m++) {
         for (int i = 0; m->text[i] == '\0' || m->text[i] == lookn(l, i); i++) {
             if (m->text[i] == '\0') {
 		consume(l, i);

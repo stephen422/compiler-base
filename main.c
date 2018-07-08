@@ -14,6 +14,7 @@ int main(int argc, char **argv) {
     lexer_init(&lex, argv[1]);
 
     while ((tok = lexer_next(&lex))->type != TOK_EOF) {
+	printf("pos %ld/%ld: ", tok->pos, lex.srclen);
         switch (tok->type) {
 	case TOK_IDENT:
 	case TOK_NUM : {
@@ -27,9 +28,13 @@ int main(int argc, char **argv) {
 	case TOK_ERR: {
 	    printf("Lex error occurred\n");
 	}
-        default:
-	    printf("symbol (type %d)\n", tok->type);
+        default: {
+	    if (tok->type >= TOK_FN)
+		printf("keyword (type %d)\n", tok->type - TOK_FN);
+	    else
+		printf("symbol (type %d)\n", tok->type);
 	    break;
+	}
         }
 	token_free(tok);
     }
