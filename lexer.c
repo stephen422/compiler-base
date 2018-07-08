@@ -5,8 +5,42 @@
 #include <errno.h>
 #include "lexer.h"
 
-static char *readfile(const char *filename, long *filesize)
-{
+struct SymbolMap {
+    const char *text;
+    TokenType type;
+} symbols[] = {
+    {"->", TOK_ARROW},
+    {"/", TOK_SLASH},
+    {"(", TOK_LPAREN},
+    {")", TOK_RPAREN},
+    {"{", TOK_LBRACE},
+    {"}", TOK_RBRACE},
+    {"[", TOK_LBRACKET},
+    {"]", TOK_RBRACKET},
+    {"<", TOK_LT},
+    {">", TOK_GT},
+    {".", TOK_DOT},
+    {",", TOK_COMMA},
+    {":", TOK_COLON},
+    {";", TOK_SEMICOLON},
+    {"'", TOK_QUOTE},
+    {"\"", TOK_DOUBLEQUOTE},
+    {"=", TOK_EQUALS},
+    {"+", TOK_PLUS},
+    {"-", TOK_MINUS},
+    {"*", TOK_STAR},
+    {"&", TOK_AMPERSAND},
+    {"^", TOK_CARET},
+    {"~", TOK_TILDE},
+    {"\\", TOK_BACKSLASH},
+    {"!", TOK_BANG},
+    {"?", TOK_QUESTION},
+    {"#", TOK_HASH},
+    {"-", TOK_DASH},
+    {NULL, 0}
+};
+
+static char *readfile(const char *filename, long *filesize) {
     FILE *f = fopen(filename, "r");
     char *s;
     if (!f) {
@@ -28,77 +62,121 @@ static char *readfile(const char *filename, long *filesize)
     return s;
 }
 
-static void step(Lexer *l)
-{
-    if (l->rd_off < l->src_len) {
-        l->off = l->rd_off;
-        l->ch = l->src[l->rd_off];
-        l->rd_off++;
+static void step(Lexer *l) {
+    if (l->off + 1 < l->srclen) {
+        l->off++;
+        l->ch = l->src[l->off];
     } else {
-        l->off = l->src_len;
+        l->off = l->srclen;
         l->ch = 0;
     }
 }
 
-int lexer_init(Lexer *l, const char *filename)
-{
+// NOTE: more strict?
+static void consume(Lexer *l, long n) {
+    for (long i = 0; i < n; i++)
+	step(l);
+}
+
+static char lookn(Lexer *l, long n) {
+    if (l->off + n < l->srclen)
+        return l->src[l->off + n];
+    return '\0';
+}
+
+int lexer_init(Lexer *l, const char *filename) {
     l->filename = malloc(256);
     l->filename = memcpy(l->filename, filename, 255);
     l->filename[255] = '\0';
-    l->src = readfile(filename, &l->src_len);
-    l->ch = 0;
+    l->src = readfile(filename, &l->srclen);
     l->off = 0;
-    l->rd_off = 0;
+    l->ch = 0;
+    if (l->srclen > 0)
+	l->ch = l->src[0];
+    l->lit = 0;
     memset(&l->sb, 0, sizeof(l->sb));
-    step(l);
     return 1;
 }
 
-void lexer_free(Lexer *l)
-{
+void lexer_free(Lexer *l) {
     free(l->filename);
     free(l->src);
     free(l->sb.s);
 }
 
-static void skip_whitespace(Lexer *l)
-{
+static Token *make_token(Lexer *l, TokenType type) {
+    Token *t = malloc(sizeof(Token));
+    memset(t, 0, sizeof(Token));
+    t->type = type;
+    return t;
+}
+
+static Token *make_token_with_text(Lexer *l, TokenType type) {
+    Token *t = make_token(l, type);
+    t->litlen = l->off - l->lit;
+    t->lit = malloc(t->litlen + 1);
+    memcpy(t->lit, l->src + l->lit, t->litlen);
+    t->lit[t->litlen] = '\0';
+    return t;
+}
+
+void token_free(Token *t) {
+    if (t->lit)
+	free(t->lit);
+    free(t);
+}
+
+#if 0
+static void skip_whitespace(Lexer *l) {
     while (l->ch == ' ' || l->ch == '\t' || l->ch == '\n')
         step(l);
 }
+#endif
 
 static void skip_numbers(Lexer *l) {
     while (isdigit(l->ch))
         step(l);
 }
 
-static void lex_ident(Lexer *l)
-{
-    long off = l->off;
+static Token *lex_ident(Lexer *l) {
+    l->lit = l->off;
     while (isalnum(l->ch))
         step(l);
-    l->lit = off;
+    return make_token_with_text(l, TOK_IDENT);
 }
 
-static void lex_number(Lexer *l)
-{
-    long off = l->off;
+static Token *lex_number(Lexer *l) {
+    l->lit = l->off;
     skip_numbers(l);
     if (l->ch == '.') {
         step(l);
         skip_numbers(l);
     }
-    l->lit = off;
+    return make_token(l, TOK_NUM);
 }
 
-int lexer_next(Lexer *l)
-{
+// NOTE: taken from ponyc
+static Token *lex_symbol(Lexer *l) {
+    // NOTE: look_n()s into a temp buffer?
+    for (const struct SymbolMap *m = &symbols[0]; m->text != NULL; m++) {
+        for (int i = 0; m->text[i] == '\0' || m->text[i] == lookn(l, i); i++) {
+            if (m->text[i] == '\0') {
+		consume(l, i);
+                return make_token(l, m->type);
+            }
+        }
+    }
+    step(l);
+    return make_token(l, TOK_ERR);
+}
+
+Token *lexer_next(Lexer *l) {
     strbuf_reset(&l->sb);
 
     for (;;) {
         switch (l->ch) {
             case 0: {
-                return TOK_EOF;
+                return make_token(l, TOK_EOF);
             }
             case '\n': {
                 l->line_off = l->off;
@@ -108,29 +186,25 @@ int lexer_next(Lexer *l)
             case ' ': case '\t': {
                 step(l);
                 break;
-            }
-            case '-': {
+	    }
+            case '/': {
                 step(l);
-                if (l->ch != '-')
-                    return '-';
-                // comment
+                if (l->ch != '/')
+                    return make_token(l, TOK_SLASH);
+                // ignore comment
                 while (l->ch != '\n')
                     step(l);
                 break;
             }
             case '0': case '1': case '2': case '3': case '4':
             case '5': case '6': case '7': case '8': case '9': {
-                lex_number(l);
-                return TOK_NUM;
-            }
+                return lex_number(l);
+	    }
             default: {
                 if (isalpha(l->ch)) {
-                    lex_ident(l);
-                    return TOK_IDENT;
-                } else { // single-char tokens
-                    int c = l->ch;
-                    step(l);
-                    return c;
+                    return lex_ident(l);
+                } else { // symbols
+                    return lex_symbol(l);
                 }
             }
         }
