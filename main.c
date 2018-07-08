@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
 	token_free(tok);
     }
     token_free(tok);
-    printf("%ld\n", lex.off);
+    printf("file size: %ld\n", lex.off);
     lexer_free(&lex);
     return 0;
 }
