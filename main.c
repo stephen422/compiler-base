@@ -27,6 +27,7 @@ int main(int argc, char **argv) {
         }
         case TOK_ERR: {
             printf("Lex error occurred\n");
+            exit(1);
         }
         default: {
             if (tok->type >= TOK_FN)

@@ -27,6 +27,7 @@ static struct TokenMap symbols[] = {
     {";", TOK_SEMICOLON},
     {"'", TOK_QUOTE},
     {"\"", TOK_DOUBLEQUOTE},
+    {"`", TOK_BACKTICK},
     {"=", TOK_EQUALS},
     {"+", TOK_PLUS},
     {"-", TOK_MINUS},
@@ -35,8 +36,10 @@ static struct TokenMap symbols[] = {
     {"^", TOK_CARET},
     {"~", TOK_TILDE},
     {"\\", TOK_BACKSLASH},
+    {"|", TOK_PIPE},
     {"!", TOK_BANG},
     {"?", TOK_QUESTION},
+    {"@", TOK_AT},
     {"#", TOK_HASH},
     {"-", TOK_DASH},
     {NULL, 0}
@@ -174,6 +177,7 @@ static Token *lex_symbol(Lexer *l) {
             }
         }
     }
+    fprintf(stderr, "lex error: unknown symbol %c\n", l->ch);
     step(l);
     return make_token(l, TOK_ERR);
 }
@@ -185,38 +189,38 @@ Token *lexer_next(Lexer *l) {
         l->start = l->off;
 
         switch (l->ch) {
-            case 0: {
-                return make_token(l, TOK_EOF);
-            }
-            case '\n': {
-                l->line_off = l->off;
+        case 0: {
+            return make_token(l, TOK_EOF);
+        }
+        case '\n': {
+            l->line_off = l->off;
+            step(l);
+            break;
+        }
+        case ' ': case '\t': {
+            step(l);
+            break;
+        }
+        case '/': {
+            step(l);
+            if (l->ch != '/')
+                return make_token(l, TOK_SLASH);
+            // ignore comment
+            while (l->ch != '\n')
                 step(l);
-                break;
+            break;
+        }
+        case '0': case '1': case '2': case '3': case '4':
+        case '5': case '6': case '7': case '8': case '9': {
+            return lex_number(l);
+        }
+        default: {
+            if (isalpha(l->ch) || l->ch == '_') {
+                return lex_ident(l);
+            } else { // symbols
+                return lex_symbol(l);
             }
-            case ' ': case '\t': {
-                step(l);
-                break;
-            }
-            case '/': {
-                step(l);
-                if (l->ch != '/')
-                    return make_token(l, TOK_SLASH);
-                // ignore comment
-                while (l->ch != '\n')
-                    step(l);
-                break;
-            }
-            case '0': case '1': case '2': case '3': case '4':
-            case '5': case '6': case '7': case '8': case '9': {
-                return lex_number(l);
-            }
-            default: {
-                if (isalpha(l->ch) || l->ch == '_') {
-                    return lex_ident(l);
-                } else { // symbols
-                    return lex_symbol(l);
-                }
-            }
+        }
         }
     }
 }
