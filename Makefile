@@ -1,7 +1,7 @@
 CFLAGS += -g -std=c99 -pedantic -Wall -Wextra
 PROG := cmp
 
-$(PROG): main.o lexer.o
+$(PROG): main.o parser.o lexer.o
 	$(CC) -o $(PROG) $^
 
 .SUFFIXES: .c .o
