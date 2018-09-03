@@ -1,17 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "parser.h"
 #include "lexer.h"
 
-int main(int argc, char **argv) {
+void test_lexer(const char *filename)
+{
     Lexer lex;
     Token *tok;
 
-    if (argc < 2) {
-        fprintf(stderr, "usage: %s FILE\n", argv[0]);
-        return 1;
-    }
-
-    lexer_init(&lex, argv[1]);
+    lexer_init(&lex, filename);
 
     while ((tok = lexer_next(&lex))->type != TOK_EOF) {
         printf("pos %ld/%ld: ", tok->pos, lex.srclen);
@@ -43,5 +40,19 @@ int main(int argc, char **argv) {
 
     printf("file size: %ld\n", lex.off);
     lexer_free(&lex);
-    return 0;
+}
+
+int main(int argc, char **argv)
+{
+    if (argc < 2) {
+        fprintf(stderr, "usage: %s FILE\n", argv[0]);
+        return 1;
+    }
+
+    // test_lexer(argv[1]);
+
+    parser_t p;
+    parser_init(&p, argv[1]);
+    parse(&p);
+    parser_free(&p);
 }

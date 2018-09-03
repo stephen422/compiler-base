@@ -8,7 +8,8 @@ $(PROG): main.o parser.o lexer.o
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-main.o: lexer.h
+main.o: parser.h lexer.h
+parser.o: parser.h lexer.h
 lexer.o: lexer.h
 
 .PHONY: clean

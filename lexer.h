@@ -35,10 +35,15 @@ typedef enum TokenType {
     TOK_QUESTION,
     TOK_AT,
     TOK_HASH,
+    TOK_DOLLAR,
+    TOK_PERCENT,
     TOK_DASH,
     TOK_ARROW,
 
     // Keywords
+    TOK_KEYWORDS,
+
+    TOK_ASSIGN,
     TOK_FN,
     TOK_LET,
     TOK_VAR,
@@ -48,8 +53,16 @@ typedef enum TokenType {
     TOK_ELSE,
     TOK_FOR,
 
-    TOK_ERR
+    TOK_ERR,
+    NUM_TOKENTYPES
 } TokenType;
+
+static char *token_names[NUM_TOKENTYPES] = {
+    [TOK_IDENT] = "identifier",
+    [TOK_EQUALS] = "=",
+    [TOK_BANG] = "!",
+    [TOK_ERR] = "unknown"
+};
 
 typedef struct Token {
     TokenType type;
@@ -77,6 +90,7 @@ typedef struct Lexer {
 } Lexer;
 
 void token_free(Token *t);
+void print_token(const Token *t);
 
 int lexer_init(Lexer *l, const char *filename);
 Token *lexer_next(Lexer *l);
