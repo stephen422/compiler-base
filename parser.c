@@ -2,13 +2,54 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static ast_t *make_node(NodeType t)
+static void ast_add(ast_t *parent, ast_t *child)
+{
+    ast_t *c = parent->child;
+    if (!c) {
+        parent->child = child;
+        return;
+    }
+    // go to the end
+    while (c->sibling)
+        c = c->sibling;
+    c->sibling = child;
+}
+
+static ast_t *make_node(enum node_type t, Token *tok)
 {
     ast_t *node = malloc(sizeof(ast_t));
-    if (!node)
-        fprintf(stderr, "malloc error\n");
+    if (!node) {
+        fprintf(stderr, "alloc error\n");
+        exit(1);
+    }
     node->type = t;
+    node->tok = tok;
+    node->child = NULL;
+    node->sibling = NULL;
     return node;
+}
+
+static void free_node(ast_t *node)
+{
+    ast_t *c = node->child;
+    while (c) {
+        ast_t *next = c->sibling;
+        free_node(c);
+        c = next;
+    }
+    if (node->tok)
+        token_free(node->tok);
+    free(node);
+}
+
+static void print_node(const ast_t *node)
+{
+    ast_t *c = node->child;
+    for (int i = 0; c; i++) {
+        printf("Child %d: ", i);
+        print_token(c->tok);
+        c = c->sibling;
+    }
 }
 
 void parser_init(parser_t *p, const char *filename)
@@ -41,11 +82,14 @@ static void expect(parser_t *p, TokenType t)
 
 ast_t *parse_assign(parser_t *p)
 {
-    ast_t *node = make_node(ND_ASSIGN);
+    ast_t *node = make_node(ND_ASSIGN, NULL);
     parser_next(p); // "assign"
     expect(p, TOK_IDENT);
+    ast_add(node, make_node(ND_ATOM, p->tok));
     expect(p, TOK_EQUALS);
+    ast_add(node, make_node(ND_ATOM, p->tok));
     expect(p, TOK_IDENT);
+    ast_add(node, make_node(ND_ATOM, p->tok));
     return node;
 }
 
@@ -55,7 +99,8 @@ void parse(parser_t *p)
         if (p->tok->type == TOK_ASSIGN) {
             printf("Found assign!\n");
             ast_t *node = parse_assign(p);
-            free(node);
+            print_node(node);
+            free_node(node);
             printf("Over!\n");
         }
     }

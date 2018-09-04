@@ -3,16 +3,31 @@
 
 #include "lexer.h"
 
-typedef enum {
+enum node_type {
     ND_ASSIGN,
-} NodeType;
+    ND_STMT,
+    ND_ATOM,
+};
 
 typedef struct ast_t ast_t;
+
+typedef struct {
+    ast_t *lhs;
+    ast_t *rhs;
+} assign_stmt;
+
+typedef struct {
+    enum {ASSIGN_STMT} type;
+    union {
+        assign_stmt assign;
+    } u;
+} stmt;
+
 struct ast_t {
-    NodeType type;
-    Token t;
+    enum node_type type;
+    Token *tok;
     ast_t *child;
-    int n_child;
+    ast_t *sibling;
 };
 
 typedef struct {
