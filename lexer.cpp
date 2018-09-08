@@ -1,7 +1,8 @@
 #include "lexer.h"
 #include <cctype>
 
-std::ostream& operator<<(std::ostream& os, const Token& token) {
+std::ostream& operator<<(std::ostream& os, const Token& token)
+{
     os << "[" << token.lit << "]";
     return os;
 }
@@ -9,11 +10,13 @@ std::ostream& operator<<(std::ostream& os, const Token& token) {
 // Side note: upon quick testing, std::find families are as fast as or even
 // faster than C loops, thanks to loop unrolling.
 
-Token Lexer::lex_ident() {
+Token Lexer::lex_ident()
+{
     auto isalpha = [](char c) { return std::isalnum(c) || c == '_'; };
-    auto end = std::find_if_not(look, eos(), isalpha);
+    look = std::find_if_not(curr, eos(), isalpha);
 
     TokenType type;
+    std::string lit{curr, look};
     auto match = keyword_map.find(lit);
     if (match != keyword_map.end()) {
         type = match->second;
@@ -21,118 +24,111 @@ Token Lexer::lex_ident() {
         type = TokenType::ident;
     }
 
-    std::string lit{look, end};
-    Token token{type, pos(), lit};
-    look = end;
-    return token;
+    return Token{type, pos(), lit};
 }
 
-Token Lexer::lex_number() {
-    auto end = std::find_if_not(look, eos(), isdigit);
-    std::string lit{look, end};
-    Token token{TokenType::number, pos(), lit};
-    look = end;
-    return token;
+Token Lexer::lex_number()
+{
+    look = std::find_if_not(curr, eos(), isdigit);
+    std::string lit{curr, look};
+    return Token{TokenType::number, pos(), lit};
 }
 
-Token Lexer::lex_string() {
-    auto end = look + 1;
-    while (end != eos()) {
-        end = std::find_if(end, eos(),
-                           [](char c) { return ((c == '\\') || (c == '"')); });
-        if (*end == '"') {
+Token Lexer::lex_string()
+{
+    look = curr + 1; // skip "
+    while (look != eos()) {
+        look = std::find_if(curr, eos(),
+                            [](char c) { return ((c == '\\') || (c == '"')); });
+        if (*look == '"') {
             break;
         } else {
             // Skip the escaped character '\x'
-            end += 2;
+            look += 2;
         }
     }
     // Range is end-exclusive
-    end++;
+    look++;
 
-    std::string lit{look, end};
-    Token token{TokenType::string, pos(), lit};
-    look = end;
-    return token;
+    std::string lit{curr, look};
+    return Token{TokenType::string, pos(), lit};
 }
 
-Token Lexer::lex_comment() {
-    auto end = std::find(look, eos(), '\n');
-    std::string lit{look, end};
-    Token token{TokenType::comment, pos(), lit};
-    look = end;
-    return token;
+Token Lexer::lex_comment()
+{
+    look = std::find(curr, eos(), '\n');
+    std::string lit{curr, look};
+    return Token{TokenType::comment, pos(), lit};
 }
 
-Token Lexer::lex_symbol() {
+Token Lexer::lex_symbol()
+{
     for (auto &[type, lit] : symbol_map) {
-        std::string_view sv{look, lit.length()};
+        std::string_view sv{curr, lit.length()};
         if (sv == lit) {
             Token token{type, pos(), lit};
-            look += lit.length();
+            look = curr + lit.length();
+            curr = look;
             return token;
         }
     }
-    return Token{TokenType::none, pos(), std::string{*look}};
+    look++;
+    return Token{TokenType::none, pos(), std::string{*curr}};
 }
 
-Token Lexer::lex() {
+Token Lexer::lex()
+{
+    Token tok;
     skip_whitespace();
 
-    switch (*look) {
-    case 0:
-        if (look == eos())
-            return Token{TokenType::eos, pos()};
-        throw std::string{"Unexpected null character"};
-    case '0': case '1': case '2': case '3': case '4':
-    case '5': case '6': case '7': case '8': case '9':
-        return lex_number();
-    case 'A': case 'B': case 'C': case 'D': case 'E': case 'F': case 'G':
-    case 'H': case 'I': case 'J': case 'K': case 'L': case 'M': case 'N':
-    case 'O': case 'P': case 'Q': case 'R': case 'S': case 'T': case 'U':
-    case 'V': case 'W': case 'X': case 'Y': case 'Z':
-    case 'a': case 'b': case 'c': case 'd': case 'e': case 'f': case 'g':
-    case 'h': case 'i': case 'j': case 'k': case 'l': case 'm': case 'n':
-    case 'o': case 'p': case 'q': case 'r': case 's': case 't': case 'u':
-    case 'v': case 'w': case 'x': case 'y': case 'z':
-    case '_':
-        return lex_ident();
-    case '"':
-        return lex_string();
-    default:
-        return lex_symbol();
+    if (std::isalpha(*curr) || *curr == '_') {
+        tok = lex_ident();
+    } else if (std::isdigit(*curr)) {
+        tok = lex_number();
+    } else {
+        switch (*curr) {
+        case 0:
+            if (curr == eos()) {
+                tok = Token{TokenType::eos, pos()};
+                break;
+            }
+            // TODO
+            std::cerr << "unexpected null in source\n";
+            break;
+        case '"':
+            tok = lex_string();
+            break;
+        default:
+            tok = lex_symbol();
+            break;
+        }
     }
 
-    // Identifier starts with an alphabet or an underscore.
-    // if (std::isalpha(*look) || *look == '_') {
-    //     return lex_ident();
-    // } else if (std::isdigit(*look)) {
-    //     return lex_number();
-    // }
-
     /*
-    else if (*look == '"') {
-        auto tok = lex_string();
-        return tok;
-    } else if (*look == '/') {
+    } else if (*curr == '/') {
         // Slashes may be either divides or comments
-        if (look + 1 != eos() && *(look + 1) == '/') {
+        if (curr + 1 != eos() && *(curr + 1) == '/') {
             auto tok = lex_comment();
             return tok;
         }
-    } else {
-        return lex_symbol();
-        // std::cerr << "lex error: [" << *look << "]: Unrecognized token type\n";
-        // throw std::string{"Unrecognized token type"};
     }
     */
+
+    // Advance lexed position
+    curr = look;
+
+    return tok;
 }
 
-Token Lexer::peek() {
-  auto save = look;
-  auto token = lex();
-  look = save;
-  return token;
+Token Lexer::peek()
+{
+    auto save = curr;
+    auto token = lex();
+    curr = save;
+    return token;
 }
 
-void Lexer::skip_whitespace() { look = std::find_if_not(look, eos(), isspace); }
+void Lexer::skip_whitespace()
+{
+    curr = std::find_if_not(curr, eos(), isspace);
+}

@@ -33,6 +33,7 @@ enum class TokenType {
     tilde,
     slash,
     backslash,
+    pipe,
     bang,
     question,
     hash,
@@ -91,6 +92,7 @@ static const std::pair<TokenType, std::string> symbol_map[] {
     {TokenType::caret, "^"},
     {TokenType::tilde, "~"},
     {TokenType::backslash, "\\"},
+    {TokenType::pipe, "|"},
     {TokenType::bang, "!"},
     {TokenType::question, "?"},
     {TokenType::hash, "#"},
@@ -124,8 +126,9 @@ struct Token {
     size_t pos;
     std::string lit;
 
+    Token() : type(TokenType::none), pos(0) {}
     Token(TokenType type, size_t pos) : type(type), pos(pos) {}
-    Token(TokenType type, size_t pos, std::string lit)
+    Token(TokenType type, size_t pos, const std::string &lit)
         : type(type), pos(pos), lit(std::move(lit)) {}
 };
 
@@ -134,11 +137,13 @@ std::ostream& operator<<(std::ostream& os, const Token& token);
 /// Represents a lexer state machine.
 /// Assumes that the associated Source outlives it.
 class Lexer {
+    using char_iterator = std::string_view::iterator;
+
 public:
     /// Make a lexer for the given source.
     Lexer(Source& s)
         : src(s), sv(src.buf.data(), src.buf.size()),
-        look(std::cbegin(sv)) {}
+        look(std::cbegin(sv)), curr(std::cbegin(sv)) {}
 
     /// Lex the current token and advance to the next one.
     Token lex();
@@ -149,7 +154,8 @@ public:
 private:
     Source &src;
     std::string_view sv;
-    std::string_view::iterator look;
+    char_iterator look; // lookahead character
+    char_iterator curr; // start of the current token
 
     Token lex_ident();
     Token lex_number();

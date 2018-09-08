@@ -18,14 +18,14 @@ int main(int argc, char** argv) {
     while (true) {
         auto token = lexer.lex();
         //std::cout << static_cast<char>(token.type) << std::endl;
-        std::cout << token << std::endl;
-
         if (token.type == TokenType::none) {
             std::cerr << "lex error: [" << token.lit << "]: Unrecognized token type\n";
             break;
         }
         if (token.type == TokenType::eos)
             break;
+
+        std::cout << token << std::endl;
     }
 
     //Parser p{lexer};
