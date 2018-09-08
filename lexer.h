@@ -99,7 +99,7 @@ static const std::pair<TokenType, std::string> symbol_map[] {
     {TokenType::dash, "-"},
 };
 
-static const std::map<std::string, TokenType> keyword_map {
+static const std::map<std::string_view, TokenType> keyword_map {
     {"timescale", TokenType::kw_timescale},
     {"include", TokenType::kw_include},
     {"define", TokenType::kw_define},
@@ -126,10 +126,10 @@ struct Token {
     size_t pos;
     std::string lit;
 
-    Token() : type(TokenType::none), pos(0) {}
-    Token(TokenType type, size_t pos) : type(type), pos(pos) {}
-    Token(TokenType type, size_t pos, const std::string &lit)
-        : type(type), pos(pos), lit(std::move(lit)) {}
+    Token() : type(TokenType::none), pos(0), lit() {}
+    Token(TokenType type, size_t pos) : type(type), pos(pos), lit() {}
+    Token(TokenType type, size_t pos, std::string_view lit)
+        : type(type), pos(pos), lit(lit) {}
 };
 
 std::ostream& operator<<(std::ostream& os, const Token& token);
@@ -165,8 +165,8 @@ private:
 
     size_t pos() const { return this->look - std::cbegin(sv); }
     std::string_view::iterator eos() const { return std::cend(sv); }
-
-    /// Move current pos to the first non-whitespace char.
+    Token make_token(TokenType type);
+    Token make_token_with_literal(TokenType type);
     void skip_whitespace();
 };
 

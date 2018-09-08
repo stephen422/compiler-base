@@ -16,22 +16,20 @@ Token Lexer::lex_ident()
     look = std::find_if_not(curr, eos(), isalpha);
 
     TokenType type;
-    std::string lit{curr, look};
+    std::string_view lit{curr, static_cast<size_t>(look - curr)};
     auto match = keyword_map.find(lit);
     if (match != keyword_map.end()) {
         type = match->second;
     } else {
         type = TokenType::ident;
     }
-
-    return Token{type, pos(), lit};
+    return make_token_with_literal(type);
 }
 
 Token Lexer::lex_number()
 {
     look = std::find_if_not(curr, eos(), isdigit);
-    std::string lit{curr, look};
-    return Token{TokenType::number, pos(), lit};
+    return make_token_with_literal(TokenType::number);
 }
 
 Token Lexer::lex_string()
@@ -49,16 +47,13 @@ Token Lexer::lex_string()
     }
     // Range is end-exclusive
     look++;
-
-    std::string lit{curr, look};
-    return Token{TokenType::string, pos(), lit};
+    return make_token_with_literal(TokenType::string);
 }
 
 Token Lexer::lex_comment()
 {
     look = std::find(curr, eos(), '\n');
-    std::string lit{curr, look};
-    return Token{TokenType::comment, pos(), lit};
+    return make_token_with_literal(TokenType::comment);
 }
 
 Token Lexer::lex_symbol()
@@ -66,14 +61,24 @@ Token Lexer::lex_symbol()
     for (auto &[type, lit] : symbol_map) {
         std::string_view sv{curr, lit.length()};
         if (sv == lit) {
-            Token token{type, pos(), lit};
             look = curr + lit.length();
-            curr = look;
-            return token;
+            return make_token_with_literal(type);
         }
     }
+    // match fail
     look++;
-    return Token{TokenType::none, pos(), std::string{*curr}};
+    return make_token(TokenType::none);
+}
+
+Token Lexer::make_token(TokenType type)
+{
+    return Token{type, pos()};
+}
+
+Token Lexer::make_token_with_literal(TokenType type)
+{
+    std::string_view lit{curr, static_cast<size_t>(look - curr)};
+    return Token{type, pos(), lit};
 }
 
 Token Lexer::lex()
