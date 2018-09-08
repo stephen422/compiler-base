@@ -14,16 +14,16 @@ Token Lexer::lex_ident()
 {
     auto isalpha = [](char c) { return std::isalnum(c) || c == '_'; };
     look = std::find_if_not(curr, eos(), isalpha);
-
-    TokenType type;
     std::string_view lit{curr, static_cast<size_t>(look - curr)};
-    auto match = keyword_map.find(lit);
-    if (match != keyword_map.end()) {
-        type = match->second;
-    } else {
-        type = TokenType::ident;
+
+    // keyword lookup
+    for (auto &[lit, type] : keyword_map) {
+        std::string_view sv{curr, lit.length()};
+        if (sv == lit)
+            return make_token_with_literal(type);
     }
-    return make_token_with_literal(type);
+    // match fail
+    return make_token_with_literal(TokenType::ident);
 }
 
 Token Lexer::lex_number()
@@ -39,14 +39,14 @@ Token Lexer::lex_string()
         look = std::find_if(curr, eos(),
                             [](char c) { return ((c == '\\') || (c == '"')); });
         if (*look == '"') {
+            // skip " and end
+            look++;
             break;
         } else {
-            // Skip the escaped character '\x'
+            // skip the escaped character '\x'
             look += 2;
         }
     }
-    // Range is end-exclusive
-    look++;
     return make_token_with_literal(TokenType::string);
 }
 
@@ -86,27 +86,26 @@ Token Lexer::lex()
     Token tok;
     skip_whitespace();
 
-    if (std::isalpha(*curr) || *curr == '_') {
-        tok = lex_ident();
-    } else if (std::isdigit(*curr)) {
-        tok = lex_number();
-    } else {
-        switch (*curr) {
-        case 0:
-            if (curr == eos()) {
-                tok = Token{TokenType::eos, pos()};
-                break;
-            }
-            // TODO
-            std::cerr << "unexpected null in source\n";
-            break;
-        case '"':
-            tok = lex_string();
-            break;
-        default:
+    if (curr == eos())
+        return Token{TokenType::eos, pos()};
+
+    switch (*curr) {
+    case 0:
+        // TODO
+        std::cerr << "unexpected null in source\n";
+        break;
+    case '"':
+        tok = lex_string();
+        break;
+    default:
+        if (std::isalpha(*curr) || *curr == '_') {
+            tok = lex_ident();
+        } else if (std::isdigit(*curr)) {
+            tok = lex_number();
+        } else {
             tok = lex_symbol();
-            break;
         }
+        break;
     }
 
     /*

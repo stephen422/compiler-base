@@ -1,3 +1,5 @@
+assign i_ready = ready;
+
 fn main() -> int {
     // This is a line comment.
     let a = 5;

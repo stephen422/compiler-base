@@ -99,7 +99,7 @@ static const std::pair<TokenType, std::string> symbol_map[] {
     {TokenType::dash, "-"},
 };
 
-static const std::map<std::string_view, TokenType> keyword_map {
+static const std::pair<std::string_view, TokenType> keyword_map[] {
     {"timescale", TokenType::kw_timescale},
     {"include", TokenType::kw_include},
     {"define", TokenType::kw_define},
