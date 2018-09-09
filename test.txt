@@ -1,3 +1,4 @@
+wire [5:0] imm;
 assign i_ready = ready;
 
 fn main() -> int {

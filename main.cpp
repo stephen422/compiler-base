@@ -36,7 +36,10 @@ int main(int argc, char** argv)
     Source src{argv[1]};
     Lexer lexer{src};
     Parser p{lexer};
-    p.parse();
+    AST::RootPtr ast;
+    while ((ast = p.parse())) {
+        ast->print();
+    }
 
     // std::cout << "sizeof token: " << sizeof(Token) << std::endl;
     return 0;
