@@ -38,7 +38,6 @@ int main(int argc, char** argv)
     Parser p{lexer};
     p.parse();
 
-    std::cout << "sizeof token: " << sizeof(Token) << std::endl;
-    std::cout << "sizeof parser: " << sizeof(Parser) << std::endl;
+    // std::cout << "sizeof token: " << sizeof(Token) << std::endl;
     return 0;
 }

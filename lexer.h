@@ -130,6 +130,7 @@ struct Token {
     Token(TokenType type, size_t pos) : type(type), pos(pos), lit() {}
     Token(TokenType type, size_t pos, std::string_view lit)
         : type(type), pos(pos), lit(lit) {}
+    void print();
 };
 
 std::ostream& operator<<(std::ostream& os, const Token& token);

@@ -7,6 +7,11 @@ std::ostream& operator<<(std::ostream& os, const Token& token)
     return os;
 }
 
+void Token::print()
+{
+    std::cout << "print_token\n";
+}
+
 // Side note: upon quick testing, std::find families are as fast as or even
 // faster than C loops, thanks to loop unrolling.
 

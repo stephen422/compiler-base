@@ -16,7 +16,7 @@ struct AST {
     AST(NodeType type) : type(type) {}
     AST(NodeType type, const Token &tok) : type(type), tok(std::move(tok)) {}
 
-    void add_child(RootPtr child);
+    void add(RootPtr child);
     void print();
 
     NodeType type;
@@ -26,13 +26,17 @@ struct AST {
     // AST *sibling;
 };
 
+AST::RootPtr make_ast(NodeType type);
+AST::RootPtr make_ast(NodeType type, const Token &tok);
+
 class Parser {
 public:
-    Parser(Lexer &lexer) : lexer(lexer), tok(std::move(lexer.lex())) {}
+    Parser(Lexer &lexer);
 
     void parse();
 
 private:
+    AST::RootPtr parse_ident();
     AST::RootPtr parse_assign();
 
     // Get the next token from the lexer.
