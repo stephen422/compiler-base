@@ -75,6 +75,13 @@ Token Lexer::lex_symbol()
     return make_token(TokenType::none);
 }
 
+Lexer::char_iterator Lexer::lookn(long n) const
+{
+    if (curr + n < eos())
+        return curr + n;
+    return eos();
+}
+
 Token Lexer::make_token(TokenType type)
 {
     return Token{type, pos()};
@@ -102,6 +109,13 @@ Token Lexer::lex()
     case '"':
         tok = lex_string();
         break;
+    case '/':
+        if (*lookn(1) == '/') {
+            tok = lex_comment();
+        } else {
+            tok = lex_symbol(); // divide
+        }
+        break;
     default:
         if (std::isalpha(*curr) || *curr == '_') {
             tok = lex_ident();
@@ -112,16 +126,6 @@ Token Lexer::lex()
         }
         break;
     }
-
-    /*
-    } else if (*curr == '/') {
-        // Slashes may be either divides or comments
-        if (curr + 1 != eos() && *(curr + 1) == '/') {
-            auto tok = lex_comment();
-            return tok;
-        }
-    }
-    */
 
     // Advance lexed position
     curr = look;

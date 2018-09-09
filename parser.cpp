@@ -128,16 +128,20 @@ AST::RootPtr Parser::parse()
 {
     AST::RootPtr ast = nullptr;
 
-    switch (tok.type) {
-    case TokenType::kw_assign:
-        ast = parse_assign();
-        break;
-    case TokenType::kw_wire:
-    case TokenType::kw_reg:
-        ast = parse_netdecl();
-        break;
-    default:
-        break;
+    while (true) {
+        switch (tok.type) {
+        case TokenType::kw_assign:
+            return parse_assign();
+        case TokenType::kw_wire:
+        case TokenType::kw_reg:
+            return parse_netdecl();
+        case TokenType::comment:
+            next();
+            continue;
+        default:
+            std::cout << "unrecognized: " << tok << " at " << tok.pos << std::endl;
+            return nullptr;
+        }
     }
     return ast;
 }

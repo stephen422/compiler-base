@@ -1,3 +1,4 @@
+// -*- C++ -*-
 #ifndef LEXER_H
 #define LEXER_H
 
@@ -164,8 +165,9 @@ private:
     Token lex_comment();
     Token lex_symbol();
 
+    char_iterator lookn(long n) const;
+    char_iterator eos() const { return std::cend(sv); }
     size_t pos() const { return this->look - std::cbegin(sv); }
-    std::string_view::iterator eos() const { return std::cend(sv); }
     Token make_token(TokenType type);
     Token make_token_with_literal(TokenType type);
     void skip_whitespace();
