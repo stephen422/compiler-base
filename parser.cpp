@@ -20,6 +20,9 @@ void AST::print()
     case NodeType::assign:
         std::cout << "assign\n";
         break;;
+    case NodeType::list:
+        std::cout << "list\n";
+        break;;
     case NodeType::range:
         std::cout << "range\n";
         break;;
@@ -29,10 +32,6 @@ void AST::print()
     }
     for (const auto &c : children)
         c->print();
-}
-
-Parser::Parser(Lexer &lexer) : lexer(lexer), tok(lexer.lex())
-{
 }
 
 void Parser::next()
@@ -76,6 +75,17 @@ AST::RootPtr Parser::parse_literal()
     return ast;
 }
 
+AST::RootPtr Parser::parse_list()
+{
+    AST::RootPtr node = make_ast(NodeType::list);
+    node->add(parse_literal());
+    while (tok.type == TokenType::comma) {
+        next();
+        node->add(parse_literal());
+    }
+    return node;
+}
+
 AST::RootPtr Parser::parse_range()
 {
     AST::RootPtr node = make_ast(NodeType::range);
@@ -96,9 +106,8 @@ AST::RootPtr Parser::parse_netdecl()
     if (tok.type == TokenType::lbracket)
         node->add(parse_range());
 
-    // name
-    // TODO: list
-    node->add(parse_ident());
+    // list of names
+    node->add(parse_list());
 
     expect_semi();
     return node;

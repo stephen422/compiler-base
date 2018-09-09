@@ -8,8 +8,9 @@
 enum class NodeType {
     net_decl,
     assign,
-    atom,
+    list,
     range,
+    atom,
 };
 
 struct AST {
@@ -33,7 +34,7 @@ AST::RootPtr make_ast(NodeType type, const Token &tok);
 
 class Parser {
 public:
-    Parser(Lexer &lexer);
+    Parser(Lexer &lexer) : lexer(lexer), tok(lexer.lex()) {}
 
     AST::RootPtr parse();
 
@@ -43,6 +44,9 @@ private:
 
     // Parse a literal atom.
     AST::RootPtr parse_literal();
+
+    // Parse a, b, c, ...
+    AST::RootPtr parse_list();
 
     // Parse [msb:lsb].
     AST::RootPtr parse_range();
