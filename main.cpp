@@ -27,16 +27,16 @@ void test_lexer(const char *path)
 int main(int argc, char** argv)
 {
     if (argc < 2) {
-        std::cerr << "No filename specified\n";
+        std::cerr << "error: no filename specified\n";
         return 1;
     }
 
-    test_lexer(argv[1]);
+    // test_lexer(argv[1]);
 
-    // Source src{argv[1]};
-    // Lexer lexer{src};
-    // Parser p{lexer};
-    // p.parse();
+    Source src{argv[1]};
+    Lexer lexer{src};
+    Parser p{lexer};
+    p.parse();
 
     std::cout << "sizeof token: " << sizeof(Token) << std::endl;
     std::cout << "sizeof parser: " << sizeof(Parser) << std::endl;
