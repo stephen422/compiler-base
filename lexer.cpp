@@ -1,50 +1,51 @@
 #include "lexer.h"
 #include <cctype>
 
-std::ostream& operator<<(std::ostream& os, const Token& token)
-{
+std::ostream& operator<<(std::ostream& os, const Token& token) {
     os << "[" << token.lit << "]";
     return os;
 }
 
-void Token::print()
-{
-    std::cout << "print_token\n";
+void Token::print() {
+    throw std::runtime_error("unimplemented");
 }
 
-// Side note: upon quick testing, std::find families are as fast as or even
-// faster than C loops, thanks to loop unrolling.
+void Lexer::step() {
+    if (look + 1 < eos()) {
+        look++;
+        if (*look == '\n') {
+        }
+        ch = *look;
+    } else {
+        look = sv.end();
+        ch = '\0';
+    }
+}
 
-Token Lexer::lex_ident()
-{
-    auto isalpha = [](char c) { return std::isalnum(c) || c == '_'; };
-    look = std::find_if_not(curr, eos(), isalpha);
-    StringView lit{curr, static_cast<size_t>(look - curr)};
-
-    // keyword lookup
+Token Lexer::lex_ident() {
+    skip_while([](char c) { return isalnum(c) || c == '_'; });
+    // Keyword lookup
     for (auto &p : keyword_map) {
         auto lit = p.first;
         auto type = p.second;
         StringView sv{curr, lit.length()};
-        if (sv == lit)
+        if (sv == lit) {
             return make_token_with_literal(type);
+        }
     }
-    // match fail
+    // Match fail
     return make_token_with_literal(TokenType::ident);
 }
 
-Token Lexer::lex_number()
-{
-    look = std::find_if_not(curr, eos(), isdigit);
+Token Lexer::lex_number() {
+    skip_while(isdigit);
     return make_token_with_literal(TokenType::number);
 }
 
-Token Lexer::lex_string()
-{
+Token Lexer::lex_string() {
     look = curr + 1; // skip "
     while (look != eos()) {
-        look = std::find_if(curr, eos(),
-                            [](char c) { return ((c == '\\') || (c == '"')); });
+        skip_while([](char c) { return !(c == '\\' || c == '"'); });
         if (*look == '"') {
             // skip " and end
             look++;
@@ -57,17 +58,15 @@ Token Lexer::lex_string()
     return make_token_with_literal(TokenType::string);
 }
 
-Token Lexer::lex_comment()
-{
-    look = std::find(curr, eos(), '\n');
+Token Lexer::lex_comment() {
+    skip_while([](char c) { return c != '\n'; });
     return make_token_with_literal(TokenType::comment);
 }
 
-Token Lexer::lex_symbol()
-{
+Token Lexer::lex_symbol() {
     for (auto &p : symbol_map) {
-        auto type = p.first;
-        auto lit = p.second;
+        auto lit = p.first;
+        auto type = p.second;
         StringView sv{curr, lit.length()};
         if (sv == lit) {
             look = curr + lit.length();
@@ -79,35 +78,32 @@ Token Lexer::lex_symbol()
     return make_token(TokenType::none);
 }
 
-Lexer::char_iterator Lexer::lookn(long n) const
-{
+Lexer::char_iterator Lexer::lookn(long n) const {
     if (curr + n < eos())
         return curr + n;
     return eos();
 }
 
-Token Lexer::make_token(TokenType type)
-{
+Token Lexer::make_token(TokenType type) {
     return Token{type, pos()};
 }
 
-Token Lexer::make_token_with_literal(TokenType type)
-{
+Token Lexer::make_token_with_literal(TokenType type) {
     StringView lit{curr, static_cast<size_t>(look - curr)};
     return Token{type, pos(), lit};
 }
 
-Token Lexer::lex()
-{
-    Token tok;
+Token Lexer::lex() {
     skip_whitespace();
+    look = curr; // TODO
 
     if (curr == eos())
         return Token{TokenType::eos, pos()};
 
+    Token tok;
     switch (*curr) {
     case 0:
-        // TODO
+        // TODO emit a warning
         std::cerr << "unexpected null in source\n";
         break;
     case '"':
@@ -137,15 +133,20 @@ Token Lexer::lex()
     return tok;
 }
 
-Token Lexer::peek()
-{
+Token Lexer::peek() {
     auto save = curr;
     auto token = lex();
     curr = save;
     return token;
 }
 
-void Lexer::skip_whitespace()
-{
-    curr = std::find_if_not(curr, eos(), isspace);
+template <typename F>
+void Lexer::skip_while(F &&lambda) {
+    while (look < eos() && lambda(*look))
+        step();
+}
+
+void Lexer::skip_whitespace() {
+    skip_while(isspace);
+    curr = look;
 }

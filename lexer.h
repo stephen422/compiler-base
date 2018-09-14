@@ -69,36 +69,36 @@ enum class TokenType {
 
 // This is under linear search, so it is better to place more frequently used
 // symbols at the top.
-static const std::pair<TokenType, StringView> symbol_map[] {
-    {TokenType::doublequote, "\""},
-    {TokenType::arrow, "->"},
-    {TokenType::quote, "'"},
-    {TokenType::slash, "/"},
-    {TokenType::lparen, "("},
-    {TokenType::rparen, ")"},
-    {TokenType::lbrace, "{"},
-    {TokenType::rbrace, "}"},
-    {TokenType::lbracket, "["},
-    {TokenType::rbracket, "]"},
-    {TokenType::lesserthan, "<"},
-    {TokenType::greaterthan, ">"},
-    {TokenType::dot, "."},
-    {TokenType::comma, ","},
-    {TokenType::colon, ":"},
-    {TokenType::semicolon, ";"},
-    {TokenType::equals, "="},
-    {TokenType::plus, "+"},
-    {TokenType::minus, "-"},
-    {TokenType::star, "*"},
-    {TokenType::ampersand, "&"},
-    {TokenType::caret, "^"},
-    {TokenType::tilde, "~"},
-    {TokenType::backslash, "\\"},
-    {TokenType::pipe, "|"},
-    {TokenType::bang, "!"},
-    {TokenType::question, "?"},
-    {TokenType::hash, "#"},
-    {TokenType::dash, "-"},
+static const std::pair<StringView, TokenType> symbol_map[] {
+    {"\"", TokenType::doublequote},
+    {"->", TokenType::arrow},
+    {"'", TokenType::quote},
+    {"/", TokenType::slash},
+    {"(", TokenType::lparen},
+    {")", TokenType::rparen},
+    {"{", TokenType::lbrace},
+    {"}", TokenType::rbrace},
+    {"[", TokenType::lbracket},
+    {"]", TokenType::rbracket},
+    {"<", TokenType::lesserthan},
+    {">", TokenType::greaterthan},
+    {".", TokenType::dot},
+    {",", TokenType::comma},
+    {":", TokenType::colon},
+    {";", TokenType::semicolon},
+    {"=", TokenType::equals},
+    {"+", TokenType::plus},
+    {"-", TokenType::minus},
+    {"*", TokenType::star},
+    {"&", TokenType::ampersand},
+    {"^", TokenType::caret},
+    {"~", TokenType::tilde},
+    {"\\", TokenType::backslash},
+    {"|", TokenType::pipe},
+    {"!", TokenType::bang},
+    {"?", TokenType::question},
+    {"#", TokenType::hash},
+    {"-", TokenType::dash},
 };
 
 static const std::pair<StringView, TokenType> keyword_map[] {
@@ -140,13 +140,13 @@ std::ostream& operator<<(std::ostream& os, const Token& token);
 /// Represents a lexer state machine.
 /// Assumes that the associated Source outlives it.
 class Lexer {
+public:
     using char_iterator = StringView::iterator;
 
-public:
     /// Make a lexer for the given source.
-    Lexer(Source& s)
-        : src(s), sv(src.buf.data(), src.buf.size()),
-        look(std::cbegin(sv)), curr(std::cbegin(sv)) {}
+    Lexer(Source &s)
+        : src(s), sv(src.buf.data(), src.buf.size()), look(std::cbegin(sv)),
+          curr(std::cbegin(sv)), ch(look ? *look : '\0') {}
 
     /// Lex the current token and advance to the next one.
     Token lex();
@@ -157,8 +157,10 @@ public:
 private:
     Source &src;
     StringView sv;
-    char_iterator look; // lookahead character
-    char_iterator curr; // start of the current token
+    char_iterator look;           // lookahead position
+    char_iterator curr;           // start of the current token
+    std::vector<size_t> line_off; // offsets of each newline
+    char ch;                      // lookahead character
 
     Token lex_ident();
     Token lex_number();
@@ -166,11 +168,14 @@ private:
     Token lex_comment();
     Token lex_symbol();
 
+    // Advance lex position by one character.
+    void step();
     char_iterator lookn(long n) const;
     char_iterator eos() const { return std::cend(sv); }
-    size_t pos() const { return this->look - std::cbegin(sv); }
+    size_t pos() const { return curr - std::cbegin(sv); }
     Token make_token(TokenType type);
     Token make_token_with_literal(TokenType type);
+    template <typename F> void skip_while(F &&lambda);
     void skip_whitespace();
 };
 

@@ -6,8 +6,7 @@
 
 extern void use_read(std::ifstream& in);
 
-void test_lexer(const char *path)
-{
+void test_lexer(const char *path) {
     Source src{path};
     Lexer lexer{src};
     Token token;
@@ -24,22 +23,21 @@ void test_lexer(const char *path)
     }
 }
 
-int main(int argc, char** argv)
-{
+int main(int argc, char **argv) {
     if (argc < 2) {
         std::cerr << "error: no filename specified\n";
         return 1;
     }
 
-    // test_lexer(argv[1]);
+    test_lexer(argv[1]);
 
-    Source src{argv[1]};
-    Lexer lexer{src};
-    Parser p{lexer};
-    AST::RootPtr ast;
-    while ((ast = p.parse())) {
-        ast->print();
-    }
+    // Source src{argv[1]};
+    // Lexer lexer{src};
+    // Parser p{lexer};
+    // AST::RootPtr ast;
+    // while ((ast = p.parse())) {
+    //     ast->print();
+    // }
 
     // std::cout << "sizeof token: " << sizeof(Token) << std::endl;
     return 0;

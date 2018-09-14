@@ -1,31 +1,28 @@
 #include "parser.h"
 #include <utility>
 
-AST::RootPtr make_ast(NodeType type)
-{
+AST::RootPtr make_ast(NodeType type) {
     return AST::RootPtr{new AST{type}};
 }
 
-AST::RootPtr make_ast(NodeType type, const Token &tok)
-{
+AST::RootPtr make_ast(NodeType type, const Token &tok) {
     return AST::RootPtr{new AST{type, tok}};
 }
 
-void AST::print()
-{
+void AST::print() {
     switch (type) {
     case NodeType::net_decl:
         std::cout << "netdecl\n";
-        break;;
+        break;
     case NodeType::assign:
         std::cout << "assign\n";
-        break;;
+        break;
     case NodeType::list:
         std::cout << "list\n";
-        break;;
+        break;
     case NodeType::range:
         std::cout << "range\n";
-        break;;
+        break;
     default:
         std::cout << tok << std::endl;
         break;
@@ -34,13 +31,11 @@ void AST::print()
         c->print();
 }
 
-void Parser::next()
-{
+void Parser::next() {
     tok = lexer.lex();
 }
 
-void Parser::expect(TokenType type)
-{
+void Parser::expect(TokenType type) {
     if (tok.type != type) {
         std::cerr << "parse error: expected " << static_cast<int>(type)
                   << ", got " << static_cast<int>(tok.type) << std::endl;
@@ -49,18 +44,15 @@ void Parser::expect(TokenType type)
     next();
 }
 
-void Parser::expect_semi()
-{
+void Parser::expect_semi() {
     expect(TokenType::semicolon);
 }
 
-void AST::add(RootPtr child)
-{
+void AST::add(RootPtr child) {
     children.push_back(std::move(child));
 }
 
-AST::RootPtr Parser::parse_ident()
-{
+AST::RootPtr Parser::parse_ident() {
     if (tok.type != TokenType::ident)
         expect(TokenType::ident);
     AST::RootPtr ast = make_ast(NodeType::atom, tok);
@@ -68,15 +60,13 @@ AST::RootPtr Parser::parse_ident()
     return ast;
 }
 
-AST::RootPtr Parser::parse_literal()
-{
+AST::RootPtr Parser::parse_literal() {
     AST::RootPtr ast = make_ast(NodeType::atom, tok);
     next();
     return ast;
 }
 
-AST::RootPtr Parser::parse_list()
-{
+AST::RootPtr Parser::parse_list() {
     AST::RootPtr node = make_ast(NodeType::list);
     node->add(parse_literal());
     while (tok.type == TokenType::comma) {
@@ -86,8 +76,7 @@ AST::RootPtr Parser::parse_list()
     return node;
 }
 
-AST::RootPtr Parser::parse_range()
-{
+AST::RootPtr Parser::parse_range() {
     AST::RootPtr node = make_ast(NodeType::range);
     expect(TokenType::lbracket);
     node->add(parse_literal());
@@ -97,8 +86,7 @@ AST::RootPtr Parser::parse_range()
     return node;
 }
 
-AST::RootPtr Parser::parse_netdecl()
-{
+AST::RootPtr Parser::parse_netdecl() {
     AST::RootPtr node = make_ast(NodeType::net_decl);
     next();
 
@@ -113,8 +101,7 @@ AST::RootPtr Parser::parse_netdecl()
     return node;
 }
 
-AST::RootPtr Parser::parse_assign()
-{
+AST::RootPtr Parser::parse_assign() {
     AST::RootPtr node = make_ast(NodeType::assign);
     next(); // "assign"
     node->add(parse_ident());
@@ -124,8 +111,7 @@ AST::RootPtr Parser::parse_assign()
     return node;
 }
 
-AST::RootPtr Parser::parse()
-{
+AST::RootPtr Parser::parse() {
     AST::RootPtr ast = nullptr;
 
     while (true) {
