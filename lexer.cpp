@@ -19,11 +19,13 @@ Token Lexer::lex_ident()
 {
     auto isalpha = [](char c) { return std::isalnum(c) || c == '_'; };
     look = std::find_if_not(curr, eos(), isalpha);
-    std::string_view lit{curr, static_cast<size_t>(look - curr)};
+    StringView lit{curr, static_cast<size_t>(look - curr)};
 
     // keyword lookup
-    for (auto &[lit, type] : keyword_map) {
-        std::string_view sv{curr, lit.length()};
+    for (auto &p : keyword_map) {
+        auto lit = p.first;
+        auto type = p.second;
+        StringView sv{curr, lit.length()};
         if (sv == lit)
             return make_token_with_literal(type);
     }
@@ -63,8 +65,10 @@ Token Lexer::lex_comment()
 
 Token Lexer::lex_symbol()
 {
-    for (auto &[type, lit] : symbol_map) {
-        std::string_view sv{curr, lit.length()};
+    for (auto &p : symbol_map) {
+        auto type = p.first;
+        auto lit = p.second;
+        StringView sv{curr, lit.length()};
         if (sv == lit) {
             look = curr + lit.length();
             return make_token_with_literal(type);
@@ -89,7 +93,7 @@ Token Lexer::make_token(TokenType type)
 
 Token Lexer::make_token_with_literal(TokenType type)
 {
-    std::string_view lit{curr, static_cast<size_t>(look - curr)};
+    StringView lit{curr, static_cast<size_t>(look - curr)};
     return Token{type, pos(), lit};
 }
 

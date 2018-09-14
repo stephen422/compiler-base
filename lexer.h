@@ -3,6 +3,7 @@
 #define LEXER_H
 
 #include "source.h"
+#include "string_view.h"
 #include <algorithm>
 #include <map>
 #include <string>
@@ -68,7 +69,7 @@ enum class TokenType {
 
 // This is under linear search, so it is better to place more frequently used
 // symbols at the top.
-static const std::pair<TokenType, std::string> symbol_map[] {
+static const std::pair<TokenType, StringView> symbol_map[] {
     {TokenType::doublequote, "\""},
     {TokenType::arrow, "->"},
     {TokenType::quote, "'"},
@@ -100,7 +101,7 @@ static const std::pair<TokenType, std::string> symbol_map[] {
     {TokenType::dash, "-"},
 };
 
-static const std::pair<std::string_view, TokenType> keyword_map[] {
+static const std::pair<StringView, TokenType> keyword_map[] {
     {"timescale", TokenType::kw_timescale},
     {"include", TokenType::kw_include},
     {"define", TokenType::kw_define},
@@ -125,11 +126,11 @@ static const std::pair<std::string_view, TokenType> keyword_map[] {
 struct Token {
     TokenType type;
     size_t pos;
-    std::string lit;
+    StringView lit;
 
     Token() : type(TokenType::none), pos(0), lit() {}
     Token(TokenType type, size_t pos) : type(type), pos(pos), lit() {}
-    Token(TokenType type, size_t pos, std::string_view lit)
+    Token(TokenType type, size_t pos, StringView lit)
         : type(type), pos(pos), lit(lit) {}
     void print();
 };
@@ -139,7 +140,7 @@ std::ostream& operator<<(std::ostream& os, const Token& token);
 /// Represents a lexer state machine.
 /// Assumes that the associated Source outlives it.
 class Lexer {
-    using char_iterator = std::string_view::iterator;
+    using char_iterator = StringView::iterator;
 
 public:
     /// Make a lexer for the given source.
@@ -155,7 +156,7 @@ public:
 
 private:
     Source &src;
-    std::string_view sv;
+    StringView sv;
     char_iterator look; // lookahead character
     char_iterator curr; // start of the current token
 

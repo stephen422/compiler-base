@@ -1,5 +1,5 @@
 CXX ?= clang++
-CXXFLAGS += -g -std=c++17 -pedantic -Wall -Wextra
+CXXFLAGS += -g -std=c++14 -pedantic -Wall -Wextra
 PROG := cmp
 
 $(PROG): main.o parser.o lexer.o source.o
@@ -10,7 +10,7 @@ $(PROG): main.o parser.o lexer.o source.o
 
 main.o: parser.h lexer.h
 parser.o: parser.h lexer.h
-lexer.o: lexer.h source.h
+lexer.o: lexer.h source.h string_view.h
 source.o: source.h
 
 %.s: %.cpp
