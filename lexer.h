@@ -146,7 +146,7 @@ public:
     /// Make a lexer for the given source.
     Lexer(Source &s)
         : src(s), sv(src.buf.data(), src.buf.size()), look(std::cbegin(sv)),
-          curr(std::cbegin(sv)), ch(look ? *look : '\0') {}
+          curr(std::cbegin(sv)) {}
 
     /// Lex the current token and advance to the next one.
     Token lex();
@@ -160,7 +160,6 @@ private:
     char_iterator look;           // lookahead position
     char_iterator curr;           // start of the current token
     std::vector<size_t> line_off; // offsets of each newline
-    char ch;                      // lookahead character
 
     Token lex_ident();
     Token lex_number();

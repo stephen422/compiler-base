@@ -1,7 +1,7 @@
 #include "lexer.h"
 #include <cctype>
 
-std::ostream& operator<<(std::ostream& os, const Token& token) {
+std::ostream &operator<<(std::ostream &os, const Token &token) {
     os << "[" << token.lit << "]";
     return os;
 }
@@ -11,14 +11,14 @@ void Token::print() {
 }
 
 void Lexer::step() {
-    if (look + 1 < eos()) {
-        look++;
+    if (look < eos()) {
+        // Register newline first
         if (*look == '\n') {
+            line_off.push_back(pos());
         }
-        ch = *look;
+        look++;
     } else {
         look = sv.end();
-        ch = '\0';
     }
 }
 
@@ -48,11 +48,12 @@ Token Lexer::lex_string() {
         skip_while([](char c) { return !(c == '\\' || c == '"'); });
         if (*look == '"') {
             // skip " and end
-            look++;
+            step();
             break;
         } else {
             // skip the escaped character '\x'
-            look += 2;
+            step();
+            step();
         }
     }
     return make_token_with_literal(TokenType::string);
@@ -73,8 +74,8 @@ Token Lexer::lex_symbol() {
             return make_token_with_literal(type);
         }
     }
-    // match fail
-    look++;
+    // Match fail
+    step();
     return make_token(TokenType::none);
 }
 
@@ -95,7 +96,6 @@ Token Lexer::make_token_with_literal(TokenType type) {
 
 Token Lexer::lex() {
     skip_whitespace();
-    look = curr; // TODO
 
     if (curr == eos())
         return Token{TokenType::eos, pos()};
