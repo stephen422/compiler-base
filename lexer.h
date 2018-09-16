@@ -161,6 +161,7 @@ private:
     char_iterator curr;           // start of the current token
     std::vector<size_t> line_off; // offsets of each newline
 
+    // Lex functions for a single token type.
     Token lex_ident();
     Token lex_number();
     Token lex_string();
@@ -176,6 +177,7 @@ private:
     Token make_token_with_literal(TokenType type);
     template <typename F> void skip_while(F &&lambda);
     void skip_whitespace();
+    void error(const std::string &msg);
 };
 
 #endif

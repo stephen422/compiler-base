@@ -13,9 +13,8 @@ void Token::print() {
 void Lexer::step() {
     if (look < eos()) {
         // Register newline first
-        if (*look == '\n') {
+        if (*look == '\n')
             line_off.push_back(pos());
-        }
         look++;
     } else {
         look = sv.end();
@@ -76,6 +75,7 @@ Token Lexer::lex_symbol() {
     }
     // Match fail
     step();
+    error("unrecognzied token");
     return make_token(TokenType::none);
 }
 
@@ -149,4 +149,24 @@ void Lexer::skip_while(F &&lambda) {
 void Lexer::skip_whitespace() {
     skip_while(isspace);
     curr = look;
+}
+
+void Lexer::error(const std::string &msg) {
+    std::cout << "error: " << msg << ": ";
+
+    if (line_off.empty()) {
+        std::cout << "oops!\n";
+        exit(1);
+    }
+
+    // Search linearly for the current line.
+    // line number is 0-based.
+    int line;
+    for (line = 0; line < static_cast<int>(line_off.size()); line++) {
+        if (line_off[line] >= pos())
+            break;
+    }
+    int col = pos() - (line > 0 ? line_off[line - 1] : 0);
+    std::cout << (line + 1) << "," << col << std::endl;
+    exit(1);
 }

@@ -20,7 +20,7 @@ wire                 cond_branch_miss;
 
 wire [WORD_SIZE-1:0] resolved_pc; // PC resolved as either branch target or PC+1
 wire [WORD_SIZE-1:0] jump_target; // target PC for unconditional branches (Jump)
-wire [WORD_SIZE-1:0] cond_branch_target; // target PC for conditional branches
+wire [WORD_SIZE-1:0] cond_branch_target; `// target PC for conditional branches
 wire [WORD_SIZE-1:0] branch_target; // target PC for branches
 
 wire [WORD_SIZE-1:0] npc; // next PC; connected to either npc_pred
