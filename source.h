@@ -13,6 +13,7 @@ struct Source {
 
     const std::string path;
     std::vector<char> buf;
+    std::vector<int> line_off;
 };
 
 #endif

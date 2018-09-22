@@ -5,6 +5,9 @@ PROG := cmp
 $(PROG): main.o parser.o lexer.o source.o
 	$(CXX) -o $(PROG) $^ $(LDFLAGS)
 
+debug: main.o parser.o lexer.o source.o
+	$(CXX) -fsanitize=address -o $(PROG) $^ $(LDFLAGS)
+
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
