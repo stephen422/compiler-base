@@ -154,8 +154,10 @@ public:
     /// Peek the next token without consuming it.
     Token peek();
 
-private:
+    // Source object associated to this lexer.
     Source &src;
+
+private:
     StringView sv;
     char_iterator look;           // lookahead position
     char_iterator curr;           // start of the current token

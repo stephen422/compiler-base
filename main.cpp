@@ -29,16 +29,14 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    test_lexer(argv[1]);
+    // test_lexer(argv[1]);
 
-    // Source src{argv[1]};
-    // Lexer lexer{src};
-    // Parser p{lexer};
-    // AST::RootPtr ast;
-    // while ((ast = p.parse())) {
-    //     ast->print();
-    // }
-
-    // std::cout << "sizeof token: " << sizeof(Token) << std::endl;
+    Source src{argv[1]};
+    Lexer lexer{src};
+    Parser p{lexer};
+    AST::NodePtr ast;
+    while ((ast = p.parse())) {
+        ast->print();
+    }
     return 0;
 }

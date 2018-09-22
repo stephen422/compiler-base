@@ -33,6 +33,16 @@ Source::Source(const std::string &p) : path(p)
         buf.insert(buf.cend(), line.cbegin(), line.cend());
         buf.push_back('\n');
         line_off.push_back(buf.cend() - buf.cbegin());
-        std::cout << "======== " << line_off[line_off.size() - 1] << std::endl;
     }
+}
+
+std::pair<int, int> Source::locate(size_t pos) const {
+    // Search linearly for the current line.
+    int line;
+    for (line = 0; static_cast<size_t>(line) < line_off.size(); line++) {
+        if (line_off[line] >= pos)
+            break;
+    }
+    int col = pos - line_off[line - 1] + 1;
+    return {line, col};
 }

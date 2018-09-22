@@ -1,43 +1,4 @@
-// Decoded info
-wire [1:0]           rs, rt, rd;
-wire [7:0]           imm;
-wire [11:0]          target_imm;
-wire [WORD_SIZE-1:0] imm_signed;
-
-// Hazard signals
-wire                 i_mem_read; // FIXME
-wire                 pc_write;
-wire                 ir_write;
-wire                 bubblify_id; // reset all control signals to zero
-wire                 bubblify_ex;
-wire                 bubblify_mem;
-wire                 flush_if; // reset IR to nop
-wire                 cond_branch_taken;
-
-// Conditional branch prediction miss flag.  If branch prediction
-// is disabled, this is always set to 1.
-wire                 cond_branch_miss;
-
-wire [WORD_SIZE-1:0] resolved_pc; // PC resolved as either branch target or PC+1
-wire [WORD_SIZE-1:0] jump_target; // target PC for unconditional branches (Jump)
-wire [WORD_SIZE-1:0] cond_branch_target; `// target PC for conditional branches
-wire [WORD_SIZE-1:0] branch_target; // target PC for branches
-
-wire [WORD_SIZE-1:0] npc; // next PC; connected to either npc_pred
-                          // or pc + 1 depending on configuration
-wire [WORD_SIZE-1:0] npc_pred; // predicted next PC (branch predictor output)
-wire                 tag_match; // BTB tag matched PC (branch predictor output)
-wire                 update_tag; // update BTB tag (branch predictor input)
-reg                  update_bht; // update BHT (branch predictor input)
-reg [WORD_SIZE-1:0]  pc_outcome; // PC when branch outcome is decided (branch predictor input)
-reg                  branch_outcome; // branch outcome (branch predictor input)
-
-wire                 incr_num_inst; // increase num_inst when it becomes positive that the
-                                    // fetched instruction will not be discarded
-reg                  incr_num_branch; // increase num_branch when it becomes positive that the
-                                      // fetched instruction will not be discarded, and is a
-                                      // branch instruction
-assign i_ready = ready;
+3 * a - b + 2;
 
 fn main() -> int {
     // This is a line comment.
