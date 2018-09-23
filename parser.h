@@ -33,6 +33,22 @@ struct AST {
 AST::NodePtr make_ast(NodeType type);
 AST::NodePtr make_ast(NodeType type, const Token &tok);
 
+class Expr {
+public:
+    enum {
+        unary,
+        binary
+    } type;
+};
+
+using ExprPtr = std::unique_ptr<Expr>;
+
+class BinaryExpr : public Expr {
+public:
+    std::unique_ptr<Expr> lhs;
+    std::unique_ptr<Expr> rhs;
+};
+
 class Parser {
 public:
     Parser(Lexer &lexer) : lexer(lexer), tok(lexer.lex()) {}
@@ -41,7 +57,8 @@ public:
 
 private:
     // Parse an expression.
-    AST::NodePtr parse_expr();
+    std::unique_ptr<Expr> parse_unary_expr();
+    std::unique_ptr<Expr> parse_binary_expr();
 
     // Parse an identifier atom.
     AST::NodePtr parse_ident();
@@ -71,21 +88,6 @@ private:
 public:
     Lexer &lexer;
     Token tok; // lookahead token
-};
-
-enum class ExprType {
-    binary,
-};
-
-class Expr {
-public:
-    ExprType type;
-};
-
-class BinaryExpr : public Expr {
-public:
-    Expr *lhs;
-    Expr *rhs;
 };
 
 #endif
