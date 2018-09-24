@@ -54,28 +54,34 @@ void AST::add(NodePtr child) {
     children.push_back(std::move(child));
 }
 
-NodePtr Parser::parse_ident() {
+void Expr::print() {
+    std::cout << "Expr::print(): " << type << std::endl;
+}
+
+ExprPtr Parser::parse_ident() {
     if (tok.type != TokenType::ident)
         expect(TokenType::ident);
-    NodePtr ast = make_ast(NodeType::atom, tok);
+    // NodePtr ast = make_ast(NodeType::atom, tok);
+    ExprPtr expr{new Expr{Expr::literal}};
     next();
-    return ast;
+    return expr;
 }
 
-NodePtr Parser::parse_literal() {
-    NodePtr ast = make_ast(NodeType::atom, tok);
+ExprPtr Parser::parse_literal() {
+    ExprPtr expr{new Expr{Expr::literal}};
     next();
-    return ast;
+    return expr;
 }
 
-NodePtr Parser::parse_list() {
+#if 0
+ExprPtr Parser::parse_list() {
     NodePtr node = make_ast(NodeType::list);
     node->add(parse_literal());
     while (tok.type == TokenType::comma) {
         next();
         node->add(parse_literal());
     }
-    return node;
+    return nullptr;
 }
 
 NodePtr Parser::parse_range() {
@@ -112,6 +118,7 @@ NodePtr Parser::parse_assign() {
     expect_semi();
     return node;
 }
+#endif
 
 ExprPtr Parser::parse_unary_expr() {
     ExprPtr expr{new Expr{Expr::unary}};
@@ -152,16 +159,16 @@ void Parser::error(const std::string &msg) {
     exit(1);
 }
 
-NodePtr Parser::parse() {
-    NodePtr ast = nullptr;
+ExprPtr Parser::parse() {
+    ExprPtr ast = nullptr;
 
     while (true) {
         switch (tok.type) {
-        case TokenType::kw_assign:
-            return parse_assign();
-        case TokenType::kw_wire:
-        case TokenType::kw_reg:
-            return parse_netdecl();
+        // case TokenType::kw_assign:
+        //     return parse_assign();
+        // case TokenType::kw_wire:
+        // case TokenType::kw_reg:
+        //     return parse_netdecl();
         case TokenType::comment:
             next();
             continue;

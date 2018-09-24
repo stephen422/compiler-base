@@ -6,6 +6,7 @@
 #include <memory>
 
 enum class NodeType {
+    expr,
     net_decl,
     assign,
     list,
@@ -13,7 +14,13 @@ enum class NodeType {
     atom,
 };
 
-struct AST {
+template <typename T>
+class Ast {
+    std::unique_ptr<T> ptr;
+};
+
+class AST {
+public:
     // Owning pointer to an AST node.
     using NodePtr = std::unique_ptr<AST>;
 
@@ -33,12 +40,17 @@ struct AST {
 AST::NodePtr make_ast(NodeType type);
 AST::NodePtr make_ast(NodeType type, const Token &tok);
 
-class Expr {
+class Expr : public AST {
 public:
-    enum {
+    enum ExprType {
+        literal,
         unary,
         binary
     } type;
+
+    Expr(ExprType type) : AST(NodeType::expr), type(type) {}
+
+    void print();
 };
 
 using ExprPtr = std::unique_ptr<Expr>;
@@ -53,18 +65,18 @@ class Parser {
 public:
     Parser(Lexer &lexer) : lexer(lexer), tok(lexer.lex()) {}
 
-    AST::NodePtr parse();
+    ExprPtr parse();
 
 private:
     // Parse an expression.
-    std::unique_ptr<Expr> parse_unary_expr();
-    std::unique_ptr<Expr> parse_binary_expr();
+    ExprPtr parse_unary_expr();
+    ExprPtr parse_binary_expr();
 
     // Parse an identifier atom.
-    AST::NodePtr parse_ident();
+    ExprPtr parse_ident();
 
     // Parse a literal atom.
-    AST::NodePtr parse_literal();
+    ExprPtr parse_literal();
 
     // Parse a, b, c, ...
     AST::NodePtr parse_list();
