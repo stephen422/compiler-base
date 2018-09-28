@@ -62,9 +62,13 @@ void BinaryExpr::print() {
     std::cout << "[BinaryExpr]\n";
     if (lhs)
         lhs->print();
+    else
+        std::cout << "null\n";
     std::cout << op.lit << std::endl;
     if (rhs)
         rhs->print();
+    else
+        std::cout << "null\n";
     std::cout << std::endl;
 }
 
@@ -78,9 +82,14 @@ ExprPtr Parser::parse_ident() {
 }
 
 ExprPtr Parser::parse_literal() {
-    ExprPtr expr{new Expr{Expr::literal}};
+    ExprPtr expr{new LiteralExpr{tok}};
+    std::cout << "haha" << tok.lit.length() << std::endl;
     next();
     return expr;
+}
+
+void LiteralExpr::print() {
+    std::cout << "[" << tok.lit << "]" << std::endl;
 }
 
 #if 0
@@ -131,15 +140,12 @@ NodePtr Parser::parse_assign() {
 #endif
 
 ExprPtr Parser::parse_unary_expr() {
-    ExprPtr expr{new Expr{Expr::unary}};
     switch (tok.type) {
     case TokenType::number:
-        // return parse_literal();
-        return expr;
     case TokenType::ident:
-        // return parse_ident();
-        return expr;
+        return parse_literal();
     default:
+        error("not a unary expression");
         return nullptr;
     }
 }

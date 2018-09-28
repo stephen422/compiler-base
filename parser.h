@@ -56,6 +56,10 @@ public:
 using ExprPtr = std::unique_ptr<Expr>;
 
 class LiteralExpr : public Expr {
+public:
+    LiteralExpr(const Token &lit) : Expr(ExprType::literal), lit(lit) {}
+    void print();
+
     Token lit;
 };
 
