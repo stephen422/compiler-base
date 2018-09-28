@@ -1,17 +1,17 @@
 #include "parser.h"
 #include <utility>
 
-using NodePtr = AST::NodePtr;
+using NodePtr = AstNode::NodePtr;
 
 NodePtr make_ast(NodeType type) {
-    return NodePtr{new AST{type}};
+    return NodePtr{new AstNode{type}};
 }
 
 NodePtr make_ast(NodeType type, const Token &tok) {
-    return NodePtr{new AST{type, tok}};
+    return NodePtr{new AstNode{type, tok}};
 }
 
-void AST::print() {
+void AstNode::print() {
     switch (type) {
     case NodeType::net_decl:
         std::cout << "netdecl\n";
@@ -50,12 +50,22 @@ void Parser::expect_semi() {
     expect(TokenType::semicolon);
 }
 
-void AST::add(NodePtr child) {
+void AstNode::add(NodePtr child) {
     children.push_back(std::move(child));
 }
 
 void Expr::print() {
     std::cout << "Expr::print(): " << type << std::endl;
+}
+
+void BinaryExpr::print() {
+    std::cout << "[BinaryExpr]\n";
+    if (lhs)
+        lhs->print();
+    std::cout << op.lit << std::endl;
+    if (rhs)
+        rhs->print();
+    std::cout << std::endl;
 }
 
 ExprPtr Parser::parse_ident() {
@@ -149,7 +159,8 @@ ExprPtr Parser::parse_binary_expr() {
     next();
 
     ExprPtr rhs = parse_binary_expr();
-    return rhs;
+    ExprPtr expr{new BinaryExpr{lhs, op, rhs}};
+    return expr;
 }
 
 void Parser::error(const std::string &msg) {
@@ -159,7 +170,7 @@ void Parser::error(const std::string &msg) {
     exit(1);
 }
 
-ExprPtr Parser::parse() {
+NodePtr Parser::parse() {
     ExprPtr ast = nullptr;
 
     while (true) {

@@ -19,28 +19,29 @@ class Ast {
     std::unique_ptr<T> ptr;
 };
 
-class AST {
+class AstNode {
 public:
     // Owning pointer to an AST node.
-    using NodePtr = std::unique_ptr<AST>;
+    using NodePtr = std::unique_ptr<AstNode>;
 
-    AST(NodeType type) : type(type) {}
-    AST(NodeType type, const Token &tok) : type(type), tok(std::move(tok)) {}
+    AstNode() : AstNode(NodeType::atom) {}
+    AstNode(NodeType type) : type(type) {}
+    AstNode(NodeType type, const Token &tok) : type(type), tok(std::move(tok)) {}
 
     void add(NodePtr child);
-    void print();
+    virtual void print();
 
     NodeType type;
     Token tok;
     std::vector<NodePtr> children;
     // Non-owning pointer to the next sibling
-    // AST *sibling;
+    // AstNode *sibling;
 };
 
-AST::NodePtr make_ast(NodeType type);
-AST::NodePtr make_ast(NodeType type, const Token &tok);
+AstNode::NodePtr make_ast(NodeType type);
+AstNode::NodePtr make_ast(NodeType type, const Token &tok);
 
-class Expr : public AST {
+class Expr : public AstNode {
 public:
     enum ExprType {
         literal,
@@ -48,24 +49,31 @@ public:
         binary
     } type;
 
-    Expr(ExprType type) : AST(NodeType::expr), type(type) {}
+    Expr(ExprType type) : AstNode(NodeType::expr), type(type) {}
 
-    void print();
+    virtual void print();
 };
-
 using ExprPtr = std::unique_ptr<Expr>;
+
+class LiteralExpr : public Expr {
+    Token lit;
+};
 
 class BinaryExpr : public Expr {
 public:
-    std::unique_ptr<Expr> lhs;
-    std::unique_ptr<Expr> rhs;
+    BinaryExpr(ExprPtr &lhs, Token op, ExprPtr &rhs) : Expr(ExprType::binary), lhs(std::move(lhs)), op(std::move(op)), rhs(std::move(rhs)) {}
+    void print();
+
+    ExprPtr lhs;
+    Token op;
+    ExprPtr rhs;
 };
 
 class Parser {
 public:
     Parser(Lexer &lexer) : lexer(lexer), tok(lexer.lex()) {}
 
-    ExprPtr parse();
+    AstNode::NodePtr parse();
 
 private:
     // Parse an expression.
@@ -79,16 +87,16 @@ private:
     ExprPtr parse_literal();
 
     // Parse a, b, c, ...
-    AST::NodePtr parse_list();
+    AstNode::NodePtr parse_list();
 
     // Parse [msb:lsb].
-    AST::NodePtr parse_range();
+    AstNode::NodePtr parse_range();
 
     // Parse wire declaration.
-    AST::NodePtr parse_netdecl();
+    AstNode::NodePtr parse_netdecl();
 
     // Parse continuous assignments.
-    AST::NodePtr parse_assign();
+    AstNode::NodePtr parse_assign();
 
     // Get the next token from the lexer.
     void next();
