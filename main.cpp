@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
     Source src{argv[1]};
     Lexer lexer{src};
     Parser p{lexer};
-    AstNode::NodePtr ast;
+    AstNode::OwnPtr ast;
     while ((ast = p.parse())) {
         ast->print();
     }

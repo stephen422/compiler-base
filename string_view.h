@@ -8,25 +8,29 @@
 /// The memory referenced by a StringView is expected to live longer than the
 /// StringView.
 class StringView {
-public:
-    using iterator = const char *;
-
 private:
-    const char *data;
+    const char *ptr;
     size_t len;
 
 public:
+    using iterator = const char *;
+
     StringView() = default;
-    StringView(const char *s, size_t len) : data(s), len(len) {}
-    StringView(const char *s) : data(s), len(s ? strlen(s) : 0) {}
+    StringView(const char *s, size_t len) : ptr(s), len(len) {}
+    StringView(const char *s) : ptr(s), len(s ? strlen(s) : 0) {}
+    const char *data() const { return ptr; }
     size_t length() const { return len; }
     bool operator==(const StringView &rhs) const {
-        return len == rhs.len && std::memcmp(data, rhs.data, len) == 0;
+        return len == rhs.len && std::memcmp(ptr, rhs.ptr, len) == 0;
     }
-    iterator begin() const { return data; }
-    iterator end() const { return data + len; }
+    iterator begin() const { return ptr; }
+    iterator end() const { return ptr + len; }
     friend std::ostream &operator<<(std::ostream &os, const StringView &sv) {
-        os.write(sv.data, sv.len);
+        if (sv.ptr == nullptr) {
+            os << "(null)";
+        } else {
+            os.write(sv.ptr, sv.len);
+        }
         return os;
     }
 };

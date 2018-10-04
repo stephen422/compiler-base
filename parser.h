@@ -22,24 +22,25 @@ class Ast {
 class AstNode {
 public:
     // Owning pointer to an AST node.
-    using NodePtr = std::unique_ptr<AstNode>;
+    using OwnPtr = std::unique_ptr<AstNode>;
 
     AstNode() : AstNode(NodeType::atom) {}
     AstNode(NodeType type) : type(type) {}
     AstNode(NodeType type, const Token &tok) : type(type), tok(std::move(tok)) {}
+    virtual ~AstNode() = default;
 
-    void add(NodePtr child);
+    void add(OwnPtr child);
     virtual void print();
 
     NodeType type;
     Token tok;
-    std::vector<NodePtr> children;
+    std::vector<OwnPtr> children;
     // Non-owning pointer to the next sibling
     // AstNode *sibling;
 };
 
-AstNode::NodePtr make_ast(NodeType type);
-AstNode::NodePtr make_ast(NodeType type, const Token &tok);
+AstNode::OwnPtr make_ast(NodeType type);
+AstNode::OwnPtr make_ast(NodeType type, const Token &tok);
 
 class Expr : public AstNode {
 public:
@@ -50,6 +51,7 @@ public:
     } type;
 
     Expr(ExprType type) : AstNode(NodeType::expr), type(type) {}
+    virtual ~Expr() = default;
 
     virtual void print();
 };
@@ -77,7 +79,7 @@ class Parser {
 public:
     Parser(Lexer &lexer) : lexer(lexer), tok(lexer.lex()) {}
 
-    AstNode::NodePtr parse();
+    AstNode::OwnPtr parse();
 
 private:
     // Parse an expression.
@@ -91,16 +93,16 @@ private:
     ExprPtr parse_literal();
 
     // Parse a, b, c, ...
-    AstNode::NodePtr parse_list();
+    AstNode::OwnPtr parse_list();
 
     // Parse [msb:lsb].
-    AstNode::NodePtr parse_range();
+    AstNode::OwnPtr parse_range();
 
     // Parse wire declaration.
-    AstNode::NodePtr parse_netdecl();
+    AstNode::OwnPtr parse_netdecl();
 
     // Parse continuous assignments.
-    AstNode::NodePtr parse_assign();
+    AstNode::OwnPtr parse_assign();
 
     // Get the next token from the lexer.
     void next();

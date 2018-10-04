@@ -1,14 +1,14 @@
 #include "parser.h"
 #include <utility>
 
-using NodePtr = AstNode::NodePtr;
+using AstNodePtr = AstNode::OwnPtr;
 
-NodePtr make_ast(NodeType type) {
-    return NodePtr{new AstNode{type}};
+AstNodePtr make_ast(NodeType type) {
+    return AstNodePtr{new AstNode{type}};
 }
 
-NodePtr make_ast(NodeType type, const Token &tok) {
-    return NodePtr{new AstNode{type, tok}};
+AstNodePtr make_ast(NodeType type, const Token &tok) {
+    return AstNodePtr{new AstNode{type, tok}};
 }
 
 void AstNode::print() {
@@ -50,7 +50,7 @@ void Parser::expect_semi() {
     expect(TokenType::semicolon);
 }
 
-void AstNode::add(NodePtr child) {
+void AstNode::add(AstNodePtr child) {
     children.push_back(std::move(child));
 }
 
@@ -75,7 +75,7 @@ void BinaryExpr::print() {
 ExprPtr Parser::parse_ident() {
     if (tok.type != TokenType::ident)
         expect(TokenType::ident);
-    // NodePtr ast = make_ast(NodeType::atom, tok);
+    // AstNodePtr ast = make_ast(NodeType::atom, tok);
     ExprPtr expr{new Expr{Expr::literal}};
     next();
     return expr;
@@ -83,18 +83,17 @@ ExprPtr Parser::parse_ident() {
 
 ExprPtr Parser::parse_literal() {
     ExprPtr expr{new LiteralExpr{tok}};
-    std::cout << "haha" << tok.lit.length() << std::endl;
     next();
     return expr;
 }
 
 void LiteralExpr::print() {
-    std::cout << "[" << tok.lit << "]" << std::endl;
+    std::cout << "[" << lit.lit << "]" << std::endl;
 }
 
 #if 0
 ExprPtr Parser::parse_list() {
-    NodePtr node = make_ast(NodeType::list);
+    AstNodePtr node = make_ast(NodeType::list);
     node->add(parse_literal());
     while (tok.type == TokenType::comma) {
         next();
@@ -103,8 +102,8 @@ ExprPtr Parser::parse_list() {
     return nullptr;
 }
 
-NodePtr Parser::parse_range() {
-    NodePtr node = make_ast(NodeType::range);
+AstNodePtr Parser::parse_range() {
+    AstNodePtr node = make_ast(NodeType::range);
     expect(TokenType::lbracket);
     node->add(parse_literal());
     expect(TokenType::colon);
@@ -113,8 +112,8 @@ NodePtr Parser::parse_range() {
     return node;
 }
 
-NodePtr Parser::parse_netdecl() {
-    NodePtr node = make_ast(NodeType::net_decl);
+AstNodePtr Parser::parse_netdecl() {
+    AstNodePtr node = make_ast(NodeType::net_decl);
     next();
 
     // vectors
@@ -128,8 +127,8 @@ NodePtr Parser::parse_netdecl() {
     return node;
 }
 
-NodePtr Parser::parse_assign() {
-    NodePtr node = make_ast(NodeType::assign);
+AstNodePtr Parser::parse_assign() {
+    AstNodePtr node = make_ast(NodeType::assign);
     next(); // "assign"
     node->add(parse_ident());
     expect(TokenType::equals);
@@ -176,7 +175,7 @@ void Parser::error(const std::string &msg) {
     exit(1);
 }
 
-NodePtr Parser::parse() {
+AstNodePtr Parser::parse() {
     ExprPtr ast = nullptr;
 
     while (true) {
