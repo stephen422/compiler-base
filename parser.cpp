@@ -3,6 +3,8 @@
 
 using AstNodePtr = AstNode::OwnPtr;
 
+int AstNode::depth = 0;
+
 AstNodePtr make_ast(NodeType type) {
     return AstNodePtr{new AstNode{type}};
 }
@@ -59,17 +61,19 @@ void Expr::print() {
 }
 
 void BinaryExpr::print() {
-    std::cout << "[BinaryExpr]\n";
+    out() << "[BinaryExpr]\n";
+
+    PrintScope start;
+
     if (lhs)
         lhs->print();
     else
-        std::cout << "null\n";
-    std::cout << op.lit << std::endl;
+        out() << "null\n";
+    out() << "[Op] '" << op.lit << "'\n";
     if (rhs)
         rhs->print();
     else
-        std::cout << "null\n";
-    std::cout << std::endl;
+        out() << "null\n";
 }
 
 ExprPtr Parser::parse_ident() {
@@ -88,7 +92,7 @@ ExprPtr Parser::parse_literal() {
 }
 
 void LiteralExpr::print() {
-    std::cout << "[" << lit.lit << "]" << std::endl;
+    out() << "[LiteralExpr] " << lit.lit << std::endl;
 }
 
 #if 0
