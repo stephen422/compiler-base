@@ -1,5 +1,6 @@
 #include "parser.h"
 #include <utility>
+#include <sstream>
 
 using AstNodePtr = AstNode::OwnPtr;
 
@@ -41,9 +42,10 @@ void Parser::next() {
 
 void Parser::expect(TokenType type) {
     if (tok.type != type) {
-        std::cerr << "parse error: expected " << static_cast<int>(type)
-                  << ", got " << static_cast<int>(tok.type) << std::endl;
-        exit(1); // FIXME
+        std::stringstream ss;
+        ss << "expected " << static_cast<int>(type)
+           << ", got " << static_cast<int>(tok.type);
+        error(ss.str());
     }
     next();
 }
@@ -147,6 +149,13 @@ ExprPtr Parser::parse_unary_expr() {
     case TokenType::number:
     case TokenType::ident:
         return parse_literal();
+    case TokenType::lparen: {
+        expect(TokenType::lparen);
+        auto expr = parse_binary_expr();
+        expect(TokenType::rparen);
+        return expr;
+        // error("ParenExpr not yet implemented");
+    }
     default:
         error("not a unary expression");
         return nullptr;
@@ -160,7 +169,7 @@ ExprPtr Parser::parse_binary_expr() {
     if (!(tok.type == TokenType::star ||
           tok.type == TokenType::plus ||
           tok.type == TokenType::minus)) {
-        next();
+        // next();
         return lhs;
     }
 
@@ -190,6 +199,7 @@ AstNodePtr Parser::parse() {
         // case TokenType::kw_reg:
         //     return parse_netdecl();
         case TokenType::comment:
+        case TokenType::semicolon:
             next();
             continue;
         default:
