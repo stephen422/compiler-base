@@ -67,7 +67,9 @@ public:
 
 class BinaryExpr : public Expr {
 public:
-    BinaryExpr(ExprPtr &lhs, Token op, ExprPtr &rhs) : Expr(ExprType::binary), lhs(std::move(lhs)), op(std::move(op)), rhs(std::move(rhs)) {}
+    BinaryExpr(ExprPtr &lhs, Token op, ExprPtr &rhs)
+        : Expr(ExprType::binary), lhs(std::move(lhs)), op(op),
+          rhs(std::move(rhs)) {}
     void print();
 
     ExprPtr lhs;

@@ -1,9 +1,9 @@
 CXX ?= clang++
-CXXFLAGS += -g -std=c++14 -pedantic -Wall -Wextra
+CXXFLAGS += -g -fsanitize=address -std=c++14 -pedantic -Wall -Wextra
 PROG := cmp
 
 $(PROG): main.o parser.o lexer.o source.o
-	$(CXX) -o $(PROG) $^ $(LDFLAGS)
+	$(CXX) -fsanitize=address -o $(PROG) $^ $(LDFLAGS)
 
 debug: main.o parser.o lexer.o source.o
 	$(CXX) -fsanitize=address -o $(PROG) $^ $(LDFLAGS)
