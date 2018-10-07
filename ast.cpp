@@ -38,10 +38,6 @@ void AstNode::print() {
         c->print();
 }
 
-void Expr::print() {
-    std::cout << "Expr::print(): " << type << std::endl;
-}
-
 void BinaryExpr::print() {
     out() << "[BinaryExpr]\n";
 
@@ -49,6 +45,10 @@ void BinaryExpr::print() {
     lhs->print();
     out() << "[Op] '" << op.lit << "'\n";
     rhs->print();
+}
+
+void LiteralExpr::print() {
+    out() << "[LiteralExpr] " << lit.lit << std::endl;
 }
 
 } // namespace cp

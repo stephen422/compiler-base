@@ -53,6 +53,8 @@ public:
 };
 
 using AstNodePtr = AstNode::OwnPtr;
+AstNodePtr make_ast(NodeType type);
+AstNodePtr make_ast(NodeType type, const Token &tok);
 
 // A little RAII trick to handle indentation when printing a node at a deeper level.
 // Instantiating this is pretty much equivalent to doing
@@ -62,9 +64,6 @@ public:
     PrintScope() { depth++; }
     ~PrintScope() { depth--; }
 };
-
-AstNode::OwnPtr make_ast(NodeType type);
-AstNode::OwnPtr make_ast(NodeType type, const Token &tok);
 
 class Expr : public AstNode {
 public:
@@ -76,9 +75,8 @@ public:
 
     Expr(ExprType type) : AstNode(NodeType::expr), type(type) {}
     virtual ~Expr() = default;
-
-    virtual void print();
 };
+
 using ExprPtr = std::unique_ptr<Expr>;
 
 class LiteralExpr : public Expr {

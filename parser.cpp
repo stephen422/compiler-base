@@ -37,57 +37,6 @@ ExprPtr Parser::parse_literal() {
     return expr;
 }
 
-void LiteralExpr::print() {
-    out() << "[LiteralExpr] " << lit.lit << std::endl;
-}
-
-#if 0
-ExprPtr Parser::parse_list() {
-    AstNodePtr node = make_ast(NodeType::list);
-    node->add(parse_literal());
-    while (tok.type == TokenType::comma) {
-        next();
-        node->add(parse_literal());
-    }
-    return nullptr;
-}
-
-AstNodePtr Parser::parse_range() {
-    AstNodePtr node = make_ast(NodeType::range);
-    expect(TokenType::lbracket);
-    node->add(parse_literal());
-    expect(TokenType::colon);
-    node->add(parse_literal());
-    expect(TokenType::rbracket);
-    return node;
-}
-
-AstNodePtr Parser::parse_netdecl() {
-    AstNodePtr node = make_ast(NodeType::net_decl);
-    next();
-
-    // vectors
-    if (tok.type == TokenType::lbracket)
-        node->add(parse_range());
-
-    // list of names
-    node->add(parse_list());
-
-    expect_semi();
-    return node;
-}
-
-AstNodePtr Parser::parse_assign() {
-    AstNodePtr node = make_ast(NodeType::assign);
-    next(); // "assign"
-    node->add(parse_ident());
-    expect(TokenType::equals);
-    node->add(parse_ident());
-    expect_semi();
-    return node;
-}
-#endif
-
 ExprPtr Parser::parse_unary_expr() {
     switch (tok.type) {
     case TokenType::number:
