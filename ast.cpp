@@ -1,5 +1,7 @@
 #include "ast.h"
 
+namespace comp {
+
 int AstNode::depth = 0;
 
 AstNodePtr make_ast(NodeType type) {
@@ -48,3 +50,5 @@ void BinaryExpr::print() {
     out() << "[Op] '" << op.lit << "'\n";
     rhs->print();
 }
+
+} // namespace cp

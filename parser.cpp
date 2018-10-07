@@ -2,6 +2,8 @@
 #include <utility>
 #include <sstream>
 
+namespace comp {
+
 void Parser::next() {
     tok = lexer.lex();
 }
@@ -150,3 +152,5 @@ AstNodePtr Parser::parse() {
     }
     return ast;
 }
+
+} // namespace cp

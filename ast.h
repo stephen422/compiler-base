@@ -6,6 +6,8 @@
 #include <iostream>
 #include <memory>
 
+namespace comp {
+
 enum class NodeType {
     expr,
     net_decl,
@@ -98,5 +100,7 @@ public:
     Token op;
     ExprPtr rhs;
 };
+
+} // namespace cp
 
 #endif

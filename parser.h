@@ -5,6 +5,8 @@
 #include "lexer.h"
 #include "ast.h"
 
+namespace comp {
+
 class Parser {
 public:
     Parser(Lexer &lexer) : lexer(lexer), tok(lexer.lex()) {}
@@ -45,5 +47,7 @@ public:
     Lexer &lexer;
     Token tok; // lookahead token
 };
+
+} // namespace comp
 
 #endif

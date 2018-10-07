@@ -1,6 +1,8 @@
 #include "lexer.h"
 #include <cctype>
 
+namespace comp {
+
 std::ostream &operator<<(std::ostream &os, const Token &token) {
     os << "[" << token.lit << "]";
     return os;
@@ -157,3 +159,5 @@ void Lexer::error(const std::string &msg) {
     std::cout << "lex error: " << msg << std::endl;
     exit(1);
 }
+
+} // namespace cp

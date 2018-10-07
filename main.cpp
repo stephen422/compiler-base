@@ -4,6 +4,8 @@
 #include <fstream>
 #include <iostream>
 
+using namespace comp;
+
 extern void use_read(std::ifstream& in);
 
 void test_lexer(const char *path) {

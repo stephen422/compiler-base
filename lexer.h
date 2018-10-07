@@ -9,6 +9,8 @@
 #include <string>
 #include <string_view>
 
+namespace comp {
+
 enum class TokenType {
     eos,
     arrow,
@@ -181,5 +183,7 @@ private:
     void skip_whitespace();
     void error(const std::string &msg);
 };
+
+} // namespace comp
 
 #endif
