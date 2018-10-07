@@ -42,6 +42,7 @@ void BinaryExpr::print() {
     out() << "[BinaryExpr]\n";
 
     PrintScope start;
+
     lhs->print();
     out() << "[Op] '" << op.lit << "'\n";
     rhs->print();

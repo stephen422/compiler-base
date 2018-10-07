@@ -35,8 +35,8 @@ public:
     void add(OwnPtr child);
     virtual void print();
 
-    // Convenience ostream for omitting explicit indeinting in the AST printing
-    // code.
+    // Convenience ostream for AST dumping code.
+    // Handles indentation, tree drawing, etc.
     std::ostream &out() const {
         if (depth > 0) {
             std::cout << std::string(depth - 2, ' ');
@@ -52,16 +52,16 @@ public:
     // Since all nodes share one indentation level variable, this should be
     // declared static.
     static int depth;
-    std::vector<OwnPtr> children;
+
+    std::vector<OwnPtr> children; // FIXME
 };
 
 using AstNodePtr = AstNode::OwnPtr;
 AstNodePtr make_ast(NodeType type);
 AstNodePtr make_ast(NodeType type, const Token &tok);
 
-// A little RAII trick to handle indentation when printing a node at a deeper level.
-// Instantiating this is pretty much equivalent to doing
-// "depth++; defer(depth--);" in Go.
+// A little RAII trick to handle indentation when printing a node at a deeper
+// level.  This is equivalent to doing "depth++; defer(depth--);" in Go.
 class PrintScope : public AstNode {
 public:
     PrintScope() { depth += 2; }
@@ -77,7 +77,6 @@ public:
     } type;
 
     Expr(ExprType type) : AstNode(NodeType::expr), type(type) {}
-    virtual ~Expr() = default;
 };
 
 using ExprPtr = std::unique_ptr<Expr>;
