@@ -26,13 +26,13 @@ ExprPtr Parser::parse_ident() {
     if (tok.type != TokenType::ident)
         expect(TokenType::ident);
     // AstNodePtr ast = make_ast(NodeType::atom, tok);
-    ExprPtr expr{new Expr{Expr::literal}};
+    auto expr = std::make_unique<Expr>(Expr::literal);
     next();
     return expr;
 }
 
 ExprPtr Parser::parse_literal() {
-    ExprPtr expr{new LiteralExpr{tok}};
+    auto expr = std::make_unique<LiteralExpr>(tok);
     next();
     return expr;
 }
@@ -44,7 +44,7 @@ ExprPtr Parser::parse_unary_expr() {
         return parse_literal();
     case TokenType::lparen: {
         expect(TokenType::lparen);
-        auto expr = parse_binary_expr();
+        auto expr = parse_binary_or_unary_expr();
         expect(TokenType::rparen);
         return expr;
         // error("ParenExpr not yet implemented");
@@ -55,23 +55,25 @@ ExprPtr Parser::parse_unary_expr() {
     }
 }
 
-ExprPtr Parser::parse_binary_expr() {
+ExprPtr Parser::parse_binary_or_unary_expr() {
     ExprPtr lhs = parse_unary_expr();
 
     // Check op
     if (!(tok.type == TokenType::star ||
           tok.type == TokenType::plus ||
           tok.type == TokenType::minus)) {
-        // next();
         return lhs;
     }
 
     Token op = tok;
     next();
 
-    ExprPtr rhs = parse_binary_expr();
-    ExprPtr expr{new BinaryExpr{lhs, op, rhs}};
-    return expr;
+    ExprPtr rhs = parse_expr();
+    return std::make_unique<BinaryExpr>(lhs, op, rhs);
+}
+
+ExprPtr Parser::parse_expr() {
+    return parse_binary_or_unary_expr();
 }
 
 void Parser::error(const std::string &msg) {
@@ -96,7 +98,7 @@ AstNodePtr Parser::parse() {
             next();
             continue;
         default:
-            return parse_binary_expr();
+            return parse_expr();
         }
     }
     return ast;

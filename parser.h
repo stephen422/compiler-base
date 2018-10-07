@@ -15,8 +15,9 @@ public:
 
 private:
     // Parse an expression.
+    ExprPtr parse_expr();
     ExprPtr parse_unary_expr();
-    ExprPtr parse_binary_expr();
+    ExprPtr parse_binary_or_unary_expr();
 
     // Parse an identifier atom.
     ExprPtr parse_ident();

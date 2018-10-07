@@ -37,8 +37,11 @@ public:
 
     // Convenience ostream for omitting explicit indeinting in the AST printing
     // code.
-    std::ostream& out() const {
-        std::cout << std::string(depth, ' ');
+    std::ostream &out() const {
+        if (depth > 0) {
+            std::cout << std::string(depth - 2, ' ');
+            std::cout << "`-";
+        }
         return std::cout;
     }
 
@@ -61,8 +64,8 @@ AstNodePtr make_ast(NodeType type, const Token &tok);
 // "depth++; defer(depth--);" in Go.
 class PrintScope : public AstNode {
 public:
-    PrintScope() { depth++; }
-    ~PrintScope() { depth--; }
+    PrintScope() { depth += 2; }
+    ~PrintScope() { depth -= 2; }
 };
 
 class Expr : public AstNode {
