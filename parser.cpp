@@ -2,40 +2,6 @@
 #include <utility>
 #include <sstream>
 
-using AstNodePtr = AstNode::OwnPtr;
-
-int AstNode::depth = 0;
-
-AstNodePtr make_ast(NodeType type) {
-    return AstNodePtr{new AstNode{type}};
-}
-
-AstNodePtr make_ast(NodeType type, const Token &tok) {
-    return AstNodePtr{new AstNode{type, tok}};
-}
-
-void AstNode::print() {
-    switch (type) {
-    case NodeType::net_decl:
-        std::cout << "netdecl\n";
-        break;
-    case NodeType::assign:
-        std::cout << "assign\n";
-        break;
-    case NodeType::list:
-        std::cout << "list\n";
-        break;
-    case NodeType::range:
-        std::cout << "range\n";
-        break;
-    default:
-        std::cout << tok << std::endl;
-        break;
-    }
-    for (const auto &c : children)
-        c->print();
-}
-
 void Parser::next() {
     tok = lexer.lex();
 }
@@ -52,30 +18,6 @@ void Parser::expect(TokenType type) {
 
 void Parser::expect_semi() {
     expect(TokenType::semicolon);
-}
-
-void AstNode::add(AstNodePtr child) {
-    children.push_back(std::move(child));
-}
-
-void Expr::print() {
-    std::cout << "Expr::print(): " << type << std::endl;
-}
-
-void BinaryExpr::print() {
-    out() << "[BinaryExpr]\n";
-
-    PrintScope start;
-
-    if (lhs)
-        lhs->print();
-    else
-        out() << "null\n";
-    out() << "[Op] '" << op.lit << "'\n";
-    if (rhs)
-        rhs->print();
-    else
-        out() << "null\n";
 }
 
 ExprPtr Parser::parse_ident() {
@@ -157,7 +99,7 @@ ExprPtr Parser::parse_unary_expr() {
         // error("ParenExpr not yet implemented");
     }
     default:
-        error("not a unary expression");
+        error("expected a unary expression");
         return nullptr;
     }
 }

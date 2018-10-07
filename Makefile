@@ -2,18 +2,19 @@ CXX ?= clang++
 CXXFLAGS += -g -fsanitize=address -std=c++14 -pedantic -Wall -Wextra
 PROG := cmp
 
-$(PROG): main.o parser.o lexer.o source.o
+$(PROG): main.o parser.o lexer.o ast.o source.o
 	$(CXX) -fsanitize=address -o $(PROG) $^ $(LDFLAGS)
 
-debug: main.o parser.o lexer.o source.o
+debug: main.o parser.o lexer.o ast.o source.o
 	$(CXX) -fsanitize=address -o $(PROG) $^ $(LDFLAGS)
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 main.o: parser.h lexer.h
-parser.o: parser.h lexer.h
+parser.o: parser.h lexer.h ast.h
 lexer.o: lexer.h source.h string_view.h
+ast.o: ast.h
 source.o: source.h
 
 %.s: %.cpp
