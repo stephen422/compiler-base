@@ -101,6 +101,6 @@ public:
     ExprPtr rhs;
 };
 
-} // namespace cp
+} // namespace comp
 
 #endif

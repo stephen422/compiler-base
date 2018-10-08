@@ -44,7 +44,7 @@ ExprPtr Parser::parse_unary_expr() {
         return parse_literal();
     case TokenType::lparen: {
         expect(TokenType::lparen);
-        auto expr = parse_binary_or_unary_expr();
+        auto expr = parse_binary_or_unary_expr(0);
         expect(TokenType::rparen);
         return expr;
         // error("ParenExpr not yet implemented");
@@ -55,25 +55,47 @@ ExprPtr Parser::parse_unary_expr() {
     }
 }
 
-ExprPtr Parser::parse_binary_or_unary_expr() {
+int Parser::get_precedence(const Token &op) const {
+    switch (op.type) {
+    case TokenType::star:
+    case TokenType::slash:
+        return 1;
+    case TokenType::plus:
+    case TokenType::minus:
+        return 0;
+    default:
+        // Not an operator
+        return -1;
+    }
+}
+
+ExprPtr Parser::parse_binary_or_unary_expr(int precedence) {
     ExprPtr lhs = parse_unary_expr();
 
-    // Check op
-    if (!(tok.type == TokenType::star ||
-          tok.type == TokenType::plus ||
-          tok.type == TokenType::minus)) {
+    // If the upcoming op has higher precedence, merge it into LHS.
+    int next_prec = get_precedence(tok);
+    if (next_prec > precedence) {
+        Token op = tok;
+        next();
+        ExprPtr rhs_of_lhs = parse_binary_or_unary_expr(next_prec);
+        lhs = std::make_unique<BinaryExpr>(lhs, op, rhs_of_lhs);
+    }
+
+    // If the upcoming op has lower precedence, the parsing of the current-level
+    // subexpression is finished.
+    if (get_precedence(tok) < precedence) {
         return lhs;
     }
 
     Token op = tok;
     next();
 
-    ExprPtr rhs = parse_expr();
+    ExprPtr rhs = parse_binary_or_unary_expr(precedence);
     return std::make_unique<BinaryExpr>(lhs, op, rhs);
 }
 
 ExprPtr Parser::parse_expr() {
-    return parse_binary_or_unary_expr();
+    return parse_binary_or_unary_expr(0);
 }
 
 void Parser::error(const std::string &msg) {
@@ -104,4 +126,4 @@ AstNodePtr Parser::parse() {
     return ast;
 }
 
-} // namespace cp
+} // namespace comp

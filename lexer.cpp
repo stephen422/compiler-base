@@ -160,4 +160,4 @@ void Lexer::error(const std::string &msg) {
     exit(1);
 }
 
-} // namespace cp
+} // namespace comp

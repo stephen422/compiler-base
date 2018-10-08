@@ -17,7 +17,8 @@ private:
     // Parse an expression.
     ExprPtr parse_expr();
     ExprPtr parse_unary_expr();
-    ExprPtr parse_binary_or_unary_expr();
+    ExprPtr parse_binary_or_unary_expr(int precedence);
+    ExprPtr parse_binary_expr_rhs(ExprPtr lhs);
 
     // Parse an identifier atom.
     ExprPtr parse_ident();
@@ -40,13 +41,18 @@ private:
     // Get the next token from the lexer.
     void next();
 
+    // Get the precedence of an operator.
+    int get_precedence(const Token &op) const;
+
     void expect(TokenType type);
     void expect_semi();
     void error(const std::string &msg);
 
-public:
     Lexer &lexer;
     Token tok; // lookahead token
+
+    // Current operator precedence when parsing an expression.
+    // int precedence = 0;
 };
 
 } // namespace comp

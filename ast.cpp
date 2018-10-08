@@ -52,4 +52,4 @@ void LiteralExpr::print() {
     out() << "[LiteralExpr] " << lit.lit << std::endl;
 }
 
-} // namespace cp
+} // namespace comp
