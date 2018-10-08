@@ -1,6 +1,5 @@
-a + b + c * d;
-
-// 3 * (a - (b * a - 3)) + 2;
+1 + 2 + 3 + 4;
+3 + (a - (b + a * 3)) * 2;
 
 fn main() -> int {
     // This is a line comment.

@@ -68,13 +68,15 @@ public:
     ~PrintScope() { depth -= 2; }
 };
 
+enum class ExprType {
+    literal,
+    unary,
+    binary
+};
+
 class Expr : public AstNode {
 public:
-    enum ExprType {
-        literal,
-        unary,
-        binary
-    } type;
+    ExprType type;
 
     Expr(ExprType type) : AstNode(NodeType::expr), type(type) {}
 };

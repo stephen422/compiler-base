@@ -16,9 +16,17 @@ public:
 private:
     // Parse an expression.
     ExprPtr parse_expr();
+
+    // Parse a unary expression.
     ExprPtr parse_unary_expr();
-    ExprPtr parse_binary_or_unary_expr(int precedence);
-    ExprPtr parse_binary_expr_rhs(ExprPtr lhs);
+
+    // Extend a unary expression into binary if possible, by parsing any
+    // attached RHS.  Returns the owning pointer to the newly constructed binary
+    // expression.
+    //
+    // After the call, the owning pointer to lhs is moved away and invalidated
+    // in case the binary extension is successful.
+    ExprPtr parse_binary_expr_rhs(ExprPtr &lhs, int precedence = 0);
 
     // Parse an identifier atom.
     ExprPtr parse_ident();

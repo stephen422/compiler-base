@@ -26,7 +26,7 @@ ExprPtr Parser::parse_ident() {
     if (tok.type != TokenType::ident)
         expect(TokenType::ident);
     // AstNodePtr ast = make_ast(NodeType::atom, tok);
-    auto expr = std::make_unique<Expr>(Expr::literal);
+    auto expr = std::make_unique<Expr>(ExprType::literal);
     next();
     return expr;
 }
@@ -44,7 +44,7 @@ ExprPtr Parser::parse_unary_expr() {
         return parse_literal();
     case TokenType::lparen: {
         expect(TokenType::lparen);
-        auto expr = parse_binary_or_unary_expr(0);
+        auto expr = parse_expr();
         expect(TokenType::rparen);
         return expr;
         // error("ParenExpr not yet implemented");
@@ -69,33 +69,45 @@ int Parser::get_precedence(const Token &op) const {
     }
 }
 
-ExprPtr Parser::parse_binary_or_unary_expr(int precedence) {
-    ExprPtr lhs = parse_unary_expr();
+ExprPtr Parser::parse_binary_expr_rhs(ExprPtr &lhs, int precedence) {
+    ExprPtr root = std::move(lhs);
 
-    // If the upcoming op has higher precedence, merge it into LHS.
-    int next_prec = get_precedence(tok);
-    if (next_prec > precedence) {
+    while (true) {
+        int this_prec = get_precedence(tok);
+
+        // If the upcoming op has lower precedence, the subexpression of the
+        // precedence level that we are currently parsing in is finished.
+        if (this_prec < precedence) {
+            return root;
+        }
+
         Token op = tok;
         next();
-        ExprPtr rhs_of_lhs = parse_binary_or_unary_expr(next_prec);
-        lhs = std::make_unique<BinaryExpr>(lhs, op, rhs_of_lhs);
+
+        // Parse the next term.  We do not know yet if this term should bind to
+        // LHS or RHS; e.g. "a * b + c" or "a + b * c".  To know this, we should
+        // look ahead for the operator that follows this term.
+        ExprPtr rhs = parse_unary_expr();
+        int next_prec = get_precedence(tok);
+
+        // If the next operator is indeed higher-level, evaluate the RHS as a
+        // whole subexpression with elevated minimum precedence. Else, just
+        // treat it as a unary expression.
+        if (this_prec < next_prec) {
+            rhs = parse_binary_expr_rhs(rhs, precedence + 1);
+        }
+
+        // Submerge root as LHS, and attach the parsed RHS to create a new root.
+        // This implies left associativity.
+        root = std::make_unique<BinaryExpr>(root, op, rhs);
     }
-
-    // If the upcoming op has lower precedence, the parsing of the current-level
-    // subexpression is finished.
-    if (get_precedence(tok) < precedence) {
-        return lhs;
-    }
-
-    Token op = tok;
-    next();
-
-    ExprPtr rhs = parse_binary_or_unary_expr(precedence);
-    return std::make_unique<BinaryExpr>(lhs, op, rhs);
+    return root;
 }
 
 ExprPtr Parser::parse_expr() {
-    return parse_binary_or_unary_expr(0);
+    auto expr = parse_unary_expr();
+    expr = parse_binary_expr_rhs(expr);
+    return expr;
 }
 
 void Parser::error(const std::string &msg) {
@@ -106,15 +118,8 @@ void Parser::error(const std::string &msg) {
 }
 
 AstNodePtr Parser::parse() {
-    ExprPtr ast = nullptr;
-
     while (true) {
         switch (tok.type) {
-        // case TokenType::kw_assign:
-        //     return parse_assign();
-        // case TokenType::kw_wire:
-        // case TokenType::kw_reg:
-        //     return parse_netdecl();
         case TokenType::comment:
         case TokenType::semicolon:
             next();
@@ -123,7 +128,7 @@ AstNodePtr Parser::parse() {
             return parse_expr();
         }
     }
-    return ast;
+    return nullptr;
 }
 
 } // namespace comp
