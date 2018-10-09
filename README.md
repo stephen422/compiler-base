@@ -1,14 +1,12 @@
 compiler-base
 =============
 
-A simple compiler project for building a systems programming language.
+A purely educational compiler project for a simple systems programming
+language.
 
-Main goals of the language:
+TODO:
+* Parser unit tests
+* Better AST dump with tree branches
+* Token type descriptions
 
-* Built-in static analysis tools (searching & refactoring)
-
-* Simple constructs with safe memory management
-
-* Fast compilation speed
-
-Copyright 2017 Hansung Kim
+Copyright 2018 Hansung Kim

@@ -21,8 +21,8 @@ void VarDecl::print() const {
 
     PrintScope start;
 
-    out() << "[Mutable: " << (mut ? "Y" : "N") << "]\n";
     out() << "[Id] " << id.lit << "\n";
+    out() << "[Mutable:" << (mut ? "Y" : "N") << "]\n";
 }
 
 void BinaryExpr::print() const {

@@ -53,7 +53,6 @@ ExprPtr Parser::parse_unary_expr() {
         auto expr = parse_expr();
         expect(TokenType::rparen);
         return expr;
-        // error("ParenExpr not yet implemented");
     }
     default:
         error("expected a unary expression");
