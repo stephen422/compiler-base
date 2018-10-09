@@ -16,29 +16,16 @@ void AstNode::add(AstNodePtr child) {
     children.push_back(std::move(child));
 }
 
-void AstNode::print() {
-    switch (type) {
-    case NodeType::net_decl:
-        std::cout << "netdecl\n";
-        break;
-    case NodeType::assign:
-        std::cout << "assign\n";
-        break;
-    case NodeType::list:
-        std::cout << "list\n";
-        break;
-    case NodeType::range:
-        std::cout << "range\n";
-        break;
-    default:
-        std::cout << tok << std::endl;
-        break;
-    }
-    for (const auto &c : children)
-        c->print();
+void VarDecl::print() const {
+    out() << "[VarDecl]\n";
+
+    PrintScope start;
+
+    out() << "[Mutable: " << (mut ? "Y" : "N") << "]\n";
+    out() << "[Id] " << id.lit << "\n";
 }
 
-void BinaryExpr::print() {
+void BinaryExpr::print() const {
     out() << "[BinaryExpr]\n";
 
     PrintScope start;
@@ -48,7 +35,7 @@ void BinaryExpr::print() {
     rhs->print();
 }
 
-void LiteralExpr::print() {
+void LiteralExpr::print() const {
     out() << "[LiteralExpr] " << lit.lit << std::endl;
 }
 

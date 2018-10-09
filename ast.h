@@ -9,11 +9,8 @@
 namespace comp {
 
 enum class NodeType {
+    decl,
     expr,
-    net_decl,
-    assign,
-    list,
-    range,
     atom,
 };
 
@@ -33,7 +30,7 @@ public:
     virtual ~AstNode() = default;
 
     void add(OwnPtr child);
-    virtual void print();
+    virtual void print() const {}
 
     // Convenience ostream for AST dumping code.
     // Handles indentation, tree drawing, etc.
@@ -68,25 +65,55 @@ public:
     ~PrintScope() { depth -= 2; }
 };
 
+// ===----------===
+//   Declarations
+// ===----------===
+
+enum class DeclType {
+    variable,
+};
+
+class Decl : public AstNode {
+public:
+    Decl(DeclType type) : AstNode(NodeType::decl), type(type) {}
+
+    DeclType type;
+};
+using DeclPtr = std::unique_ptr<Decl>;
+
+class VarDecl : public Decl {
+public:
+    VarDecl(const Token &id, bool mut)
+        : Decl(DeclType::variable), id(id), mut(mut) {}
+    void print() const override;
+
+    Token id;
+    // Is this a "var" declaration?
+    bool mut;
+};
+
+// ===---------===
+//   Expressions
+// ===---------===
+
 enum class ExprType {
     literal,
     unary,
-    binary
+    binary,
 };
 
 class Expr : public AstNode {
 public:
-    ExprType type;
-
     Expr(ExprType type) : AstNode(NodeType::expr), type(type) {}
-};
 
+    ExprType type;
+};
 using ExprPtr = std::unique_ptr<Expr>;
 
 class LiteralExpr : public Expr {
 public:
     LiteralExpr(const Token &lit) : Expr(ExprType::literal), lit(lit) {}
-    void print();
+    void print() const override;
 
     Token lit;
 };
@@ -96,7 +123,7 @@ public:
     BinaryExpr(ExprPtr &lhs, Token op, ExprPtr &rhs)
         : Expr(ExprType::binary), lhs(std::move(lhs)), op(op),
           rhs(std::move(rhs)) {}
-    void print();
+    void print() const override;
 
     ExprPtr lhs;
     Token op;

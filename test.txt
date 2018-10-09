@@ -1,6 +1,9 @@
 1 + 2 + 3 + 4;
 3 + (a - (b + a * 3)) * 2;
 
+let a;
+var b;
+
 fn main() -> int {
     // This is a line comment.
     let a = 5;

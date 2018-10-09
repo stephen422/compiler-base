@@ -22,16 +22,22 @@ void Parser::expect_semi() {
     expect(TokenType::semicolon);
 }
 
-ExprPtr Parser::parse_ident() {
-    if (tok.type != TokenType::ident)
-        expect(TokenType::ident);
-    // AstNodePtr ast = make_ast(NodeType::atom, tok);
-    auto expr = std::make_unique<Expr>(ExprType::literal);
+DeclPtr Parser::parse_var_decl() {
+    bool mut = tok.type == TokenType::kw_var;
     next();
-    return expr;
+
+    Token id = tok;
+    next();
+
+    expect_semi();
+    return std::make_unique<VarDecl>(id, mut);
 }
 
-ExprPtr Parser::parse_literal() {
+DeclPtr Parser::parse_decl() {
+    return parse_var_decl();
+}
+
+ExprPtr Parser::parse_literal_expr() {
     auto expr = std::make_unique<LiteralExpr>(tok);
     next();
     return expr;
@@ -41,7 +47,7 @@ ExprPtr Parser::parse_unary_expr() {
     switch (tok.type) {
     case TokenType::number:
     case TokenType::ident:
-        return parse_literal();
+        return parse_literal_expr();
     case TokenType::lparen: {
         expect(TokenType::lparen);
         auto expr = parse_expr();
@@ -69,7 +75,7 @@ int Parser::get_precedence(const Token &op) const {
     }
 }
 
-ExprPtr Parser::parse_binary_expr_rhs(ExprPtr &lhs, int precedence) {
+ExprPtr Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
     ExprPtr root = std::move(lhs);
 
     while (true) {
@@ -94,7 +100,7 @@ ExprPtr Parser::parse_binary_expr_rhs(ExprPtr &lhs, int precedence) {
         // whole subexpression with elevated minimum precedence. Else, just
         // treat it as a unary expression.
         if (this_prec < next_prec) {
-            rhs = parse_binary_expr_rhs(rhs, precedence + 1);
+            rhs = parse_binary_expr_rhs(std::move(rhs), precedence + 1);
         }
 
         // Submerge root as LHS, and attach the parsed RHS to create a new root.
@@ -106,7 +112,7 @@ ExprPtr Parser::parse_binary_expr_rhs(ExprPtr &lhs, int precedence) {
 
 ExprPtr Parser::parse_expr() {
     auto expr = parse_unary_expr();
-    expr = parse_binary_expr_rhs(expr);
+    expr = parse_binary_expr_rhs(std::move(expr));
     return expr;
 }
 
@@ -120,6 +126,9 @@ void Parser::error(const std::string &msg) {
 AstNodePtr Parser::parse() {
     while (true) {
         switch (tok.type) {
+        case TokenType::kw_let:
+        case TokenType::kw_var:
+            return parse_decl();
         case TokenType::comment:
         case TokenType::semicolon:
             next();

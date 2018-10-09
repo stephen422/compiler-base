@@ -14,6 +14,12 @@ public:
     AstNodePtr parse();
 
 private:
+    // Parse a declaration.
+    DeclPtr parse_decl();
+
+    // Parse a variable declaration.
+    DeclPtr parse_var_decl();
+
     // Parse an expression.
     ExprPtr parse_expr();
 
@@ -24,27 +30,12 @@ private:
     // attached RHS.  Returns the owning pointer to the newly constructed binary
     // expression.
     //
-    // After the call, the owning pointer to lhs is moved away and invalidated
-    // in case the binary extension is successful.
-    ExprPtr parse_binary_expr_rhs(ExprPtr &lhs, int precedence = 0);
+    // After the call, 'lhs' is invalidated by being moved away.  Subsequent
+    // code should use the returned pointer instead.
+    ExprPtr parse_binary_expr_rhs(ExprPtr lhs, int precedence = 0);
 
-    // Parse an identifier atom.
-    ExprPtr parse_ident();
-
-    // Parse a literal atom.
-    ExprPtr parse_literal();
-
-    // Parse a, b, c, ...
-    AstNodePtr parse_list();
-
-    // Parse [msb:lsb].
-    AstNodePtr parse_range();
-
-    // Parse wire declaration.
-    AstNodePtr parse_netdecl();
-
-    // Parse continuous assignments.
-    AstNodePtr parse_assign();
+    // Parse a literal expression.
+    ExprPtr parse_literal_expr();
 
     // Get the next token from the lexer.
     void next();
