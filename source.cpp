@@ -10,7 +10,7 @@ void use_stringstream(std::ifstream& in)
     sstr << in.rdbuf();
 }
 
-Source::Source(const std::string &p) : path(p)
+Source::Source(const Path &p) : path(p.path)
 {
     std::ifstream in{path, std::ios::binary};
     if (!in) {
@@ -34,6 +34,11 @@ Source::Source(const std::string &p) : path(p)
         buf.push_back('\n');
         line_off.push_back(buf.cend() - buf.cbegin());
     }
+}
+
+Source::Source(const std::string &text)
+    : buf(std::cbegin(text), std::cend(text)) {
+    std::cout << "haha" << buf.size() << std::endl;
 }
 
 std::pair<int, int> Source::locate(size_t pos) const {

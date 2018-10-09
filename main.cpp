@@ -9,7 +9,7 @@ using namespace comp;
 extern void use_read(std::ifstream& in);
 
 void test_lexer(const char *path) {
-    Source src{path};
+    Source src{Path{path}};
     Lexer lexer{src};
     Token token;
 
@@ -33,12 +33,15 @@ int main(int argc, char **argv) {
 
     // test_lexer(argv[1]);
 
-    Source src{argv[1]};
+    Source src{Path{argv[1]}};
     Lexer lexer{src};
     Parser p{lexer};
     AstNode::OwnPtr ast;
     while ((ast = p.parse())) {
         ast->print();
+        if (ast->type == NodeType::expr) {
+            std::cout << "flatten: " << static_cast<Expr *>(ast.get())->flatten() << std::endl;
+        }
     }
     return 0;
 }

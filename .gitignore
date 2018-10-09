@@ -28,6 +28,7 @@
 
 # Executables
 cmp
+cmp-test
 build*/
 *.s
 *.exe

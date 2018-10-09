@@ -1,4 +1,5 @@
 #include "ast.h"
+#include <sstream>
 
 namespace comp {
 
@@ -35,8 +36,20 @@ void BinaryExpr::print() const {
     rhs->print();
 }
 
+std::string BinaryExpr::flatten() const {
+    std::stringstream ss;
+    ss << "(" << lhs->flatten() << op.lit << rhs->flatten() << ")";
+    return ss.str();
+}
+
 void LiteralExpr::print() const {
     out() << "[LiteralExpr] " << lit.lit << std::endl;
+}
+
+std::string LiteralExpr::flatten() const {
+    std::stringstream ss;
+    ss << lit.lit;
+    return ss.str();
 }
 
 } // namespace comp

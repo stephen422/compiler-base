@@ -1,7 +1,17 @@
 #define CATCH_CONFIG_MAIN
-#include "Lexer.h"
-#include "catch.h"
+#include "parser.h"
+#include "catch.hpp"
 
+using namespace comp;
+
+TEST_CASE("Parsing", "[parse]") {
+    Source src{"a + b + c"};
+    Lexer l{src};
+    Parser p{l};
+    p.parse();
+}
+
+#if 0
 TEST_CASE("String lexing", "[lex_string]") {
   SECTION("no escape chars") {
     Source src{"\"Hello, there!\""};
@@ -37,3 +47,4 @@ TEST_CASE("Comment lexing", "[lex_comment]") {
   auto tok = lexer.lex_comment();
   REQUIRE(tok.s == "// Hello there");
 }
+#endif

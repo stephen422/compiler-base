@@ -9,6 +9,7 @@
 namespace comp {
 
 enum class NodeType {
+    stmt,
     decl,
     expr,
     atom,
@@ -65,6 +66,17 @@ public:
     ~PrintScope() { depth -= 2; }
 };
 
+// ===-------===
+//   Statement
+// ===-------===
+
+enum class StmtType {
+};
+
+class Stmt : public AstNode {
+public:
+};
+
 // ===----------===
 //   Declarations
 // ===----------===
@@ -105,6 +117,7 @@ enum class ExprType {
 class Expr : public AstNode {
 public:
     Expr(ExprType type) : AstNode(NodeType::expr), type(type) {}
+    virtual std::string flatten() const = 0;
 
     ExprType type;
 };
@@ -114,6 +127,7 @@ class LiteralExpr : public Expr {
 public:
     LiteralExpr(const Token &lit) : Expr(ExprType::literal), lit(lit) {}
     void print() const override;
+    std::string flatten() const override;
 
     Token lit;
 };
@@ -124,6 +138,7 @@ public:
         : Expr(ExprType::binary), lhs(std::move(lhs)), op(op),
           rhs(std::move(rhs)) {}
     void print() const override;
+    std::string flatten() const override;
 
     ExprPtr lhs;
     Token op;

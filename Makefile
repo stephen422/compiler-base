@@ -1,17 +1,22 @@
 CXX ?= clang++
 CXXFLAGS += -g -fsanitize=address -std=c++14 -pedantic -Wall -Wextra
 PROG := cmp
+OBJ := parser.o lexer.o ast.o source.o
 
-$(PROG): main.o parser.o lexer.o ast.o source.o
+$(PROG): main.o $(OBJ)
 	$(CXX) -fsanitize=address -o $(PROG) $^ $(LDFLAGS)
 
-debug: main.o parser.o lexer.o ast.o source.o
+debug: main.o $(OBJ)
 	$(CXX) -fsanitize=address -o $(PROG) $^ $(LDFLAGS)
+
+test: test.o $(OBJ)
+	$(CXX) -fsanitize=address -o cmp-test $^ $(LDFLAGS)
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 main.o: parser.h lexer.h
+test.o: parser.h catch.hpp
 parser.o: parser.h lexer.h ast.h
 lexer.o: lexer.h source.h string_view.h
 ast.o: ast.h
