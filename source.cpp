@@ -45,7 +45,7 @@ std::pair<int, int> Source::locate(size_t pos) const {
     // Search linearly for the current line.
     int line;
     for (line = 0; static_cast<size_t>(line) < line_off.size(); line++) {
-        if (line_off[line] >= pos)
+        if (line_off[line] > pos)
             break;
     }
     int col = pos - line_off[line - 1] + 1;

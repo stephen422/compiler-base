@@ -76,7 +76,6 @@ Token Lexer::lex_symbol() {
         }
     }
     // Match fail
-    step();
     error("unrecognzied token");
     return make_token(TokenType::none);
 }
