@@ -37,9 +37,7 @@ void BinaryExpr::print() const {
 }
 
 std::string BinaryExpr::flatten() const {
-    std::stringstream ss;
-    ss << "(" << lhs->flatten() << op.lit << rhs->flatten() << ")";
-    return ss.str();
+    return "(" + lhs->flatten() + std::string(op.lit) + rhs->flatten() + ")";
 }
 
 void LiteralExpr::print() const {
@@ -47,9 +45,7 @@ void LiteralExpr::print() const {
 }
 
 std::string LiteralExpr::flatten() const {
-    std::stringstream ss;
-    ss << lit.lit;
-    return ss.str();
+    return lit.lit;
 }
 
 } // namespace comp

@@ -25,6 +25,7 @@ public:
     }
     iterator begin() const { return ptr; }
     iterator end() const { return ptr + len; }
+    operator std::string() const { return std::string{ptr, len}; }
     friend std::ostream &operator<<(std::ostream &os, const StringView &sv) {
         if (sv.ptr == nullptr) {
             os << "(null)";
