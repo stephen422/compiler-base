@@ -4,11 +4,25 @@
 
 using namespace comp;
 
-TEST_CASE("Parsing", "[parse]") {
-    Source src{"a + b + c"};
-    Lexer l{src};
-    Parser p{l};
-    p.parse();
+constexpr Expr *as_expr(const AstNodePtr &p) {
+    return static_cast<Expr *>(p.get());
+}
+
+TEST_CASE("Expression parsing", "[parse_expr]") {
+    SECTION("left associativity") {
+        Source src{"a + b + c + d + e"};
+        Lexer l{src};
+        Parser p{l};
+        auto e = p.parse();
+        REQUIRE(as_expr(e)->flatten() == "((((a+b)+c)+d)+e)");
+    }
+    SECTION("operator precedence") {
+        Source src{"a * b + c / d * e"};
+        Lexer l{src};
+        Parser p{l};
+        auto e = p.parse();
+        REQUIRE(as_expr(e)->flatten() == "((a*b)+((c/d)*e))");
+    }
 }
 
 #if 0

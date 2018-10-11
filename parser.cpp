@@ -117,7 +117,7 @@ ExprPtr Parser::parse_expr() {
 
 void Parser::error(const std::string &msg) {
     auto loc = lexer.src.locate(tok.pos);
-    std::cerr << lexer.src.path << ":" << loc.first << ":" << loc.second << ": ";
+    std::cerr << lexer.src.filename << ":" << loc.first << ":" << loc.second << ": ";
     std::cerr << "parse error: " << msg << std::endl;
     exit(1);
 }
