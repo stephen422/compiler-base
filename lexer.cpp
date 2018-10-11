@@ -19,7 +19,7 @@ void Lexer::step() {
             line_off.push_back(pos());
         look++;
     } else {
-        look = sv.end();
+        look = eos();
     }
 }
 
@@ -74,6 +74,11 @@ Token Lexer::lex_symbol() {
     for (auto &p : symbol_map) {
         auto lit = p.first;
         auto type = p.second;
+
+        // If the leftover source text is shorter than the keyword, skip it.
+        if (static_cast<size_t>(eos() - curr) < lit.length())
+            continue;
+
         StringView sv{curr, lit.length()};
         if (sv == lit) {
             look = curr + lit.length();

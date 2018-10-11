@@ -166,7 +166,7 @@ public:
     Source &src;
 
 private:
-    StringView sv;
+    StringView sv;                // view into the source buffer
     char_iterator look;           // lookahead position
     char_iterator curr;           // start of the current token
     std::vector<size_t> line_off; // offsets of each newline
