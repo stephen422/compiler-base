@@ -29,6 +29,11 @@ Token Lexer::lex_ident() {
     for (auto &p : keyword_map) {
         auto lit = p.first;
         auto type = p.second;
+
+        // If the leftover source text is shorter than the keyword, skip it.
+        if (static_cast<size_t>(eos() - curr) < lit.length())
+            continue;
+
         StringView sv{curr, lit.length()};
         if (sv == lit) {
             return make_token_with_literal(type);
@@ -154,7 +159,7 @@ void Lexer::skip_whitespace() {
 
 void Lexer::error(const std::string &msg) {
     auto loc = src.locate(pos());
-    std::cout << src.path << ":" << loc.first << ":" << loc.second << ": ";
+    std::cout << src.filename << ":" << loc.first << ":" << loc.second << ": ";
     std::cout << "lex error: " << msg << std::endl;
     exit(1);
 }

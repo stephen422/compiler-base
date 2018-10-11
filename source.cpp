@@ -10,39 +10,38 @@ void use_stringstream(std::ifstream& in)
     sstr << in.rdbuf();
 }
 
-Source::Source(const Path &p) : path(p.path)
+Source::Source(const Path &p) : filename(p.path)
 {
-    std::ifstream in{path, std::ios::binary};
+    std::ifstream in{filename, std::ios::binary};
     if (!in) {
-        std::cerr << path << ": " << strerror(errno) << std::endl;
+        std::cerr << filename << ": " << strerror(errno) << std::endl;
         exit(EXIT_FAILURE);
     }
+    init(in);
+}
 
-    // in.seekg(0, std::ios::end);
-    // auto size = in.tellg();
-    // in.seekg(0, std::ios::beg);
+Source::Source(const std::string &text) : filename("(none)") {
+    std::stringstream ss{text};
+    init(ss);
+}
 
-    // buf.resize(size);
-    // in.read(buf.data(), size);
-
+void Source::init(std::istream &in) {
     line_off.push_back(0);
 
-    // Read file line by line
+    // Read file line by line.
     std::string line;
     while (std::getline(in, line)) {
         buf.insert(buf.cend(), line.cbegin(), line.cend());
+        // TODO: Always assumes that the source text ends with a newline, which
+        // may not be true especially for short unit-test texts.
         buf.push_back('\n');
         line_off.push_back(buf.cend() - buf.cbegin());
     }
 }
 
-Source::Source(const std::string &text)
-    : buf(std::cbegin(text), std::cend(text)) {
-    std::cout << "haha" << buf.size() << std::endl;
-}
-
 std::pair<int, int> Source::locate(size_t pos) const {
     // Search linearly for the current line.
+    // TODO: flaky.
     int line;
     for (line = 0; static_cast<size_t>(line) < line_off.size(); line++) {
         if (line_off[line] > pos)

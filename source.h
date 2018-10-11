@@ -22,11 +22,17 @@ public:
     // Create source from a string.
     Source(const std::string &text);
 
+    // Initialize source text from an istream.
+    void init(std::istream &in);
+
+    // Return source length.
+    size_t length() const { return buf.size(); }
+
     // Find line and column number of this character in the source text.
     // Both are zero-based indices.
     std::pair<int, int> locate(size_t pos) const;
 
-    const std::string path;
+    const std::string filename;
     std::vector<char> buf;
     std::vector<size_t> line_off;
 };

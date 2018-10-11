@@ -33,7 +33,8 @@ int main(int argc, char **argv) {
 
     // test_lexer(argv[1]);
 
-    Source src{Path{argv[1]}};
+    // Source src{Path{argv[1]}};
+    Source src{"hi there"};
     Lexer lexer{src};
     Parser p{lexer};
     AstNode::OwnPtr ast;
