@@ -34,8 +34,9 @@ void Source::init(std::istream &in) {
         buf.insert(buf.cend(), line.cbegin(), line.cend());
         // TODO: Always assumes that the source text ends with a newline, which
         // may not be true especially for short unit-test texts.
-        buf.push_back('\n');
-        line_off.push_back(buf.cend() - buf.cbegin());
+        if (*(line.cend() - 1) == '\n') {
+            line_off.push_back(buf.cend() - buf.cbegin());
+        }
     }
 }
 

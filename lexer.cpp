@@ -52,7 +52,7 @@ Token Lexer::lex_string() {
     look = curr + 1; // skip "
     while (look != eos()) {
         skip_while([](char c) { return !(c == '\\' || c == '"'); });
-        if (*look == '"') {
+        if (*lookn(1) == '"') { // TODO
             // skip " and end
             step();
             break;
