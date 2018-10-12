@@ -5,8 +5,9 @@ A purely educational compiler project for a simple systems programming
 language.
 
 TODO:
-* Parser unit tests
+* Variable assignment
+* Unit tests
 * Better AST dump with tree branches
 * Token type descriptions
 
-Copyright 2018 Hansung Kim
+(C) 2018 Hansung Kim

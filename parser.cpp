@@ -29,6 +29,9 @@ DeclPtr Parser::parse_var_decl() {
     Token id = tok;
     next();
 
+    if (tok.type == TokenType::equals) {
+        std::cout << "Var assignment not implemented!\n";
+    }
     expect_semi();
     return std::make_unique<VarDecl>(id, mut);
 }
