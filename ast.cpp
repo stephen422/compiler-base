@@ -22,7 +22,7 @@ void VarDecl::print() const {
 
     PrintScope start;
 
-    out() << "[Id] " << id.lit << "\n";
+    out() << "[Id] " << id.text << "\n";
     out() << "[Mutable:" << (mut ? "Y" : "N") << "]\n";
 }
 
@@ -32,20 +32,20 @@ void BinaryExpr::print() const {
     PrintScope start;
 
     lhs->print();
-    out() << "[Op] '" << op.lit << "'\n";
+    out() << "[Op] '" << op.text << "'\n";
     rhs->print();
 }
 
 std::string BinaryExpr::flatten() const {
-    return "(" + lhs->flatten() + std::string(op.lit) + rhs->flatten() + ")";
+    return "(" + lhs->flatten() + std::string(op.text) + rhs->flatten() + ")";
 }
 
 void LiteralExpr::print() const {
-    out() << "[LiteralExpr] " << lit.lit << std::endl;
+    out() << "[LiteralExpr] " << lit.text << std::endl;
 }
 
 std::string LiteralExpr::flatten() const {
-    return lit.lit;
+    return lit.text;
 }
 
 } // namespace comp

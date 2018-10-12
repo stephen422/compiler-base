@@ -4,7 +4,7 @@
 namespace comp {
 
 std::ostream &operator<<(std::ostream &os, const Token &token) {
-    os << "[" << token.lit << "]";
+    os << "[" << token.text << "]";
     return os;
 }
 
@@ -27,15 +27,15 @@ Token Lexer::lex_ident() {
     skip_while([](char c) { return isalnum(c) || c == '_'; });
     // Keyword lookup
     for (auto &p : keyword_map) {
-        auto lit = p.first;
+        auto text = p.first;
         auto type = p.second;
 
         // If the leftover source text is shorter than the keyword, skip it.
-        if (static_cast<size_t>(eos() - curr) < lit.length())
+        if (static_cast<size_t>(eos() - curr) < text.length())
             continue;
 
-        StringView sv{curr, lit.length()};
-        if (sv == lit) {
+        StringView sv{curr, text.length()};
+        if (sv == text) {
             return make_token_with_literal(type);
         }
     }
@@ -72,16 +72,16 @@ Token Lexer::lex_comment() {
 
 Token Lexer::lex_symbol() {
     for (auto &p : symbol_map) {
-        auto lit = p.first;
+        auto text = p.first;
         auto type = p.second;
 
         // If the leftover source text is shorter than the keyword, skip it.
-        if (static_cast<size_t>(eos() - curr) < lit.length())
+        if (static_cast<size_t>(eos() - curr) < text.length())
             continue;
 
-        StringView sv{curr, lit.length()};
-        if (sv == lit) {
-            look = curr + lit.length();
+        StringView sv{curr, text.length()};
+        if (sv == text) {
+            look = curr + text.length();
             return make_token_with_literal(type);
         }
     }
@@ -101,8 +101,8 @@ Token Lexer::make_token(TokenType type) {
 }
 
 Token Lexer::make_token_with_literal(TokenType type) {
-    StringView lit{curr, static_cast<size_t>(look - curr)};
-    return Token{type, pos(), lit};
+    StringView text{curr, static_cast<size_t>(look - curr)};
+    return Token{type, pos(), text};
 }
 
 Token Lexer::lex() {

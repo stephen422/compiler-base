@@ -26,26 +26,18 @@ Source::Source(const std::string &text) : filename("(none)") {
 }
 
 void Source::init(std::istream &in) {
-    line_off.push_back(0);
-
-    // Read file line by line.
     std::string line;
     while (std::getline(in, line)) {
+        line_off.push_back(buf.size());
         buf.insert(buf.cend(), line.cbegin(), line.cend());
-        // TODO: Always assumes that the source text ends with a newline, which
-        // may not be true especially for short unit-test texts.
-        if (*(line.cend() - 1) == '\n') {
-            line_off.push_back(buf.cend() - buf.cbegin());
-        }
     }
 }
 
 std::pair<int, int> Source::locate(size_t pos) const {
     // Search linearly for the current line.
-    // TODO: flaky.
     int line;
     for (line = 0; static_cast<size_t>(line) < line_off.size(); line++) {
-        if (line_off[line] > pos)
+        if (pos < line_off[line])
             break;
     }
     int col = pos - line_off[line - 1] + 1;

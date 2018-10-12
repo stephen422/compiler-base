@@ -17,7 +17,7 @@ void test_lexer(const char *path) {
         auto token = lexer.lex();
         //std::cout << static_cast<char>(token.type) << std::endl;
         if (token.type == TokenType::none) {
-            std::cerr << "lex error: [" << token.lit << "]: Unrecognized token type\n";
+            std::cerr << "lex error: [" << token.text << "]: Unrecognized token type\n";
             break;
         }
 

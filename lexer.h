@@ -131,15 +131,16 @@ static const std::pair<StringView, TokenType> keyword_map[] {
     {"end", TokenType::kw_end},
 };
 
-struct Token {
+class Token {
+public:
     TokenType type;
     size_t pos;
-    StringView lit;
+    StringView text;
 
-    Token() : type(TokenType::none), pos(0), lit() {}
-    Token(TokenType type, size_t pos) : type(type), pos(pos), lit() {}
-    Token(TokenType type, size_t pos, StringView lit)
-        : type(type), pos(pos), lit(lit) {}
+    Token() : type(TokenType::none), pos(0), text() {}
+    Token(TokenType type, size_t pos) : type(type), pos(pos), text() {}
+    Token(TokenType type, size_t pos, StringView text)
+        : type(type), pos(pos), text(text) {}
     void print();
 };
 
