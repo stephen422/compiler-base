@@ -30,6 +30,7 @@
 cmp
 cmp-test
 build*/
+TAGS
 *.s
 *.exe
 *.out
