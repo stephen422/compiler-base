@@ -77,33 +77,6 @@ class Stmt : public AstNode {
 public:
 };
 
-// ===----------===
-//   Declarations
-// ===----------===
-
-enum class DeclType {
-    variable,
-};
-
-class Decl : public AstNode {
-public:
-    Decl(DeclType type) : AstNode(NodeType::decl), type(type) {}
-
-    DeclType type;
-};
-using DeclPtr = std::unique_ptr<Decl>;
-
-class VarDecl : public Decl {
-public:
-    VarDecl(const Token &id, bool mut)
-        : Decl(DeclType::variable), id(id), mut(mut) {}
-    void print() const override;
-
-    Token id;
-    // Is this a "var" declaration?
-    bool mut;
-};
-
 // ===---------===
 //   Expressions
 // ===---------===
@@ -143,6 +116,34 @@ public:
     ExprPtr lhs;
     Token op;
     ExprPtr rhs;
+};
+
+// ===----------===
+//   Declarations
+// ===----------===
+
+enum class DeclType {
+    variable,
+};
+
+class Decl : public AstNode {
+public:
+    Decl(DeclType type) : AstNode(NodeType::decl), type(type) {}
+
+    DeclType type;
+};
+using DeclPtr = std::unique_ptr<Decl>;
+
+class VarDecl : public Decl {
+public:
+    VarDecl(const Token &id, ExprPtr &rhs, bool mut)
+        : Decl(DeclType::variable), id(id), rhs(std::move(rhs)), mut(mut) {}
+    void print() const override;
+
+    Token id;
+    ExprPtr rhs;
+    // Is this a "var" declaration?
+    bool mut;
 };
 
 } // namespace comp

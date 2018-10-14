@@ -29,11 +29,14 @@ DeclPtr Parser::parse_var_decl() {
     Token id = tok;
     next();
 
+    ExprPtr rhs = nullptr;
     if (tok.type == TokenType::equals) {
-        std::cout << "Var assignment not implemented!\n";
+        next();
+        // RHS of an assignment should be an expression.
+        rhs = parse_expr();
     }
     expect_semi();
-    return std::make_unique<VarDecl>(id, mut);
+    return std::make_unique<VarDecl>(id, rhs, mut);
 }
 
 DeclPtr Parser::parse_decl() {
