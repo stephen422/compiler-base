@@ -11,8 +11,8 @@ void Parser::next() {
 void Parser::expect(TokenType type) {
     if (tok.type != type) {
         std::stringstream ss;
-        ss << "expected " << static_cast<int>(type)
-           << ", got " << static_cast<int>(tok.type);
+        ss << "expected " << tokentype_to_string(type)
+           << ", got " << tokentype_to_string(tok.type);
         error(ss.str());
     }
     next();
@@ -51,6 +51,9 @@ DeclPtr Parser::parse_func_decl() {
 
     // Return type
     expect(TokenType::arrow);
+    next();
+    expect(TokenType::lbrace);
+    expect(TokenType::rbrace);
     error("implementing return type!");
     return std::make_unique<FuncDecl>(name);
 }

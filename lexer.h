@@ -104,6 +104,7 @@ static const std::pair<StringView, TokenType> symbol_map[] {
     {"?", TokenType::question},
     {"#", TokenType::hash},
     {"-", TokenType::dash},
+    {"comment", TokenType::comment},
 };
 
 static const std::pair<StringView, TokenType> keyword_map[] {
@@ -130,6 +131,8 @@ static const std::pair<StringView, TokenType> keyword_map[] {
     {"begin", TokenType::kw_begin},
     {"end", TokenType::kw_end},
 };
+
+std::string tokentype_to_string(TokenType type);
 
 class Token {
 public:

@@ -3,6 +3,20 @@
 
 namespace comp {
 
+std::string tokentype_to_string(TokenType type) {
+    for (auto &p : symbol_map) {
+        if (p.second == type) {
+            return p.first;
+        }
+    }
+    for (auto &p : keyword_map) {
+        if (p.second == type) {
+            return p.first;
+        }
+    }
+    return "";
+}
+
 std::ostream &operator<<(std::ostream &os, const Token &token) {
     os << "[" << token.text << "]";
     return os;
