@@ -20,6 +20,9 @@ private:
     // Parse a variable declaration.
     DeclPtr parse_var_decl();
 
+    // Parse a function declaration.
+    DeclPtr parse_func_decl();
+
     // Parse an expression.
     ExprPtr parse_expr();
 

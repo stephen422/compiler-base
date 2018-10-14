@@ -124,8 +124,10 @@ public:
 
 enum class DeclType {
     variable,
+    function,
 };
 
+// A declaration.
 class Decl : public AstNode {
 public:
     Decl(DeclType type) : AstNode(NodeType::decl), type(type) {}
@@ -134,6 +136,7 @@ public:
 };
 using DeclPtr = std::unique_ptr<Decl>;
 
+// Variable declaration.
 class VarDecl : public Decl {
 public:
     VarDecl(const Token &id, ExprPtr &rhs, bool mut)
@@ -144,6 +147,13 @@ public:
     ExprPtr rhs;
     // Is this a "var" declaration?
     bool mut;
+};
+
+// Function declaration.
+class FuncDecl : public Decl {
+public:
+    FuncDecl(const Token &name) : Decl(DeclType::function), name(name) {}
+    Token name;
 };
 
 } // namespace comp
