@@ -15,22 +15,22 @@ TEST_CASE("Expression parsing", "[parse_expr]") {
         Lexer l{s};
         Parser p{l};
         auto e = p.parse();
-        REQUIRE(as<Expr>(e)->flatten() == "((((a+b)+c)+d)+e)");
+        REQUIRE(e->as<Expr>()->flatten() == "((((a+b)+c)+d)+e)");
     }
     SECTION("operator precedence") {
         Source s{"a * b + c / d * e"};
         Lexer l{s};
         Parser p{l};
         auto e = p.parse();
-        REQUIRE(as<Expr>(e)->flatten() == "((a*b)+((c/d)*e))");
+        REQUIRE(e->as<Expr>()->flatten() == "((a*b)+((c/d)*e))");
     }
     SECTION("variable declaration") {
         Source s{"let a;"};
         Lexer l{s};
         Parser p{l};
         auto e = p.parse();
-        REQUIRE(as<VarDecl>(e)->id.text == "a");
-        REQUIRE(as<VarDecl>(e)->mut == false);
+        REQUIRE(e->as<VarDecl>()->id.text == "a");
+        REQUIRE(e->as<VarDecl>()->mut == false);
     }
 }
 

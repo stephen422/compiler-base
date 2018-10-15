@@ -32,6 +32,9 @@ public:
 
     void add(OwnPtr child);
     virtual void print() const {}
+    template <typename T> constexpr T *as() {
+        return static_cast<T *>(this);
+    }
 
     // Convenience ostream for AST dumping code.
     // Handles indentation, tree drawing, etc.
