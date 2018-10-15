@@ -27,10 +27,8 @@ public:
 
     AstNode() : AstNode(NodeType::atom) {}
     AstNode(NodeType type) : type(type) {}
-    AstNode(NodeType type, const Token &tok) : type(type), tok(std::move(tok)) {}
     virtual ~AstNode() = default;
 
-    void add(OwnPtr child);
     virtual void print() const {}
     template <typename T> constexpr T *as() {
         return static_cast<T *>(this);
@@ -47,19 +45,14 @@ public:
     }
 
     NodeType type;
-    Token tok;
 
     // Indentation of the current node when dumping AST.
     // Since all nodes share one indentation level variable, this should be
     // declared static.
     static int depth;
-
-    std::vector<OwnPtr> children; // FIXME
 };
 
 using AstNodePtr = AstNode::OwnPtr;
-AstNodePtr make_ast(NodeType type);
-AstNodePtr make_ast(NodeType type, const Token &tok);
 
 // A little RAII trick to handle indentation when printing a node at a deeper
 // level.  This is equivalent to doing "depth++; defer(depth--);" in Go.
