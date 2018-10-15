@@ -12,6 +12,11 @@ void VarDecl::print() const {
 
     out() << "[Id] " << id.text << "\n";
     out() << "[Mutable:" << (mut ? "Y" : "N") << "]\n";
+    if (rhs != nullptr) {
+        out() << "[RHS]\n";
+        PrintScope start;
+        rhs->print();
+    }
 }
 
 void BinaryExpr::print() const {
