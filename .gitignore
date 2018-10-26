@@ -32,4 +32,5 @@
 *.app
 compiler-base
 
+.*.swp
 test.txt
