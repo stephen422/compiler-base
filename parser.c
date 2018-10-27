@@ -64,7 +64,7 @@ void parser_free(parser_t *p)
     lexer_free(&p->lexer);
 }
 
-static void parser_next(parser_t *p)
+static void next(parser_t *p)
 {
     token_free(p->tok);
     p->tok = lexer_next(&p->lexer);
@@ -77,13 +77,13 @@ static void expect(parser_t *p, TokenType t)
         exit(1); // FIXME
     }
     // place the next token to the lookahead
-    parser_next(p);
+    next(p);
 }
 
 ast_t *parse_assign(parser_t *p)
 {
     ast_t *node = make_node(ND_ASSIGN, NULL);
-    parser_next(p); // "assign"
+    next(p); // "assign"
     expect(p, TOK_IDENT);
     ast_add(node, make_node(ND_ATOM, p->tok));
     expect(p, TOK_EQUALS);
@@ -95,7 +95,7 @@ ast_t *parse_assign(parser_t *p)
 
 void parse(parser_t *p)
 {
-    for (; p->tok->type != TOK_EOF; parser_next(p)) {
+    for (; p->tok->type != TOK_EOF; next(p)) {
         if (p->tok->type == TOK_ASSIGN) {
             printf("Found assign!\n");
             ast_t *node = parse_assign(p);
