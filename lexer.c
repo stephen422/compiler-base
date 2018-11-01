@@ -212,7 +212,6 @@ token_t *lexer_next(lexer_t *l)
 
         switch (l->ch) {
         case 0: {
-            printf("EOF\n");
             return make_token(l, TOK_EOF);
         }
         case '\n': case '\r': {

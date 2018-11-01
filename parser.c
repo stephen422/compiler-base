@@ -9,7 +9,6 @@ static void ast_add(ast_t *parent, ast_t *child)
         parent->child = child;
         return;
     }
-    // go to the end
     while (c->sibling)
         c = c->sibling;
     c->sibling = child;
@@ -66,7 +65,8 @@ void parser_free(parser_t *p)
 
 static void next(parser_t *p)
 {
-    token_free(p->tok);
+    if (p->tok)
+        token_free(p->tok);
     p->tok = lexer_next(&p->lexer);
 }
 
@@ -84,12 +84,17 @@ ast_t *parse_assign(parser_t *p)
 {
     ast_t *node = make_node(ND_ASSIGN, NULL);
     next(p); // "assign"
-    expect(p, TOK_IDENT);
+
     ast_add(node, make_node(ND_ATOM, p->tok));
+    p->tok = NULL;
+    next(p);
+
     expect(p, TOK_EQUALS);
+
     ast_add(node, make_node(ND_ATOM, p->tok));
-    expect(p, TOK_IDENT);
-    ast_add(node, make_node(ND_ATOM, p->tok));
+    p->tok = NULL;
+    next(p);
+
     return node;
 }
 
