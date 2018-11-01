@@ -15,7 +15,7 @@ static void ast_add(ast_t *parent, ast_t *child)
     c->sibling = child;
 }
 
-static ast_t *make_node(enum node_type t, Token *tok)
+static ast_t *make_node(enum node_type t, token_t *tok)
 {
     ast_t *node = malloc(sizeof(ast_t));
     if (!node) {

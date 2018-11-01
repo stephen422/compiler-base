@@ -5,12 +5,12 @@
 #include <errno.h>
 #include "lexer.h"
 
-struct TokenMap {
+struct token_map {
     const char *text;
     TokenType type;
 };
 
-static struct TokenMap symbols[] = {
+static struct token_map symbols[] = {
     {"->", TOK_ARROW},
     {"/", TOK_SLASH},
     {"(", TOK_LPAREN},
@@ -47,7 +47,7 @@ static struct TokenMap symbols[] = {
     {NULL, 0} // terminator
 };
 
-static struct TokenMap keywords[] = {
+static struct token_map keywords[] = {
     {"assign", TOK_ASSIGN},
     {"fn", TOK_FN},
     {"let", TOK_LET},
@@ -83,7 +83,7 @@ static char *readfile(const char *filename, long *filesize)
     return s;
 }
 
-int lexer_init(Lexer *l, const char *filename)
+int lexer_init(lexer_t *l, const char *filename)
 {
     l->filename = malloc(256);
     l->filename = memcpy(l->filename, filename, 255);
@@ -96,14 +96,14 @@ int lexer_init(Lexer *l, const char *filename)
     return 1;
 }
 
-void lexer_free(Lexer *l)
+void lexer_free(lexer_t *l)
 {
     free(l->filename);
     free(l->src);
     free(l->sb.s);
 }
 
-static void step(Lexer *l)
+static void step(lexer_t *l)
 {
     if (l->off + 1 < l->srclen) {
         l->off++;
@@ -115,31 +115,31 @@ static void step(Lexer *l)
 }
 
 // NOTE: more strict?
-static void consume(Lexer *l, long n)
+static void consume(lexer_t *l, long n)
 {
     for (long i = 0; i < n; i++)
         step(l);
 }
 
-static char lookn(Lexer *l, long n)
+static char lookn(lexer_t *l, long n)
 {
     if (l->off + n < l->srclen)
         return l->src[l->off + n];
     return '\0';
 }
 
-static Token *make_token(Lexer *l, TokenType type)
+static token_t *make_token(lexer_t *l, TokenType type)
 {
-    Token *t = malloc(sizeof(Token));
-    memset(t, 0, sizeof(Token));
+    token_t *t = malloc(sizeof(token_t));
+    memset(t, 0, sizeof(token_t));
     t->type = type;
     t->pos = l->start;
     return t;
 }
 
-static Token *make_token_with_text(Lexer *l, TokenType type)
+static token_t *make_token_with_text(lexer_t *l, TokenType type)
 {
-    Token *t = make_token(l, type);
+    token_t *t = make_token(l, type);
     t->litlen = l->off - l->start;
     t->lit = malloc(t->litlen + 1);
     memcpy(t->lit, l->src + l->start, t->litlen);
@@ -147,20 +147,20 @@ static Token *make_token_with_text(Lexer *l, TokenType type)
     return t;
 }
 
-void token_free(Token *t)
+void token_free(token_t *t)
 {
     if (t->lit)
         free(t->lit);
     free(t);
 }
 
-static Token *lex_ident(Lexer *l)
+static token_t *lex_ident(lexer_t *l)
 {
     while (isalnum(l->ch) || l->ch == '_')
         step(l);
 
     // Known keywords
-    for (const struct TokenMap *m = &keywords[0]; m->text != NULL; m++) {
+    for (const struct token_map *m = &keywords[0]; m->text != NULL; m++) {
         const char *c = m->text;
         const char *s = l->src + l->start;
         for (; *c != '\0' && s < l->src + l->off && *c == *s; c++, s++)
@@ -171,13 +171,13 @@ static Token *lex_ident(Lexer *l)
     return make_token_with_text(l, TOK_IDENT);
 }
 
-static void skip_numbers(Lexer *l)
+static void skip_numbers(lexer_t *l)
 {
     while (isdigit(l->ch))
         step(l);
 }
 
-static Token *lex_number(Lexer *l)
+static token_t *lex_number(lexer_t *l)
 {
     skip_numbers(l);
     if (l->ch == '.') {
@@ -188,9 +188,9 @@ static Token *lex_number(Lexer *l)
 }
 
 // NOTE: taken from ponyc
-static Token *lex_symbol(Lexer *l)
+static token_t *lex_symbol(lexer_t *l)
 {
-    for (const struct TokenMap *m = &symbols[0]; m->text != NULL; m++) {
+    for (const struct token_map *m = &symbols[0]; m->text != NULL; m++) {
         for (int i = 0; m->text[i] == '\0' || m->text[i] == lookn(l, i); i++) {
             if (m->text[i] == '\0') {
                 consume(l, i);
@@ -203,7 +203,7 @@ static Token *lex_symbol(Lexer *l)
     return make_token(l, TOK_ERR);
 }
 
-Token *lexer_next(Lexer *l)
+token_t *lexer_next(lexer_t *l)
 {
     strbuf_reset(&l->sb);
 
@@ -212,6 +212,7 @@ Token *lexer_next(Lexer *l)
 
         switch (l->ch) {
         case 0: {
+            printf("EOF\n");
             return make_token(l, TOK_EOF);
         }
         case '\n': case '\r': {
@@ -247,7 +248,7 @@ Token *lexer_next(Lexer *l)
     }
 }
 
-void print_token(const Token *tok)
+void print_token(const token_t *tok)
 {
     switch (tok->type) {
     case TOK_IDENT:

@@ -5,8 +5,8 @@
 
 void test_lexer(const char *filename)
 {
-    Lexer lex;
-    Token *tok;
+    lexer_t lex;
+    token_t *tok;
 
     lexer_init(&lex, filename);
 

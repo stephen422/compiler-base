@@ -25,14 +25,14 @@ typedef struct {
 
 struct ast_t {
     enum node_type type;
-    Token *tok;
+    token_t *tok;
     ast_t *child;
     ast_t *sibling;
 };
 
 typedef struct {
-    Lexer lexer;
-    Token *tok; // lookahead token
+    lexer_t lexer;
+    token_t *tok; // lookahead token
 } parser_t;
 
 void parser_init(parser_t *p, const char *filename);

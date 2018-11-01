@@ -64,12 +64,12 @@ static char *token_names[NUM_TOKENTYPES] = {
     [TOK_ERR] = "unknown"
 };
 
-typedef struct Token {
+typedef struct {
     TokenType type;
     long pos;
     char *lit;
     long litlen;
-} Token;
+} token_t;
 
 typedef struct Strbuf {
     char *s;
@@ -78,7 +78,7 @@ typedef struct Strbuf {
 
 #define strbuf_reset(sb) ((sb)->len = 0)
 
-typedef struct Lexer {
+typedef struct {
     char ch;        // lookahead character
     long off;       // lookahead character offset
     long line_off;  // current line offset
@@ -87,13 +87,13 @@ typedef struct Lexer {
     char *filename; // source filename
     char *src;      // buffer holding source file contents
     long srclen;    // length of src excluding \0
-} Lexer;
+} lexer_t;
 
-void token_free(Token *t);
-void print_token(const Token *t);
+void token_free(token_t *t);
+void print_token(const token_t *t);
 
-int lexer_init(Lexer *l, const char *filename);
-Token *lexer_next(Lexer *l);
-void lexer_free(Lexer *l);
+int lexer_init(lexer_t *l, const char *filename);
+token_t *lexer_next(lexer_t *l);
+void lexer_free(lexer_t *l);
 
 #endif

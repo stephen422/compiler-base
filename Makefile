@@ -1,4 +1,4 @@
-CFLAGS += -g -std=c99 -fsanitize=address,leak -pedantic -Wall -Wextra
+CFLAGS += -g -std=c99 -fsanitize=address,leak,undefined -pedantic -Wall -Wextra
 PROG := cmp
 
 $(PROG): main.o parser.o lexer.o
