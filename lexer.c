@@ -92,7 +92,6 @@ int lexer_init(lexer_t *l, const char *filename)
     l->off = 0;
     l->start = 0;
     l->ch = l->src[0];
-    memset(&l->sb, 0, sizeof(l->sb));
     return 1;
 }
 
@@ -100,7 +99,6 @@ void lexer_free(lexer_t *l)
 {
     free(l->filename);
     free(l->src);
-    free(l->sb.s);
 }
 
 static void step(lexer_t *l)
@@ -205,8 +203,6 @@ static token_t *lex_symbol(lexer_t *l)
 
 token_t *lexer_next(lexer_t *l)
 {
-    strbuf_reset(&l->sb);
-
     for (;;) {
         l->start = l->off;
 

@@ -71,19 +71,11 @@ typedef struct {
     long litlen;
 } token_t;
 
-typedef struct Strbuf {
-    char *s;
-    long len;
-} Strbuf;
-
-#define strbuf_reset(sb) ((sb)->len = 0)
-
 typedef struct {
     char ch;        // lookahead character
     long off;       // lookahead character offset
     long line_off;  // current line offset
-    Strbuf sb;      // current token string
-    long start;       // start of the last token literal
+    long start;     // start of the last token literal
     char *filename; // source filename
     char *src;      // buffer holding source file contents
     long srclen;    // length of src excluding \0
