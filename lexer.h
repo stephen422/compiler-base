@@ -1,6 +1,8 @@
 #ifndef LEX_H
 #define LEX_H
 
+#include <stdlib.h>
+
 typedef enum TokenType {
     TOK_EOF,
     TOK_NUM,
@@ -66,12 +68,12 @@ static char *token_names[NUM_TOKENTYPES] = {
 
 typedef struct {
     TokenType type;
-    long pos;
-    char *lit;
-    long litlen;
+    size_t start;   // start position in the source
+    size_t end;     // end position in the source
 } token_t;
 
 typedef struct {
+    token_t token;  // currently lexed token
     char ch;        // lookahead character
     long off;       // lookahead character offset
     long line_off;  // current line offset
@@ -82,10 +84,10 @@ typedef struct {
 } lexer_t;
 
 void token_free(token_t *t);
-void print_token(const token_t *t);
+void print_token(const lexer_t *l, const token_t *t);
 
 int lexer_init(lexer_t *l, const char *filename);
-token_t *lexer_next(lexer_t *l);
+int lexer_next(lexer_t *l);
 void lexer_free(lexer_t *l);
 
 #endif

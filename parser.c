@@ -45,8 +45,7 @@ static void print_node(const ast_t *node)
 {
     ast_t *c = node->child;
     for (int i = 0; c; i++) {
-        printf("Child %d: ", i);
-        print_token(c->tok);
+        printf("Child %d: (not implemented)\n", i);
         c = c->sibling;
     }
 }

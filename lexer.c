@@ -126,47 +126,37 @@ static char lookn(lexer_t *l, long n)
     return '\0';
 }
 
-static token_t *make_token(lexer_t *l, TokenType type)
+static void make_token(lexer_t *l, TokenType type)
 {
-    token_t *t = malloc(sizeof(token_t));
-    memset(t, 0, sizeof(token_t));
-    t->type = type;
-    t->pos = l->start;
-    return t;
-}
-
-static token_t *make_token_with_text(lexer_t *l, TokenType type)
-{
-    token_t *t = make_token(l, type);
-    t->litlen = l->off - l->start;
-    t->lit = malloc(t->litlen + 1);
-    memcpy(t->lit, l->src + l->start, t->litlen);
-    t->lit[t->litlen] = '\0';
-    return t;
+    memset(&l->token, 0, sizeof(token_t));
+    l->token.type = type;
+    l->token.start = l->start;
+    l->token.end = l->off;
 }
 
 void token_free(token_t *t)
 {
-    if (t->lit)
-        free(t->lit);
     free(t);
 }
 
-static token_t *lex_ident(lexer_t *l)
+static void lex_ident(lexer_t *l)
 {
     while (isalnum(l->ch) || l->ch == '_')
         step(l);
 
-    // Known keywords
     for (const struct token_map *m = &keywords[0]; m->text != NULL; m++) {
         const char *c = m->text;
         const char *s = l->src + l->start;
         for (; *c != '\0' && s < l->src + l->off && *c == *s; c++, s++)
             /* nothing */;
-        if (*c == '\0')
-            return make_token(l, m->type);
+        if (*c == '\0') {
+            // This is a keyword.
+            make_token(l, m->type);
+            return;
+        }
     }
-    return make_token_with_text(l, TOK_IDENT);
+    // This is an identifier.
+    make_token(l, TOK_IDENT);
 }
 
 static void skip_numbers(lexer_t *l)
@@ -175,40 +165,43 @@ static void skip_numbers(lexer_t *l)
         step(l);
 }
 
-static token_t *lex_number(lexer_t *l)
+static void lex_number(lexer_t *l)
 {
     skip_numbers(l);
     if (l->ch == '.') {
         step(l);
         skip_numbers(l);
     }
-    return make_token_with_text(l, TOK_NUM);
+    make_token(l, TOK_NUM);
 }
 
 // NOTE: taken from ponyc
-static token_t *lex_symbol(lexer_t *l)
+static void lex_symbol(lexer_t *l)
 {
     for (const struct token_map *m = &symbols[0]; m->text != NULL; m++) {
         for (int i = 0; m->text[i] == '\0' || m->text[i] == lookn(l, i); i++) {
             if (m->text[i] == '\0') {
                 consume(l, i);
-                return make_token(l, m->type);
+                make_token(l, m->type);
+                return;
             }
         }
     }
     fprintf(stderr, "lex error: unknown symbol '%c'\n", l->ch);
     step(l);
-    return make_token(l, TOK_ERR);
+    make_token(l, TOK_ERR);
 }
 
-token_t *lexer_next(lexer_t *l)
+// Return EOF if reached source EOF.
+int lexer_next(lexer_t *l)
 {
     for (;;) {
         l->start = l->off;
 
         switch (l->ch) {
         case 0: {
-            return make_token(l, TOK_EOF);
+            make_token(l, TOK_EOF);
+            return EOF;
         }
         case '\n': case '\r': {
             l->line_off = l->off;
@@ -221,8 +214,10 @@ token_t *lexer_next(lexer_t *l)
         }
         case '/': {
             step(l);
-            if (l->ch != '/')
-                return make_token(l, TOK_SLASH);
+            if (l->ch != '/') {
+                make_token(l, TOK_SLASH);
+                return 0;
+            }
             // ignore comment
             while (l->ch != '\n')
                 step(l);
@@ -230,29 +225,30 @@ token_t *lexer_next(lexer_t *l)
         }
         case '0': case '1': case '2': case '3': case '4':
         case '5': case '6': case '7': case '8': case '9': {
-            return lex_number(l);
+            lex_number(l);
+            return 0;
         }
         default: {
             if (isalpha(l->ch) || l->ch == '_') {
-                return lex_ident(l);
-            } else { // symbols
-                return lex_symbol(l);
+                lex_ident(l);
+            } else {
+                lex_symbol(l);
             }
+            return 0;
         }
         }
     }
+
+    return 0;
 }
 
-void print_token(const token_t *tok)
+void print_token(const lexer_t *lex, const token_t *tok)
 {
     switch (tok->type) {
     case TOK_IDENT:
     case TOK_NUM : {
         printf((tok->type == TOK_IDENT) ? "ident" : "num");
-        if (tok->lit)
-            printf(" [%s]\n", tok->lit);
-        else
-            printf("\n");
+        printf(" [%.*s]\n", (int)(tok->end - tok->start), lex->src + tok->start);
         break;
     }
     case TOK_ERR: {
