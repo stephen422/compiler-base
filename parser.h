@@ -25,7 +25,7 @@ typedef struct {
 
 struct ast_t {
     enum node_type type;
-    token_t *tok;
+    token_t token;
     ast_t *child;
     ast_t *sibling;
 };

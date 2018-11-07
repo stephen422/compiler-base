@@ -24,10 +24,10 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    test_lexer(argv[1]);
+    // test_lexer(argv[1]);
 
-    // parser_t p;
-    // parser_init(&p, argv[1]);
-    // parse(&p);
-    // parser_free(&p);
+    parser_t p;
+    parser_init(&p, argv[1]);
+    parse(&p);
+    parser_free(&p);
 }
