@@ -17,6 +17,14 @@ static void add_node(ast_t *parent, ast_t *child)
     c->sibling = child;
 }
 
+static ast_t *get_child(ast_t *parent, int n)
+{
+    ast_t *c = parent->child;
+    for (; c && n > 0; n--)
+        c = c->sibling;
+    return c;
+}
+
 static ast_t *make_node(enum node_type t, token_t *tok)
 {
     ast_t *node = malloc(sizeof(ast_t));
@@ -43,10 +51,18 @@ static void free_node(ast_t *node)
     free(node);
 }
 
-static void print_node(const ast_t *node)
+static void iprintf(int indent, const char *fmt, ...) {
+    for (; indent > 0; indent--)
+        putc(' ', stdout);
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+}
+static void print_node_indent(const ast_t *node, int indent)
 {
     if (!node) {
-        printf("(null)\n");
+        iprintf(indent, "(null)\n");
         return;
     }
 
@@ -54,30 +70,39 @@ static void print_node(const ast_t *node)
     case ND_ATOM:
         switch (node->token.type) {
         case TOK_IDENT:
-            printf("[Identifier]\n");
+            iprintf(indent, "[Identifier]\n");
             break;
         case TOK_NUM:
-            printf("[Number]\n");
+            iprintf(indent, "[Number]\n");
             break;
         default:
-            printf("[unknown]\n");
+            iprintf(indent, "[unknown]\n");
             break;
         }
         break;
     case ND_BINEXPR:
-        printf("[BinaryExpr]\n");
+        iprintf(indent, "[BinaryExpr]\n");
+        indent += 2;
+        print_node_indent(BINEXPR_LHS(node), indent);
+        print_node_indent(BINEXPR_OP(node), indent);
+        print_node_indent(BINEXPR_RHS(node), indent);
+        indent -= 2;
         break;
     default:
         printf("print_node: unrecognized node type\n");
         break;
     }
 
-    ast_t *c = node->child;
-    for (int i = 0; c; i++) {
-        printf("Child %d\n", i);
-        print_node(c);
-        c = c->sibling;
-    }
+    // ast_t *c = node->child;
+    // for (int i = 0; c; i++) {
+    //     printf("Child %d\n", i);
+    //     c = c->sibling;
+    // }
+}
+
+static void print_node(const ast_t *node)
+{
+    print_node_indent(node, 0);
 }
 
 static token_t *look(parser_t *p)

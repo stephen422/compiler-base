@@ -36,6 +36,10 @@ typedef struct {
     token_t *tok; // lookahead token
 } parser_t;
 
+#define BINEXPR_LHS(n) get_child((ast_t *)n, 0)
+#define BINEXPR_OP(n)  get_child((ast_t *)n, 1)
+#define BINEXPR_RHS(n) get_child((ast_t *)n, 2)
+
 void parser_init(parser_t *p, const char *filename);
 void parser_free(parser_t *p);
 void parse(parser_t *p);
