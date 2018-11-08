@@ -1,3 +1,4 @@
+(a) + b;
 assign i_ready = f;
 
 fn main() -> int {

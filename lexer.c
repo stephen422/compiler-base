@@ -10,6 +10,15 @@ struct token_map {
     TokenType type;
 };
 
+char *token_names[NUM_TOKENTYPES] = {
+    [TOK_IDENT] = "identifier",
+    [TOK_LPAREN] = "(",
+    [TOK_RPAREN] = ")",
+    [TOK_EQUALS] = "=",
+    [TOK_BANG] = "!",
+    [TOK_ERR] = "unknown"
+};
+
 static struct token_map symbols[] = {
     {"->", TOK_ARROW},
     {"/", TOK_SLASH},

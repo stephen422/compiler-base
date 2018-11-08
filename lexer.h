@@ -59,12 +59,7 @@ typedef enum TokenType {
     NUM_TOKENTYPES
 } TokenType;
 
-static char *token_names[NUM_TOKENTYPES] = {
-    [TOK_IDENT] = "identifier",
-    [TOK_EQUALS] = "=",
-    [TOK_BANG] = "!",
-    [TOK_ERR] = "unknown"
-};
+char *token_names[NUM_TOKENTYPES];
 
 typedef struct {
     TokenType type;
