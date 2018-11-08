@@ -14,6 +14,9 @@ char *token_names[NUM_TOKENTYPES] = {
     [TOK_IDENT] = "identifier",
     [TOK_LPAREN] = "(",
     [TOK_RPAREN] = ")",
+    [TOK_DOT] = ".",
+    [TOK_COLON] = ":",
+    [TOK_SEMICOLON] = ";",
     [TOK_EQUALS] = "=",
     [TOK_BANG] = "!",
     [TOK_ERR] = "unknown"

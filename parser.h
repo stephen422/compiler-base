@@ -7,6 +7,7 @@ enum node_type {
     ND_ASSIGN,
     ND_STMT,
     ND_ATOM,
+    ND_BINEXPR,
 };
 
 typedef struct ast_t ast_t;

@@ -5,7 +5,7 @@
 
 static ast_t *parse_expr(parser_t *p);
 
-static void ast_add(ast_t *parent, ast_t *child)
+static void add_node(ast_t *parent, ast_t *child)
 {
     ast_t *c = parent->child;
     if (!c) {
@@ -64,13 +64,18 @@ static void print_node(const ast_t *node)
             break;
         }
         break;
+    case ND_BINEXPR:
+        printf("[BinaryExpr]\n");
+        break;
     default:
         printf("print_node: unrecognized node type\n");
         break;
     }
+
     ast_t *c = node->child;
     for (int i = 0; c; i++) {
         printf("Child %d\n", i);
+        print_node(c);
         c = c->sibling;
     }
 }
@@ -109,8 +114,8 @@ static void next(parser_t *p)
 static void expect(parser_t *p, TokenType t)
 {
     if (look(p)->type != t) {
-        fprintf(stderr, "parse error: expected %s, got %s\n", token_names[t], token_names[look(p)->type]);
-        exit(1); // FIXME
+        error(p, "expected %s, got %s\n", token_names[t], token_names[look(p)->type]);
+        exit(1);
     }
     // Make progress
     next(p);
@@ -144,9 +149,70 @@ static ast_t *parse_unary_expr(parser_t *p)
     return expr;
 }
 
+static int get_precedence(const token_t *op)
+{
+    switch (op->type) {
+    case TOK_STAR:
+    case TOK_SLASH:
+        return 1;
+    case TOK_PLUS:
+    case TOK_MINUS:
+        return 0;
+    default:
+        return -1; // not an operator
+    }
+}
+
+// Parse (op binary)* part of the production
+//
+//     binary_expr: unary (op binary)* .
+//
+// Return the pointer to the node respresenting the reduced binary expression.
+// May be the same as 'lhs' if nothing was reduced.
+static ast_t *parse_binary_expr_rhs(parser_t *p, ast_t *lhs, int precedence)
+{
+    while (1) {
+        int this_prec = get_precedence(look(p));
+
+        // If the upcoming op has lower precedence, the subexpression of the
+        // precedence level that we are currently parsing in is finished.
+        // This is equivalent to reducing on a shift/reduce conflict in
+        // bottom-up parsing.
+        if (this_prec < precedence)
+            break;
+
+        ast_t *op = make_node(ND_ATOM, look(p));
+        next(p);
+
+        // Parse the next term.  We do not know yet if this term should bind to
+        // LHS or RHS; e.g. "a * b + c" or "a + b * c".  To know this, we should
+        // look ahead for the operator that follows this term.
+        ast_t *rhs = parse_unary_expr(p);
+        int next_prec = get_precedence(look(p));
+
+        // If the next operator is indeed higher-level, evaluate the RHS as a
+        // whole subexpression with elevated minimum precedence. Else, just
+        // treat it as a unary expression.  This is equivalent to shifting on a
+        // shift/reduce conflict in bottom-up parsing.
+        //
+        // If this_prec == next_prec, don't shift, but reduce it with lhs.
+        // This implies left associativity.
+        if (this_prec < next_prec)
+            rhs = parse_binary_expr_rhs(p, rhs, precedence + 1);
+        ast_t *new = make_node(ND_BINEXPR, NULL);
+        add_node(new, lhs);
+        add_node(new, op);
+        add_node(new, rhs);
+        lhs = new;
+    }
+    return lhs;
+}
+
 static ast_t *parse_expr(parser_t *p)
 {
-    return parse_unary_expr(p);
+    ast_t *expr = parse_unary_expr(p);
+    expr = parse_binary_expr_rhs(p, expr, 0);
+    return expr;
 }
 
 void parse(parser_t *p)
@@ -164,6 +230,7 @@ void parse(parser_t *p)
     switch (look(p)->type) {
     default:
         node = parse_expr(p);
+        expect(p, TOK_SEMICOLON);
         print_node(node);
         free_node(node);
         break;
