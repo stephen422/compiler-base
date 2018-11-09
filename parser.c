@@ -29,10 +29,11 @@ static struct node *make_binexpr(struct node *lhs, struct node *op, struct node 
     return node;
 }
 
-static struct node *make_vardecl(struct node *decltype, struct node *name, struct node *expr)
+static struct node *make_vardecl(struct node *decltype, int mutable, struct node *name, struct node *expr)
 {
     struct node *node = make_node(ND_VARDECL, NULL);
     node->decltype = decltype;
+    node->mutable = mutable;
     node->name = name;
     node->expr = expr;
     return node;
@@ -93,8 +94,7 @@ static void print_node_indent(parser_t *p, const struct node *node, int indent)
     case ND_VARDECL:
         iprintf(indent, "[VarDecl]\n");
         indent += 2;
-        iprintf(indent, "");
-        print_token(&p->lexer, &node->decltype->token);
+        iprintf(indent, "[Mutable: %d]\n", node->mutable);
         print_node_indent(p, node->name, indent);
         print_node_indent(p, node->expr, indent);
         indent -= 2;
@@ -122,6 +122,7 @@ static void error(parser_t *p, const char *fmt, ...)
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
     va_end(args);
+    abort();
 }
 
 void parser_init(parser_t *p, const char *filename)
@@ -243,13 +244,27 @@ static struct node *parse_expr(parser_t *p)
 
 static struct node *parse_var_decl(parser_t *p)
 {
+    int mut;
+
+    switch (look(p)->type) {
+    case TOK_LET:
+        mut = 0;
+        break;
+    case TOK_VAR:
+        mut = 1;
+        break;
+    default:
+        // unreachable
+        abort();
+        break;
+    }
     struct node *decltype = make_node(ND_TYPE, look(p));
     next(p);
     struct node *name = make_node(ND_ATOM, look(p));
     next(p);
     expect(p, TOK_EQUALS);
     struct node *expr = parse_expr(p);
-    return make_vardecl(decltype, name, expr);
+    return make_vardecl(decltype, mut, name, expr);
 }
 
 static struct node *parse_decl(parser_t *p)
@@ -274,15 +289,17 @@ void parse(parser_t *p)
 {
     struct node *node;
 
-    switch (look(p)->type) {
-    case TOK_LET:
-    case TOK_VAR:
-        node = parse_decl(p);
-        break;
-    default:
-        node = parse_expr(p);
-        break;
+    while (look(p) != TOK_EOF) {
+        switch (look(p)->type) {
+        case TOK_LET:
+        case TOK_VAR:
+            node = parse_decl(p);
+            break;
+        default:
+            node = parse_expr(p);
+            break;
+        }
+        print_node(p, node);
+        free_node(node);
     }
-    print_node(p, node);
-    free_node(node);
 }

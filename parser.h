@@ -29,6 +29,7 @@ typedef struct node {
             struct node *decltype;
             struct node *name;
             struct node *expr;
+            int mutable;
         };
     };
 } node_t;

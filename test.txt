@@ -1,6 +1,6 @@
 let a = 3;
+var b = a + c;
 (a) * b + c;
-assign i_ready = f;
 
 fn main() -> int {
     // This is a line comment.
