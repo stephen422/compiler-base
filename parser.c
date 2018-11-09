@@ -41,7 +41,10 @@ static struct node *make_vardecl(struct node *decltype, int mutable, struct node
 
 static void free_node(struct node *node)
 {
-    switch(node->type) {
+    if (!node)
+        return;
+
+    switch (node->type) {
     case ND_BINEXPR:
         free_node(node->lhs);
         free_node(node->op);
@@ -69,6 +72,11 @@ static void iprintf(int indent, const char *fmt, ...) {
 
 static void print_node_indent(parser_t *p, const struct node *node, int indent)
 {
+    if (!node) {
+        iprintf(indent, "(null)\n");
+        return;
+    }
+
     switch (node->type) {
     case ND_ATOM:
         switch (node->token.type) {
@@ -122,6 +130,7 @@ static void error(parser_t *p, const char *fmt, ...)
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
     va_end(args);
+    fprintf(stderr, "\n");
     abort();
 }
 
@@ -244,26 +253,30 @@ static struct node *parse_expr(parser_t *p)
 
 static struct node *parse_var_decl(parser_t *p)
 {
-    int mut;
+    struct node *decltype = NULL;
+    struct node *expr = NULL;
 
-    switch (look(p)->type) {
-    case TOK_LET:
-        mut = 0;
-        break;
-    case TOK_VAR:
-        mut = 1;
-        break;
-    default:
-        // unreachable
-        abort();
-        break;
-    }
-    struct node *decltype = make_node(ND_TYPE, look(p));
+    int mut = look(p)->type == TOK_VAR;
     next(p);
     struct node *name = make_node(ND_ATOM, look(p));
     next(p);
-    expect(p, TOK_EQUALS);
-    struct node *expr = parse_expr(p);
+
+    // Type specification
+    if (look(p)->type == TOK_COLON) {
+        next(p);
+        decltype = make_node(ND_TYPE, look(p));
+        next(p);
+    }
+    // Assignment expression
+    if (look(p)->type == TOK_EQUALS) {
+        next(p);
+        expr = parse_expr(p);
+    }
+    // If both type and assignment expression is not specified, it's an
+    // error.
+    if (decltype == NULL && expr == NULL)
+        error(p, "declarations should at least specify its type or its value.");
+
     return make_vardecl(decltype, mut, name, expr);
 }
 

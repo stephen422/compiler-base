@@ -1,4 +1,5 @@
 let a = 3;
+let a: int;
 var b = a + c;
 (a) * b + c;
 
