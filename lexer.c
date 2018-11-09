@@ -19,6 +19,8 @@ char *token_names[NUM_TOKENTYPES] = {
     [TOK_SEMICOLON] = ";",
     [TOK_EQUALS] = "=",
     [TOK_BANG] = "!",
+    [TOK_LET] = "let",
+    [TOK_VAR] = "var",
     [TOK_ERR] = "unknown"
 };
 
@@ -60,7 +62,6 @@ static struct token_map symbols[] = {
 };
 
 static struct token_map keywords[] = {
-    {"assign", TOK_ASSIGN},
     {"fn", TOK_FN},
     {"let", TOK_LET},
     {"var", TOK_VAR},
@@ -254,7 +255,21 @@ int lexer_next(lexer_t *l)
     return 0;
 }
 
-void print_token(const lexer_t *lex, const token_t *tok)
+#if 0
+void locate_line_col(lexer_t *l, size_t pos, int *line, int *col)
+{
+    // Search linearly for line that contains this position.
+    int line;
+    for (line = 0; static_cast<size_t>(line) < line_off.size(); line++) {
+        if (pos < line_off[line])
+            break;
+    }
+    int col = pos - line_off[line - 1] + 1;
+    return {line, col};
+}
+#endif
+
+void print_token(lexer_t *lex, const token_t *tok)
 {
     switch (tok->type) {
     case TOK_IDENT:
@@ -269,7 +284,7 @@ void print_token(const lexer_t *lex, const token_t *tok)
     }
     default: {
         if (tok->type >= TOK_KEYWORDS)
-            printf("keyword (type %d)\n", tok->type - TOK_KEYWORDS - 1);
+            printf("%s\n", token_names[tok->type]);
         else
             printf("symbol (type %d)\n", tok->type);
         break;

@@ -4,9 +4,10 @@
 #include "lexer.h"
 
 enum node_type {
-    ND_ASSIGN,
-    ND_STMT,
     ND_ATOM,
+    ND_STMT,
+    ND_VARDECL,
+    ND_TYPE,
     ND_BINEXPR,
 };
 
@@ -22,6 +23,12 @@ typedef struct node {
             struct node *lhs;
             struct node *op;
             struct node *rhs;
+        };
+        // Variable declaration
+        struct {
+            struct node *decltype;
+            struct node *name;
+            struct node *expr;
         };
     };
 } node_t;

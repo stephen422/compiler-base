@@ -29,14 +29,29 @@ static struct node *make_binexpr(struct node *lhs, struct node *op, struct node 
     return node;
 }
 
+static struct node *make_vardecl(struct node *decltype, struct node *name, struct node *expr)
+{
+    struct node *node = make_node(ND_VARDECL, NULL);
+    node->decltype = decltype;
+    node->name = name;
+    node->expr = expr;
+    return node;
+}
+
 static void free_node(struct node *node)
 {
-    struct node *c = node->child;
     switch(node->type) {
     case ND_BINEXPR:
         free_node(node->lhs);
         free_node(node->op);
         free_node(node->rhs);
+        break;
+    case ND_VARDECL:
+        free_node(node->decltype);
+        free_node(node->name);
+        free_node(node->expr);
+        break;
+    default:
         break;
     }
     free(node);
@@ -51,13 +66,8 @@ static void iprintf(int indent, const char *fmt, ...) {
     va_end(args);
 }
 
-static void print_node_indent(const struct node *node, int indent)
+static void print_node_indent(parser_t *p, const struct node *node, int indent)
 {
-    if (!node) {
-        iprintf(indent, "(null)\n");
-        return;
-    }
-
     switch (node->type) {
     case ND_ATOM:
         switch (node->token.type) {
@@ -75,23 +85,29 @@ static void print_node_indent(const struct node *node, int indent)
     case ND_BINEXPR:
         iprintf(indent, "[BinaryExpr]\n");
         indent += 2;
+        print_node_indent(p, node->lhs, indent);
+        print_node_indent(p, node->op, indent);
+        print_node_indent(p, node->rhs, indent);
+        indent -= 2;
+        break;
+    case ND_VARDECL:
+        iprintf(indent, "[VarDecl]\n");
+        indent += 2;
+        iprintf(indent, "");
+        print_token(&p->lexer, &node->decltype->token);
+        print_node_indent(p, node->name, indent);
+        print_node_indent(p, node->expr, indent);
         indent -= 2;
         break;
     default:
-        printf("print_node: unrecognized node type\n");
+        fprintf(stderr, "%s: unrecognized node type\n", __func__);
         break;
     }
-
-    // struct node *c = node->child;
-    // for (int i = 0; c; i++) {
-    //     printf("Child %d\n", i);
-    //     c = c->sibling;
-    // }
 }
 
-static void print_node(const struct node *node)
+static void print_node(parser_t *p, const struct node *node)
 {
-    print_node_indent(node, 0);
+    print_node_indent(p, node, 0);
 }
 
 static token_t *look(parser_t *p)
@@ -225,24 +241,48 @@ static struct node *parse_expr(parser_t *p)
     return expr;
 }
 
+static struct node *parse_var_decl(parser_t *p)
+{
+    struct node *decltype = make_node(ND_TYPE, look(p));
+    next(p);
+    struct node *name = make_node(ND_ATOM, look(p));
+    next(p);
+    expect(p, TOK_EQUALS);
+    struct node *expr = parse_expr(p);
+    return make_vardecl(decltype, name, expr);
+}
+
+static struct node *parse_decl(parser_t *p)
+{
+    struct node *decl;
+
+    switch (look(p)->type) {
+    case TOK_LET:
+    case TOK_VAR:
+        decl = parse_var_decl(p);
+        break;
+    default:
+        error(p, "unknown declaration type");
+        decl = NULL;
+        break;
+    }
+    expect(p, TOK_SEMICOLON);
+    return decl;
+}
+
 void parse(parser_t *p)
 {
-    // for (; look(p)->type != TOK_EOF; next(p)) {
-    //     if (look(p)->type == TOK_ASSIGN) {
-    //         struct node *node = parse_assign(p);
-    //         print_node(node);
-    //         free_node(node);
-    //     }
-    // }
-
     struct node *node;
 
     switch (look(p)->type) {
+    case TOK_LET:
+    case TOK_VAR:
+        node = parse_decl(p);
+        break;
     default:
         node = parse_expr(p);
-        expect(p, TOK_SEMICOLON);
-        print_node(node);
-        free_node(node);
         break;
     }
+    print_node(p, node);
+    free_node(node);
 }
