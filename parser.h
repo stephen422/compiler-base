@@ -10,35 +10,26 @@ enum node_type {
     ND_BINEXPR,
 };
 
-typedef struct ast_t ast_t;
-
-typedef struct {
-    ast_t *lhs;
-    ast_t *rhs;
-} assign_stmt;
-
-typedef struct {
-    enum {ASSIGN_STMT} type;
-    union {
-        assign_stmt assign;
-    } u;
-} stmt;
-
-struct ast_t {
+typedef struct node {
     enum node_type type;
     token_t token;
-    ast_t *child;
-    ast_t *sibling;
-};
+    struct node *child;
+    struct node *sibling;
+
+    union {
+        // Binary expression
+        struct {
+            struct node *lhs;
+            struct node *op;
+            struct node *rhs;
+        };
+    };
+} node_t;
 
 typedef struct {
     lexer_t lexer;
     token_t *tok; // lookahead token
 } parser_t;
-
-#define BINEXPR_LHS(n) get_child((ast_t *)n, 0)
-#define BINEXPR_OP(n)  get_child((ast_t *)n, 1)
-#define BINEXPR_RHS(n) get_child((ast_t *)n, 2)
 
 void parser_init(parser_t *p, const char *filename);
 void parser_free(parser_t *p);
