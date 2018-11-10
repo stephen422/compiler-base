@@ -208,6 +208,7 @@ static void lex_symbol(lexer_t *l)
     make_token(l, TOK_ERR);
 }
 
+// Lex the next token and place it into l->token.
 // Return EOF if reached source EOF.
 int lexer_next(lexer_t *l)
 {

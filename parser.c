@@ -15,8 +15,6 @@ static struct node *make_node(enum node_type t, token_t *tok)
     node->type = t;
     if (tok)
         node->token = *tok;
-    node->child = NULL;
-    node->sibling = NULL;
     return node;
 }
 
@@ -80,7 +78,10 @@ static void print_node_indent(parser_t *p, const struct node *node, int indent)
     iprintf(indent, "");
 
     switch (node->type) {
-    case ND_ATOM:
+    case ND_TOKEN:
+        print_token(&p->lexer, &node->token);
+        break;
+    case ND_LITEXPR:
         printf("[LiteralExpr] ");
         switch (node->token.type) {
         case TOK_IDENT:
@@ -166,7 +167,7 @@ static void expect(parser_t *p, TokenType t)
 
 static struct node *parse_literal_expr(parser_t *p)
 {
-    struct node *expr = make_node(ND_ATOM, look(p));
+    struct node *expr = make_node(ND_LITEXPR, look(p));
     next(p);
     return expr;
 }
@@ -176,8 +177,11 @@ static struct node *parse_unary_expr(parser_t *p)
     struct node *expr = NULL;
 
     switch (look(p)->type) {
-    case TOK_NUM:
     case TOK_IDENT:
+        expr = make_node(ND_TOKEN, look(p));
+        next(p);
+        break;
+    case TOK_NUM:
         expr = parse_literal_expr(p);
         break;
     case TOK_LPAREN:
@@ -224,7 +228,7 @@ static struct node *parse_binary_expr_rhs(parser_t *p, struct node *lhs, int pre
         if (this_prec < precedence)
             break;
 
-        struct node *op = make_node(ND_ATOM, look(p));
+        struct node *op = make_node(ND_TOKEN, look(p));
         next(p);
 
         // Parse the next term.  We do not know yet if this term should bind to
@@ -261,7 +265,7 @@ static struct node *parse_var_decl(parser_t *p)
 
     int mut = look(p)->type == TOK_VAR;
     next(p);
-    struct node *name = make_node(ND_ATOM, look(p));
+    struct node *name = make_node(ND_TOKEN, look(p)); /* FIXME RefExpr? */
     next(p);
 
     // Type specification

@@ -4,20 +4,19 @@
 #include "lexer.h"
 
 enum node_type {
-    ND_ATOM,
+    ND_TOKEN,
     ND_STMT,
     ND_VARDECL,
     ND_TYPE,
+    ND_LITEXPR,
     ND_BINEXPR,
 };
 
 typedef struct node {
     enum node_type type;
-    token_t token;
-    struct node *child;
-    struct node *sibling;
-
     union {
+        // Literal/token-only expression
+        token_t token; // TODO: replace with semantic value
         // Binary expression
         struct {
             struct node *lhs;
