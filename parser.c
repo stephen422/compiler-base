@@ -77,22 +77,25 @@ static void print_node_indent(parser_t *p, const struct node *node, int indent)
         return;
     }
 
+    iprintf(indent, "");
+
     switch (node->type) {
     case ND_ATOM:
+        printf("[LiteralExpr] ");
         switch (node->token.type) {
         case TOK_IDENT:
-            iprintf(indent, "[Identifier]\n");
+            print_token(&p->lexer, &node->token);
             break;
         case TOK_NUM:
-            iprintf(indent, "[Number]\n");
+            print_token(&p->lexer, &node->token);
             break;
         default:
-            iprintf(indent, "[unknown]\n");
+            print_token(&p->lexer, &node->token);
             break;
         }
         break;
     case ND_BINEXPR:
-        iprintf(indent, "[BinaryExpr]\n");
+        printf("[BinaryExpr]\n");
         indent += 2;
         print_node_indent(p, node->lhs, indent);
         print_node_indent(p, node->op, indent);
@@ -100,9 +103,9 @@ static void print_node_indent(parser_t *p, const struct node *node, int indent)
         indent -= 2;
         break;
     case ND_VARDECL:
-        iprintf(indent, "[VarDecl]\n");
+        printf("[VarDecl]\n");
         indent += 2;
-        iprintf(indent, "[Mutable: %d]\n", node->mutable);
+        iprintf(indent, "mutable: %d\n", node->mutable);
         print_node_indent(p, node->name, indent);
         print_node_indent(p, node->expr, indent);
         indent -= 2;

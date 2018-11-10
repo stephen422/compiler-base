@@ -12,12 +12,15 @@ struct token_map {
 
 char *token_names[NUM_TOKENTYPES] = {
     [TOK_IDENT] = "identifier",
+    [TOK_NUM] = "number",
     [TOK_LPAREN] = "(",
     [TOK_RPAREN] = ")",
     [TOK_DOT] = ".",
     [TOK_COLON] = ":",
     [TOK_SEMICOLON] = ";",
     [TOK_EQUALS] = "=",
+    [TOK_PLUS] = "+",
+    [TOK_STAR] = "*",
     [TOK_BANG] = "!",
     [TOK_LET] = "let",
     [TOK_VAR] = "var",
@@ -273,21 +276,17 @@ void print_token(lexer_t *lex, const token_t *tok)
 {
     switch (tok->type) {
     case TOK_IDENT:
-    case TOK_NUM : {
-        printf((tok->type == TOK_IDENT) ? "ident" : "num");
-        printf(" [%.*s]\n", (int)(tok->end - tok->start), lex->src + tok->start);
+    case TOK_NUM :
+        printf("'%.*s'\n", (int)(tok->end - tok->start), lex->src + tok->start);
         break;
-    }
-    case TOK_ERR: {
+    case TOK_ERR:
         printf("error\n");
         break;
-    }
-    default: {
+    default:
         if (tok->type >= TOK_KEYWORDS)
-            printf("%s\n", token_names[tok->type]);
+            printf("'%s'\n", token_names[tok->type]);
         else
-            printf("symbol (type %d)\n", tok->type);
+            printf("'%s'\n", token_names[tok->type]);
         break;
-    }
     }
 }
