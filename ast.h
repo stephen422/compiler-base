@@ -8,16 +8,10 @@
 
 namespace comp {
 
-enum class NodeType {
+enum class AstNodeType {
     stmt,
     decl,
     expr,
-    atom,
-};
-
-template <typename T>
-class Ast {
-    std::unique_ptr<T> ptr;
 };
 
 class AstNode {
@@ -25,8 +19,9 @@ public:
     // Owning pointer to an AST node.
     using OwnPtr = std::unique_ptr<AstNode>;
 
-    AstNode() : AstNode(NodeType::atom) {}
-    AstNode(NodeType type) : type(type) {}
+    // TODO stmt by default
+    AstNode(): AstNode(AstNodeType::stmt) {}
+    AstNode(AstNodeType type): type(type) {}
     virtual ~AstNode() = default;
 
     virtual void print() const {}
@@ -44,23 +39,23 @@ public:
         return std::cout;
     }
 
-    NodeType type;
+    AstNodeType type;
 
     // Indentation of the current node when dumping AST.
     // Since all nodes share one indentation level variable, this should be
     // declared static.
     static int depth;
+
+    // RAII trick to handle indentation when printing a node with deeper
+    // indentation.
+    class PrintScope {
+    public:
+        PrintScope() { depth += 2; }
+        ~PrintScope() { depth -= 2; }
+    };
 };
 
 using AstNodePtr = AstNode::OwnPtr;
-
-// A little RAII trick to handle indentation when printing a node at a deeper
-// level.  This is equivalent to doing "depth++; defer(depth--);" in Go.
-class PrintScope : public AstNode {
-public:
-    PrintScope() { depth += 2; }
-    ~PrintScope() { depth -= 2; }
-};
 
 // ===-------===
 //   Statement
@@ -85,7 +80,7 @@ enum class ExprType {
 
 class Expr : public AstNode {
 public:
-    Expr(ExprType type) : AstNode(NodeType::expr), type(type) {}
+    Expr(ExprType type) : AstNode(AstNodeType::expr), type(type) {}
     virtual std::string flatten() const = 0;
 
     ExprType type;
@@ -126,7 +121,7 @@ enum class DeclType {
 // A declaration.
 class Decl : public AstNode {
 public:
-    Decl(DeclType type) : AstNode(NodeType::decl), type(type) {}
+    Decl(DeclType type) : AstNode(AstNodeType::decl), type(type) {}
 
     DeclType type;
 };

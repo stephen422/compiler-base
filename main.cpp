@@ -36,10 +36,10 @@ int main(int argc, char **argv) {
     Source src{Path{argv[1]}};
     Lexer lexer{src};
     Parser p{lexer};
-    AstNode::OwnPtr ast;
+    AstNodePtr ast;
     while ((ast = p.parse())) {
         ast->print();
-        if (ast->type == NodeType::expr) {
+        if (ast->type == AstNodeType::expr) {
             std::cout << "flatten: " << static_cast<Expr *>(ast.get())->flatten() << std::endl;
         }
     }
