@@ -38,7 +38,7 @@ private:
     //
     // After the call, 'lhs' is invalidated by being moved away.  Subsequent
     // code should use the returned pointer instead.
-    ExprPtr parse_binary_expr_rhs(ExprPtr lhs, int precedence = 0);
+    ExprPtr parse_binary_expr_rhs(ExprPtr &lhs, int precedence = 0);
 
     // Parse a literal expression.
     ExprPtr parse_literal_expr();
@@ -52,6 +52,11 @@ private:
     void expect(TokenType type);
     void expect_semi();
     void error(const std::string &msg);
+
+    // Figure out the current location (line, col) in the source.
+    std::pair<int, int> locate() const {
+        return lexer.src.locate(tok.pos);
+    }
 
     Lexer &lexer;
     Token tok; // lookahead token

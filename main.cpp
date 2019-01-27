@@ -39,9 +39,9 @@ int main(int argc, char **argv) {
     AstNodePtr ast;
     while ((ast = p.parse())) {
         ast->print();
-        if (ast->type == AstNodeType::expr) {
-            std::cout << "flatten: " << static_cast<Expr *>(ast.get())->flatten() << std::endl;
-        }
+        // if (ast->type == AstNodeType::expr) {
+        //     std::cout << "flatten: " << static_cast<Expr *>(ast.get())->flatten() << std::endl;
+        // }
     }
     return 0;
 }

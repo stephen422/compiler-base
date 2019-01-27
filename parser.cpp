@@ -22,9 +22,38 @@ void Parser::expect_semi() {
     expect(TokenType::semicolon);
 }
 
+// Parse a statement.
+//
+// Stmt:
+//     Decl ;
+//     Expr ;
+//     ID () ; // TODO: CallExpr
+//     ;
 StmtPtr Parser::parse_stmt() {
-    DeclPtr decl = parse_decl();
-    return std::make_unique<DeclStmt>(decl);
+    StmtPtr stmt;
+
+    // Try possible productions one by one, and use what succeeds first.
+    // ("recursive descent with backtracking":
+    // https://en.wikipedia.org/wiki/Recursive_descent_parser)
+    if (tok.type == TokenType::semicolon) {
+        // Empty statement (;)
+        next();
+    } else if (tok.type == TokenType::comment) {
+        // FIXME: is it best to filter out comments in parse_stmt()?
+        next();
+        stmt = parse_stmt();
+    } else if (auto decl = parse_decl()) {
+        // Decl ;
+        expect_semi();
+        stmt = std::make_unique<DeclStmt>(decl);
+    } else if (auto expr = parse_expr()) {
+        // Expr ;
+        expect_semi();
+        stmt = std::make_unique<ExprStmt>(expr);
+    } else {
+        stmt = nullptr;
+    }
+    return stmt;
 }
 
 DeclPtr Parser::parse_var_decl() {
@@ -40,7 +69,6 @@ DeclPtr Parser::parse_var_decl() {
         // RHS of an assignment should be an expression.
         rhs = parse_expr();
     }
-    expect_semi();
     return std::make_unique<VarDecl>(id, rhs, mut);
 }
 
@@ -48,17 +76,26 @@ DeclPtr Parser::parse_func_decl() {
     expect(TokenType::kw_fn);
 
     Token name = tok;
+    auto func = std::make_unique<FuncDecl>(name);
     next();
 
-    // Argument list
+    // Argument list (foo(...))
     expect(TokenType::lparen);
     expect(TokenType::rparen);
 
-    // Return type
+    // Return type (-> ...)
     expect(TokenType::arrow);
+    // TODO return type
     next();
+
     expect(TokenType::lbrace);
+    // List of statements
+    StmtPtr stmt;
+    while ((stmt = parse_stmt())) {
+        func->add_stmt(stmt);
+    }
     expect(TokenType::rbrace);
+
     error("implementing return type!");
     return std::make_unique<FuncDecl>(name);
 }
@@ -114,14 +151,16 @@ int Parser::get_precedence(const Token &op) const {
     }
 }
 
-ExprPtr Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
+// @cleanup: Ownership of 'lhs' is not clear.
+ExprPtr Parser::parse_binary_expr_rhs(ExprPtr &lhs, int precedence) {
     ExprPtr root = std::move(lhs);
 
     while (true) {
         int this_prec = get_precedence(tok);
 
-        // If the upcoming op has lower precedence, the subexpression of the
-        // precedence level that we are currently parsing in is finished.
+        // If the upcoming op has lower precedence, finish this subexpression.
+        // It will be treated as a single term when this function is re-called
+        // with lower precedence.
         if (this_prec < precedence) {
             return root;
         }
@@ -129,34 +168,37 @@ ExprPtr Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
         Token op = tok;
         next();
 
-        // Parse the next term.  We do not know yet if this term should bind to
-        // LHS or RHS; e.g. "a * b + c" or "a + b * c".  To know this, we should
-        // look ahead for the operator that follows this term.
+        // Parse the second term.
         ExprPtr rhs = parse_unary_expr();
+        // We do not know if this term should associate to left or right;
+        // e.g. "(a * b) + c" or "a + (b * c)".  We should look ahead for the
+        // next operator that follows this term.
         int next_prec = get_precedence(tok);
 
-        // If the next operator is indeed higher-level, evaluate the RHS as a
-        // whole subexpression with elevated minimum precedence. Else, just
-        // treat it as a unary expression.
+        // If the next operator is indeed higher-level ("a + (b * c)"),
+        // evaluate the RHS as a single subexpression with elevated minimum
+        // precedence. Else ("(a * b) + c"), just treat it as a unary
+        // expression.
         if (this_prec < next_prec) {
-            rhs = parse_binary_expr_rhs(std::move(rhs), precedence + 1);
+            rhs = parse_binary_expr_rhs(rhs, precedence + 1);
         }
 
-        // Submerge root as LHS, and attach the parsed RHS to create a new root.
-        // This implies left associativity.
+        // Create a new root with the old root as its LHS, and the recursion
+        // result as RHS.  This implements left associativity.
         root = std::make_unique<BinaryExpr>(root, op, rhs);
     }
+
     return root;
 }
 
 ExprPtr Parser::parse_expr() {
     auto expr = parse_unary_expr();
-    expr = parse_binary_expr_rhs(std::move(expr));
+    expr = parse_binary_expr_rhs(expr);
     return expr;
 }
 
 void Parser::error(const std::string &msg) {
-    auto loc = lexer.src.locate(tok.pos);
+    auto loc = locate();
     std::cerr << lexer.src.filename << ":" << loc.first << ":" << loc.second << ": ";
     std::cerr << "parse error: " << msg << std::endl;
     exit(1);
@@ -165,6 +207,8 @@ void Parser::error(const std::string &msg) {
 AstNodePtr Parser::parse() {
     while (true) {
         switch (tok.type) {
+        case TokenType::eos:
+            return nullptr;
         case TokenType::kw_let:
         case TokenType::kw_var:
         case TokenType::kw_fn:

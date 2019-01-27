@@ -167,8 +167,9 @@ Token Lexer::peek() {
 
 template <typename F>
 void Lexer::skip_while(F &&lambda) {
-    while (look < eos() && lambda(*look))
+    while (look < eos() && lambda(*look)) {
         step();
+    }
 }
 
 void Lexer::skip_whitespace() {

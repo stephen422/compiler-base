@@ -87,6 +87,13 @@ public:
     DeclPtr decl;
 };
 
+class ExprStmt : public Stmt {
+public:
+    ExprStmt(ExprPtr &expr) : Stmt(StmtType::expr), expr(std::move(expr)) {}
+
+    ExprPtr expr;
+};
+
 // ===============
 //   Expressions
 // ===============
@@ -147,12 +154,12 @@ public:
 // Variable declaration.
 class VarDecl : public Decl {
 public:
-    VarDecl(const Token &id, ExprPtr &rhs, bool mut)
-        : Decl(DeclType::var), id(id), rhs(std::move(rhs)), mut(mut) {}
+    VarDecl(const Token &id, ExprPtr &expr, bool mut)
+        : Decl(DeclType::var), id(id), assign_expr(std::move(expr)), mut(mut) {}
     void print() const override;
 
     Token id;
-    ExprPtr rhs;
+    ExprPtr assign_expr;
     // Is this a "var" declaration?
     bool mut;
 };
@@ -160,8 +167,13 @@ public:
 // Function declaration.
 class FuncDecl : public Decl {
 public:
-    FuncDecl(const Token &name) : Decl(DeclType::func), name(name) {}
-    Token name;
+    FuncDecl(const Token &id) : Decl(DeclType::func), id(id) {}
+    void print() const override;
+    void add_stmt(StmtPtr &stmt) {
+        stmt_list.push_back(std::move(stmt));
+    }
+    Token id;
+    std::vector<StmtPtr> stmt_list;
 };
 
 } // namespace comp

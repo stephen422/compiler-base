@@ -14,13 +14,20 @@ FIXME
     do have a hierarchical relationship (root) with other AST types
 
 Stmt:
-    Decl ';'
-    Expr ';'
-    ID () ';'
+    Decl ;
+    Expr ;
+    ID () ; // TODO: CallExpr
+    ;
 
 Decl:
     VarDecl
     FuncDecl
+
+VarDecl:
+    let ID
+    var ID
+    let ID = Expr
+    var ID = Expr
 
 Expr:
     LiteralExpr

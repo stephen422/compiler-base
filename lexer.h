@@ -134,6 +134,8 @@ static const std::pair<StringView, TokenType> keyword_map[] {
 
 std::string tokentype_to_string(TokenType type);
 
+// Token contains the type, a view of the text data, and the source position of
+// a token.
 class Token {
 public:
     TokenType type;

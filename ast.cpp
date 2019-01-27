@@ -7,7 +7,6 @@ int AstNode::depth = 0;
 
 void DeclStmt::print() const {
     out() << "[DeclStmt]\n";
-
     PrintScope start;
 
     decl->print();
@@ -15,21 +14,31 @@ void DeclStmt::print() const {
 
 void VarDecl::print() const {
     out() << "[VarDecl]\n";
-
     PrintScope start;
 
     out() << "[Id] " << id.text << "\n";
     out() << "[Mutable:" << (mut ? "Y" : "N") << "]\n";
-    if (rhs != nullptr) {
-        out() << "[RHS]\n";
+    if (assign_expr != nullptr) {
+        out() << "[AssignExpr]\n";
         PrintScope start;
-        rhs->print();
+        assign_expr->print();
+    }
+}
+
+void FuncDecl::print() const {
+    out() << "[FuncDecl]\n";
+    PrintScope start;
+
+    out() << "[Id] " << id.text << "\n";
+    out() << "[stmt_list]\n";;
+    PrintScope s2;
+    for (const auto &s: stmt_list) {
+        s->print();
     }
 }
 
 void BinaryExpr::print() const {
     out() << "[BinaryExpr]\n";
-
     PrintScope start;
 
     lhs->print();
