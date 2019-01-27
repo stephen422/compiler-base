@@ -29,8 +29,9 @@ void Token::print() {
 void Lexer::step() {
     if (look < eos()) {
         // Register newline first
-        if (*look == '\n')
+        if (*look == '\n') {
             line_off.push_back(pos());
+        }
         look++;
     } else {
         look = eos();

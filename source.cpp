@@ -24,6 +24,7 @@ void Source::init(std::istream &in) {
     while (std::getline(in, line)) {
         line_off.push_back(buf.size());
         buf.insert(buf.cend(), line.cbegin(), line.cend());
+        buf.push_back('\n');
     }
     // Zero-terminate 'buf'.  This eases EOS handling in the lexer.
     buf.push_back('\0');
