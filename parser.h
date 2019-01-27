@@ -14,6 +14,9 @@ public:
     AstNodePtr parse();
 
 private:
+    // Parse a statement.
+    StmtPtr parse_stmt();
+
     // Parse a declaration.
     DeclPtr parse_decl();
 

@@ -22,6 +22,11 @@ void Parser::expect_semi() {
     expect(TokenType::semicolon);
 }
 
+StmtPtr Parser::parse_stmt() {
+    DeclPtr decl = parse_decl();
+    return std::make_unique<DeclStmt>(decl);
+}
+
 DeclPtr Parser::parse_var_decl() {
     bool mut = tok.type == TokenType::kw_var;
     next();
@@ -73,6 +78,7 @@ DeclPtr Parser::parse_decl() {
 
 ExprPtr Parser::parse_literal_expr() {
     auto expr = std::make_unique<LiteralExpr>(tok);
+    // TODO takes arbitrary token
     next();
     return expr;
 }
@@ -162,7 +168,7 @@ AstNodePtr Parser::parse() {
         case TokenType::kw_let:
         case TokenType::kw_var:
         case TokenType::kw_fn:
-            return parse_decl();
+            return parse_stmt();
         case TokenType::comment:
         case TokenType::semicolon:
             next();

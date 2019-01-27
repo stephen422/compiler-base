@@ -5,6 +5,14 @@ namespace comp {
 
 int AstNode::depth = 0;
 
+void DeclStmt::print() const {
+    out() << "[DeclStmt]\n";
+
+    PrintScope start;
+
+    decl->print();
+}
+
 void VarDecl::print() const {
     out() << "[VarDecl]\n";
 

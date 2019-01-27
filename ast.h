@@ -8,6 +8,10 @@
 
 namespace comp {
 
+class AstNode;
+class Stmt;
+class Expr;
+class Decl;
 enum class AstNodeType {
     stmt,
     decl,
@@ -46,8 +50,7 @@ public:
     // declared static.
     static int depth;
 
-    // RAII trick to handle indentation when printing a node with deeper
-    // indentation.
+    // RAII trick to handle indentation.
     class PrintScope {
     public:
         PrintScope() { depth += 2; }
@@ -56,21 +59,37 @@ public:
 };
 
 using AstNodePtr = AstNode::OwnPtr;
+using StmtPtr = std::unique_ptr<Stmt>;
+using ExprPtr = std::unique_ptr<Expr>;
+using DeclPtr = std::unique_ptr<Decl>;
 
-// ===-------===
+// =============
 //   Statement
-// ===-------===
+// =============
 
 enum class StmtType {
+    decl,
+    expr,
 };
 
 class Stmt : public AstNode {
 public:
+    Stmt(StmtType type) : AstNode(AstNodeType::stmt), type(type) {}
+
+    StmtType type;
 };
 
-// ===---------===
+class DeclStmt : public Stmt {
+public:
+    DeclStmt(DeclPtr &decl) : Stmt(StmtType::decl), decl(std::move(decl)) {}
+    void print() const override;
+
+    DeclPtr decl;
+};
+
+// ===============
 //   Expressions
-// ===---------===
+// ===============
 
 enum class ExprType {
     literal,
@@ -85,7 +104,6 @@ public:
 
     ExprType type;
 };
-using ExprPtr = std::unique_ptr<Expr>;
 
 class LiteralExpr : public Expr {
 public:
@@ -109,13 +127,13 @@ public:
     ExprPtr rhs;
 };
 
-// ===----------===
+// ================
 //   Declarations
-// ===----------===
+// ================
 
 enum class DeclType {
-    variable,
-    function,
+    var,
+    func,
 };
 
 // A declaration.
@@ -125,13 +143,12 @@ public:
 
     DeclType type;
 };
-using DeclPtr = std::unique_ptr<Decl>;
 
 // Variable declaration.
 class VarDecl : public Decl {
 public:
     VarDecl(const Token &id, ExprPtr &rhs, bool mut)
-        : Decl(DeclType::variable), id(id), rhs(std::move(rhs)), mut(mut) {}
+        : Decl(DeclType::var), id(id), rhs(std::move(rhs)), mut(mut) {}
     void print() const override;
 
     Token id;
@@ -143,7 +160,7 @@ public:
 // Function declaration.
 class FuncDecl : public Decl {
 public:
-    FuncDecl(const Token &name) : Decl(DeclType::function), name(name) {}
+    FuncDecl(const Token &name) : Decl(DeclType::func), name(name) {}
     Token name;
 };
 

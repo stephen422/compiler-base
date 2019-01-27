@@ -1,11 +1,30 @@
+TODO
+====
+
+* Statement parsing
+* Unit tests
+* Token type descriptions
+
+FIXME
+=====
+
 * Is it _really_ needed for all AST types to inherit AstNode?
+  - It would be unnecessarilly confusing if we make AstNode a tagged union
+    while all others are contained in the inheritance tree.  Besides, AstNode
+    do have a hierarchical relationship (root) with other AST types
 
-stmt:
-    decl ';'
-    expr ';'
+Stmt:
+    Decl ';'
+    Expr ';'
     ID () ';'
-    ...
 
+Decl:
+    VarDecl
+    FuncDecl
+
+Expr:
+    LiteralExpr
+    BinaryExpr
 
 Example grammar from subc
 =========================
