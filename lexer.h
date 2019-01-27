@@ -187,7 +187,10 @@ private:
     // Advance lex position by one character.
     void step();
     char_iterator lookn(long n) const;
-    char_iterator eos() const { return std::cend(sv); }
+    char_iterator eos() const {
+        // Account for '\0' at the end.
+        return std::cend(sv) - 1;
+    }
     size_t pos() const { return curr - std::cbegin(sv); }
     Token make_token(TokenType type);
     Token make_token_with_literal(TokenType type);

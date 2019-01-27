@@ -1,6 +1,7 @@
 TODO
 ====
 
+* Fix comment lexing
 * Statement parsing
 * Unit tests
 * Token type descriptions
@@ -10,8 +11,15 @@ FIXME
 
 * Is it _really_ needed for all AST types to inherit AstNode?
   - It would be unnecessarilly confusing if we make AstNode a tagged union
-    while all others are contained in the inheritance tree.  Besides, AstNode
-    do have a hierarchical relationship (root) with other AST types
+    while all others as inheritance nodes.  Besides, AstNode do have a
+    hierarchical relationship with other types (it being the root)
+
+Source:
+    ExtDef*:
+
+ExtDef:
+    ConstDef
+    FuncDef
 
 Stmt:
     Decl ;

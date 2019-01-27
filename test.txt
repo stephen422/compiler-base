@@ -5,9 +5,7 @@ let a;
 var b = 3 + 4;
 
 fn main() -> int {
-    // This is a line comment.
     let a = 5;
     var b = 3 / 4;
-    var s = "literal \"with inside string\"";
-    return 0;
+    var s = "literal string";
 }

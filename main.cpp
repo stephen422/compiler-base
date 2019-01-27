@@ -6,21 +6,14 @@
 
 using namespace comp;
 
-extern void use_read(std::ifstream& in);
-
-void test_lexer(const char *path) {
-    Source src{Path{path}};
-    Lexer lexer{src};
+void test_lexer(Lexer &lexer) {
     Token token;
 
     while ((token = lexer.lex()).type != TokenType::eos) {
-        auto token = lexer.lex();
-        //std::cout << static_cast<char>(token.type) << std::endl;
         if (token.type == TokenType::none) {
             std::cerr << "lex error: [" << token.text << "]: Unrecognized token type\n";
             break;
         }
-
         std::cout << token << std::endl;
     }
 }
@@ -31,10 +24,12 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // test_lexer(argv[1]);
-
     Source src{Path{argv[1]}};
     Lexer lexer{src};
+
+#if 0
+    test_lexer(lexer);
+#else
     Parser p{lexer};
     AstNodePtr ast;
     while ((ast = p.parse())) {
@@ -43,5 +38,6 @@ int main(int argc, char **argv) {
         //     std::cout << "flatten: " << static_cast<Expr *>(ast.get())->flatten() << std::endl;
         // }
     }
+#endif
     return 0;
 }

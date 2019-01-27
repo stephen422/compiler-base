@@ -96,8 +96,7 @@ DeclPtr Parser::parse_func_decl() {
     }
     expect(TokenType::rbrace);
 
-    error("implementing return type!");
-    return std::make_unique<FuncDecl>(name);
+    return func;
 }
 
 DeclPtr Parser::parse_decl() {
@@ -108,7 +107,6 @@ DeclPtr Parser::parse_decl() {
     case TokenType::kw_fn:
         return parse_func_decl();
     default:
-        error("unknown declaration type");
         return nullptr;
     }
 }
@@ -124,6 +122,7 @@ ExprPtr Parser::parse_unary_expr() {
     switch (tok.type) {
     case TokenType::number:
     case TokenType::ident:
+    case TokenType::string:
         return parse_literal_expr();
     case TokenType::lparen: {
         expect(TokenType::lparen);
@@ -132,7 +131,7 @@ ExprPtr Parser::parse_unary_expr() {
         return expr;
     }
     default:
-        error("expected a unary expression");
+        // error("expected a unary expression");
         return nullptr;
     }
 }
@@ -211,8 +210,9 @@ AstNodePtr Parser::parse() {
             return nullptr;
         case TokenType::kw_let:
         case TokenType::kw_var:
-        case TokenType::kw_fn:
             return parse_stmt();
+        case TokenType::kw_fn:
+            return parse_func_decl();
         case TokenType::comment:
         case TokenType::semicolon:
             next();

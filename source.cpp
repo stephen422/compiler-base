@@ -4,12 +4,6 @@
 #include <sstream>
 #include <vector>
 
-void use_stringstream(std::ifstream& in)
-{
-    std::stringstream sstr;
-    sstr << in.rdbuf();
-}
-
 Source::Source(const Path &p) : filename(p.path)
 {
     std::ifstream in{filename, std::ios::binary};
@@ -31,6 +25,8 @@ void Source::init(std::istream &in) {
         line_off.push_back(buf.size());
         buf.insert(buf.cend(), line.cbegin(), line.cend());
     }
+    // Zero-terminate 'buf'.  This eases EOS handling in the lexer.
+    buf.push_back('\0');
 }
 
 std::pair<int, int> Source::locate(size_t pos) const {
