@@ -1,5 +1,5 @@
 CXX ?= clang++
-CXXFLAGS += -g -fsanitize=address -std=c++17 -pedantic -Wall -Wextra
+CXXFLAGS += -g -fsanitize=address -std=c++14 -Wall -Wextra
 PROG := cmp
 OBJ := parser.o lexer.o ast.o source.o
 

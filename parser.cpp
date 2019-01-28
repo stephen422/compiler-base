@@ -72,11 +72,11 @@ DeclPtr Parser::parse_var_decl() {
     return std::make_unique<VarDecl>(id, rhs, mut);
 }
 
-DeclPtr Parser::parse_func_decl() {
+FunctionPtr Parser::parse_function() {
     expect(TokenType::kw_fn);
 
     Token name = tok;
-    auto func = std::make_unique<FuncDecl>(name);
+    auto func = std::make_unique<Function>(name);
     next();
 
     // Argument list (foo(...))
@@ -104,8 +104,6 @@ DeclPtr Parser::parse_decl() {
     case TokenType::kw_let:
     case TokenType::kw_var:
         return parse_var_decl();
-    case TokenType::kw_fn:
-        return parse_func_decl();
     default:
         return nullptr;
     }
@@ -131,6 +129,8 @@ ExprPtr Parser::parse_unary_expr() {
         return expr;
     }
     default:
+        // TODO: maybe save error along with the result and disregard when the
+        // caller doesn't need it?
         // error("expected a unary expression");
         return nullptr;
     }
@@ -212,7 +212,7 @@ AstNodePtr Parser::parse() {
         case TokenType::kw_var:
             return parse_stmt();
         case TokenType::kw_fn:
-            return parse_func_decl();
+            return parse_function();
         case TokenType::comment:
         case TokenType::semicolon:
             next();

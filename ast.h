@@ -8,23 +8,29 @@
 
 namespace comp {
 
+enum class AstNodeType {
+    none, // FIXME necessary?
+    stmt,
+    decl,
+    expr,
+    function,
+};
+
 class AstNode;
 class Stmt;
 class Expr;
 class Decl;
-enum class AstNodeType {
-    stmt,
-    decl,
-    expr,
-};
+class Function;
+// Owning pointers to each AST node.
+using AstNodePtr = std::unique_ptr<AstNode>;
+using StmtPtr = std::unique_ptr<Stmt>;
+using ExprPtr = std::unique_ptr<Expr>;
+using DeclPtr = std::unique_ptr<Decl>;
+using FunctionPtr = std::unique_ptr<Function>;
 
 class AstNode {
 public:
-    // Owning pointer to an AST node.
-    using OwnPtr = std::unique_ptr<AstNode>;
-
-    // TODO stmt by default
-    AstNode(): AstNode(AstNodeType::stmt) {}
+    AstNode(): AstNode(AstNodeType::none) {}
     AstNode(AstNodeType type): type(type) {}
     virtual ~AstNode() = default;
 
@@ -57,11 +63,6 @@ public:
         ~PrintScope() { depth -= 2; }
     };
 };
-
-using AstNodePtr = AstNode::OwnPtr;
-using StmtPtr = std::unique_ptr<Stmt>;
-using ExprPtr = std::unique_ptr<Expr>;
-using DeclPtr = std::unique_ptr<Decl>;
 
 // =============
 //   Statement
@@ -164,10 +165,11 @@ public:
     bool mut;
 };
 
-// Function declaration.
-class FuncDecl : public Decl {
+// Function definition.  There is no separate 'function declaration': functions
+// should always be defined whenever they are declared.
+class Function : public AstNode {
 public:
-    FuncDecl(const Token &id) : Decl(DeclType::func), id(id) {}
+    Function(const Token &id) : AstNode(AstNodeType::function), id(id) {}
     void print() const override;
     void add_stmt(StmtPtr &stmt) {
         stmt_list.push_back(std::move(stmt));

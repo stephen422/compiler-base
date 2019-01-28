@@ -25,8 +25,8 @@ void VarDecl::print() const {
     }
 }
 
-void FuncDecl::print() const {
-    out() << "[FuncDecl]\n";
+void Function::print() const {
+    out() << "[Function]\n";
     PrintScope start;
 
     out() << "[Id] " << id.text << "\n";

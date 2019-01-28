@@ -66,11 +66,10 @@ Token Lexer::lex_number() {
 }
 
 Token Lexer::lex_string() {
-    // look = curr + 1; // skip "
     step(); // skip opening "
-    while (look < eos()) { // FIXME: too many of these checks
+    while (look < eos()) {
         skip_while([](char c) { return !(c == '\\' || c == '"'); });
-        if (*look == '"') { // FIXME eos?
+        if (*look == '"') {
             step(); // skip closing "
             break;
         } else {

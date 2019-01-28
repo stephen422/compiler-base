@@ -1,10 +1,9 @@
 TODO
 ====
 
-* Fix comment lexing
-* Statement parsing
-* Unit tests
-* Token type descriptions
+* Symbol table
+* Complete statement parsing
+* Tests
 
 FIXME
 =====
@@ -14,12 +13,12 @@ FIXME
     while all others as inheritance nodes.  Besides, AstNode do have a
     hierarchical relationship with other types (it being the root)
 
-Source:
-    ExtDef*:
+File: // "Module"?
+    Toplevel*:
 
-ExtDef:
-    ConstDef
-    FuncDef
+Toplevel:
+    Function
+    Impl
 
 Stmt:
     Decl ;
@@ -29,7 +28,7 @@ Stmt:
 
 Decl:
     VarDecl
-    FuncDecl
+    Function
 
 VarDecl:
     let ID
