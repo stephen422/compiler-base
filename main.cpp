@@ -31,13 +31,8 @@ int main(int argc, char **argv) {
     test_lexer(lexer);
 #else
     Parser p{lexer};
-    AstNodePtr ast;
-    while ((ast = p.parse())) {
-        ast->print();
-        // if (ast->type == AstNodeType::expr) {
-        //     std::cout << "flatten: " << static_cast<Expr *>(ast.get())->flatten() << std::endl;
-        // }
-    }
+    auto ast = p.parse();
+    ast->print();
 #endif
     return 0;
 }

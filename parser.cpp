@@ -203,25 +203,32 @@ void Parser::error(const std::string &msg) {
     exit(1);
 }
 
-AstNodePtr Parser::parse() {
-    while (true) {
-        switch (tok.type) {
-        case TokenType::eos:
-            return nullptr;
-        case TokenType::kw_let:
-        case TokenType::kw_var:
-            return parse_stmt();
-        case TokenType::kw_fn:
-            return parse_function();
-        case TokenType::comment:
-        case TokenType::semicolon:
-            next();
-            continue;
-        default:
-            return parse_expr();
-        }
+ToplevelPtr Parser::parse_toplevel() {
+    switch (tok.type) {
+    case TokenType::eos:
+        return nullptr;
+    case TokenType::kw_fn:
+        return parse_function();
+    case TokenType::comment:
+    case TokenType::semicolon:
+        next();
+        return parse_toplevel();
+    default:
+        error("unrecognized toplevel");
     }
     return nullptr;
+}
+
+FilePtr Parser::parse_file() {
+    auto file = std::make_unique<File>();
+    while (auto toplevel = parse_toplevel()) {
+        file->toplevels.push_back(std::move(toplevel));
+    }
+    return file;
+}
+
+AstNodePtr Parser::parse() {
+    return parse_file();
 }
 
 } // namespace comp

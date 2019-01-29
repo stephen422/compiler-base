@@ -10,6 +10,8 @@ namespace comp {
 
 enum class AstNodeType {
     none, // FIXME necessary?
+    file,
+    toplevel,
     stmt,
     decl,
     expr,
@@ -17,12 +19,17 @@ enum class AstNodeType {
 };
 
 class AstNode;
+class File;
+class Toplevel;
 class Stmt;
 class Expr;
 class Decl;
 class Function;
+
 // Owning pointers to each AST node.
 using AstNodePtr = std::unique_ptr<AstNode>;
+using FilePtr = std::unique_ptr<File>;
+using ToplevelPtr = std::unique_ptr<Toplevel>;
 using StmtPtr = std::unique_ptr<Stmt>;
 using ExprPtr = std::unique_ptr<Expr>;
 using DeclPtr = std::unique_ptr<Decl>;
@@ -64,6 +71,35 @@ public:
     };
 };
 
+// ========
+//   File
+// ========
+
+// File is simply a group of Toplevels.
+class File : public AstNode {
+public:
+    File() : AstNode(AstNodeType::file) {}
+    void print() const override;
+
+    std::vector<ToplevelPtr> toplevels;
+};
+
+// ============
+//   Toplevel
+// ============
+
+enum class ToplevelType {
+    function,
+};
+
+class Toplevel : public AstNode {
+public:
+    Toplevel(ToplevelType type) : AstNode(AstNodeType::toplevel), type(type) {}
+
+    ToplevelType type;
+};
+
+
 // =============
 //   Statement
 // =============
@@ -91,6 +127,7 @@ public:
 class ExprStmt : public Stmt {
 public:
     ExprStmt(ExprPtr &expr) : Stmt(StmtType::expr), expr(std::move(expr)) {}
+    void print() const override;
 
     ExprPtr expr;
 };
@@ -167,9 +204,9 @@ public:
 
 // Function definition.  There is no separate 'function declaration': functions
 // should always be defined whenever they are declared.
-class Function : public AstNode {
+class Function : public Toplevel {
 public:
-    Function(const Token &id) : AstNode(AstNodeType::function), id(id) {}
+    Function(const Token &id) : Toplevel(ToplevelType::function), id(id) {}
     void print() const override;
     void add_stmt(StmtPtr &stmt) {
         stmt_list.push_back(std::move(stmt));

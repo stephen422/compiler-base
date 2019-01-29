@@ -18,7 +18,7 @@ std::string tokentype_to_string(TokenType type) {
 }
 
 std::ostream &operator<<(std::ostream &os, const Token &token) {
-    os << "[" << token.text << "]";
+    os << token.text;
     return os;
 }
 

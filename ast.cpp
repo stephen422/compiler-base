@@ -5,19 +5,29 @@ namespace comp {
 
 int AstNode::depth = 0;
 
+void File::print() const {
+    out() << "[File]\n";
+    PrintScope start;
+    for (const auto &t: toplevels) {
+        t->print();
+    }
+}
+
 void DeclStmt::print() const {
     out() << "[DeclStmt]\n";
     PrintScope start;
-
     decl->print();
 }
 
-void VarDecl::print() const {
-    out() << "[VarDecl]\n";
+void ExprStmt::print() const {
+    out() << "[ExprStmt]\n";
     PrintScope start;
+    expr->print();
+}
 
-    out() << "[Id] " << id.text << "\n";
-    out() << "[Mutable:" << (mut ? "Y" : "N") << "]\n";
+void VarDecl::print() const {
+    out() << "[VarDecl] " << id << " " << (mut ? "mut" : "") <<"\n";
+
     if (assign_expr != nullptr) {
         out() << "[AssignExpr]\n";
         PrintScope start;
@@ -26,10 +36,9 @@ void VarDecl::print() const {
 }
 
 void Function::print() const {
-    out() << "[Function]\n";
+    out() << "[Function] " << id << "\n";
     PrintScope start;
 
-    out() << "[Id] " << id.text << "\n";
     out() << "[stmt_list]\n";;
     PrintScope s2;
     for (const auto &s: stmt_list) {

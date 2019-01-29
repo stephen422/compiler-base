@@ -14,6 +14,12 @@ public:
     AstNodePtr parse();
 
 private:
+    // Parse a whole file.
+    FilePtr parse_file();
+
+    // Parse a toplevel statement.
+    ToplevelPtr parse_toplevel();
+
     // Parse a statement.
     StmtPtr parse_stmt();
 
