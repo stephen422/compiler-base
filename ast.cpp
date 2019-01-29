@@ -31,6 +31,14 @@ void ReturnStmt::print() const {
     expr->print();
 }
 
+void CompoundStmt::print() const {
+    out() << "[CompoudStmt]\n";
+    PrintScope start;
+    for (auto const& s : stmts) {
+        s->print();
+    }
+}
+
 void VarDecl::print() const {
     out() << "[VarDecl] " << id << " " << (mut ? "(mut)" : "") <<"\n";
 
@@ -42,14 +50,10 @@ void VarDecl::print() const {
 }
 
 void Function::print() const {
-    out() << "[Function] " << id << "\n";
+    out() << "[Function] " << id << " " << return_type << "\n";
     PrintScope start;
 
-    out() << "[stmt_list]\n";;
-    PrintScope s2;
-    for (const auto &s: stmt_list) {
-        s->print();
-    }
+    body->print();
 }
 
 void BinaryExpr::print() const {

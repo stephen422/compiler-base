@@ -58,10 +58,18 @@ StmtPtr Parser::parse_stmt() {
     return stmt;
 }
 
-StmtPtr Parser::parse_return_stmt() {
+NodePtr<ReturnStmt> Parser::parse_return_stmt() {
     expect(TokenType::kw_return);
     auto expr = parse_expr();
     return std::make_unique<ReturnStmt>(expr);
+}
+
+NodePtr<CompoundStmt> Parser::parse_compound_stmt() {
+    auto compound = std::make_unique<CompoundStmt>();
+    while (auto stmt = parse_stmt()) {
+        compound->stmts.push_back(std::move(stmt));
+    }
+    return compound;
 }
 
 DeclPtr Parser::parse_var_decl() {
@@ -87,21 +95,18 @@ FunctionPtr Parser::parse_function() {
     auto func = std::make_unique<Function>(name);
     next();
 
-    // Argument list (foo(...))
+    // TODO: Argument list (foo(...))
     expect(TokenType::lparen);
     expect(TokenType::rparen);
 
     // Return type (-> ...)
     expect(TokenType::arrow);
-    // TODO return type
+    func->return_type = tok;
     next();
 
     expect(TokenType::lbrace);
     // List of statements
-    StmtPtr stmt;
-    while ((stmt = parse_stmt())) {
-        func->add_stmt(stmt);
-    }
+    func->body = parse_compound_stmt();
     expect(TokenType::rbrace);
 
     return func;

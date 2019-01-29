@@ -35,6 +35,9 @@ using ExprPtr = std::unique_ptr<Expr>;
 using DeclPtr = std::unique_ptr<Decl>;
 using FunctionPtr = std::unique_ptr<Function>;
 
+template <typename T>
+using NodePtr = std::unique_ptr<T>;
+
 class AstNode {
 public:
     AstNode(): AstNode(AstNodeType::none) {}
@@ -108,6 +111,7 @@ enum class StmtType {
     decl,
     expr,
     return_,
+    compound
 };
 
 class Stmt : public AstNode {
@@ -139,6 +143,14 @@ public:
     void print() const override;
 
     ExprPtr expr;
+};
+
+class CompoundStmt : public Stmt {
+public:
+    CompoundStmt() : Stmt(StmtType::compound) {}
+    void print() const override;
+
+    std::vector<StmtPtr> stmts;
 };
 
 // ===============
@@ -217,11 +229,11 @@ class Function : public Toplevel {
 public:
     Function(const Token &id) : Toplevel(ToplevelType::function), id(id) {}
     void print() const override;
-    void add_stmt(StmtPtr &stmt) {
-        stmt_list.push_back(std::move(stmt));
-    }
+
     Token id;
-    std::vector<StmtPtr> stmt_list;
+    // Compound statement body
+    NodePtr<CompoundStmt> body;
+    Token return_type;
 };
 
 } // namespace comp

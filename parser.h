@@ -24,7 +24,9 @@ private:
     StmtPtr parse_stmt();
 
     // Parse a return statement.
-    StmtPtr parse_return_stmt();
+    NodePtr<ReturnStmt> parse_return_stmt();
+
+    NodePtr<CompoundStmt> parse_compound_stmt();
 
     // Parse a declaration.
     DeclPtr parse_decl();
