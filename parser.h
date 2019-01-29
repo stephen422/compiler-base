@@ -23,16 +23,14 @@ private:
     // Parse a statement.
     StmtPtr parse_stmt();
 
-    // Parse a return statement.
     NodePtr<ReturnStmt> parse_return_stmt();
-
     NodePtr<CompoundStmt> parse_compound_stmt();
 
     // Parse a declaration.
     DeclPtr parse_decl();
 
     // Parse a variable declaration.
-    DeclPtr parse_var_decl();
+    NodePtr<VarDecl> parse_var_decl();
 
     // Parse a function declaration.
     FunctionPtr parse_function();
@@ -41,6 +39,8 @@ private:
     ExprPtr parse_expr();
 
     // Parse a unary expression.
+    // TODO: There's no UnaryExpr, so we can't change this to
+    // NodePtr<UnaryExpr>. Better make one?
     ExprPtr parse_unary_expr();
 
     // Extend a unary expression into binary if possible, by parsing any

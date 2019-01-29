@@ -61,9 +61,19 @@ StmtPtr Parser::parse_stmt() {
 NodePtr<ReturnStmt> Parser::parse_return_stmt() {
     expect(TokenType::kw_return);
     auto expr = parse_expr();
+    // TODO: There are cases where the result pointer of the parse is allowed
+    // to be nullptr or not -- here it is not.  It would be good to have a way
+    // to express this clearly in code, but without the bulky if (result !=
+    // nullptr) blocks.  Maybe ParserResult.unwrap() or similar.
     return std::make_unique<ReturnStmt>(expr);
 }
 
+// Compound statement is a scoped block that consists of multiple statements.
+// There is no restriction in order such as variable declarations should come
+// first, etc.
+//
+// CompoundStmt:
+//     { Stmt* }
 NodePtr<CompoundStmt> Parser::parse_compound_stmt() {
     auto compound = std::make_unique<CompoundStmt>();
     while (auto stmt = parse_stmt()) {
@@ -72,7 +82,7 @@ NodePtr<CompoundStmt> Parser::parse_compound_stmt() {
     return compound;
 }
 
-DeclPtr Parser::parse_var_decl() {
+NodePtr<VarDecl> Parser::parse_var_decl() {
     bool mut = tok.type == TokenType::kw_var;
     next();
 
