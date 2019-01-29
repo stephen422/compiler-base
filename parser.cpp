@@ -45,11 +45,11 @@ StmtPtr Parser::parse_stmt() {
     } else if (auto decl = parse_decl()) {
         // Decl ;
         expect_semi();
-        stmt = std::make_unique<DeclStmt>(decl);
+        stmt = make_node<DeclStmt>(decl);
     } else if (auto expr = parse_expr()) {
         // Expr ;
         expect_semi();
-        stmt = std::make_unique<ExprStmt>(expr);
+        stmt = make_node<ExprStmt>(expr);
     } else if (tok.type == TokenType::kw_return) {
         stmt = parse_return_stmt();
     } else {
@@ -65,7 +65,7 @@ NodePtr<ReturnStmt> Parser::parse_return_stmt() {
     // to be nullptr or not -- here it is not.  It would be good to have a way
     // to express this clearly in code, but without the bulky if (result !=
     // nullptr) blocks.  Maybe ParserResult.unwrap() or similar.
-    return std::make_unique<ReturnStmt>(expr);
+    return make_node<ReturnStmt>(expr);
 }
 
 // Compound statement is a scoped block that consists of multiple statements.
@@ -75,7 +75,7 @@ NodePtr<ReturnStmt> Parser::parse_return_stmt() {
 // CompoundStmt:
 //     { Stmt* }
 NodePtr<CompoundStmt> Parser::parse_compound_stmt() {
-    auto compound = std::make_unique<CompoundStmt>();
+    auto compound = make_node<CompoundStmt>();
     while (auto stmt = parse_stmt()) {
         compound->stmts.push_back(std::move(stmt));
     }
@@ -95,14 +95,14 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
         // RHS of an assignment should be an expression.
         rhs = parse_expr();
     }
-    return std::make_unique<VarDecl>(id, rhs, mut);
+    return make_node<VarDecl>(id, rhs, mut);
 }
 
 FunctionPtr Parser::parse_function() {
     expect(TokenType::kw_fn);
 
     Token name = tok;
-    auto func = std::make_unique<Function>(name);
+    auto func = make_node<Function>(name);
     next();
 
     // TODO: Argument list (foo(...))
@@ -133,7 +133,7 @@ DeclPtr Parser::parse_decl() {
 }
 
 ExprPtr Parser::parse_literal_expr() {
-    auto expr = std::make_unique<LiteralExpr>(tok);
+    auto expr = make_node<LiteralExpr>(tok);
     // TODO takes arbitrary token
     next();
     return expr;
@@ -207,7 +207,7 @@ ExprPtr Parser::parse_binary_expr_rhs(ExprPtr &lhs, int precedence) {
 
         // Create a new root with the old root as its LHS, and the recursion
         // result as RHS.  This implements left associativity.
-        root = std::make_unique<BinaryExpr>(root, op, rhs);
+        root = make_node<BinaryExpr>(root, op, rhs);
     }
 
     return root;
@@ -243,7 +243,7 @@ ToplevelPtr Parser::parse_toplevel() {
 }
 
 FilePtr Parser::parse_file() {
-    auto file = std::make_unique<File>();
+    auto file = make_node<File>();
     while (auto toplevel = parse_toplevel()) {
         file->toplevels.push_back(std::move(toplevel));
     }

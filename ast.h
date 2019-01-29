@@ -38,6 +38,11 @@ using FunctionPtr = std::unique_ptr<Function>;
 template <typename T>
 using NodePtr = std::unique_ptr<T>;
 
+template<typename T, typename... Args>
+NodePtr<T> make_node(Args&&... args) {
+    return std::make_unique<T>(std::forward<Args>(args)...);
+}
+
 class AstNode {
 public:
     AstNode(): AstNode(AstNodeType::none) {}
