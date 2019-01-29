@@ -50,10 +50,18 @@ StmtPtr Parser::parse_stmt() {
         // Expr ;
         expect_semi();
         stmt = std::make_unique<ExprStmt>(expr);
+    } else if (tok.type == TokenType::kw_return) {
+        stmt = parse_return_stmt();
     } else {
         stmt = nullptr;
     }
     return stmt;
+}
+
+StmtPtr Parser::parse_return_stmt() {
+    expect(TokenType::kw_return);
+    auto expr = parse_expr();
+    return std::make_unique<ReturnStmt>(expr);
 }
 
 DeclPtr Parser::parse_var_decl() {

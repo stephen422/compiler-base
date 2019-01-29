@@ -25,8 +25,14 @@ void ExprStmt::print() const {
     expr->print();
 }
 
+void ReturnStmt::print() const {
+    out() << "[ReturnStmt]\n";
+    PrintScope start;
+    expr->print();
+}
+
 void VarDecl::print() const {
-    out() << "[VarDecl] " << id << " " << (mut ? "mut" : "") <<"\n";
+    out() << "[VarDecl] " << id << " " << (mut ? "(mut)" : "") <<"\n";
 
     if (assign_expr != nullptr) {
         out() << "[AssignExpr]\n";

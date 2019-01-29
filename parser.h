@@ -23,6 +23,9 @@ private:
     // Parse a statement.
     StmtPtr parse_stmt();
 
+    // Parse a return statement.
+    StmtPtr parse_return_stmt();
+
     // Parse a declaration.
     DeclPtr parse_decl();
 

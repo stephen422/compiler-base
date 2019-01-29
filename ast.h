@@ -107,6 +107,7 @@ public:
 enum class StmtType {
     decl,
     expr,
+    return_,
 };
 
 class Stmt : public AstNode {
@@ -127,6 +128,14 @@ public:
 class ExprStmt : public Stmt {
 public:
     ExprStmt(ExprPtr &expr) : Stmt(StmtType::expr), expr(std::move(expr)) {}
+    void print() const override;
+
+    ExprPtr expr;
+};
+
+class ReturnStmt : public Stmt {
+public:
+    ReturnStmt(ExprPtr &expr) : Stmt(StmtType::return_), expr(std::move(expr)) {}
     void print() const override;
 
     ExprPtr expr;
