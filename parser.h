@@ -88,8 +88,7 @@ private:
     // Get the precedence of an operator.
     int get_precedence(const Token &op) const;
 
-    void expect(TokenType type);
-    void expect_semi();
+    void expect(TokenType type, const std::string &msg);
     void error(const std::string &msg);
 
     // Figure out the current location (line, col) in the source.

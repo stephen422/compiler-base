@@ -26,18 +26,18 @@ void Parser::next() {
     tok = lexer.lex();
 }
 
-void Parser::expect(TokenType type) {
+void Parser::expect(TokenType type, const std::string &msg = "") {
     if (tok.type != type) {
         std::stringstream ss;
-        ss << "expected " << tokentype_to_string(type)
-           << ", got " << tokentype_to_string(tok.type);
+        if (msg.empty()) {
+            ss << "expected '" << tokentype_to_string(type) << "', got '"
+               << tokentype_to_string(tok.type) << "'";
+        } else {
+	    ss << msg;
+	}
         error(ss.str());
     }
     next();
-}
-
-void Parser::expect_semi() {
-    expect(TokenType::semicolon);
 }
 
 // Parse a statement.
@@ -62,11 +62,11 @@ StmtPtr Parser::parse_stmt() {
         stmt = parse_stmt();
     } else if (auto decl = parse_decl()) {
         // Decl ;
-        expect_semi();
+        expect(TokenType::semicolon, "expected ';' at end of declaration");
         stmt = make_node<DeclStmt>(std::move(decl));
     } else if (auto res = parse_expr(); res.success()) {
         // Expr ;
-        expect_semi();
+        expect(TokenType::semicolon, "expected ';' after expression");
         stmt = make_node<ExprStmt>(res.unwrap());
     } else if (tok.type == TokenType::kw_return) {
         stmt = parse_return_stmt();
