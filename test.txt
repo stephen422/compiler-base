@@ -6,7 +6,7 @@ fn main() -> int {
     var b = 3 + 4;
     var s = "literal string";
 
-    return let a = 4;
+    return a = 4;
 }
 
 // impl Car {

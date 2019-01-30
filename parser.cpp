@@ -47,8 +47,8 @@ void Parser::expect(TokenType type, const std::string &msg = "") {
 //     Expr ;
 //     ID () ; // TODO: CallExpr
 //     ;
-StmtPtr Parser::parse_stmt() {
-    StmtPtr stmt;
+ParseResult<Stmt> Parser::parse_stmt() {
+    ParseResult<Stmt> result;
 
     // Try possible productions one by one, and use what succeeds first.
     // ("recursive descent with backtracking":
@@ -59,21 +59,22 @@ StmtPtr Parser::parse_stmt() {
     } else if (tok.type == TokenType::comment) {
         // FIXME: is it best to filter out comments in parse_stmt()?
         next();
-        stmt = parse_stmt();
+        result = parse_stmt();
     } else if (auto decl = parse_decl()) {
         // Decl ;
         expect(TokenType::semicolon, "expected ';' at end of declaration");
-        stmt = make_node<DeclStmt>(std::move(decl));
+        result = make_node<DeclStmt>(std::move(decl));
     } else if (auto res = parse_expr(); res.success()) {
         // Expr ;
         expect(TokenType::semicolon, "expected ';' after expression");
-        stmt = make_node<ExprStmt>(res.unwrap());
+        result = make_node<ExprStmt>(res.unwrap());
     } else if (tok.type == TokenType::kw_return) {
-        stmt = parse_return_stmt();
+        result = parse_return_stmt();
+        expect(TokenType::semicolon, "expected ';' after return statement");
     } else {
-        stmt = nullptr;
+        result = ParseError(locate(), "expected a statement");
     }
-    return stmt;
+    return result;
 }
 
 NodePtr<ReturnStmt> Parser::parse_return_stmt() {
@@ -93,10 +94,18 @@ NodePtr<ReturnStmt> Parser::parse_return_stmt() {
 // CompoundStmt:
 //     { Stmt* }
 NodePtr<CompoundStmt> Parser::parse_compound_stmt() {
+    expect(TokenType::lbrace);
     auto compound = make_node<CompoundStmt>();
-    while (auto stmt = parse_stmt()) {
-        compound->stmts.push_back(std::move(stmt));
+    ParseResult<Stmt> stmt_res;
+    while ((stmt_res = parse_stmt()).success()) {
+        compound->stmts.push_back(stmt_res.unwrap());
     }
+    // did parse_stmt() fail at the end properly?
+    if (tok.type != TokenType::rbrace) {
+        // report the last statement failure
+        stmt_res.unwrap();
+    }
+    expect(TokenType::rbrace);
     return compound;
 }
 
@@ -132,10 +141,8 @@ FunctionPtr Parser::parse_function() {
     func->return_type = tok;
     next();
 
-    expect(TokenType::lbrace);
-    // List of statements
+    // Function body
     func->body = parse_compound_stmt();
-    expect(TokenType::rbrace);
 
     return func;
 }
@@ -162,9 +169,7 @@ ParseResult<Expr> Parser::parse_unary_expr() {
     case TokenType::number:
     case TokenType::ident:
     case TokenType::string: {
-        auto expr = parse_literal_expr();
-        return ParseResult<Expr>{expr};
-        // return parse_literal_expr();
+        return parse_literal_expr();
     }
     case TokenType::lparen: {
         expect(TokenType::lparen);
@@ -260,7 +265,7 @@ ToplevelPtr Parser::parse_toplevel() {
         next();
         return parse_toplevel();
     default:
-        error("unrecognized toplevel");
+        error("unrecognized toplevel statement");
     }
     return nullptr;
 }

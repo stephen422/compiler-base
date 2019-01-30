@@ -21,9 +21,10 @@ public:
 template <typename T>
 class ParseResult {
 public:
+    ParseResult() {}
     // Successful result
-    ParseResult(NodePtr<T> &&res): result(std::move(res)), errors() {}
-    ParseResult(NodePtr<T> &res): result(std::move(res)), errors() {}
+    template <typename U>
+    ParseResult(NodePtr<U> res): result(std::move(res)), errors() {}
     // Erroneous result
     ParseResult(const ParseError &error): errors({error}) {}
     // Returns 'res', provided there were no errors; if there were, report them
@@ -49,7 +50,7 @@ private:
     ToplevelPtr parse_toplevel();
 
     // Parse a statement.
-    StmtPtr parse_stmt();
+    ParseResult<Stmt> parse_stmt();
 
     NodePtr<ReturnStmt> parse_return_stmt();
     NodePtr<CompoundStmt> parse_compound_stmt();
