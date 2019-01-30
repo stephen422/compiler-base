@@ -128,7 +128,7 @@ public:
 
 class DeclStmt : public Stmt {
 public:
-    DeclStmt(DeclPtr &decl) : Stmt(StmtType::decl), decl(std::move(decl)) {}
+    DeclStmt(DeclPtr decl) : Stmt(StmtType::decl), decl(std::move(decl)) {}
     void print() const override;
 
     DeclPtr decl;
@@ -136,7 +136,7 @@ public:
 
 class ExprStmt : public Stmt {
 public:
-    ExprStmt(ExprPtr &&expr) : Stmt(StmtType::expr), expr(std::move(expr)) {}
+    ExprStmt(ExprPtr expr) : Stmt(StmtType::expr), expr(std::move(expr)) {}
     void print() const override;
 
     ExprPtr expr;
@@ -144,7 +144,7 @@ public:
 
 class ReturnStmt : public Stmt {
 public:
-    ReturnStmt(ExprPtr &expr) : Stmt(StmtType::return_), expr(std::move(expr)) {}
+    ReturnStmt(ExprPtr expr) : Stmt(StmtType::return_), expr(std::move(expr)) {}
     void print() const override;
 
     ExprPtr expr;
@@ -187,7 +187,7 @@ public:
 
 class BinaryExpr : public Expr {
 public:
-    BinaryExpr(ExprPtr &lhs, Token op, ExprPtr &rhs)
+    BinaryExpr(ExprPtr lhs, Token op, ExprPtr rhs)
         : Expr(ExprType::binary), lhs(std::move(lhs)), op(op),
           rhs(std::move(rhs)) {}
     void print() const override;
@@ -218,7 +218,7 @@ public:
 // Variable declaration.
 class VarDecl : public Decl {
 public:
-    VarDecl(const Token &id, ExprPtr &expr, bool mut)
+    VarDecl(const Token &id, ExprPtr expr, bool mut)
         : Decl(DeclType::var), id(id), assign_expr(std::move(expr)), mut(mut) {}
     void print() const override;
 

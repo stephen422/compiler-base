@@ -63,7 +63,7 @@ StmtPtr Parser::parse_stmt() {
     } else if (auto decl = parse_decl()) {
         // Decl ;
         expect_semi();
-        stmt = make_node<DeclStmt>(decl);
+        stmt = make_node<DeclStmt>(std::move(decl));
     } else if (auto res = parse_expr(); res.success()) {
         // Expr ;
         expect_semi();
@@ -78,12 +78,12 @@ StmtPtr Parser::parse_stmt() {
 
 NodePtr<ReturnStmt> Parser::parse_return_stmt() {
     expect(TokenType::kw_return);
-    auto expr = parse_expr().unwrap();
+    ExprPtr expr = parse_expr().unwrap();
     // TODO: There are cases where the result pointer of the parse is allowed
     // to be nullptr or not -- here it is not.  It would be good to have a way
     // to express this clearly in code, but without the bulky if (result !=
     // nullptr) blocks.  Maybe ParserResult.unwrap() or similar.
-    return make_node<ReturnStmt>(expr);
+    return make_node<ReturnStmt>(std::move(expr));
 }
 
 // Compound statement is a scoped block that consists of multiple statements.
@@ -113,7 +113,7 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
         // RHS of an assignment should be an expression.
         rhs = parse_expr().unwrap();
     }
-    return make_node<VarDecl>(id, rhs, mut);
+    return make_node<VarDecl>(id, std::move(rhs), mut);
 }
 
 FunctionPtr Parser::parse_function() {
@@ -194,7 +194,6 @@ int Parser::get_precedence(const Token &op) const {
     }
 }
 
-// @cleanup: Ownership of 'lhs' is not clear.
 ExprPtr Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
     ExprPtr root = std::move(lhs);
 
@@ -228,7 +227,7 @@ ExprPtr Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
 
         // Create a new root with the old root as its LHS, and the recursion
         // result as RHS.  This implements left associativity.
-        root = make_node<BinaryExpr>(root, op, rhs);
+        root = make_node<BinaryExpr>(std::move(root), op, std::move(rhs));
     }
 
     return root;
