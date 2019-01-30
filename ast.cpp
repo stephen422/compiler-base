@@ -1,7 +1,7 @@
 #include "ast.h"
 #include <sstream>
 
-namespace comp {
+namespace cmp {
 
 int AstNode::depth = 0;
 
@@ -77,4 +77,4 @@ std::string LiteralExpr::flatten() const {
     return lit.text;
 }
 
-} // namespace comp
+} // namespace cmp

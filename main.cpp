@@ -4,7 +4,7 @@
 #include <fstream>
 #include <iostream>
 
-using namespace comp;
+using namespace cmp;
 
 void test_lexer(Lexer &lexer) {
     Token token;

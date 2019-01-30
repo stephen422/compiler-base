@@ -9,7 +9,7 @@
 #include <string>
 #include <string_view>
 
-namespace comp {
+namespace cmp {
 
 enum class TokenType {
     eos,
@@ -167,6 +167,6 @@ private:
     void error(const std::string &msg);
 };
 
-} // namespace comp
+} // namespace cmp
 
 #endif

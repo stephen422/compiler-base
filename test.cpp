@@ -2,7 +2,7 @@
 #include "parser.h"
 #include "catch.hpp"
 
-using namespace comp;
+using namespace cmp;
 
 template <typename T>
 constexpr T *as(const AstNodePtr &p) {

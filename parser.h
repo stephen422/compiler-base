@@ -5,7 +5,35 @@
 #include "lexer.h"
 #include "ast.h"
 
-namespace comp {
+namespace cmp {
+
+class ParseError {
+public:
+    ParseError(SourceLoc loc, const std::string &msg): location(loc), message(msg) {}
+    // Report this error to stderr.
+    void report() const;
+
+    SourceLoc location;
+    std::string message;
+};
+
+// TODO
+template <typename T>
+class ParseResult {
+public:
+    // Successful result
+    ParseResult(NodePtr<T> &&res): result(std::move(res)), errors() {}
+    ParseResult(NodePtr<T> &res): result(std::move(res)), errors() {}
+    // Erroneous result
+    ParseResult(const ParseError &error): errors({error}) {}
+    // Returns 'res', provided there were no errors; if there were, report them
+    // and cause the compiler to exit.
+    NodePtr<T> unwrap();
+    bool success() { return errors.empty(); }
+
+    NodePtr<T> result;
+    std::vector<ParseError> errors;
+};
 
 class Parser {
 public:
@@ -36,12 +64,12 @@ private:
     FunctionPtr parse_function();
 
     // Parse an expression.
-    ExprPtr parse_expr();
+    ParseResult<Expr> parse_expr();
 
     // Parse a unary expression.
     // TODO: There's no UnaryExpr, so we can't change this to
     // NodePtr<UnaryExpr>. Better make one?
-    ExprPtr parse_unary_expr();
+    ParseResult<Expr> parse_unary_expr();
 
     // Extend a unary expression into binary if possible, by parsing any
     // attached RHS.  Returns the owning pointer to the newly constructed binary
@@ -49,7 +77,7 @@ private:
     //
     // After the call, 'lhs' is invalidated by being moved away.  Subsequent
     // code should use the returned pointer instead.
-    ExprPtr parse_binary_expr_rhs(ExprPtr &lhs, int precedence = 0);
+    ExprPtr parse_binary_expr_rhs(ExprPtr lhs, int precedence = 0);
 
     // Parse a literal expression.
     ExprPtr parse_literal_expr();
@@ -65,7 +93,7 @@ private:
     void error(const std::string &msg);
 
     // Figure out the current location (line, col) in the source.
-    std::pair<int, int> locate() const {
+    SourceLoc locate() const {
         return lexer.src.locate(tok.pos);
     }
 
@@ -76,6 +104,6 @@ private:
     // int precedence = 0;
 };
 
-} // namespace comp
+} // namespace cmp
 
 #endif

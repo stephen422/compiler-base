@@ -12,6 +12,14 @@ public:
     std::string path;
 };
 
+/// SourceLoc represents a position (line, col) in the source text.
+class SourceLoc {
+public:
+    std::string filename;
+    int line;
+    int col;
+};
+
 /// Source content handler for file reading, position reporting and so
 /// on.
 class Source {
@@ -30,7 +38,7 @@ public:
 
     // Find line and column number of this character in the source text.
     // Both are zero-based indices.
-    std::pair<int, int> locate(size_t pos) const;
+    SourceLoc locate(size_t pos) const;
 
     const std::string filename;
     std::vector<char> buf;

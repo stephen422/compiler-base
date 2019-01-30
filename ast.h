@@ -6,7 +6,7 @@
 #include <iostream>
 #include <memory>
 
-namespace comp {
+namespace cmp {
 
 enum class AstNodeType {
     none, // FIXME necessary?
@@ -136,7 +136,7 @@ public:
 
 class ExprStmt : public Stmt {
 public:
-    ExprStmt(ExprPtr &expr) : Stmt(StmtType::expr), expr(std::move(expr)) {}
+    ExprStmt(ExprPtr &&expr) : Stmt(StmtType::expr), expr(std::move(expr)) {}
     void print() const override;
 
     ExprPtr expr;
@@ -241,6 +241,6 @@ public:
     Token return_type;
 };
 
-} // namespace comp
+} // namespace cmp
 
 #endif

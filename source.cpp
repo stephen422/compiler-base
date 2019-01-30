@@ -30,7 +30,7 @@ void Source::init(std::istream &in) {
     buf.push_back('\0');
 }
 
-std::pair<int, int> Source::locate(size_t pos) const {
+SourceLoc Source::locate(size_t pos) const {
     // Search linearly for the current line.
     int line;
     for (line = 0; static_cast<size_t>(line) < line_off.size(); line++) {
@@ -38,5 +38,5 @@ std::pair<int, int> Source::locate(size_t pos) const {
             break;
     }
     int col = pos - line_off[line - 1] + 1;
-    return {line, col};
+    return SourceLoc{filename, line, col};
 }

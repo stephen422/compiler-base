@@ -2,7 +2,25 @@
 #include <utility>
 #include <sstream>
 
-namespace comp {
+namespace cmp {
+
+void ParseError::report() const {
+    std::cerr << location.filename << ":" << location.line << ":" << location.col << ": ";
+    std::cerr << "parse error: " << message << std::endl;
+}
+
+template <typename T>
+NodePtr<T> ParseResult<T>::unwrap() {
+    if (success()) {
+        return std::move(result);
+    }
+    for (auto const& e : errors) {
+        e.report();
+    }
+    // TODO: exit more gracefully?
+    exit(EXIT_FAILURE);
+    return nullptr;
+}
 
 void Parser::next() {
     tok = lexer.lex();
@@ -46,10 +64,10 @@ StmtPtr Parser::parse_stmt() {
         // Decl ;
         expect_semi();
         stmt = make_node<DeclStmt>(decl);
-    } else if (auto expr = parse_expr()) {
+    } else if (auto res = parse_expr(); res.success()) {
         // Expr ;
         expect_semi();
-        stmt = make_node<ExprStmt>(expr);
+        stmt = make_node<ExprStmt>(res.unwrap());
     } else if (tok.type == TokenType::kw_return) {
         stmt = parse_return_stmt();
     } else {
@@ -60,7 +78,7 @@ StmtPtr Parser::parse_stmt() {
 
 NodePtr<ReturnStmt> Parser::parse_return_stmt() {
     expect(TokenType::kw_return);
-    auto expr = parse_expr();
+    auto expr = parse_expr().unwrap();
     // TODO: There are cases where the result pointer of the parse is allowed
     // to be nullptr or not -- here it is not.  It would be good to have a way
     // to express this clearly in code, but without the bulky if (result !=
@@ -93,7 +111,7 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
     if (tok.type == TokenType::equals) {
         next();
         // RHS of an assignment should be an expression.
-        rhs = parse_expr();
+        rhs = parse_expr().unwrap();
     }
     return make_node<VarDecl>(id, rhs, mut);
 }
@@ -139,12 +157,15 @@ ExprPtr Parser::parse_literal_expr() {
     return expr;
 }
 
-ExprPtr Parser::parse_unary_expr() {
+ParseResult<Expr> Parser::parse_unary_expr() {
     switch (tok.type) {
     case TokenType::number:
     case TokenType::ident:
-    case TokenType::string:
-        return parse_literal_expr();
+    case TokenType::string: {
+        auto expr = parse_literal_expr();
+        return ParseResult<Expr>{expr};
+        // return parse_literal_expr();
+    }
     case TokenType::lparen: {
         expect(TokenType::lparen);
         auto expr = parse_expr();
@@ -152,10 +173,10 @@ ExprPtr Parser::parse_unary_expr() {
         return expr;
     }
     default:
-        // TODO: maybe save error along with the result and disregard when the
-        // caller doesn't need it?
-        // error("expected a unary expression");
-        return nullptr;
+        // Because all expressions start with a unary expression, failing here
+        // means no other expression could be matched as well, so we just
+        // report for the most generic type of expression.
+        return ParseError(locate(), "expected an expression");
     }
 }
 
@@ -174,7 +195,7 @@ int Parser::get_precedence(const Token &op) const {
 }
 
 // @cleanup: Ownership of 'lhs' is not clear.
-ExprPtr Parser::parse_binary_expr_rhs(ExprPtr &lhs, int precedence) {
+ExprPtr Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
     ExprPtr root = std::move(lhs);
 
     while (true) {
@@ -191,7 +212,7 @@ ExprPtr Parser::parse_binary_expr_rhs(ExprPtr &lhs, int precedence) {
         next();
 
         // Parse the second term.
-        ExprPtr rhs = parse_unary_expr();
+        ExprPtr rhs = parse_unary_expr().unwrap();
         // We do not know if this term should associate to left or right;
         // e.g. "(a * b) + c" or "a + (b * c)".  We should look ahead for the
         // next operator that follows this term.
@@ -202,7 +223,7 @@ ExprPtr Parser::parse_binary_expr_rhs(ExprPtr &lhs, int precedence) {
         // precedence. Else ("(a * b) + c"), just treat it as a unary
         // expression.
         if (this_prec < next_prec) {
-            rhs = parse_binary_expr_rhs(rhs, precedence + 1);
+            rhs = parse_binary_expr_rhs(std::move(rhs), precedence + 1);
         }
 
         // Create a new root with the old root as its LHS, and the recursion
@@ -213,15 +234,18 @@ ExprPtr Parser::parse_binary_expr_rhs(ExprPtr &lhs, int precedence) {
     return root;
 }
 
-ExprPtr Parser::parse_expr() {
-    auto expr = parse_unary_expr();
-    expr = parse_binary_expr_rhs(expr);
-    return expr;
+ParseResult<Expr> Parser::parse_expr() {
+    auto res = parse_unary_expr();
+    if (!res.success()) {
+        return res;
+    }
+    // TODO don't unwrap here.
+    return parse_binary_expr_rhs(res.unwrap());
 }
 
 void Parser::error(const std::string &msg) {
     auto loc = locate();
-    std::cerr << lexer.src.filename << ":" << loc.first << ":" << loc.second << ": ";
+    std::cerr << loc.filename << ":" << loc.line << ":" << loc.col << ": ";
     std::cerr << "parse error: " << msg << std::endl;
     exit(1);
 }
@@ -254,4 +278,4 @@ AstNodePtr Parser::parse() {
     return parse_file();
 }
 
-} // namespace comp
+} // namespace cmp

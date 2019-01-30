@@ -1,7 +1,7 @@
 #include "lexer.h"
 #include <cctype>
 
-namespace comp {
+namespace cmp {
 
 std::string tokentype_to_string(TokenType type) {
     for (auto &p : symbol_map) {
@@ -181,9 +181,9 @@ void Lexer::skip_whitespace() {
 
 void Lexer::error(const std::string &msg) {
     auto loc = src.locate(pos());
-    std::cout << src.filename << ":" << loc.first << ":" << loc.second << ": ";
+    std::cout << loc.filename << ":" << loc.line << ":" << loc.col << ": ";
     std::cout << "lex error: " << msg << std::endl;
     exit(1);
 }
 
-} // namespace comp
+} // namespace cmp
