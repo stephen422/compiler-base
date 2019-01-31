@@ -1,8 +1,9 @@
 TODO
 ====
 
+* Complete parser
+  - assignment expression
 * Symbol table
-* Complete statement parsing
 * Tests
 
 FIXME

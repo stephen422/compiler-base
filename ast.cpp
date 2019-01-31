@@ -25,6 +25,14 @@ void ExprStmt::print() const {
     expr->print();
 }
 
+void AssignStmt::print() const {
+    out() << "[AssignStmt]\n";
+    PrintScope start;
+    out() << "[LHS]";
+    out() << lhs;
+    rhs->print();
+}
+
 void ReturnStmt::print() const {
     out() << "[ReturnStmt]\n";
     PrintScope start;

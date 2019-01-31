@@ -115,6 +115,7 @@ public:
 enum class StmtType {
     decl,
     expr,
+    assign,
     return_,
     compound
 };
@@ -140,6 +141,16 @@ public:
     void print() const override;
 
     ExprPtr expr;
+};
+
+class AssignStmt : public Stmt {
+public:
+    AssignStmt(const Token &lhs, ExprPtr rhs) : Stmt(StmtType::assign), lhs(lhs), rhs(std::move(rhs)) {}
+    void print() const override;
+
+    // TODO LHS could be multiple tokens.
+    Token lhs;
+    ExprPtr rhs;
 };
 
 class ReturnStmt : public Stmt {

@@ -45,9 +45,9 @@ void Parser::expect(TokenType type, const std::string &msg = "") {
 // Stmt:
 //     Decl ;
 //     Expr ;
-//     ID () ; // TODO: CallExpr
 //     ;
 ParseResult<Stmt> Parser::parse_stmt() {
+    std::cout << "line: " << locate().line << std::endl;
     ParseResult<Stmt> result;
 
     // Try possible productions one by one, and use what succeeds first.
@@ -64,10 +64,11 @@ ParseResult<Stmt> Parser::parse_stmt() {
         // Decl ;
         expect(TokenType::semicolon, "expected ';' at end of declaration");
         result = make_node<DeclStmt>(std::move(decl));
-    } else if (auto res = parse_expr(); res.success()) {
+    } else if (auto stmt = parse_expr_stmt()) {
         // Expr ;
-        expect(TokenType::semicolon, "expected ';' after expression");
-        result = make_node<ExprStmt>(res.unwrap());
+        result = std::move(stmt);
+    } else if (auto stmt = parse_assign_stmt()) {
+        result = std::move(stmt);
     } else if (tok.type == TokenType::kw_return) {
         result = parse_return_stmt();
         expect(TokenType::semicolon, "expected ';' after return statement");
@@ -77,13 +78,34 @@ ParseResult<Stmt> Parser::parse_stmt() {
     return result;
 }
 
+NodePtr<ExprStmt> Parser::parse_expr_stmt() {
+    auto r = parse_expr();
+    // Only if tok points to a semicolon have the whole expression been
+    // successfully parsed.
+    if (r.success() && tok.type == TokenType::semicolon) {
+        next();
+        return make_node<ExprStmt>(r.unwrap());
+    } else {
+        return nullptr;
+    }
+}
+
+NodePtr<AssignStmt> Parser::parse_assign_stmt() {
+    Token lhs = tok;
+    next();
+    expect(TokenType::equals);
+    auto rhs_result = parse_expr();
+    if (rhs_result.success()) {
+        return make_node<AssignStmt>(lhs, rhs_result.unwrap());
+    } else {
+        // TODO For now, disregard error message and just hand out nullptr.
+        return nullptr;
+    }
+}
+
 NodePtr<ReturnStmt> Parser::parse_return_stmt() {
     expect(TokenType::kw_return);
     ExprPtr expr = parse_expr().unwrap();
-    // TODO: There are cases where the result pointer of the parse is allowed
-    // to be nullptr or not -- here it is not.  It would be good to have a way
-    // to express this clearly in code, but without the bulky if (result !=
-    // nullptr) blocks.  Maybe ParserResult.unwrap() or similar.
     return make_node<ReturnStmt>(std::move(expr));
 }
 
@@ -179,8 +201,8 @@ ParseResult<Expr> Parser::parse_unary_expr() {
     }
     default:
         // Because all expressions start with a unary expression, failing here
-        // means no other expression could be matched as well, so we just
-        // report for the most generic type of expression.
+        // means no other expression could be matched as well, so just do a
+        // really generic report.
         return ParseError(locate(), "expected an expression");
     }
 }

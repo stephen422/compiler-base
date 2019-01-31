@@ -41,8 +41,8 @@ public:
     SourceLoc locate(size_t pos) const;
 
     const std::string filename;
-    std::vector<char> buf;
-    std::vector<size_t> line_off;
+    std::vector<char> buf {};
+    std::vector<size_t> line_off {};
 };
 
 #endif

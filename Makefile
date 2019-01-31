@@ -1,16 +1,17 @@
-CXX := clang++
+CXX ?= clang++
 CXXFLAGS += -g -fsanitize=address -std=c++14 -Wall -Wextra
+LDFLAGS := -fsanitize=address -fuse-ld=lld
 PROG := cmp
 OBJ := parser.o lexer.o ast.o source.o
 
 $(PROG): main.o $(OBJ)
-	$(CXX) -fsanitize=address -o $(PROG) $^ $(LDFLAGS)
+	$(CXX) -o $(PROG) $^ $(LDFLAGS)
 
 debug: main.o $(OBJ)
-	$(CXX) -fsanitize=address -o $(PROG) $^ $(LDFLAGS)
+	$(CXX) -o $(PROG) $^ $(LDFLAGS)
 
 test: test.o $(OBJ)
-	$(CXX) -fsanitize=address -o cmp-test $^ $(LDFLAGS)
+	$(CXX) -o cmp-test $^ $(LDFLAGS)
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<

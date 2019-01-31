@@ -52,6 +52,8 @@ private:
     // Parse a statement.
     ParseResult<Stmt> parse_stmt();
 
+    NodePtr<ExprStmt> parse_expr_stmt();
+    NodePtr<AssignStmt> parse_assign_stmt();
     NodePtr<ReturnStmt> parse_return_stmt();
     NodePtr<CompoundStmt> parse_compound_stmt();
 
