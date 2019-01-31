@@ -22,16 +22,41 @@ NodePtr<T> ParseResult<T>::unwrap() {
     return nullptr;
 }
 
+Parser::Parser(Lexer &lexer) : lexer(lexer), tok() {
+    lookahead_cache.push_back(lexer.lex());
+}
+
 void Parser::next() {
-    tok = lexer.lex();
+    if (lookahead_pos + 1 >= lookahead_cache.size()) {
+        lookahead_cache.push_back(lexer.lex());
+    }
+    lookahead_pos++;
+}
+
+const Token &Parser::look() const {
+    return lookahead_cache[lookahead_pos];
+}
+
+void Parser::save_state() {
+    // Clear the lookup token cache except one.
+    lookahead_cache[0] = lookahead_cache[lookahead_pos];
+    int count = lookahead_cache.size() - 1;
+    for (int i = 0; i < count; i++) {
+        lookahead_cache.pop_back();
+    }
+    lookahead_pos = 0;
+}
+
+void Parser::revert_state() {
+    // TODO
 }
 
 void Parser::expect(TokenType type, const std::string &msg = "") {
-    if (tok.type != type) {
+    if (look().type != type) {
         std::stringstream ss;
         if (msg.empty()) {
             ss << "expected '" << tokentype_to_string(type) << "', got '"
-               << tokentype_to_string(tok.type) << "'";
+               << tokentype_to_string(look().type) << "'";
         } else {
 	    ss << msg;
 	}
@@ -50,16 +75,22 @@ ParseResult<Stmt> Parser::parse_stmt() {
     std::cout << "line: " << locate().line << std::endl;
     ParseResult<Stmt> result;
 
-    // Try possible productions one by one, and use what succeeds first.
-    // ("recursive descent with backtracking":
+    save_state();
+
+    // Try all possible productions and use the first successful one.
+    // We use lookahead (LL(k)) to revert state if a production fails.
+    // (See "recursive descent with backtracking":
     // https://en.wikipedia.org/wiki/Recursive_descent_parser)
-    if (tok.type == TokenType::semicolon) {
+    if (look().type == TokenType::semicolon) {
         // Empty statement (;)
         next();
-    } else if (tok.type == TokenType::comment) {
+    } else if (look().type == TokenType::comment) {
         // FIXME: is it best to filter out comments in parse_stmt()?
         next();
         result = parse_stmt();
+    } else if (look().type == TokenType::kw_return) {
+        result = parse_return_stmt();
+        expect(TokenType::semicolon, "expected ';' after return statement");
     } else if (auto decl = parse_decl()) {
         // Decl ;
         expect(TokenType::semicolon, "expected ';' at end of declaration");
@@ -69,9 +100,6 @@ ParseResult<Stmt> Parser::parse_stmt() {
         result = std::move(stmt);
     } else if (auto stmt = parse_assign_stmt()) {
         result = std::move(stmt);
-    } else if (tok.type == TokenType::kw_return) {
-        result = parse_return_stmt();
-        expect(TokenType::semicolon, "expected ';' after return statement");
     } else {
         result = ParseError(locate(), "expected a statement");
     }
@@ -80,9 +108,9 @@ ParseResult<Stmt> Parser::parse_stmt() {
 
 NodePtr<ExprStmt> Parser::parse_expr_stmt() {
     auto r = parse_expr();
-    // Only if tok points to a semicolon have the whole expression been
+    // Only if look() points to a semicolon have the whole expression been
     // successfully parsed.
-    if (r.success() && tok.type == TokenType::semicolon) {
+    if (r.success() && look().type == TokenType::semicolon) {
         next();
         return make_node<ExprStmt>(r.unwrap());
     } else {
@@ -91,7 +119,7 @@ NodePtr<ExprStmt> Parser::parse_expr_stmt() {
 }
 
 NodePtr<AssignStmt> Parser::parse_assign_stmt() {
-    Token lhs = tok;
+    Token lhs = look();
     next();
     expect(TokenType::equals);
     auto rhs_result = parse_expr();
@@ -123,7 +151,7 @@ NodePtr<CompoundStmt> Parser::parse_compound_stmt() {
         compound->stmts.push_back(stmt_res.unwrap());
     }
     // did parse_stmt() fail at the end properly?
-    if (tok.type != TokenType::rbrace) {
+    if (look().type != TokenType::rbrace) {
         // report the last statement failure
         stmt_res.unwrap();
     }
@@ -132,14 +160,14 @@ NodePtr<CompoundStmt> Parser::parse_compound_stmt() {
 }
 
 NodePtr<VarDecl> Parser::parse_var_decl() {
-    bool mut = tok.type == TokenType::kw_var;
+    bool mut = look().type == TokenType::kw_var;
     next();
 
-    Token id = tok;
+    Token id = look();
     next();
 
     ExprPtr rhs = nullptr;
-    if (tok.type == TokenType::equals) {
+    if (look().type == TokenType::equals) {
         next();
         // RHS of an assignment should be an expression.
         rhs = parse_expr().unwrap();
@@ -147,10 +175,10 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
     return make_node<VarDecl>(id, std::move(rhs), mut);
 }
 
-FunctionPtr Parser::parse_function() {
+NodePtr<Function> Parser::parse_function() {
     expect(TokenType::kw_fn);
 
-    Token name = tok;
+    Token name = look();
     auto func = make_node<Function>(name);
     next();
 
@@ -160,7 +188,7 @@ FunctionPtr Parser::parse_function() {
 
     // Return type (-> ...)
     expect(TokenType::arrow);
-    func->return_type = tok;
+    func->return_type = look();
     next();
 
     // Function body
@@ -170,7 +198,7 @@ FunctionPtr Parser::parse_function() {
 }
 
 DeclPtr Parser::parse_decl() {
-    switch (tok.type) {
+    switch (look().type) {
     case TokenType::kw_let:
     case TokenType::kw_var:
         return parse_var_decl();
@@ -180,14 +208,14 @@ DeclPtr Parser::parse_decl() {
 }
 
 ExprPtr Parser::parse_literal_expr() {
-    auto expr = make_node<LiteralExpr>(tok);
+    auto expr = make_node<LiteralExpr>(look());
     // TODO takes arbitrary token
     next();
     return expr;
 }
 
 ParseResult<Expr> Parser::parse_unary_expr() {
-    switch (tok.type) {
+    switch (look().type) {
     case TokenType::number:
     case TokenType::ident:
     case TokenType::string: {
@@ -225,7 +253,7 @@ ExprPtr Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
     ExprPtr root = std::move(lhs);
 
     while (true) {
-        int this_prec = get_precedence(tok);
+        int this_prec = get_precedence(look());
 
         // If the upcoming op has lower precedence, finish this subexpression.
         // It will be treated as a single term when this function is re-called
@@ -234,7 +262,7 @@ ExprPtr Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
             return root;
         }
 
-        Token op = tok;
+        Token op = look();
         next();
 
         // Parse the second term.
@@ -242,7 +270,7 @@ ExprPtr Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
         // We do not know if this term should associate to left or right;
         // e.g. "(a * b) + c" or "a + (b * c)".  We should look ahead for the
         // next operator that follows this term.
-        int next_prec = get_precedence(tok);
+        int next_prec = get_precedence(look());
 
         // If the next operator is indeed higher-level ("a + (b * c)"),
         // evaluate the RHS as a single subexpression with elevated minimum
@@ -277,7 +305,8 @@ void Parser::error(const std::string &msg) {
 }
 
 ToplevelPtr Parser::parse_toplevel() {
-    switch (tok.type) {
+    std::cout << "toplevel: " << look() << std::endl;
+    switch (look().type) {
     case TokenType::eos:
         return nullptr;
     case TokenType::kw_fn:

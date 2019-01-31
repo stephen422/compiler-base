@@ -17,7 +17,7 @@ public:
     std::string message;
 };
 
-// TODO
+// TODO Document
 template <typename T>
 class ParseResult {
 public:
@@ -38,7 +38,7 @@ public:
 
 class Parser {
 public:
-    Parser(Lexer &lexer) : lexer(lexer), tok(lexer.lex()) {}
+    Parser(Lexer &lexer);
 
     AstNodePtr parse();
 
@@ -49,31 +49,24 @@ private:
     // Parse a toplevel statement.
     ToplevelPtr parse_toplevel();
 
-    // Parse a statement.
+    // Statement parsers
     ParseResult<Stmt> parse_stmt();
-
     NodePtr<ExprStmt> parse_expr_stmt();
     NodePtr<AssignStmt> parse_assign_stmt();
     NodePtr<ReturnStmt> parse_return_stmt();
     NodePtr<CompoundStmt> parse_compound_stmt();
 
-    // Parse a declaration.
+    // Declaration parsers
     DeclPtr parse_decl();
-
-    // Parse a variable declaration.
     NodePtr<VarDecl> parse_var_decl();
+    NodePtr<Function> parse_function();
 
-    // Parse a function declaration.
-    FunctionPtr parse_function();
-
-    // Parse an expression.
+    // Expression parsers
     ParseResult<Expr> parse_expr();
-
-    // Parse a unary expression.
+    ExprPtr parse_literal_expr();
     // TODO: There's no UnaryExpr, so we can't change this to
     // NodePtr<UnaryExpr>. Better make one?
     ParseResult<Expr> parse_unary_expr();
-
     // Extend a unary expression into binary if possible, by parsing any
     // attached RHS.  Returns the owning pointer to the newly constructed binary
     // expression.
@@ -82,11 +75,19 @@ private:
     // code should use the returned pointer instead.
     ExprPtr parse_binary_expr_rhs(ExprPtr lhs, int precedence = 0);
 
-    // Parse a literal expression.
-    ExprPtr parse_literal_expr();
-
     // Get the next token from the lexer.
     void next();
+
+    // Get the current lookahead token.
+    const Token &look() const;
+
+    // Save the current parsing state so that the parser could be reverted back
+    // to it later.
+    // This disposes any state saved earlier, and makes it impossible to revert
+    // the parser to any earlier state.
+    void save_state();
+    // Revert parsing state back to the last saved state by save_state().
+    void revert_state();
 
     // Get the precedence of an operator.
     int get_precedence(const Token &op) const;
@@ -96,11 +97,13 @@ private:
 
     // Figure out the current location (line, col) in the source.
     SourceLoc locate() const {
-        return lexer.src.locate(tok.pos);
+        return lexer.src.locate(look().pos);
     }
 
     Lexer &lexer;
     Token tok; // lookahead token
+    std::vector<Token> lookahead_cache; // lookahead tokens cache
+    size_t lookahead_pos = 0; // lookahead position in the cache
 
     // Current operator precedence when parsing an expression.
     // int precedence = 0;
