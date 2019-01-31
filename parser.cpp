@@ -81,24 +81,28 @@ ParseResult<Stmt> Parser::parse_stmt() {
     // We use lookahead (LL(k)) to revert state if a production fails.
     // (See "recursive descent with backtracking":
     // https://en.wikipedia.org/wiki/Recursive_descent_parser)
-    if (look().type == TokenType::semicolon) {
+    if (look().type == TokenType::newline) {
+        // Empty statement
+        // FIXME: This place is too deep to catch this.
+        next();
+        return result;
+    } else if (look().type == TokenType::semicolon) {
         // Empty statement (;)
         next();
         return result;
     } else if (look().type == TokenType::comment) {
-        // FIXME: is it best to filter out comments in parse_stmt()?
         next();
         return parse_stmt();
     } else if (look().type == TokenType::kw_return) {
         result = parse_return_stmt();
-        expect(TokenType::semicolon, "expected ';' after return statement");
+        expect(TokenType::newline, "unexpected token at end of statement");
         return result;
     }
 
     // @Cleanup: confusing control flow. Maybe use a loop? RAII?
 
     if (auto decl = parse_decl()) {
-        expect(TokenType::semicolon, "expected ';' at end of declaration");
+        expect(TokenType::newline, "unexpected token at end of declaration");
         return make_node<DeclStmt>(std::move(decl));
     }
     revert_state();
@@ -118,9 +122,9 @@ ParseResult<Stmt> Parser::parse_stmt() {
 
 NodePtr<ExprStmt> Parser::parse_expr_stmt() {
     auto r = parse_expr();
-    // Only if look() points to a semicolon have the whole expression been
+    // Only if the lookahead token points to a newline is the whole expression
     // successfully parsed.
-    if (r.success() && look().type == TokenType::semicolon) {
+    if (r.success() && look().type == TokenType::newline) {
         next();
         return make_node<ExprStmt>(r.unwrap());
     } else {

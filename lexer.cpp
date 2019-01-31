@@ -102,7 +102,7 @@ Token Lexer::lex_symbol() {
         }
     }
     // Match fail
-    error("unrecognzied token");
+    error("unrecognized token");
     return make_token(TokenType::none);
 }
 
@@ -175,7 +175,8 @@ void Lexer::skip_while(F &&lambda) {
 }
 
 void Lexer::skip_whitespace() {
-    skip_while(isspace);
+    // Newline is significant because the language doesn't have semicolons.
+    skip_while([](char c) { return isspace(c) && c != '\n'; });
     curr = look;
 }
 

@@ -13,6 +13,7 @@ namespace cmp {
 
 enum class TokenType {
     eos,
+    newline,
     arrow,
     lparen,
     rparen,
@@ -60,9 +61,9 @@ enum class TokenType {
 // symbols at the top.
 static const std::pair<StringView, TokenType> symbol_map[] {
     {"\"", TokenType::doublequote},
+    {"\n", TokenType::newline},
     {"->", TokenType::arrow},
     {"'", TokenType::quote},
-    {"/", TokenType::slash},
     {"(", TokenType::lparen},
     {")", TokenType::rparen},
     {"{", TokenType::lbrace},
@@ -82,6 +83,7 @@ static const std::pair<StringView, TokenType> symbol_map[] {
     {"&", TokenType::ampersand},
     {"^", TokenType::caret},
     {"~", TokenType::tilde},
+    {"/", TokenType::slash},
     {"\\", TokenType::backslash},
     {"|", TokenType::pipe},
     {"!", TokenType::bang},

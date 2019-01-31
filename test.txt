@@ -1,12 +1,12 @@
 fn main() -> int {
-    1 * 2 + 3 + 4 * 5;
-    3 + (a - (b + a * 3)) * 2;
+    1 * 2 + 3 + 4 * 5
+    3 + (a - (b + a * 3)) * 2
 
-    let a;
-    var b = 3 + 4;
-    a = b;
+    let a
+    var b = 3 + 4
+    a = b
 
-    return a = 4;
+    return a = 4
 }
 
 // impl Car {
