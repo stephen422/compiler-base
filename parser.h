@@ -95,6 +95,8 @@ private:
     void expect(TokenType type, const std::string &msg);
     void error(const std::string &msg);
 
+    void skip_newlines();
+
     // Figure out the current location (line, col) in the source.
     SourceLoc locate() const {
         return lexer.src.locate(look().pos);

@@ -28,8 +28,7 @@ void ExprStmt::print() const {
 void AssignStmt::print() const {
     out() << "[AssignStmt]\n";
     PrintScope start;
-    out() << "[LHS]";
-    out() << lhs;
+    out() << "[LHS] " << lhs << "\n";
     rhs->print();
 }
 

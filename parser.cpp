@@ -71,9 +71,9 @@ void Parser::expect(TokenType type, const std::string &msg = "") {
 //     Expr ;
 //     ;
 ParseResult<Stmt> Parser::parse_stmt() {
-    std::cout << "line: " << locate().line << std::endl;
     ParseResult<Stmt> result;
 
+    skip_newlines();
     // TODO is it sure that parsing is correct up to this point?
     save_state();
 
@@ -81,16 +81,7 @@ ParseResult<Stmt> Parser::parse_stmt() {
     // We use lookahead (LL(k)) to revert state if a production fails.
     // (See "recursive descent with backtracking":
     // https://en.wikipedia.org/wiki/Recursive_descent_parser)
-    if (look().type == TokenType::newline) {
-        // Empty statement
-        // FIXME: This place is too deep to catch this.
-        next();
-        return result;
-    } else if (look().type == TokenType::semicolon) {
-        // Empty statement (;)
-        next();
-        return result;
-    } else if (look().type == TokenType::comment) {
+    if (look().type == TokenType::comment) {
         next();
         return parse_stmt();
     } else if (look().type == TokenType::kw_return) {
@@ -133,6 +124,10 @@ NodePtr<ExprStmt> Parser::parse_expr_stmt() {
 }
 
 NodePtr<AssignStmt> Parser::parse_assign_stmt() {
+    if (look().type != TokenType::ident) {
+        return nullptr;
+    }
+
     Token lhs = look();
     next();
     expect(TokenType::equals);
@@ -318,8 +313,19 @@ void Parser::error(const std::string &msg) {
     exit(1);
 }
 
+// The language is newline-aware, but newlines are mostly meaningless unless
+// they are at the end of a statement or a declaration.  In those cases we use
+// this to skip over them.
+// @Cleanup: what about comments?
+void Parser::skip_newlines() {
+    while (look().type == TokenType::newline) {
+        next();
+    }
+}
+
 ToplevelPtr Parser::parse_toplevel() {
-    std::cout << "toplevel: " << look() << std::endl;
+    skip_newlines();
+
     switch (look().type) {
     case TokenType::eos:
         return nullptr;
