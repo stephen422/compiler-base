@@ -12,7 +12,7 @@ void ParseError::report() const {
 template <typename T>
 NodePtr<T> ParseResult<T>::unwrap() {
     if (success()) {
-        return std::move(result);
+        return std::move(ptr);
     }
     for (auto const& e : errors) {
         e.report();
@@ -38,7 +38,6 @@ const Token &Parser::look() const {
 }
 
 void Parser::save_state() {
-    // Clear the lookup token cache except one.
     lookahead_cache[0] = lookahead_cache[lookahead_pos];
     int count = lookahead_cache.size() - 1;
     for (int i = 0; i < count; i++) {
@@ -48,7 +47,7 @@ void Parser::save_state() {
 }
 
 void Parser::revert_state() {
-    // TODO
+    lookahead_pos = 0;
 }
 
 void Parser::expect(TokenType type, const std::string &msg = "") {
@@ -75,6 +74,7 @@ ParseResult<Stmt> Parser::parse_stmt() {
     std::cout << "line: " << locate().line << std::endl;
     ParseResult<Stmt> result;
 
+    // TODO is it sure that parsing is correct up to this point?
     save_state();
 
     // Try all possible productions and use the first successful one.
@@ -84,26 +84,36 @@ ParseResult<Stmt> Parser::parse_stmt() {
     if (look().type == TokenType::semicolon) {
         // Empty statement (;)
         next();
+        return result;
     } else if (look().type == TokenType::comment) {
         // FIXME: is it best to filter out comments in parse_stmt()?
         next();
-        result = parse_stmt();
+        return parse_stmt();
     } else if (look().type == TokenType::kw_return) {
         result = parse_return_stmt();
         expect(TokenType::semicolon, "expected ';' after return statement");
-    } else if (auto decl = parse_decl()) {
-        // Decl ;
-        expect(TokenType::semicolon, "expected ';' at end of declaration");
-        result = make_node<DeclStmt>(std::move(decl));
-    } else if (auto stmt = parse_expr_stmt()) {
-        // Expr ;
-        result = std::move(stmt);
-    } else if (auto stmt = parse_assign_stmt()) {
-        result = std::move(stmt);
-    } else {
-        result = ParseError(locate(), "expected a statement");
+        return result;
     }
-    return result;
+
+    // @Cleanup: confusing control flow. Maybe use a loop? RAII?
+
+    if (auto decl = parse_decl()) {
+        expect(TokenType::semicolon, "expected ';' at end of declaration");
+        return make_node<DeclStmt>(std::move(decl));
+    }
+    revert_state();
+
+    if (auto stmt = parse_expr_stmt()) {
+        return std::move(stmt);
+    }
+    revert_state();
+
+    if (auto stmt = parse_assign_stmt()) {
+        return std::move(stmt);
+    }
+    revert_state();
+
+    return ParseError(locate(), "expected a statement");
 }
 
 NodePtr<ExprStmt> Parser::parse_expr_stmt() {

@@ -24,7 +24,7 @@ public:
     ParseResult() {}
     // Successful result
     template <typename U>
-    ParseResult(NodePtr<U> res): result(std::move(res)), errors() {}
+    ParseResult(NodePtr<U> ptr): ptr(std::move(ptr)), errors() {}
     // Erroneous result
     ParseResult(const ParseError &error): errors({error}) {}
     // Returns 'res', provided there were no errors; if there were, report them
@@ -32,7 +32,7 @@ public:
     NodePtr<T> unwrap();
     bool success() { return errors.empty(); }
 
-    NodePtr<T> result;
+    NodePtr<T> ptr = nullptr;
     std::vector<ParseError> errors;
 };
 
