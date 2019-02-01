@@ -33,6 +33,7 @@ int main(int argc, char **argv) {
     Parser p{lexer};
     auto ast = p.parse();
     ast->print();
+    ast->traverse();
 #endif
     return 0;
 }

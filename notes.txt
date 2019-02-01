@@ -3,16 +3,20 @@ TODO
 
 * Complete parser
   - assignment expression
+
 * Symbol table
-* Tests
 
-FIXME
-=====
+* pos() returning the raw byte offset in the source seems counterintuitive.  Is
+  there actually a case where a byte offset becomes useful?
 
-* Is it _really_ needed for all AST types to inherit AstNode?
-  - It would be unnecessarilly confusing if we make AstNode a tagged union
-    while all others as inheritance nodes.  Besides, AstNode do have a
-    hierarchical relationship with other types (it being the root)
+* Parser tests
+A simple integration test with expected parse errors annotated in comments, and
+a postprocessing script matching the error with the annotation, will be
+sufficient.
+
+
+Grammar
+=======
 
 File: // "Module"?
     Toplevel*:
@@ -40,6 +44,7 @@ VarDecl:
 Expr:
     LiteralExpr
     BinaryExpr
+
 
 Example grammar from subc
 =========================
