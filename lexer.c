@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include "lexer.h"
+#include "stretchy_buffer.h"
 
 struct token_map {
     const char *text;
@@ -99,33 +100,37 @@ static char *readfile(const char *filename, long *filesize)
     return s;
 }
 
+static void step(lexer_t *l)
+{
+    if (l->rd_off < l->srclen) {
+        l->off = l->rd_off;
+        l->ch = l->src[l->off];
+        if (l->ch == '\n') {
+            sb_push(l->line_offs, l->off);
+        }
+        l->rd_off++;
+    } else {
+        l->off = l->srclen;
+        l->ch = 0; // EOF
+    }
+}
+
 int lexer_init(lexer_t *l, const char *filename)
 {
+    *l = (const lexer_t) {0};
     l->filename = malloc(256);
     l->filename = memcpy(l->filename, filename, 255);
     l->filename[255] = '\0';
     l->src = readfile(filename, &l->srclen);
-    l->off = 0;
-    l->start = 0;
-    l->ch = l->src[0];
+    step(l);
     return 1;
 }
 
 void lexer_free(lexer_t *l)
 {
+    sb_free(l->line_offs);
     free(l->filename);
     free(l->src);
-}
-
-static void step(lexer_t *l)
-{
-    if (l->off + 1 < l->srclen) {
-        l->off++;
-        l->ch = l->src[l->off];
-    } else {
-        l->off = l->srclen;
-        l->ch = 0;
-    }
 }
 
 // NOTE: more strict?
