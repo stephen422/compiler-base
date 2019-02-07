@@ -100,7 +100,7 @@ static char *readfile(const char *filename, long *filesize)
     return s;
 }
 
-static void step(lexer_t *l)
+static void step(Lexer *l)
 {
     if (l->rd_off < l->srclen) {
         l->off = l->rd_off;
@@ -115,9 +115,9 @@ static void step(lexer_t *l)
     }
 }
 
-int lexer_init(lexer_t *l, const char *filename)
+int lexer_init(Lexer *l, const char *filename)
 {
-    *l = (const lexer_t) {0};
+    *l = (const Lexer) {0};
     l->filename = malloc(256);
     l->filename = memcpy(l->filename, filename, 255);
     l->filename[255] = '\0';
@@ -126,7 +126,7 @@ int lexer_init(lexer_t *l, const char *filename)
     return 1;
 }
 
-void lexer_free(lexer_t *l)
+void lexer_free(Lexer *l)
 {
     sb_free(l->line_offs);
     free(l->filename);
@@ -134,20 +134,20 @@ void lexer_free(lexer_t *l)
 }
 
 // NOTE: more strict?
-static void consume(lexer_t *l, long n)
+static void consume(Lexer *l, long n)
 {
     for (long i = 0; i < n; i++)
         step(l);
 }
 
-static char lookn(lexer_t *l, long n)
+static char lookn(Lexer *l, long n)
 {
     if (l->off + n < l->srclen)
         return l->src[l->off + n];
     return '\0';
 }
 
-static void make_token(lexer_t *l, TokenType type)
+static void make_token(Lexer *l, TokenType type)
 {
     memset(&l->token, 0, sizeof(token_t));
     l->token.type = type;
@@ -160,7 +160,7 @@ void token_free(token_t *t)
     free(t);
 }
 
-static void lex_ident(lexer_t *l)
+static void lex_ident(Lexer *l)
 {
     while (isalnum(l->ch) || l->ch == '_')
         step(l);
@@ -180,13 +180,13 @@ static void lex_ident(lexer_t *l)
     make_token(l, TOK_IDENT);
 }
 
-static void skip_numbers(lexer_t *l)
+static void skip_numbers(Lexer *l)
 {
     while (isdigit(l->ch))
         step(l);
 }
 
-static void lex_number(lexer_t *l)
+static void lex_number(Lexer *l)
 {
     skip_numbers(l);
     if (l->ch == '.') {
@@ -197,7 +197,7 @@ static void lex_number(lexer_t *l)
 }
 
 // NOTE: taken from ponyc
-static void lex_symbol(lexer_t *l)
+static void lex_symbol(Lexer *l)
 {
     for (const struct token_map *m = &symbols[0]; m->text != NULL; m++) {
         for (int i = 0; m->text[i] == '\0' || m->text[i] == lookn(l, i); i++) {
@@ -215,7 +215,7 @@ static void lex_symbol(lexer_t *l)
 
 // Lex the next token and place it into l->token.
 // Return EOF if reached source EOF.
-int lexer_next(lexer_t *l)
+int lexer_next(Lexer *l)
 {
     for (;;) {
         l->start = l->off;
@@ -264,21 +264,24 @@ int lexer_next(lexer_t *l)
     return 0;
 }
 
-#if 0
-void locate_line_col(lexer_t *l, size_t pos, int *line, int *col)
+SourceLoc locate_line_col(Lexer *l, size_t pos)
 {
     // Search linearly for line that contains this position.
-    int line;
-    for (line = 0; static_cast<size_t>(line) < line_off.size(); line++) {
-        if (pos < line_off[line])
-            break;
+    if (sb_count(l->line_offs) == 0) {
+        // First line
+        return (SourceLoc) {1, pos + 1};
     }
-    int col = pos - line_off[line - 1] + 1;
-    return {line, col};
+    int line;
+    for (line = 0; line < sb_count(l->line_offs); line++) {
+        if (pos < l->line_offs[line]) {
+            break;
+        }
+    }
+    int col = pos - l->line_offs[line - 1];
+    return (SourceLoc) {line + 1, col};
 }
-#endif
 
-void print_token(lexer_t *lex, const token_t *tok)
+void print_token(Lexer *lex, const token_t *tok)
 {
     switch (tok->type) {
     case TOK_IDENT:

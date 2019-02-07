@@ -5,7 +5,7 @@
 
 void test_lexer(const char *filename)
 {
-    lexer_t lex;
+    Lexer lex;
     lexer_init(&lex, filename);
 
     while (lexer_next(&lex) == 0) {

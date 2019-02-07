@@ -134,8 +134,9 @@ static token_t *look(Parser *p)
 
 static void error(Parser *p, const char *fmt, ...)
 {
+    SourceLoc loc = locate_line_col(&p->lexer, look(p)->start);
     va_list args;
-    fprintf(stderr, "%s:%ld: parse error: ", p->lexer.filename, look(p)->start);
+    fprintf(stderr, "%s:%d:%d: parse error: ", p->lexer.filename, loc.line, loc.col);
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
     va_end(args);
