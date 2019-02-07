@@ -26,7 +26,7 @@ int main(int argc, char **argv)
 
     // test_lexer(argv[1]);
 
-    parser_t p;
+    Parser p;
     parser_init(&p, argv[1]);
     parse(&p);
     parser_free(&p);

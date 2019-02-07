@@ -1,35 +1,40 @@
 #include "parser.h"
+#include "stretchy_buffer.h"
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
 
-static struct node *parse_expr(parser_t *p);
+static AstNode *parse_expr(Parser *p);
 
-static struct node *make_node(enum node_type t, token_t *tok)
+static AstNode *make_node(Parser *p, NodeType t, token_t *tok)
 {
-    struct node *node = malloc(sizeof(struct node));
+    // TODO: maybe store all nodes in a contiguous buffer for better cache
+    // utilization?  Should take care about node pointers going stale though
+    AstNode *node = calloc(1, sizeof(AstNode));
     if (!node) {
         fprintf(stderr, "alloc error\n");
         exit(1);
     }
     node->type = t;
-    if (tok)
+    if (tok) {
         node->token = *tok;
+    }
+    sb_push(p->nodep_buf, node);
     return node;
 }
 
-static struct node *make_binexpr(struct node *lhs, struct node *op, struct node *rhs)
+static AstNode *make_binexpr(Parser *p, AstNode *lhs, AstNode *op, AstNode *rhs)
 {
-    struct node *node = make_node(ND_BINEXPR, NULL);
+    AstNode *node = make_node(p, ND_BINEXPR, NULL);
     node->lhs = lhs;
     node->op = op;
     node->rhs = rhs;
     return node;
 }
 
-static struct node *make_vardecl(struct node *decltype, int mutable, struct node *name, struct node *expr)
+static AstNode *make_vardecl(Parser *p, AstNode *decltype, int mutable, AstNode *name, AstNode *expr)
 {
-    struct node *node = make_node(ND_VARDECL, NULL);
+    AstNode *node = make_node(p, ND_VARDECL, NULL);
     node->decltype = decltype;
     node->mutable = mutable;
     node->name = name;
@@ -37,7 +42,7 @@ static struct node *make_vardecl(struct node *decltype, int mutable, struct node
     return node;
 }
 
-static void free_node(struct node *node)
+static void free_node(AstNode *node)
 {
     if (!node)
         return;
@@ -68,7 +73,7 @@ static void iprintf(int indent, const char *fmt, ...) {
     va_end(args);
 }
 
-static void print_node_indent(parser_t *p, const struct node *node, int indent)
+static void print_node_indent(Parser *p, const AstNode *node, int indent)
 {
     if (!node) {
         iprintf(indent, "(null)\n");
@@ -117,17 +122,17 @@ static void print_node_indent(parser_t *p, const struct node *node, int indent)
     }
 }
 
-static void print_node(parser_t *p, const struct node *node)
+static void print_node(Parser *p, const AstNode *node)
 {
     print_node_indent(p, node, 0);
 }
 
-static token_t *look(parser_t *p)
+static token_t *look(Parser *p)
 {
     return &p->lexer.token;
 }
 
-static void error(parser_t *p, const char *fmt, ...)
+static void error(Parser *p, const char *fmt, ...)
 {
     va_list args;
     fprintf(stderr, "%s:%ld: parse error: ", p->lexer.filename, look(p)->start);
@@ -135,27 +140,29 @@ static void error(parser_t *p, const char *fmt, ...)
     vfprintf(stderr, fmt, args);
     va_end(args);
     fprintf(stderr, "\n");
-    abort();
+    exit(1);
 }
 
-void parser_init(parser_t *p, const char *filename)
+void parser_init(Parser *p, const char *filename)
 {
+    *p = (const Parser) {0};
     lexer_init(&p->lexer, filename);
     lexer_next(&p->lexer);
-    p->tok = NULL;
 }
 
-void parser_free(parser_t *p)
+void parser_free(Parser *p)
 {
+    // Free all nodes.
+
     lexer_free(&p->lexer);
 }
 
-static void next(parser_t *p)
+static void next(Parser *p)
 {
     lexer_next(&p->lexer);
 }
 
-static void expect(parser_t *p, TokenType t)
+static void expect(Parser *p, TokenType t)
 {
     if (look(p)->type != t) {
         error(p, "expected %s, got %s\n", token_names[t], token_names[look(p)->type]);
@@ -165,20 +172,20 @@ static void expect(parser_t *p, TokenType t)
     next(p);
 }
 
-static struct node *parse_literal_expr(parser_t *p)
+static AstNode *parse_literal_expr(Parser *p)
 {
-    struct node *expr = make_node(ND_LITEXPR, look(p));
+    AstNode *expr = make_node(p, ND_LITEXPR, look(p));
     next(p);
     return expr;
 }
 
-static struct node *parse_unary_expr(parser_t *p)
+static AstNode *parse_unary_expr(Parser *p)
 {
-    struct node *expr = NULL;
+    AstNode *expr = NULL;
 
     switch (look(p)->type) {
     case TOK_IDENT:
-        expr = make_node(ND_TOKEN, look(p));
+        expr = make_node(p, ND_TOKEN, look(p));
         next(p);
         break;
     case TOK_NUM:
@@ -216,7 +223,7 @@ static int get_precedence(const token_t *op)
 //
 // Return the pointer to the node respresenting the reduced binary expression.
 // May be the same as 'lhs' if nothing was reduced.
-static struct node *parse_binary_expr_rhs(parser_t *p, struct node *lhs, int precedence)
+static AstNode *parse_binary_expr_rhs(Parser *p, AstNode *lhs, int precedence)
 {
     while (1) {
         int this_prec = get_precedence(look(p));
@@ -228,13 +235,13 @@ static struct node *parse_binary_expr_rhs(parser_t *p, struct node *lhs, int pre
         if (this_prec < precedence)
             break;
 
-        struct node *op = make_node(ND_TOKEN, look(p));
+        AstNode *op = make_node(p, ND_TOKEN, look(p));
         next(p);
 
         // Parse the next term.  We do not know yet if this term should bind to
         // LHS or RHS; e.g. "a * b + c" or "a + b * c".  To know this, we should
         // look ahead for the operator that follows this term.
-        struct node *rhs = parse_unary_expr(p);
+        AstNode *rhs = parse_unary_expr(p);
         int next_prec = get_precedence(look(p));
 
         // If the next operator is indeed higher-level, evaluate the RHS as a
@@ -246,32 +253,32 @@ static struct node *parse_binary_expr_rhs(parser_t *p, struct node *lhs, int pre
         // This implies left associativity.
         if (this_prec < next_prec)
             rhs = parse_binary_expr_rhs(p, rhs, precedence + 1);
-        lhs = make_binexpr(lhs, op, rhs);
+        lhs = make_binexpr(p, lhs, op, rhs);
     }
     return lhs;
 }
 
-static struct node *parse_expr(parser_t *p)
+static AstNode *parse_expr(Parser *p)
 {
-    struct node *expr = parse_unary_expr(p);
+    AstNode *expr = parse_unary_expr(p);
     expr = parse_binary_expr_rhs(p, expr, 0);
     return expr;
 }
 
-static struct node *parse_var_decl(parser_t *p)
+static AstNode *parse_var_decl(Parser *p)
 {
-    struct node *decltype = NULL;
-    struct node *expr = NULL;
+    AstNode *decltype = NULL;
+    AstNode *expr = NULL;
 
     int mut = look(p)->type == TOK_VAR;
     next(p);
-    struct node *name = make_node(ND_TOKEN, look(p)); /* FIXME RefExpr? */
+    AstNode *name = make_node(p, ND_TOKEN, look(p)); /* FIXME RefExpr? */
     next(p);
 
     // Type specification
     if (look(p)->type == TOK_COLON) {
         next(p);
-        decltype = make_node(ND_TYPE, look(p));
+        decltype = make_node(p, ND_TYPE, look(p));
         next(p);
     }
     // Assignment expression
@@ -279,17 +286,17 @@ static struct node *parse_var_decl(parser_t *p)
         next(p);
         expr = parse_expr(p);
     }
-    // If both type and assignment expression is not specified, it's an
-    // error.
+    // At least one of the declaration type and assignment expression
+    // should be specified.
     if (decltype == NULL && expr == NULL)
         error(p, "declarations should at least specify its type or its value.");
 
-    return make_vardecl(decltype, mut, name, expr);
+    return make_vardecl(p, decltype, mut, name, expr);
 }
 
-static struct node *parse_decl(parser_t *p)
+static AstNode *parse_decl(Parser *p)
 {
-    struct node *decl;
+    AstNode *decl;
 
     switch (look(p)->type) {
     case TOK_LET:
@@ -305,9 +312,9 @@ static struct node *parse_decl(parser_t *p)
     return decl;
 }
 
-void parse(parser_t *p)
+void parse(Parser *p)
 {
-    struct node *node;
+    AstNode *node;
 
     while (look(p) != TOK_EOF) {
         switch (look(p)->type) {
