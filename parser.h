@@ -9,6 +9,9 @@ typedef enum NodeType {
     ND_TYPE,
     ND_LITEXPR,
     ND_BINEXPR,
+    ND_EXPRSTMT,
+    ND_DECLSTMT,
+    ND_COMPOUNDSTMT,
 } NodeType ;
 
 typedef struct AstNode AstNode;
@@ -16,7 +19,7 @@ typedef struct AstNode {
     NodeType type;
     union {
         // Literal/token-only expression
-        token_t token;
+        Token token;
         // Binary expression
         struct {
             AstNode *lhs;
@@ -30,12 +33,18 @@ typedef struct AstNode {
             AstNode *expr;
             int mutable;
         };
+        // Expression statement
+        AstNode *stmt_expr;
+        // Declaration statement
+        AstNode *decl;
+        // Compound statement
+        AstNode **compound_stmt;
     };
 } AstNode;
 
 typedef struct {
     Lexer lexer;
-    token_t *tok; // lookahead token
+    Token *tok; // lookahead token
     AstNode **nodep_buf; // pointers to the allocated nodes
 } Parser;
 

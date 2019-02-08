@@ -5,8 +5,9 @@
 #include <stdlib.h>
 
 static AstNode *parse_expr(Parser *p);
+static AstNode *parse_decl(Parser *p);
 
-static AstNode *make_node(Parser *p, NodeType t, token_t *tok)
+static AstNode *make_node(Parser *p, NodeType t, Token *tok)
 {
     // TODO: maybe store all nodes in a contiguous buffer for better cache
     // utilization?  Should take care about node pointers going stale though
@@ -20,6 +21,26 @@ static AstNode *make_node(Parser *p, NodeType t, token_t *tok)
         node->token = *tok;
     }
     sb_push(p->nodep_buf, node);
+    return node;
+}
+
+static AstNode *make_expr_stmt(Parser *p, AstNode *expr)
+{
+    AstNode *node = make_node(p, ND_EXPRSTMT, NULL);
+    node->expr = expr;
+    return node;
+}
+
+static AstNode *make_decl_stmt(Parser *p, AstNode *decl)
+{
+    AstNode *node = make_node(p, ND_DECLSTMT, NULL);
+    node->decl = decl;
+    return node;
+}
+
+static AstNode *make_compound_stmt(Parser *p)
+{
+    AstNode *node = make_node(p, ND_COMPOUNDSTMT, NULL);
     return node;
 }
 
@@ -86,6 +107,26 @@ static void print_node_indent(Parser *p, const AstNode *node, int indent)
     case ND_TOKEN:
         print_token(&p->lexer, &node->token);
         break;
+    case ND_DECLSTMT:
+        printf("[DeclStmt]\n");
+        indent += 2;
+        print_node_indent(p, node->decl, indent);
+        indent -= 2;
+        break;
+    case ND_EXPRSTMT:
+        printf("[ExprStmt]\n");
+        indent += 2;
+        print_node_indent(p, node->expr, indent);
+        indent -= 2;
+        break;
+    case ND_COMPOUNDSTMT:
+        printf("[CompoundStmt]\n");
+        indent += 2;
+        for (int i = 0; i < sb_count(node->compound_stmt); i++) {
+            print_node_indent(p, node->compound_stmt[i], indent);
+        }
+        indent -= 2;
+        break;
     case ND_LITEXPR:
         printf("[LiteralExpr] ");
         switch (node->token.type) {
@@ -117,7 +158,7 @@ static void print_node_indent(Parser *p, const AstNode *node, int indent)
         indent -= 2;
         break;
     default:
-        fprintf(stderr, "%s: unrecognized node type\n", __func__);
+        fprintf(stderr, "%s: unrecognized node type %d\n", __func__, node->type);
         break;
     }
 }
@@ -127,7 +168,7 @@ static void print_node(Parser *p, const AstNode *node)
     print_node_indent(p, node, 0);
 }
 
-static token_t *look(Parser *p)
+static Token *look(Parser *p)
 {
     return &p->lexer.token;
 }
@@ -154,7 +195,7 @@ void parser_init(Parser *p, const char *filename)
 void parser_free(Parser *p)
 {
     // Free all nodes.
-
+    sb_free(p->lexer.line_offs);
     lexer_free(&p->lexer);
 }
 
@@ -171,6 +212,43 @@ static void expect(Parser *p, TokenType t)
     }
     // Make progress
     next(p);
+}
+
+static AstNode *parse_stmt(Parser *p)
+{
+    AstNode *stmt, *expr, *decl;
+
+    // Try all possible productions and use the first successful one.
+    // We use lookahead (LL(k)) to revert state if a production fails.
+    // (See "recursive descent with backtracking":
+    // https://en.wikipedia.org/wiki/Recursive_descent_parser)
+    if (look(p)->type == TOK_EOF) {
+        return NULL;
+    } else if (look(p)->type == TOK_SEMICOLON) {
+        next(p);
+        return parse_stmt(p); // FIXME stack overflow
+    } else if ((decl = parse_decl(p))) {
+        stmt = make_decl_stmt(p, decl);
+        expect(p, TOK_SEMICOLON);
+        return stmt;
+    } else if ((expr = parse_expr(p))) {
+        stmt = make_expr_stmt(p, expr);
+        expect(p, TOK_SEMICOLON);
+        return stmt;
+    } else {
+        error(p, "Unknown statement type");
+    }
+    return NULL;
+}
+
+static AstNode *parse_compound_stmt(Parser *p)
+{
+    AstNode *compound = make_compound_stmt(p);
+    AstNode *stmt;
+    while ((stmt = parse_stmt(p)) != NULL) {
+        sb_push(compound->compound_stmt, stmt);
+    }
+    return compound;
 }
 
 static AstNode *parse_literal_expr(Parser *p)
@@ -204,7 +282,7 @@ static AstNode *parse_unary_expr(Parser *p)
     return expr;
 }
 
-static int get_precedence(const token_t *op)
+static int get_precedence(const Token *op)
 {
     switch (op->type) {
     case TOK_STAR:
@@ -305,29 +383,15 @@ static AstNode *parse_decl(Parser *p)
         decl = parse_var_decl(p);
         break;
     default:
-        error(p, "unknown declaration type");
         decl = NULL;
         break;
     }
-    expect(p, TOK_SEMICOLON);
     return decl;
 }
 
 void parse(Parser *p)
 {
     AstNode *node;
-
-    while (look(p) != TOK_EOF) {
-        switch (look(p)->type) {
-        case TOK_LET:
-        case TOK_VAR:
-            node = parse_decl(p);
-            break;
-        default:
-            node = parse_expr(p);
-            break;
-        }
-        print_node(p, node);
-        free_node(node);
-    }
+    node = parse_compound_stmt(p);
+    print_node(p, node);
 }

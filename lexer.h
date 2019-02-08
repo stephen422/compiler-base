@@ -62,9 +62,9 @@ char *token_names[NUM_TOKENTYPES];
 
 typedef struct token {
     TokenType type;
-    size_t start;   // start position in the source
-    size_t end;     // end position in the source
-} token_t;
+    size_t start; // start position in the source
+    size_t end;   // end position in the source
+} Token;
 
 typedef struct SourceLoc {
     int line;
@@ -72,7 +72,7 @@ typedef struct SourceLoc {
 } SourceLoc ;
 
 typedef struct {
-    token_t token;     // currently lexed token
+    Token token;     // currently lexed token
     char ch;           // lookahead character
     long off;          // lookahead character offset
     long rd_off;       // next read character offset
@@ -85,8 +85,8 @@ typedef struct {
     long srclen;       // length of src excluding \0
 } Lexer;
 
-void token_free(token_t *t);
-void print_token(Lexer *l, const token_t *t);
+void token_free(Token *t);
+void print_token(Lexer *l, const Token *t);
 
 SourceLoc locate_line_col(Lexer *l, size_t pos);
 int lexer_init(Lexer *l, const char *filename);

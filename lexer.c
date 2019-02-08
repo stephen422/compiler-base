@@ -149,13 +149,13 @@ static char lookn(Lexer *l, long n)
 
 static void make_token(Lexer *l, TokenType type)
 {
-    memset(&l->token, 0, sizeof(token_t));
+    memset(&l->token, 0, sizeof(Token));
     l->token.type = type;
     l->token.start = l->start;
     l->token.end = l->off;
 }
 
-void token_free(token_t *t)
+void token_free(Token *t)
 {
     free(t);
 }
@@ -281,7 +281,7 @@ SourceLoc locate_line_col(Lexer *l, size_t pos)
     return (SourceLoc) {line + 1, col};
 }
 
-void print_token(Lexer *lex, const token_t *tok)
+void print_token(Lexer *lex, const Token *tok)
 {
     switch (tok->type) {
     case TOK_IDENT:
