@@ -373,6 +373,11 @@ static AstNode *parse_var_decl(Parser *p)
     return make_vardecl(p, decltype, mut, name, expr);
 }
 
+// Parse a declaration.
+//
+// Decl:
+//     VarDecl
+//     Function
 static AstNode *parse_decl(Parser *p)
 {
     AstNode *decl;
@@ -391,6 +396,7 @@ static AstNode *parse_decl(Parser *p)
 
 void parse(Parser *p)
 {
+    printf("sizeof(AstNode)=%zu\n", sizeof(AstNode));
     AstNode *node;
     node = parse_compound_stmt(p);
     print_node(p, node);

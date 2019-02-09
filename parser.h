@@ -17,29 +17,23 @@ typedef enum NodeType {
 typedef struct AstNode AstNode;
 typedef struct AstNode {
     NodeType type;
-    union {
-        // Literal/token-only expression
-        Token token;
-        // Binary expression
-        struct {
-            AstNode *lhs;
-            AstNode *op;
-            AstNode *rhs;
-        };
-        // Variable declaration
-        struct {
-            AstNode *decltype;
-            AstNode *name;
-            AstNode *expr;
-            int mutable;
-        };
-        // Expression statement
-        AstNode *stmt_expr;
-        // Declaration statement
-        AstNode *decl;
-        // Compound statement
-        AstNode **compound_stmt;
-    };
+    // Literal/token-only expression
+    Token token;
+    // Binary expression
+    AstNode *lhs;
+    AstNode *op;
+    AstNode *rhs;
+    // Variable declaration
+    AstNode *decltype;
+    AstNode *name;
+    AstNode *expr;
+    int mutable;
+    // Expression statement
+    AstNode *stmt_expr;
+    // Declaration statement
+    AstNode *decl;
+    // Compound statement
+    AstNode **compound_stmt;
 } AstNode;
 
 typedef struct {
