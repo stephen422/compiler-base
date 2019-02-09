@@ -4,10 +4,11 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+static Token look(Parser *p);
 static AstNode *parse_expr(Parser *p);
 static AstNode *parse_decl(Parser *p);
 
-static AstNode *make_node(Parser *p, NodeType t, Token *tok)
+static AstNode *make_node(Parser *p, NodeType t, Token tok)
 {
     // TODO: maybe store all nodes in a contiguous buffer for better cache
     // utilization?  Should take care about node pointers going stale though
@@ -17,35 +18,33 @@ static AstNode *make_node(Parser *p, NodeType t, Token *tok)
         exit(1);
     }
     node->type = t;
-    if (tok) {
-        node->token = *tok;
-    }
+    node->token = tok;
     sb_push(p->nodep_buf, node);
     return node;
 }
 
 static AstNode *make_expr_stmt(Parser *p, AstNode *expr)
 {
-    AstNode *node = make_node(p, ND_EXPRSTMT, NULL);
+    AstNode *node = make_node(p, ND_EXPRSTMT, look(p));
     node->expr = expr;
     return node;
 }
 
 static AstNode *make_decl_stmt(Parser *p, AstNode *decl) {
-    AstNode *node = make_node(p, ND_DECLSTMT, NULL);
+    AstNode *node = make_node(p, ND_DECLSTMT, look(p));
     node->decl = decl;
     return node;
 }
 
 static AstNode *make_compound_stmt(Parser *p)
 {
-    AstNode *node = make_node(p, ND_COMPOUNDSTMT, NULL);
+    AstNode *node = make_node(p, ND_COMPOUNDSTMT, look(p));
     return node;
 }
 
 static AstNode *make_binexpr(Parser *p, AstNode *lhs, AstNode *op, AstNode *rhs)
 {
-    AstNode *node = make_node(p, ND_BINEXPR, NULL);
+    AstNode *node = make_node(p, ND_BINEXPR, look(p));
     node->lhs = lhs;
     node->op = op;
     node->rhs = rhs;
@@ -54,7 +53,7 @@ static AstNode *make_binexpr(Parser *p, AstNode *lhs, AstNode *op, AstNode *rhs)
 
 static AstNode *make_vardecl(Parser *p, AstNode *decltype, int mutable, AstNode *name, AstNode *expr)
 {
-    AstNode *node = make_node(p, ND_VARDECL, NULL);
+    AstNode *node = make_node(p, ND_VARDECL, look(p));
     node->decltype = decltype;
     node->mutable = mutable;
     node->name = name;
@@ -145,14 +144,14 @@ static void print_node(Parser *p, const AstNode *node)
     print_node_indent(p, node, 0);
 }
 
-static Token *look(Parser *p)
+static Token look(Parser *p)
 {
-    return &p->lookahead_cache[p->cache_index];
+    return p->lookahead_cache[p->cache_index];
 }
 
 static void error(Parser *p, const char *fmt, ...)
 {
-    SourceLoc loc = locate_line_col(&p->lexer, look(p)->start);
+    SourceLoc loc = locate_line_col(&p->lexer, look(p).start);
     va_list args;
     fprintf(stderr, "%s:%d:%d: parse error: ", p->lexer.filename, loc.line, loc.col);
     va_start(args, fmt);
@@ -198,8 +197,8 @@ static void next(Parser *p)
 
 static void expect(Parser *p, TokenType t)
 {
-    if (look(p)->type != t) {
-        error(p, "expected %s, got %s\n", token_names[t], token_names[look(p)->type]);
+    if (look(p).type != t) {
+        error(p, "expected %s, got %s\n", token_names[t], token_names[look(p).type]);
         exit(1);
     }
     // Make progress in expect()!
@@ -229,10 +228,10 @@ static AstNode *parse_stmt(Parser *p)
     // We use lookahead (LL(k)) to revert state if a production fails.
     // (See "recursive descent with backtracking":
     // https://en.wikipedia.org/wiki/Recursive_descent_parser)
-    if (look(p)->type == TOK_EOF) {
+    if (look(p).type == TOK_EOF) {
         return NULL;
     }
-    if (look(p)->type == TOK_SEMICOLON) {
+    if (look(p).type == TOK_SEMICOLON) {
         next(p);
         return parse_stmt(p); // FIXME stack overflow
     }
@@ -279,7 +278,7 @@ static AstNode *parse_unary_expr(Parser *p)
 {
     AstNode *expr = NULL;
 
-    switch (look(p)->type) {
+    switch (look(p).type) {
     case TOK_IDENT:
         expr = make_node(p, ND_TOKEN, look(p));
         next(p);
@@ -299,9 +298,9 @@ static AstNode *parse_unary_expr(Parser *p)
     return expr;
 }
 
-static int get_precedence(const Token *op)
+static int get_precedence(const Token op)
 {
-    switch (op->type) {
+    switch (op.type) {
     case TOK_STAR:
     case TOK_SLASH:
         return 1;
@@ -379,19 +378,19 @@ static AstNode *parse_var_decl(Parser *p)
     AstNode *decltype = NULL;
     AstNode *expr = NULL;
 
-    int mut = look(p)->type == TOK_VAR;
+    int mut = look(p).type == TOK_VAR;
     next(p);
     AstNode *name = make_node(p, ND_TOKEN, look(p)); /* FIXME RefExpr? */
     next(p);
 
     // Type specification
-    if (look(p)->type == TOK_COLON) {
+    if (look(p).type == TOK_COLON) {
         next(p);
         decltype = make_node(p, ND_TYPE, look(p));
         next(p);
     }
     // Assignment expression
-    if (look(p)->type == TOK_EQUALS) {
+    if (look(p).type == TOK_EQUALS) {
         next(p);
         expr = parse_expr(p);
     }
@@ -413,7 +412,7 @@ static AstNode *parse_decl(Parser *p)
 {
     AstNode *decl;
 
-    switch (look(p)->type) {
+    switch (look(p).type) {
     case TOK_LET:
     case TOK_VAR:
         decl = parse_var_decl(p);
