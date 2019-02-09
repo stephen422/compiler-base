@@ -31,8 +31,7 @@ static AstNode *make_expr_stmt(Parser *p, AstNode *expr)
     return node;
 }
 
-static AstNode *make_decl_stmt(Parser *p, AstNode *decl)
-{
+static AstNode *make_decl_stmt(Parser *p, AstNode *decl) {
     AstNode *node = make_node(p, ND_DECLSTMT, NULL);
     node->decl = decl;
     return node;
@@ -61,28 +60,6 @@ static AstNode *make_vardecl(Parser *p, AstNode *decltype, int mutable, AstNode 
     node->name = name;
     node->expr = expr;
     return node;
-}
-
-static void free_node(AstNode *node)
-{
-    if (!node)
-        return;
-
-    switch (node->type) {
-    case ND_BINEXPR:
-        free_node(node->lhs);
-        free_node(node->op);
-        free_node(node->rhs);
-        break;
-    case ND_VARDECL:
-        free_node(node->decltype);
-        free_node(node->name);
-        free_node(node->expr);
-        break;
-    default:
-        break;
-    }
-    free(node);
 }
 
 static void iprintf(int indent, const char *fmt, ...) {
@@ -170,7 +147,7 @@ static void print_node(Parser *p, const AstNode *node)
 
 static Token *look(Parser *p)
 {
-    return &p->lexer.token;
+    return &p->lookahead_cache[p->cache_index];
 }
 
 static void error(Parser *p, const char *fmt, ...)
@@ -190,18 +167,33 @@ void parser_init(Parser *p, const char *filename)
     *p = (const Parser) {0};
     lexer_init(&p->lexer, filename);
     lexer_next(&p->lexer);
+    sb_push(p->lookahead_cache, p->lexer.token);
 }
 
 void parser_free(Parser *p)
 {
     // Free all nodes.
-    sb_free(p->lexer.line_offs);
+    for (int i = 0; i < sb_count(p->nodep_buf); i++) {
+        AstNode *node = p->nodep_buf[i];
+        if (node) {
+            if (node->compound_stmt) {
+                sb_free(node->compound_stmt);
+            }
+            free(node);
+        }
+    }
+    sb_free(p->nodep_buf);
+    sb_free(p->lookahead_cache);
     lexer_free(&p->lexer);
 }
 
 static void next(Parser *p)
 {
-    lexer_next(&p->lexer);
+    if (p->cache_index >= sb_count(p->lookahead_cache) - 1) {
+        lexer_next(&p->lexer);
+        sb_push(p->lookahead_cache, p->lexer.token);
+    }
+    p->cache_index++;
 }
 
 static void expect(Parser *p, TokenType t)
@@ -210,13 +202,28 @@ static void expect(Parser *p, TokenType t)
         error(p, "expected %s, got %s\n", token_names[t], token_names[look(p)->type]);
         exit(1);
     }
-    // Make progress
+    // Make progress in expect()!
     next(p);
+}
+
+static void save_state(Parser *p)
+{
+    // Clear cache except the current lookahead.
+    p->lookahead_cache[0] = p->lookahead_cache[p->cache_index];
+    stb__sbn(p->lookahead_cache) = 1;
+    p->cache_index = 0;
+}
+
+static void revert_state(Parser *p)
+{
+    p->cache_index = 0;
 }
 
 static AstNode *parse_stmt(Parser *p)
 {
-    AstNode *stmt, *expr, *decl;
+    AstNode *stmt, *node = NULL;
+
+    save_state(p);
 
     // Try all possible productions and use the first successful one.
     // We use lookahead (LL(k)) to revert state if a production fails.
@@ -224,20 +231,30 @@ static AstNode *parse_stmt(Parser *p)
     // https://en.wikipedia.org/wiki/Recursive_descent_parser)
     if (look(p)->type == TOK_EOF) {
         return NULL;
-    } else if (look(p)->type == TOK_SEMICOLON) {
+    }
+    if (look(p)->type == TOK_SEMICOLON) {
         next(p);
         return parse_stmt(p); // FIXME stack overflow
-    } else if ((decl = parse_decl(p))) {
-        stmt = make_decl_stmt(p, decl);
-        expect(p, TOK_SEMICOLON);
-        return stmt;
-    } else if ((expr = parse_expr(p))) {
-        stmt = make_expr_stmt(p, expr);
-        expect(p, TOK_SEMICOLON);
-        return stmt;
-    } else {
-        error(p, "Unknown statement type");
     }
+
+    node = parse_decl(p);
+    if (node) {
+        stmt = make_decl_stmt(p, node);
+        expect(p, TOK_SEMICOLON);
+        return stmt;
+    }
+    revert_state(p);
+
+    node = parse_expr(p);
+    if (node) {
+        stmt = make_expr_stmt(p, node);
+        expect(p, TOK_SEMICOLON);
+        return stmt;
+    }
+    revert_state(p);
+
+    // By now, no production succeeded and node is NULL.
+    error(p, "Unknown statement type");
     return NULL;
 }
 
@@ -296,12 +313,12 @@ static int get_precedence(const Token *op)
     }
 }
 
-// Parse (op binary)* part of the production
+// Parse (op binary)* part of the production.
 //
-//     binary_expr: unary (op binary)* .
+// BinaryExpr:
+//     UnaryExpr (op BinaryExpr)*
 //
 // Return the pointer to the node respresenting the reduced binary expression.
-// May be the same as 'lhs' if nothing was reduced.
 static AstNode *parse_binary_expr_rhs(Parser *p, AstNode *lhs, int precedence)
 {
     while (1) {
@@ -340,8 +357,12 @@ static AstNode *parse_binary_expr_rhs(Parser *p, AstNode *lhs, int precedence)
 // Parse an expression.
 //
 // Expr:
-//     Id
-//     Id()
+//     Id CallParam?
+//     UnaryExpr
+//     BinaryExpr
+//
+// CallParam:
+//     (Param)
 //
 // This grammar requires two or more lookahead, because a single token
 // lookahead would not tell us whether it is a single-ID expression or a call
@@ -376,8 +397,9 @@ static AstNode *parse_var_decl(Parser *p)
     }
     // At least one of the declaration type and assignment expression
     // should be specified.
-    if (decltype == NULL && expr == NULL)
+    if (decltype == NULL && expr == NULL) {
         error(p, "declarations should at least specify its type or its value.");
+    }
 
     return make_vardecl(p, decltype, mut, name, expr);
 }
@@ -406,6 +428,7 @@ static AstNode *parse_decl(Parser *p)
 void parse(Parser *p)
 {
     printf("sizeof(AstNode)=%zu\n", sizeof(AstNode));
+    printf("sizeof(Token)=%zu\n", sizeof(Token));
     AstNode *node;
     node = parse_compound_stmt(p);
     print_node(p, node);
