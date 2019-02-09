@@ -337,6 +337,15 @@ static AstNode *parse_binary_expr_rhs(Parser *p, AstNode *lhs, int precedence)
     return lhs;
 }
 
+// Parse an expression.
+//
+// Expr:
+//     Id
+//     Id()
+//
+// This grammar requires two or more lookahead, because a single token
+// lookahead would not tell us whether it is a single-ID expression or a call
+// expression.
 static AstNode *parse_expr(Parser *p)
 {
     AstNode *expr = parse_unary_expr(p);
