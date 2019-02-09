@@ -23,9 +23,10 @@ char *token_names[NUM_TOKENTYPES] = {
     [TOK_PLUS] = "+",
     [TOK_STAR] = "*",
     [TOK_BANG] = "!",
+    [TOK_FN] = "fn",
     [TOK_LET] = "let",
     [TOK_VAR] = "var",
-    [TOK_ERR] = "unknown"
+    [TOK_ERR] = "unknown",
 };
 
 static struct token_map symbols[] = {

@@ -1,11 +1,11 @@
-let a = 3;
-let a: int;
-var b = a + c;
-a * b + c;
+fn main() -> int {
+    let a = 3;
+    let a: int;
+    var b = a + c;
+    a * b + c;
 
-// fn main() -> int {
-//     // This is a line comment.
-//     let a = 3;
-//     var b = 4.3 / 3.1415926535;
-//     return a;
-// }
+    // This is a line comment.
+    let a = 3;
+    var b = 4.3 / 3.1415926535;
+    // return a;
+}

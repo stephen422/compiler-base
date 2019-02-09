@@ -12,6 +12,7 @@ typedef enum NodeType {
     ND_EXPRSTMT,
     ND_DECLSTMT,
     ND_COMPOUNDSTMT,
+    ND_FUNCTION,
 } NodeType ;
 
 typedef struct AstNode AstNode;
@@ -25,7 +26,6 @@ typedef struct AstNode {
     AstNode *rhs;
     // Variable declaration
     AstNode *decltype;
-    AstNode *name;
     AstNode *expr;
     int mutable;
     // Expression statement
@@ -33,7 +33,12 @@ typedef struct AstNode {
     // Declaration statement
     AstNode *decl;
     // Compound statement
-    AstNode **compound_stmt;
+    AstNode **stmt_buf;
+    AstNode *body;
+    // Function name (FIXME: unnecessary)
+    Token name;
+    // Function return type (TODO: type node)
+    Token return_type;
 } AstNode;
 
 typedef struct {

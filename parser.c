@@ -51,13 +51,20 @@ static AstNode *make_binexpr(Parser *p, AstNode *lhs, AstNode *op, AstNode *rhs)
     return node;
 }
 
-static AstNode *make_vardecl(Parser *p, AstNode *decltype, int mutable, AstNode *name, AstNode *expr)
+static AstNode *make_vardecl(Parser *p, AstNode *decltype, int mutable, Token name, AstNode *expr)
 {
     AstNode *node = make_node(p, ND_VARDECL, look(p));
     node->decltype = decltype;
     node->mutable = mutable;
     node->name = name;
     node->expr = expr;
+    return node;
+}
+
+static AstNode *make_function(Parser *p, Token name)
+{
+    AstNode *node = make_node(p, ND_FUNCTION, look(p));
+    node->name = name;
     return node;
 }
 
@@ -98,8 +105,8 @@ static void print_node_indent(Parser *p, const AstNode *node, int indent)
     case ND_COMPOUNDSTMT:
         printf("[CompoundStmt]\n");
         indent += 2;
-        for (int i = 0; i < sb_count(node->compound_stmt); i++) {
-            print_node_indent(p, node->compound_stmt[i], indent);
+        for (int i = 0; i < sb_count(node->stmt_buf); i++) {
+            print_node_indent(p, node->stmt_buf[i], indent);
         }
         indent -= 2;
         break;
@@ -126,11 +133,18 @@ static void print_node_indent(Parser *p, const AstNode *node, int indent)
         indent -= 2;
         break;
     case ND_VARDECL:
-        printf("[VarDecl]\n");
+        printf("[VarDecl] ");
+        print_token(&p->lexer, &node->name);
         indent += 2;
         iprintf(indent, "mutable: %d\n", node->mutable);
-        print_node_indent(p, node->name, indent);
         print_node_indent(p, node->expr, indent);
+        indent -= 2;
+        break;
+    case ND_FUNCTION:
+        printf("[Function] ");
+        print_token(&p->lexer, &node->name);
+        indent += 2;
+        print_node_indent(p, node->body, indent);
         indent -= 2;
         break;
     default:
@@ -175,8 +189,8 @@ void parser_free(Parser *p)
     for (int i = 0; i < sb_count(p->nodep_buf); i++) {
         AstNode *node = p->nodep_buf[i];
         if (node) {
-            if (node->compound_stmt) {
-                sb_free(node->compound_stmt);
+            if (node->stmt_buf) {
+                sb_free(node->stmt_buf);
             }
             free(node);
         }
@@ -198,7 +212,7 @@ static void next(Parser *p)
 static void expect(Parser *p, TokenType t)
 {
     if (look(p).type != t) {
-        error(p, "expected %s, got %s\n", token_names[t], token_names[look(p).type]);
+        error(p, "expected '%s', got '%s'\n", token_names[t], token_names[look(p).type]);
         exit(1);
     }
     // Make progress in expect()!
@@ -253,17 +267,18 @@ static AstNode *parse_stmt(Parser *p)
     revert_state(p);
 
     // By now, no production succeeded and node is NULL.
-    error(p, "Unknown statement type");
     return NULL;
 }
 
 static AstNode *parse_compound_stmt(Parser *p)
 {
+    expect(p, TOK_LBRACE);
     AstNode *compound = make_compound_stmt(p);
     AstNode *stmt;
     while ((stmt = parse_stmt(p)) != NULL) {
-        sb_push(compound->compound_stmt, stmt);
+        sb_push(compound->stmt_buf, stmt);
     }
+    expect(p, TOK_RBRACE);
     return compound;
 }
 
@@ -292,7 +307,7 @@ static AstNode *parse_unary_expr(Parser *p)
         expect(p, TOK_RPAREN);
         break;
     default:
-        error(p, "expected a unary expression\n");
+        expr = NULL;
         break;
     }
     return expr;
@@ -380,7 +395,7 @@ static AstNode *parse_var_decl(Parser *p)
 
     int mut = look(p).type == TOK_VAR;
     next(p);
-    AstNode *name = make_node(p, ND_TOKEN, look(p)); /* FIXME RefExpr? */
+    Token name = look(p);
     next(p);
 
     // Type specification
@@ -424,11 +439,34 @@ static AstNode *parse_decl(Parser *p)
     return decl;
 }
 
+static AstNode *parse_function(Parser *p)
+{
+    expect(p, TOK_FN);
+
+    Token name = look(p);
+    AstNode *func = make_function(p, name);
+    next(p);
+
+    expect(p, TOK_LPAREN);
+    // TODO: Argument list (foo(...))
+    expect(p, TOK_RPAREN);
+
+    // Return type (-> ...)
+    expect(p, TOK_ARROW);
+    func->return_type = look(p);
+    next(p);
+
+    // Function body
+    func->body = parse_compound_stmt(p);
+
+    return func;
+}
+
 void parse(Parser *p)
 {
     printf("sizeof(AstNode)=%zu\n", sizeof(AstNode));
     printf("sizeof(Token)=%zu\n", sizeof(Token));
     AstNode *node;
-    node = parse_compound_stmt(p);
+    node = parse_function(p);
     print_node(p, node);
 }
