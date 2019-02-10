@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "sema.h"
 #include "parser.h"
 #include "lexer.h"
 
@@ -9,7 +10,7 @@ void test_lexer(const char *filename)
     lexer_init(&lex, filename);
 
     while (lexer_next(&lex) == 0) {
-        printf("pos %ld/%ld: ", lex.token.start, lex.srclen);
+        printf("pos %ld/%ld: ", lex.token.range.start, lex.srclen);
         print_token(&lex, lex.token);
     }
 
@@ -28,6 +29,7 @@ int main(int argc, char **argv)
 
     Parser p;
     parser_init(&p, argv[1]);
-    parse(&p);
+    AstNode *program = parse(&p);
+    traverse(program);
     parser_free(&p);
 }

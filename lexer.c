@@ -157,8 +157,7 @@ static void make_token(Lexer *l, TokenType type)
 {
     memset(&l->token, 0, sizeof(Token));
     l->token.type = type;
-    l->token.start = l->start;
-    l->token.end = l->off;
+    l->token.range = (SourceRange) {l->start, l->off};
 }
 
 void token_free(Token *t)
@@ -287,7 +286,7 @@ void print_token(Lexer *lex, const Token tok)
     switch (tok.type) {
     case TOK_IDENT:
     case TOK_NUM :
-        printf("'%.*s'\n", (int)(tok.end - tok.start), lex->src + tok.start);
+        printf("'%.*s'\n", (int)(tok.range.end - tok.range.start), lex->src + tok.range.start);
         break;
     case TOK_ERR:
         printf("error\n");

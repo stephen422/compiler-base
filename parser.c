@@ -177,7 +177,7 @@ static Token look(Parser *p)
 
 static void error(Parser *p, const char *fmt, ...)
 {
-    SourceLoc loc = locate_line_col(&p->lexer, look(p).start);
+    SourceLoc loc = locate_line_col(&p->lexer, look(p).range.start);
     va_list args;
     fprintf(stderr, "%s:%d:%d: parse error: ", p->lexer.filename, loc.line, loc.col);
     va_start(args, fmt);
@@ -496,11 +496,12 @@ static AstNode *parse_function(Parser *p)
     return func;
 }
 
-void parse(Parser *p)
+AstNode *parse(Parser *p)
 {
     printf("sizeof(AstNode)=%zu\n", sizeof(AstNode));
     printf("sizeof(Token)=%zu\n", sizeof(Token));
     AstNode *node;
     node = parse_function(p);
     print_ast(p, node);
+    return node;
 }

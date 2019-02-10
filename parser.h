@@ -51,6 +51,6 @@ typedef struct {
 
 void parser_init(Parser *p, const char *filename);
 void parser_free(Parser *p);
-void parse(Parser *p);
+AstNode *parse(Parser *p);
 
 #endif

@@ -61,10 +61,14 @@ typedef enum TokenType {
 
 char *token_names[NUM_TOKENTYPES];
 
-typedef struct token {
-    TokenType type;
+typedef struct {
     size_t start; // start position in the source
     size_t end;   // end position in the source
+} SourceRange;
+
+typedef struct token {
+    TokenType type;
+    SourceRange range;
 } Token;
 
 typedef struct SourceLoc {

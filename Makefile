@@ -2,14 +2,15 @@ CFLAGS += -g3 -gdwarf -std=c11 -fsanitize=address,leak,undefined -Wall -Wextra
 # CFLAGS += -g3 -gdwarf -std=c11 -Wall -Wextra
 PROG := cmp
 
-$(PROG): main.o parser.o lexer.o
+$(PROG): main.o sema.o parser.o lexer.o
 	$(CC) $(CFLAGS) -o $(PROG) $^
 
 .SUFFIXES: .c .o
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-main.o: parser.h lexer.h
+main.o: sema.h parser.h lexer.h
+sema.o: sema.h parser.h lexer.h
 parser.o: parser.h lexer.h
 lexer.o: lexer.h
 
