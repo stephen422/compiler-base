@@ -86,7 +86,7 @@ typedef struct {
 } Lexer;
 
 void token_free(Token *t);
-void print_token(Lexer *l, const Token *t);
+void print_token(Lexer *l, const Token t);
 
 SourceLoc locate_line_col(Lexer *l, size_t pos);
 int lexer_init(Lexer *l, const char *filename);

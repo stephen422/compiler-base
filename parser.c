@@ -77,7 +77,7 @@ static void iprintf(int indent, const char *fmt, ...) {
     va_end(args);
 }
 
-static void print_node_indent(Parser *p, const AstNode *node, int indent)
+static void print_ast_indent(Parser *p, const AstNode *node, int indent)
 {
     if (!node) {
         iprintf(indent, "(null)\n");
@@ -88,25 +88,25 @@ static void print_node_indent(Parser *p, const AstNode *node, int indent)
 
     switch (node->type) {
     case ND_TOKEN:
-        print_token(&p->lexer, &node->token);
+        print_token(&p->lexer, node->token);
         break;
     case ND_DECLSTMT:
         printf("[DeclStmt]\n");
         indent += 2;
-        print_node_indent(p, node->decl, indent);
+        print_ast_indent(p, node->decl, indent);
         indent -= 2;
         break;
     case ND_EXPRSTMT:
         printf("[ExprStmt]\n");
         indent += 2;
-        print_node_indent(p, node->expr, indent);
+        print_ast_indent(p, node->expr, indent);
         indent -= 2;
         break;
     case ND_COMPOUNDSTMT:
         printf("[CompoundStmt]\n");
         indent += 2;
         for (int i = 0; i < sb_count(node->stmt_buf); i++) {
-            print_node_indent(p, node->stmt_buf[i], indent);
+            print_ast_indent(p, node->stmt_buf[i], indent);
         }
         indent -= 2;
         break;
@@ -114,37 +114,37 @@ static void print_node_indent(Parser *p, const AstNode *node, int indent)
         printf("[LiteralExpr] ");
         switch (node->token.type) {
         case TOK_IDENT:
-            print_token(&p->lexer, &node->token);
+            print_token(&p->lexer, node->token);
             break;
         case TOK_NUM:
-            print_token(&p->lexer, &node->token);
+            print_token(&p->lexer, node->token);
             break;
         default:
-            print_token(&p->lexer, &node->token);
+            print_token(&p->lexer, node->token);
             break;
         }
         break;
     case ND_BINEXPR:
         printf("[BinaryExpr]\n");
         indent += 2;
-        print_node_indent(p, node->lhs, indent);
-        print_node_indent(p, node->op, indent);
-        print_node_indent(p, node->rhs, indent);
+        print_ast_indent(p, node->lhs, indent);
+        print_ast_indent(p, node->op, indent);
+        print_ast_indent(p, node->rhs, indent);
         indent -= 2;
         break;
     case ND_VARDECL:
         printf("[VarDecl] ");
-        print_token(&p->lexer, &node->name);
+        print_token(&p->lexer, node->name);
         indent += 2;
         iprintf(indent, "mutable: %d\n", node->mutable);
-        print_node_indent(p, node->expr, indent);
+        print_ast_indent(p, node->expr, indent);
         indent -= 2;
         break;
     case ND_FUNCTION:
         printf("[Function] ");
-        print_token(&p->lexer, &node->name);
+        print_token(&p->lexer, node->name);
         indent += 2;
-        print_node_indent(p, node->body, indent);
+        print_ast_indent(p, node->body, indent);
         indent -= 2;
         break;
     default:
@@ -153,9 +153,9 @@ static void print_node_indent(Parser *p, const AstNode *node, int indent)
     }
 }
 
-static void print_node(Parser *p, const AstNode *node)
+static void print_ast(Parser *p, const AstNode *node)
 {
-    print_node_indent(p, node, 0);
+    print_ast_indent(p, node, 0);
 }
 
 static Token look(Parser *p)
@@ -468,5 +468,5 @@ void parse(Parser *p)
     printf("sizeof(Token)=%zu\n", sizeof(Token));
     AstNode *node;
     node = parse_function(p);
-    print_node(p, node);
+    print_ast(p, node);
 }

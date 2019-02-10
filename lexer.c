@@ -22,6 +22,7 @@ char *token_names[NUM_TOKENTYPES] = {
     [TOK_EQUALS] = "=",
     [TOK_PLUS] = "+",
     [TOK_STAR] = "*",
+    [TOK_SLASH] = "/",
     [TOK_BANG] = "!",
     [TOK_FN] = "fn",
     [TOK_LET] = "let",
@@ -282,21 +283,21 @@ SourceLoc locate_line_col(Lexer *l, size_t pos)
     return (SourceLoc) {line + 1, col};
 }
 
-void print_token(Lexer *lex, const Token *tok)
+void print_token(Lexer *lex, const Token tok)
 {
-    switch (tok->type) {
+    switch (tok.type) {
     case TOK_IDENT:
     case TOK_NUM :
-        printf("'%.*s'\n", (int)(tok->end - tok->start), lex->src + tok->start);
+        printf("'%.*s'\n", (int)(tok.end - tok.start), lex->src + tok.start);
         break;
     case TOK_ERR:
         printf("error\n");
         break;
     default:
-        if (tok->type >= TOK_KEYWORDS)
-            printf("'%s'\n", token_names[tok->type]);
+        if (tok.type >= TOK_KEYWORDS)
+            printf("'%s'\n", token_names[tok.type]);
         else
-            printf("'%s'\n", token_names[tok->type]);
+            printf("'%s'\n", token_names[tok.type]);
         break;
     }
 }
