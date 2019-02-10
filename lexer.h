@@ -5,6 +5,7 @@
 
 typedef enum TokenType {
     TOK_EOF,
+    TOK_NEWLINE,
     TOK_NUM,
     TOK_IDENT,
     TOK_STRING,
@@ -72,7 +73,7 @@ typedef struct SourceLoc {
 } SourceLoc ;
 
 typedef struct {
-    Token token;     // currently lexed token
+    Token token;       // currently lexed token
     char ch;           // lookahead character
     long off;          // lookahead character offset
     long rd_off;       // next read character offset

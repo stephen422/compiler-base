@@ -35,6 +35,7 @@ char *token_names[NUM_TOKENTYPES] = {
 
 static struct token_map symbols[] = {
     {"->", TOK_ARROW},
+    {"\n", TOK_NEWLINE},
     {"/", TOK_SLASH},
     {"(", TOK_LPAREN},
     {")", TOK_RPAREN},
@@ -229,11 +230,6 @@ int lexer_next(Lexer *l)
         case 0: {
             make_token(l, TOK_EOF);
             return EOF;
-        }
-        case '\n': case '\r': {
-            l->line_off = l->off;
-            step(l);
-            break;
         }
         case ' ': case '\t': {
             step(l);

@@ -248,6 +248,9 @@ static AstNode *parse_return_stmt(Parser *p)
 {
     expect(p, TOK_RETURN);
     AstNode *expr = parse_expr(p);
+    if (!expr) {
+        error(p, "expected expression");
+    }
     return make_return_stmt(p, expr);
 }
 
@@ -264,11 +267,13 @@ static AstNode *parse_stmt(Parser *p)
     switch (look(p).type) {
     case TOK_EOF:
         return NULL;
-    case TOK_SEMICOLON:
+    case TOK_NEWLINE:
         next(p);
         return parse_stmt(p); // FIXME stack overflow
     case TOK_RETURN:
-        return parse_return_stmt(p);
+        stmt = parse_return_stmt(p);
+        expect(p, TOK_NEWLINE);
+        return stmt;
     default:
         break;
     }
@@ -276,7 +281,7 @@ static AstNode *parse_stmt(Parser *p)
     node = parse_decl(p);
     if (node) {
         stmt = make_decl_stmt(p, node);
-        expect(p, TOK_SEMICOLON);
+        expect(p, TOK_NEWLINE);
         return stmt;
     }
     revert_state(p);
@@ -284,7 +289,7 @@ static AstNode *parse_stmt(Parser *p)
     node = parse_expr(p);
     if (node) {
         stmt = make_expr_stmt(p, node);
-        expect(p, TOK_SEMICOLON);
+        expect(p, TOK_NEWLINE);
         return stmt;
     }
     revert_state(p);
