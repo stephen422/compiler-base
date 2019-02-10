@@ -10,8 +10,8 @@ static AstNode *parse_decl(Parser *p);
 
 static AstNode *make_node(Parser *p, NodeType t, Token tok)
 {
-    // TODO: maybe store all nodes in a contiguous buffer for better cache
-    // utilization?  Should take care about node pointers going stale though
+    // TODO: maybe store all nodes in a contiguous buffer for better locality?
+    // Should be careful about node pointers going stale though
     AstNode *node = calloc(1, sizeof(AstNode));
     if (!node) {
         fprintf(stderr, "alloc error\n");
@@ -380,6 +380,9 @@ static AstNode *parse_binary_expr_rhs(Parser *p, AstNode *lhs, int precedence)
         // LHS or RHS; e.g. "a * b + c" or "a + b * c".  To know this, we should
         // look ahead for the operator that follows this term.
         AstNode *rhs = parse_unary_expr(p);
+        if (!rhs) {
+            error(p, "expected expression");
+        }
         int next_prec = get_precedence(look(p));
 
         // If the next operator is indeed higher-level, evaluate the RHS as a

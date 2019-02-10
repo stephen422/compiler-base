@@ -8,7 +8,7 @@ fn main() -> int {
     let a = 3
     var b = 4.3 / 3.1415926535
     // return a
-    return var a: int
+    return 3
 }
 
 fn swap(a: &int, b: &int) {
