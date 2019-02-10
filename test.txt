@@ -1,6 +1,6 @@
 fn main() -> int {
     let a = 3;
-    let a: int;
+    var a: int;
     var b = a + c;
     a * b + c;
 

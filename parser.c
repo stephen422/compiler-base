@@ -244,8 +244,7 @@ static AstNode *parse_stmt(Parser *p)
     // https://en.wikipedia.org/wiki/Recursive_descent_parser)
     if (look(p).type == TOK_EOF) {
         return NULL;
-    }
-    if (look(p).type == TOK_SEMICOLON) {
+    } else if (look(p).type == TOK_SEMICOLON) {
         next(p);
         return parse_stmt(p); // FIXME stack overflow
     }
@@ -266,7 +265,7 @@ static AstNode *parse_stmt(Parser *p)
     }
     revert_state(p);
 
-    // By now, no production succeeded and node is NULL.
+    // By now, no production has succeeded and node is NULL.
     return NULL;
 }
 
@@ -391,31 +390,34 @@ static AstNode *parse_expr(Parser *p)
 static AstNode *parse_var_decl(Parser *p)
 {
     AstNode *decltype = NULL;
-    AstNode *expr = NULL;
+    AstNode *assign = NULL;
 
     int mut = look(p).type == TOK_VAR;
     next(p);
     Token name = look(p);
     next(p);
 
-    // Type specification
-    if (look(p).type == TOK_COLON) {
+    if (!mut) {
+        // 'let' declarations require assignment expression
+        expect(p, TOK_EQUALS);
+        assign = parse_expr(p);
+    } else if (look(p).type == TOK_EQUALS) {
+        // Type inference from assignment expression
+        next(p);
+        assign = parse_expr(p);
+    } else if (look(p).type == TOK_COLON) {
+        // Explicit type
         next(p);
         decltype = make_node(p, ND_TYPE, look(p));
         next(p);
     }
-    // Assignment expression
-    if (look(p).type == TOK_EQUALS) {
-        next(p);
-        expr = parse_expr(p);
-    }
     // At least one of the declaration type and assignment expression
     // should be specified.
-    if (decltype == NULL && expr == NULL) {
+    if (decltype == NULL && assign == NULL) {
         error(p, "declarations should at least specify its type or its value.");
     }
 
-    return make_vardecl(p, decltype, mut, name, expr);
+    return make_vardecl(p, decltype, mut, name, assign);
 }
 
 // Parse a declaration.
