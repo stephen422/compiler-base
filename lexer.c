@@ -16,6 +16,8 @@ char *token_names[NUM_TOKENTYPES] = {
     [TOK_NUM] = "number",
     [TOK_LPAREN] = "(",
     [TOK_RPAREN] = ")",
+    [TOK_LBRACE] = "{",
+    [TOK_RBRACE] = "}",
     [TOK_DOT] = ".",
     [TOK_COLON] = ":",
     [TOK_SEMICOLON] = ";",
@@ -27,6 +29,7 @@ char *token_names[NUM_TOKENTYPES] = {
     [TOK_FN] = "fn",
     [TOK_LET] = "let",
     [TOK_VAR] = "var",
+    [TOK_RETURN] = "return",
     [TOK_ERR] = "unknown",
 };
 

@@ -11,6 +11,7 @@ typedef enum NodeType {
     ND_BINEXPR,
     ND_EXPRSTMT,
     ND_DECLSTMT,
+    ND_RETURNSTMT,
     ND_COMPOUNDSTMT,
     ND_FUNCTION,
 } NodeType ;

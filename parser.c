@@ -36,6 +36,12 @@ static AstNode *make_decl_stmt(Parser *p, AstNode *decl) {
     return node;
 }
 
+static AstNode *make_return_stmt(Parser *p, AstNode *expr) {
+    AstNode *node = make_node(p, ND_RETURNSTMT, look(p));
+    node->expr = expr;
+    return node;
+}
+
 static AstNode *make_compound_stmt(Parser *p)
 {
     AstNode *node = make_node(p, ND_COMPOUNDSTMT, look(p));
@@ -98,6 +104,12 @@ static void print_ast_indent(Parser *p, const AstNode *node, int indent)
         break;
     case ND_EXPRSTMT:
         printf("[ExprStmt]\n");
+        indent += 2;
+        print_ast_indent(p, node->expr, indent);
+        indent -= 2;
+        break;
+    case ND_RETURNSTMT:
+        printf("[ReturnStmt]\n");
         indent += 2;
         print_ast_indent(p, node->expr, indent);
         indent -= 2;
@@ -232,6 +244,13 @@ static void revert_state(Parser *p)
     p->cache_index = 0;
 }
 
+static AstNode *parse_return_stmt(Parser *p)
+{
+    expect(p, TOK_RETURN);
+    AstNode *expr = parse_expr(p);
+    return make_return_stmt(p, expr);
+}
+
 static AstNode *parse_stmt(Parser *p)
 {
     AstNode *stmt, *node = NULL;
@@ -242,11 +261,16 @@ static AstNode *parse_stmt(Parser *p)
     // We use lookahead (LL(k)) to revert state if a production fails.
     // (See "recursive descent with backtracking":
     // https://en.wikipedia.org/wiki/Recursive_descent_parser)
-    if (look(p).type == TOK_EOF) {
+    switch (look(p).type) {
+    case TOK_EOF:
         return NULL;
-    } else if (look(p).type == TOK_SEMICOLON) {
+    case TOK_SEMICOLON:
         next(p);
         return parse_stmt(p); // FIXME stack overflow
+    case TOK_RETURN:
+        return parse_return_stmt(p);
+    default:
+        break;
     }
 
     node = parse_decl(p);
