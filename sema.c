@@ -1,8 +1,54 @@
 #include "sema.h"
 #include "stretchy_buffer.h"
 #include <stdio.h>
+#include <stdint.h>
+#include <string.h>
 
-// Traverse the AST starting from 'node' as the root node.
+static uint64_t hash(const char *text)
+{
+    uint64_t hash = 5381;
+    int c;
+    while ((c = *text++)) {
+        hash = ((hash << 5) + hash) + c; // hash * 33 + c
+    }
+    return hash;
+}
+
+static Symbol *make_symbol(const char *name, Decl decl)
+{
+    Symbol *s = calloc(1, sizeof(Symbol));
+    s->name = calloc(strlen(name) + 1, sizeof(char));
+    memcpy(s->name, name, strlen(name));
+    s->decl = decl;
+    return s;
+}
+
+static void free_symbol(Symbol *s)
+{
+    free(s->name);
+    free(s);
+}
+
+static void symbol_push(SymbolTable tab, const char *name, Decl decl)
+{
+    int index = hash(name) % HASHTABLE_SIZE;
+    Symbol **p = &tab[index];
+    Symbol *new = make_symbol(name, decl);
+    new->next = *p;
+    *p = new;
+}
+
+static Symbol *symbol_find(SymbolTable tab, const char *name)
+{
+    int index = hash(name) % HASHTABLE_SIZE;
+    for (Symbol *s = tab[index]; s; s = s->next) {
+        if (!strcmp(s->name, name)) {
+            return s;
+        }
+    }
+    return NULL;
+}
+
 void traverse(AstNode *node)
 {
     switch (node->type) {

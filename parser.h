@@ -44,7 +44,7 @@ typedef struct AstNode {
 
 typedef struct {
     Lexer lexer;
-    Token *lookahead_cache;   // lookahead tokens cache
+    Token *lookahead_cache; // lookahead tokens cache
     int cache_index;
     AstNode **nodep_buf; // pointers to the allocated nodes
 } Parser;

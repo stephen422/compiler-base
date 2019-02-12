@@ -3,7 +3,14 @@
 
 #include "parser.h"
 
-// An Id corresponds to any single unique string name in the source txt.
+#define HASHTABLE_SIZE 512
+
+// An Id corresponds to any single unique string name in the source text.
+// There may be multiple occurrences of the string in the source text, but
+// there is only one instance of the matching Id in the course of compilation.
+// This reduces the number of string hashing operation, since we can look up
+// the symbol table using Id instead of raw char * throughout the semantic
+// analysis phase.
 typedef struct {
     char *text;
 } Id;
@@ -23,18 +30,24 @@ typedef struct {
     };
 } Decl;
 
-typedef struct {
-    Id *name;
+typedef struct Symbol Symbol;
+typedef struct Symbol {
+    char *name;
     Decl decl;
-} SymbolMap;
+    Symbol *next;  // link to symbol in the same bucket
+    Symbol *cross; // cross link to symbol in the same scope
+} Symbol;
 
 // Symbol table.
 //
-// Find a declaration by its ID.
-typedef struct {
-    // Symbol syms[];
-} SymbolTable;
+// Find Decl that matches the given Id.
+typedef Symbol **SymbolTable;
 
+typedef struct {
+    SymbolTable symbol_table;
+} Compiler;
+
+// Traverse the AST starting from 'node' as the root node.
 void traverse(AstNode *node);
 
 #endif
