@@ -18,6 +18,16 @@ void test_lexer(const char *filename)
     lexer_free(&lex);
 }
 
+void cmpstate_init(CmpState *cs, const char *filename)
+{
+    parser_init(&cs->parser, filename);
+}
+
+void cmpstate_cleanup(CmpState *cs)
+{
+    parser_cleanup(&cs->parser);
+}
+
 int main(int argc, char **argv)
 {
     if (argc < 2) {
@@ -31,5 +41,6 @@ int main(int argc, char **argv)
     parser_init(&p, argv[1]);
     AstNode *program = parse(&p);
     traverse(program);
-    parser_free(&p);
+    parser_cleanup(&p);
+    return 0;
 }

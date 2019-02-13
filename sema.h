@@ -5,16 +5,6 @@
 
 #define HASHTABLE_SIZE 512
 
-// An Id corresponds to any single unique string name in the source text.
-// There may be multiple occurrences of the string in the source text, but
-// there is only one instance of the matching Id in the course of compilation.
-// This reduces the number of string hashing operation, since we can look up
-// the symbol table using Id instead of raw char * throughout the semantic
-// analysis phase.
-typedef struct {
-    char *text;
-} Id;
-
 typedef struct {
 } Func;
 
@@ -44,8 +34,12 @@ typedef struct Symbol {
 typedef Symbol **SymbolTable;
 
 typedef struct {
+    Parser parser;
     SymbolTable symbol_table;
-} Compiler;
+} CmpState;
+
+void cmpstate_init(CmpState *cs, const char *filename);
+void cmpstate_cleanup(CmpState *cs);
 
 // Traverse the AST starting from 'node' as the root node.
 void traverse(AstNode *node);

@@ -1,8 +1,10 @@
 #include "parser.h"
 #include "stretchy_buffer.h"
-#include <stdio.h>
-#include <stdarg.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include <string.h>
+#include <stdio.h>
 
 static Token look(Parser *p);
 static AstNode *parse_expr(Parser *p);
@@ -195,7 +197,20 @@ void parser_init(Parser *p, const char *filename)
     sb_push(p->lookahead_cache, p->lexer.token);
 }
 
-void parser_free(Parser *p)
+static void name_table_cleanup(Parser *p)
+{
+    for (int i = 0; i < NAMETABLE_SIZE; i++) {
+        Name *n = p->name_table.keys[i];
+        while (n) {
+            Name *next = n->next;
+            free(n->text);
+            free(n);
+            n = next;
+        }
+    }
+}
+
+void parser_cleanup(Parser *p)
 {
     // Free all nodes.
     for (int i = 0; i < sb_count(p->nodep_buf); i++) {
@@ -210,6 +225,7 @@ void parser_free(Parser *p)
     sb_free(p->nodep_buf);
     sb_free(p->lookahead_cache);
     lexer_free(&p->lexer);
+    name_table_cleanup(p);
 }
 
 static void next(Parser *p)
@@ -320,10 +336,20 @@ static AstNode *parse_literal_expr(Parser *p)
 static AstNode *parse_unary_expr(Parser *p)
 {
     AstNode *expr = NULL;
+    Name *name;
 
     switch (look(p).type) {
     case TOK_IDENT:
         expr = make_node(p, ND_TOKEN, look(p));
+        name = parser_get_name(p, look(p));
+        if (!name) {
+            printf("First seen name, pushing ");
+            print_token(&p->lexer, look(p));
+            parser_push_name(p, look(p));
+        } else {
+            printf("Found name ");
+            print_token(&p->lexer, look(p));
+        }
         next(p);
         break;
     case TOK_NUM:
@@ -504,4 +530,48 @@ AstNode *parse(Parser *p)
     node = parse_function(p);
     print_ast(p, node);
     return node;
+}
+
+static uint64_t hash(const char *text, int len)
+{
+    uint64_t hash = 5381;
+    for (int i = 0; i < len; i++) {
+        int c = text[i];
+        hash = ((hash << 5) + hash) + c; // hash * 33 + c
+        len--;
+    }
+    return hash;
+}
+
+static char *copy_source_range(Parser *p, SourceRange range)
+{
+    int len = range.end - range.start;
+    char *s = calloc(len + 1, sizeof(char));
+    memcpy(s, p->lexer.src + range.start, len);
+    return s;
+}
+
+void parser_push_name(Parser *p, Token tok)
+{
+    Name *name = calloc(1, sizeof(Name));
+    name->text = copy_source_range(p, tok.range);
+
+    size_t len = tok.range.end - tok.range.start;
+    int index = hash(name->text, len) % NAMETABLE_SIZE;
+    Name **keyp = &p->name_table.keys[index];
+    name->next = *keyp;
+    *keyp = name;
+}
+
+Name *parser_get_name(Parser *p, Token tok)
+{
+    char *src_text = p->lexer.src + tok.range.start;
+    size_t len = tok.range.end - tok.range.start;
+    int index = hash(src_text, len) % NAMETABLE_SIZE;
+    for (Name *n = p->name_table.keys[index]; n; n = n->next) {
+        if (strlen(n->text) == len && !strncmp(n->text, src_text, len)) {
+            return n;
+        }
+    }
+    return NULL;
 }
