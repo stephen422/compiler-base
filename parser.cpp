@@ -176,9 +176,11 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
     next();
 
     ExprPtr rhs = nullptr;
-    if (look().type == TokenType::equals) {
+    if (!mut) {
+        expect(TokenType::equals, "initial value should be provided for immutable variables");
+        rhs = parse_expr().unwrap();
+    } else if (look().type == TokenType::equals) {
         next();
-        // RHS of an assignment should be an expression.
         rhs = parse_expr().unwrap();
     }
     return make_node<VarDecl>(id, std::move(rhs), mut);

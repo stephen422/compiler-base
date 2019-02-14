@@ -2,11 +2,11 @@ fn main() -> int {
     1 * 2 + 3 + 4 * 5
     3 + (a - (b + a * 3)) * 2
 
-    let a
-    var b = 3 + 4
-    a = b
+    var a = 3 + 4
+    var b
+    b = a
 
-    return a
+    return b
 }
 
 // impl Car {
