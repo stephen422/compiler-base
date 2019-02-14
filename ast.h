@@ -8,13 +8,18 @@
 
 namespace cmp {
 
-enum class AstNodeType {
+enum class AstType {
     none, // FIXME necessary?
     file,
     toplevel,
-    stmt,
-    decl,
-    expr,
+    decl_stmt,
+    expr_stmt,
+    assign_stmt,
+    return_stmt,
+    compound_stmt,
+    var_decl,
+    literal_expr,
+    binary_expr,
     function,
 };
 
@@ -45,8 +50,8 @@ NodePtr<T> make_node(Args&&... args) {
 
 class AstNode {
 public:
-    AstNode(): AstNode(AstNodeType::none) {}
-    AstNode(AstNodeType type): type(type) {}
+    AstNode(): AstNode(AstType::none) {}
+    AstNode(AstType type): type(type) {}
     virtual ~AstNode() = default;
 
     virtual void print() const = 0;
@@ -68,7 +73,7 @@ public:
         return std::cout;
     }
 
-    AstNodeType type;
+    AstType type;
 
     // Indentation of the current node when dumping AST.
     // Since all nodes share one indentation level variable, this should be
@@ -90,51 +95,25 @@ public:
 // File is simply a group of Toplevels.
 class File : public AstNode {
 public:
-    File() : AstNode(AstNodeType::file) {}
+    File() : AstNode(AstType::file) {}
     void print() const override;
     void traverse() const override;
 
     std::vector<ToplevelPtr> toplevels;
 };
 
-// ============
-//   Toplevel
-// ============
-
-enum class ToplevelType {
-    function,
-};
-
-class Toplevel : public AstNode {
-public:
-    Toplevel(ToplevelType type) : AstNode(AstNodeType::toplevel), type(type) {}
-
-    ToplevelType type;
-};
-
-
 // =============
 //   Statement
 // =============
 
-enum class StmtType {
-    decl,
-    expr,
-    assign,
-    return_,
-    compound
-};
-
 class Stmt : public AstNode {
 public:
-    Stmt(StmtType type) : AstNode(AstNodeType::stmt), type(type) {}
-
-    StmtType type;
+    Stmt(AstType type) : AstNode(type) {}
 };
 
 class DeclStmt : public Stmt {
 public:
-    DeclStmt(DeclPtr decl) : Stmt(StmtType::decl), decl(std::move(decl)) {}
+    DeclStmt(DeclPtr decl) : Stmt(AstType::decl_stmt), decl(std::move(decl)) {}
     void print() const override;
     void traverse() const override;
 
@@ -143,7 +122,7 @@ public:
 
 class ExprStmt : public Stmt {
 public:
-    ExprStmt(ExprPtr expr) : Stmt(StmtType::expr), expr(std::move(expr)) {}
+    ExprStmt(ExprPtr expr) : Stmt(AstType::expr_stmt), expr(std::move(expr)) {}
     void print() const override;
     void traverse() const override;
 
@@ -152,7 +131,7 @@ public:
 
 class AssignStmt : public Stmt {
 public:
-    AssignStmt(const Token &lhs, ExprPtr rhs) : Stmt(StmtType::assign), lhs(lhs), rhs(std::move(rhs)) {}
+    AssignStmt(const Token &lhs, ExprPtr rhs) : Stmt(AstType::assign_stmt), lhs(lhs), rhs(std::move(rhs)) {}
     void print() const override;
     void traverse() const override;
 
@@ -163,7 +142,7 @@ public:
 
 class ReturnStmt : public Stmt {
 public:
-    ReturnStmt(ExprPtr expr) : Stmt(StmtType::return_), expr(std::move(expr)) {}
+    ReturnStmt(ExprPtr expr) : Stmt(AstType::return_stmt), expr(std::move(expr)) {}
     void print() const override;
     void traverse() const override;
 
@@ -172,7 +151,7 @@ public:
 
 class CompoundStmt : public Stmt {
 public:
-    CompoundStmt() : Stmt(StmtType::compound) {}
+    CompoundStmt() : Stmt(AstType::compound_stmt) {}
     void print() const override;
     void traverse() const override;
 
@@ -183,23 +162,15 @@ public:
 //   Expressions
 // ===============
 
-enum class ExprType {
-    literal,
-    unary,
-    binary,
-};
-
 class Expr : public AstNode {
 public:
-    Expr(ExprType type) : AstNode(AstNodeType::expr), type(type) {}
+    Expr(AstType type) : AstNode(type) {}
     virtual std::string flatten() const = 0;
-
-    ExprType type;
 };
 
 class LiteralExpr : public Expr {
 public:
-    LiteralExpr(const Token &lit) : Expr(ExprType::literal), lit(lit) {}
+    LiteralExpr(const Token &lit) : Expr(AstType::literal_expr), lit(lit) {}
     void print() const override;
     void traverse() const override;
     std::string flatten() const override;
@@ -210,7 +181,7 @@ public:
 class BinaryExpr : public Expr {
 public:
     BinaryExpr(ExprPtr lhs, Token op, ExprPtr rhs)
-        : Expr(ExprType::binary), lhs(std::move(lhs)), op(op),
+        : Expr(AstType::binary_expr), lhs(std::move(lhs)), op(op),
           rhs(std::move(rhs)) {}
     void print() const override;
     void traverse() const override;
@@ -225,24 +196,17 @@ public:
 //   Declarations
 // ================
 
-enum class DeclType {
-    var,
-    func,
-};
-
 // A declaration.
 class Decl : public AstNode {
 public:
-    Decl(DeclType type) : AstNode(AstNodeType::decl), type(type) {}
-
-    DeclType type;
+    Decl(AstType type) : AstNode(type) {}
 };
 
 // Variable declaration.
 class VarDecl : public Decl {
 public:
     VarDecl(const Token &id, ExprPtr expr, bool mut)
-        : Decl(DeclType::var), id(id), assign_expr(std::move(expr)), mut(mut) {}
+        : Decl(AstType::var_decl), id(id), assign_expr(std::move(expr)), mut(mut) {}
     void print() const override;
     void traverse() const override;
 
@@ -252,11 +216,20 @@ public:
     bool mut;
 };
 
+// ============
+//   Toplevel
+// ============
+
+class Toplevel : public AstNode {
+public:
+    Toplevel(AstType type) : AstNode(type) {}
+};
+
 // Function definition.  There is no separate 'function declaration': functions
 // should always be defined whenever they are declared.
 class Function : public Toplevel {
 public:
-    Function(const Token &id) : Toplevel(ToplevelType::function), id(id) {}
+    Function(const Token &id) : Toplevel(AstType::function), id(id) {}
     void print() const override;
     void traverse() const override {
         body->traverse();

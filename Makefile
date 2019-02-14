@@ -2,7 +2,7 @@ CXX ?= clang++
 CXXFLAGS += -g -fsanitize=address -std=c++14 -Wall -Wextra
 LDFLAGS := -fsanitize=address -fuse-ld=lld
 PROG := cmp
-OBJ := parser.o lexer.o ast.o source.o
+OBJ := sema.o parser.o lexer.o ast.o source.o
 
 $(PROG): main.o $(OBJ)
 	$(CXX) -o $(PROG) $^ $(LDFLAGS)
@@ -18,6 +18,7 @@ test: test.o $(OBJ)
 
 main.o: parser.h lexer.h
 test.o: parser.h catch.hpp
+sema.o: sema.h
 parser.o: parser.h lexer.h ast.h
 lexer.o: lexer.h source.h string_view.h
 ast.o: ast.h
