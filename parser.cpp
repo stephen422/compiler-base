@@ -23,31 +23,25 @@ NodePtr<T> ParseResult<T>::unwrap() {
 }
 
 Parser::Parser(Lexer &lexer) : lexer(lexer), tok() {
-    lookahead_cache.push_back(lexer.lex());
+    tokens = lexer.lex_all();
 }
 
 void Parser::next() {
-    if (lookahead_pos + 1 >= lookahead_cache.size()) {
-        lookahead_cache.push_back(lexer.lex());
+    if (tokens[lookahead_pos].type != TokenType::eos) {
+        lookahead_pos++;
     }
-    lookahead_pos++;
 }
 
-const Token &Parser::look() const {
-    return lookahead_cache[lookahead_pos];
+const Token Parser::look() const {
+    return tokens[lookahead_pos];
 }
 
 void Parser::save_state() {
-    lookahead_cache[0] = lookahead_cache[lookahead_pos];
-    int count = lookahead_cache.size() - 1;
-    for (int i = 0; i < count; i++) {
-        lookahead_cache.pop_back();
-    }
-    lookahead_pos = 0;
+    saved_pos = lookahead_pos;
 }
 
 void Parser::revert_state() {
-    lookahead_pos = 0;
+    lookahead_pos = saved_pos;
 }
 
 void Parser::expect(TokenType type, const std::string &msg = "") {

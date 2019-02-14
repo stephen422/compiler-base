@@ -7,6 +7,18 @@
 
 namespace cmp {
 
+// A Name corresponds to any single unique identifier string in the source
+// text.  There may be multiple occurrences of the string in the source text,
+// but one instance of the matching Name exists in the course of compilation.
+// A NameTable is a hash table of Names queried by their raw string.  It serves
+// to reduce the number of string hashing operation, since we can look up the
+// symbol table using Name instead of raw char * throughout the semantic
+// analysis.
+class Name {
+public:
+    std::string text;
+};
+
 class ParseError {
 public:
     ParseError(SourceLoc loc, const std::string &msg): location(loc), message(msg) {}
@@ -75,11 +87,14 @@ private:
     // code should use the returned pointer instead.
     ExprPtr parse_binary_expr_rhs(ExprPtr lhs, int precedence = 0);
 
+    // Name table.
+    std::map<std::string, Name> name_map;
+
     // Get the next token from the lexer.
     void next();
 
     // Get the current lookahead token.
-    const Token &look() const;
+    const Token look() const;
 
     // Save the current parsing state so that the parser could be reverted back
     // to it later.
@@ -103,9 +118,11 @@ private:
     }
 
     Lexer &lexer;
-    Token tok; // lookahead token
+    Token tok;                          // lookahead token
+    std::vector<Token> tokens;          // lexed tokens
     std::vector<Token> lookahead_cache; // lookahead tokens cache
-    size_t lookahead_pos = 0; // lookahead position in the cache
+    size_t lookahead_pos = 0;           // lookahead position in the cache
+    size_t saved_pos = 0;               // saved lookahead position (for backtracking)
 
     // Current operator precedence when parsing an expression.
     // int precedence = 0;

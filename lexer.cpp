@@ -22,10 +22,6 @@ std::ostream &operator<<(std::ostream &os, const Token &token) {
     return os;
 }
 
-void Token::print() {
-    throw std::runtime_error("unimplemented");
-}
-
 void Lexer::step() {
     if (look < eos()) {
         // Register newline first
@@ -158,6 +154,16 @@ Token Lexer::lex() {
     curr = look;
 
     return tok;
+}
+
+std::vector<Token> Lexer::lex_all() {
+    std::vector<Token> v;
+    Token tok;
+    while ((tok = lex()).type != TokenType::eos) {
+        v.push_back(tok);
+    }
+    v.push_back(tok); // terminate with eos
+    return v;
 }
 
 Token Lexer::peek() {

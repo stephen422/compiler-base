@@ -134,6 +134,8 @@ public:
 
     /// Lex the current token and advance to the next one.
     Token lex();
+    /// Completely lex the source text and return array of tokens.
+    std::vector<Token> lex_all();
 
     /// Peek the next token without consuming it.
     Token peek();
