@@ -143,11 +143,11 @@ public:
     // Source object associated to this lexer.
     Source &src;
 
-private:
     StringView sv;                // view into the source buffer
     char_iterator look;           // lookahead position
     char_iterator curr;           // start of the current token
     std::vector<size_t> line_off; // offsets of each newline
+    size_t num_ident = 0;         // number of identifiers found
 
     // Lex functions for a single token type.
     Token lex_ident();

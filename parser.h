@@ -76,6 +76,7 @@ private:
     // Expression parsers
     ParseResult<Expr> parse_expr();
     ExprPtr parse_literal_expr();
+    ExprPtr parse_ref_expr();
     // TODO: There's no UnaryExpr, so we can't change this to
     // NodePtr<UnaryExpr>. Better make one?
     ParseResult<Expr> parse_unary_expr();
@@ -88,7 +89,7 @@ private:
     ExprPtr parse_binary_expr_rhs(ExprPtr lhs, int precedence = 0);
 
     // Name table.
-    std::map<std::string, Name> name_map;
+    std::map<std::string, Name> name_table;
 
     // Get the next token from the lexer.
     void next();

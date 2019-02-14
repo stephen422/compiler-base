@@ -24,6 +24,7 @@ NodePtr<T> ParseResult<T>::unwrap() {
 
 Parser::Parser(Lexer &lexer) : lexer(lexer), tok() {
     tokens = lexer.lex_all();
+    std::cout << "gonna allocate " << tokens.size() * 64 << std::endl;
 }
 
 void Parser::next() {
@@ -219,13 +220,19 @@ ExprPtr Parser::parse_literal_expr() {
     return expr;
 }
 
+ExprPtr Parser::parse_ref_expr() {
+    auto expr = make_node<RefExpr>(look());
+    next();
+    return expr;
+}
+
 ParseResult<Expr> Parser::parse_unary_expr() {
     switch (look().type) {
     case TokenType::number:
-    case TokenType::ident:
-    case TokenType::string: {
+    case TokenType::string:
         return parse_literal_expr();
-    }
+    case TokenType::ident:
+        return parse_ref_expr();
     case TokenType::lparen: {
         expect(TokenType::lparen);
         auto expr = parse_expr();

@@ -53,7 +53,10 @@ Token Lexer::lex_ident() {
         }
     }
     // No keyword match; it's an identifier
-    return make_token_with_literal(TokenType::ident);
+    num_ident++;
+    Token tok = make_token_with_literal(TokenType::ident);
+    std::cout << tok << std::endl;
+    return tok;
 }
 
 Token Lexer::lex_number() {

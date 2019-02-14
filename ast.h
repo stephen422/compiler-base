@@ -19,6 +19,7 @@ enum class AstType {
     compound_stmt,
     var_decl,
     literal_expr,
+    ref_expr,
     binary_expr,
     function,
 };
@@ -176,6 +177,16 @@ public:
     std::string flatten() const override;
 
     Token lit;
+};
+
+class RefExpr : public Expr {
+public:
+    RefExpr(const Token tok) : Expr(AstType::ref_expr), tok(tok) {}
+    void print() const override;
+    void traverse() const override;
+    std::string flatten() const override;
+
+    Token tok;
 };
 
 class BinaryExpr : public Expr {
