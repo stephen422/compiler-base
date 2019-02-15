@@ -8,6 +8,19 @@
 
 namespace cmp {
 
+// A Name corresponds to any single unique identifier string in the source
+// text.  There may be multiple occurrences of the string in the source text,
+// but one instance of the matching Name exists in the course of compilation.
+// A NameTable is a hash table of Names queried by their raw string.  It serves
+// to reduce the number of string hashing operation, since we can look up the
+// symbol table using Name instead of raw char * throughout the semantic
+// analysis.
+class Name {
+public:
+    Name(const std::string &s) : text(s) {}
+    std::string text;
+};
+
 enum class AstType {
     none, // FIXME necessary?
     file,
@@ -181,12 +194,14 @@ public:
 
 class RefExpr : public Expr {
 public:
-    RefExpr(const Token tok) : Expr(AstType::ref_expr), tok(tok) {}
+    RefExpr() : Expr(AstType::ref_expr) {}
     void print() const override;
     void traverse() const override;
     std::string flatten() const override;
 
-    Token tok;
+    // The value of this pointer serves as a unique integer ID to be used for
+    // indexing the symbol table.
+    Name *name = nullptr;
 };
 
 class BinaryExpr : public Expr {

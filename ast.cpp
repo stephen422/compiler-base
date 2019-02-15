@@ -47,15 +47,15 @@ void VarDecl::traverse() const {
     }
 }
 
+void LiteralExpr::traverse() const {
+}
+
 void RefExpr::traverse() const {
 }
 
 void BinaryExpr::traverse() const {
     lhs->traverse();
     rhs->traverse();
-}
-
-void LiteralExpr::traverse() const {
 }
 
 //
@@ -138,7 +138,7 @@ void LiteralExpr::print() const {
 }
 
 void RefExpr::print() const {
-    out() << "[RefExpr] " << tok << std::endl;
+    out() << "[RefExpr] " << name->text << std::endl;
 }
 
 std::string LiteralExpr::flatten() const {
@@ -146,7 +146,7 @@ std::string LiteralExpr::flatten() const {
 }
 
 std::string RefExpr::flatten() const {
-    return tok.text;
+    return name->text;
 }
 
 } // namespace cmp

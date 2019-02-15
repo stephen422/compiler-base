@@ -24,7 +24,6 @@ NodePtr<T> ParseResult<T>::unwrap() {
 
 Parser::Parser(Lexer &lexer) : lexer(lexer), tok() {
     tokens = lexer.lex_all();
-    std::cout << "gonna allocate " << tokens.size() * 64 << std::endl;
 }
 
 void Parser::next() {
@@ -69,7 +68,8 @@ ParseResult<Stmt> Parser::parse_stmt() {
     ParseResult<Stmt> result;
 
     skip_newlines();
-    // TODO is it sure that parsing is correct up to this point?
+
+    // TODO are we certain that the parsing up to this point is correct?
     save_state();
 
     // Try all possible productions and use the first successful one.
@@ -93,12 +93,14 @@ ParseResult<Stmt> Parser::parse_stmt() {
     }
     revert_state();
 
-    if (auto stmt = parse_expr_stmt()) {
+    if (auto stmt = parse_assign_stmt()) {
         return std::move(stmt);
     }
     revert_state();
 
-    if (auto stmt = parse_assign_stmt()) {
+    // FIXME: parse_expr() is pretty much the only one that we can't trivially
+    // predict using lookaheads.
+    if (auto stmt = parse_expr_stmt()) {
         return std::move(stmt);
     }
     revert_state();
@@ -221,8 +223,19 @@ ExprPtr Parser::parse_literal_expr() {
 }
 
 ExprPtr Parser::parse_ref_expr() {
-    auto expr = make_node<RefExpr>(look());
+    auto expr = make_node<RefExpr>();
+    std::string text = look().text;
     next();
+
+    auto found = name_table.find(text);
+    if (found == name_table.end()) {
+        // Insert identifier into the name table if not exists
+        auto pair = name_table.insert({text, {text}});
+        expr->name = &pair.first->second;
+    } else {
+        expr->name = &found->second;
+    };
+
     return expr;
 }
 

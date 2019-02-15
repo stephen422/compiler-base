@@ -7,18 +7,6 @@
 
 namespace cmp {
 
-// A Name corresponds to any single unique identifier string in the source
-// text.  There may be multiple occurrences of the string in the source text,
-// but one instance of the matching Name exists in the course of compilation.
-// A NameTable is a hash table of Names queried by their raw string.  It serves
-// to reduce the number of string hashing operation, since we can look up the
-// symbol table using Name instead of raw char * throughout the semantic
-// analysis.
-class Name {
-public:
-    std::string text;
-};
-
 class ParseError {
 public:
     ParseError(SourceLoc loc, const std::string &msg): location(loc), message(msg) {}
@@ -89,6 +77,7 @@ private:
     ExprPtr parse_binary_expr_rhs(ExprPtr lhs, int precedence = 0);
 
     // Name table.
+    // TODO: Document.
     std::map<std::string, Name> name_table;
 
     // Get the next token from the lexer.
