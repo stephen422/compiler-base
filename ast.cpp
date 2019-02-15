@@ -138,7 +138,9 @@ void LiteralExpr::print() const {
 }
 
 void RefExpr::print() const {
-    out() << "[RefExpr] " << name->text << std::endl;
+    out() << "[RefExpr] " << std::hex << "((Name *)";
+    printf("0x...%08x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(name)));
+    std::cout << ") "<< name->text << std::endl;
 }
 
 std::string LiteralExpr::flatten() const {
