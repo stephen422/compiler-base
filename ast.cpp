@@ -9,53 +9,56 @@ int AstNode::depth = 0;
 // AST Traversal
 //
 
-void File::traverse() const {
+void File::traverse(SymbolTable &symtab) const {
     for (auto &tl : toplevels) {
-        tl->traverse();
+        tl->traverse(symtab);
     }
 }
 
-void DeclStmt::traverse() const {
+void DeclStmt::traverse(SymbolTable &symtab) const {
     std::cout << "traversing DeclStmt\n";
-    decl->traverse();
+    decl->traverse(symtab);
 }
 
-void ExprStmt::traverse() const {
+void ExprStmt::traverse(SymbolTable &symtab) const {
     std::cout << "traversing ExprStmt\n";
-    expr->traverse();
+    expr->traverse(symtab);
 }
 
-void AssignStmt::traverse() const {
-    rhs->traverse();
+void AssignStmt::traverse(SymbolTable &symtab) const {
+    rhs->traverse(symtab);
 }
 
-void ReturnStmt::traverse() const {
-    expr->traverse();
+void ReturnStmt::traverse(SymbolTable &symtab) const {
+    expr->traverse(symtab);
 }
 
-void CompoundStmt::traverse() const {
+void CompoundStmt::traverse(SymbolTable &symtab) const {
     std::cout << "traversing CompoundStmt\n";
     for (auto &stmt : stmts) {
-        stmt->traverse();
+        stmt->traverse(symtab);
     }
 }
 
-void VarDecl::traverse() const {
+void VarDecl::traverse(SymbolTable &symtab) const {
     std::cout << "traversing VarDecl\n";
+    Declaration decl{*name};
+    symtab.push(Symbol {name, decl});
     if (assign_expr) {
-        assign_expr->traverse();
+        assign_expr->traverse(symtab);
     }
 }
 
-void LiteralExpr::traverse() const {
+void LiteralExpr::traverse(SymbolTable &symtab) const {
 }
 
-void RefExpr::traverse() const {
+void RefExpr::traverse(SymbolTable &symtab) const {
+    // std::cout << "seen " << name->text << std::endl;
 }
 
-void BinaryExpr::traverse() const {
-    lhs->traverse();
-    rhs->traverse();
+void BinaryExpr::traverse(SymbolTable &symtab) const {
+    lhs->traverse(symtab);
+    rhs->traverse(symtab);
 }
 
 //
@@ -104,7 +107,7 @@ void CompoundStmt::print() const {
 }
 
 void VarDecl::print() const {
-    out() << "[VarDecl] " << id << " " << (mut ? "(mut)" : "") <<"\n";
+    out() << "[VarDecl] " << name->text << " " << (mut ? "(mut)" : "") <<"\n";
 
     if (assign_expr) {
         out() << "[AssignExpr]\n";

@@ -1,3 +1,4 @@
+#include "sema.h"
 #include "parser.h"
 #include "lexer.h"
 #include <cstring>
@@ -30,10 +31,12 @@ int main(int argc, char **argv) {
 #if 0
     test_lexer(lexer);
 #else
+    SymbolTable symtab;
     Parser p{lexer};
     auto ast = p.parse();
     ast->print();
-    ast->traverse();
+    ast->traverse(symtab);
+    symtab.print();
 #endif
     return 0;
 }

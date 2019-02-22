@@ -2,24 +2,12 @@
 #ifndef AST_H
 #define AST_H
 
+#include "sema.h"
 #include "lexer.h"
 #include <iostream>
 #include <memory>
 
 namespace cmp {
-
-// A Name corresponds to any single unique identifier string in the source
-// text.  There may be multiple occurrences of the string in the source text,
-// but one instance of the matching Name exists in the course of compilation.
-// A NameTable is a hash table of Names queried by their raw string.  It serves
-// to reduce the number of string hashing operation, since we can look up the
-// symbol table using Name instead of raw char * throughout the semantic
-// analysis.
-class Name {
-public:
-    Name(const std::string &s) : text(s) {}
-    std::string text;
-};
 
 enum class AstType {
     none, // FIXME necessary?
@@ -71,7 +59,7 @@ public:
     virtual void print() const = 0;
 
     // AST traversal.
-    virtual void traverse() const = 0;
+    virtual void traverse(SymbolTable &symtab) const = 0;
 
     template <typename T> constexpr T *as() {
         return static_cast<T *>(this);
@@ -111,7 +99,7 @@ class File : public AstNode {
 public:
     File() : AstNode(AstType::file) {}
     void print() const override;
-    void traverse() const override;
+    void traverse(SymbolTable &symtab) const override;
 
     std::vector<ToplevelPtr> toplevels;
 };
@@ -129,7 +117,7 @@ class DeclStmt : public Stmt {
 public:
     DeclStmt(DeclPtr decl) : Stmt(AstType::decl_stmt), decl(std::move(decl)) {}
     void print() const override;
-    void traverse() const override;
+    void traverse(SymbolTable &symtab) const override;
 
     DeclPtr decl;
 };
@@ -138,7 +126,7 @@ class ExprStmt : public Stmt {
 public:
     ExprStmt(ExprPtr expr) : Stmt(AstType::expr_stmt), expr(std::move(expr)) {}
     void print() const override;
-    void traverse() const override;
+    void traverse(SymbolTable &symtab) const override;
 
     ExprPtr expr;
 };
@@ -147,7 +135,7 @@ class AssignStmt : public Stmt {
 public:
     AssignStmt(const Token &lhs, ExprPtr rhs) : Stmt(AstType::assign_stmt), lhs(lhs), rhs(std::move(rhs)) {}
     void print() const override;
-    void traverse() const override;
+    void traverse(SymbolTable &symtab) const override;
 
     // TODO LHS could be multiple tokens.
     Token lhs;
@@ -158,7 +146,7 @@ class ReturnStmt : public Stmt {
 public:
     ReturnStmt(ExprPtr expr) : Stmt(AstType::return_stmt), expr(std::move(expr)) {}
     void print() const override;
-    void traverse() const override;
+    void traverse(SymbolTable &symtab) const override;
 
     ExprPtr expr;
 };
@@ -167,7 +155,7 @@ class CompoundStmt : public Stmt {
 public:
     CompoundStmt() : Stmt(AstType::compound_stmt) {}
     void print() const override;
-    void traverse() const override;
+    void traverse(SymbolTable &symtab) const override;
 
     std::vector<StmtPtr> stmts;
 };
@@ -186,7 +174,7 @@ class LiteralExpr : public Expr {
 public:
     LiteralExpr(const Token &lit) : Expr(AstType::literal_expr), lit(lit) {}
     void print() const override;
-    void traverse() const override;
+    void traverse(SymbolTable &symtab) const override;
     std::string flatten() const override;
 
     Token lit;
@@ -196,7 +184,7 @@ class RefExpr : public Expr {
 public:
     RefExpr() : Expr(AstType::ref_expr) {}
     void print() const override;
-    void traverse() const override;
+    void traverse(SymbolTable &symtab) const override;
     std::string flatten() const override;
 
     // The value of this pointer serves as a unique integer ID to be used for
@@ -210,7 +198,7 @@ public:
         : Expr(AstType::binary_expr), lhs(std::move(lhs)), op(op),
           rhs(std::move(rhs)) {}
     void print() const override;
-    void traverse() const override;
+    void traverse(SymbolTable &symtab) const override;
     std::string flatten() const override;
 
     ExprPtr lhs;
@@ -231,15 +219,16 @@ public:
 // Variable declaration.
 class VarDecl : public Decl {
 public:
-    VarDecl(const Token &id, ExprPtr expr, bool mut)
-        : Decl(AstType::var_decl), id(id), assign_expr(std::move(expr)), mut(mut) {}
+    VarDecl(Name *name, ExprPtr expr, bool mut)
+        : Decl(AstType::var_decl), name(name), assign_expr(std::move(expr)), mut(mut) {}
     void print() const override;
-    void traverse() const override;
+    void traverse(SymbolTable &symtab) const override;
 
-    Token id;
+    // The value of this pointer serves as a unique integer ID to be used for
+    // indexing the symbol table.
+    Name *name = nullptr;
     ExprPtr assign_expr;
-    // Is this a "var" declaration?
-    bool mut;
+    bool mut; // is this a "var" declaration?
 };
 
 // ============
@@ -257,8 +246,8 @@ class Function : public Toplevel {
 public:
     Function(const Token &id) : Toplevel(AstType::function), id(id) {}
     void print() const override;
-    void traverse() const override {
-        body->traverse();
+    void traverse(SymbolTable &symtab) const override {
+        body->traverse(symtab);
     }
 
     Token id;

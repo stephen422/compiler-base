@@ -1,6 +1,7 @@
 #include "parser.h"
 #include <utility>
 #include <sstream>
+#include <cassert>
 
 namespace cmp {
 
@@ -180,7 +181,18 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
         next();
         rhs = parse_expr().unwrap();
     }
-    return make_node<VarDecl>(id, std::move(rhs), mut);
+
+    auto found = name_table.find(id.text);
+    Name *name = nullptr;
+    if (found == name_table.end()) {
+        // New identifier, into the name table
+        auto pair = name_table.insert({id.text, {id.text}});
+        name = &pair.first->second;
+    } else {
+        name = &found->second;
+    };
+
+    return make_node<VarDecl>(name, std::move(rhs), mut);
 }
 
 NodePtr<Function> Parser::parse_function() {
@@ -223,20 +235,21 @@ ExprPtr Parser::parse_literal_expr() {
 }
 
 ExprPtr Parser::parse_ref_expr() {
-    auto expr = make_node<RefExpr>();
-    std::string text = look().text;
-    next();
+    auto ref_expr = make_node<RefExpr>();
 
+    std::string text = look().text;
     auto found = name_table.find(text);
     if (found == name_table.end()) {
-        // Insert identifier into the name table if not exists
+        // New identifier, into the name table
         auto pair = name_table.insert({text, {text}});
-        expr->name = &pair.first->second;
+        ref_expr->name = &pair.first->second;
     } else {
-        expr->name = &found->second;
+        ref_expr->name = &found->second;
     };
 
-    return expr;
+    next();
+
+    return ref_expr;
 }
 
 ParseResult<Expr> Parser::parse_unary_expr() {
