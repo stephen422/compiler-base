@@ -53,7 +53,8 @@ void LiteralExpr::traverse(SymbolTable &symtab) const {
 }
 
 void RefExpr::traverse(SymbolTable &symtab) const {
-    // std::cout << "seen " << name->text << std::endl;
+    if (symtab.find(name) == nullptr) {
+    }
 }
 
 void BinaryExpr::traverse(SymbolTable &symtab) const {

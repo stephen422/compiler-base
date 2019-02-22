@@ -40,6 +40,16 @@ void SymbolTable::push(const Symbol sym) {
     *p = head;
 }
 
+Declaration *SymbolTable::find(Name *name) const {
+    int index = hash(name) % symbol_table_key_size;
+    for (Symbol *s = keys[index]; s; s = s->next) {
+        if (s->name == name) {
+            return &s->decl;
+        }
+    }
+    return nullptr;
+}
+
 void SymbolTable::print() const {
     std::cout << "==== Symbol table ====\n";
     for (int i = 0; i < symbol_table_key_size; i++) {

@@ -39,8 +39,9 @@ class SymbolTable {
 public:
     SymbolTable();
     ~SymbolTable();
-    void print() const;
     void push(const Symbol sym);
+    Declaration *find(Name *name) const;
+    void print() const;
 
 private:
     std::array<Symbol *, symbol_table_key_size> keys;
