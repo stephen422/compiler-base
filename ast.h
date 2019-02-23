@@ -50,10 +50,12 @@ NodePtr<T> make_node(Args&&... args) {
     return std::make_unique<T>(std::forward<Args>(args)...);
 }
 
+std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
+
 class AstNode {
 public:
-    AstNode(): AstNode(AstType::none) {}
-    AstNode(AstType type): type(type) {}
+    AstNode() {}
+    AstNode(AstType type) : type(type) {}
     virtual ~AstNode() = default;
 
     virtual void print() const = 0;
@@ -75,19 +77,19 @@ public:
         return std::cout;
     }
 
-    AstType type;
-
-    // Indentation of the current node when dumping AST.
-    // Since all nodes share one indentation level variable, this should be
-    // declared static.
-    static int depth;
-
     // RAII trick to handle indentation.
     class PrintScope {
     public:
         PrintScope() { depth += 2; }
         ~PrintScope() { depth -= 2; }
     };
+
+    AstType type = AstType::none;
+    size_t start_pos = 0;
+    size_t end_pos = 0;
+    // Indentation of the current node when dumping AST.
+    // static because all nodes share this.
+    static int depth;
 };
 
 // ========
@@ -172,7 +174,10 @@ public:
 
 class LiteralExpr : public Expr {
 public:
-    LiteralExpr(const Token &lit) : Expr(AstType::literal_expr), lit(lit) {}
+    LiteralExpr(const Token &lit) : Expr(AstType::literal_expr), lit(lit) {
+        start_pos = lit.pos;
+        end_pos = lit.pos + lit.text.length();
+    }
     void print() const override;
     void traverse(SymbolTable &symtab) const override;
     std::string flatten() const override;
@@ -194,9 +199,13 @@ public:
 
 class BinaryExpr : public Expr {
 public:
-    BinaryExpr(ExprPtr lhs, Token op, ExprPtr rhs)
-        : Expr(AstType::binary_expr), lhs(std::move(lhs)), op(op),
-          rhs(std::move(rhs)) {}
+    BinaryExpr(ExprPtr lhs_, Token op_, ExprPtr rhs_)
+        : Expr(AstType::binary_expr), lhs(std::move(lhs_)), op(op_),
+          rhs(std::move(rhs_)) {
+        auto pair = get_ast_range({lhs.get(), rhs.get()});
+        start_pos = pair.first;
+        end_pos = pair.second;
+    }
     void print() const override;
     void traverse(SymbolTable &symtab) const override;
     std::string flatten() const override;

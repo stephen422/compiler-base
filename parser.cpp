@@ -99,8 +99,10 @@ ParseResult<Stmt> Parser::parse_stmt() {
     }
     revert_state();
 
-    // FIXME: parse_expr() is pretty much the only one that we can't trivially
-    // predict using lookaheads.
+    // parse_expr() is pretty much the only one that we can't trivially predict
+    // using lookaheads.
+    // FIXME: if all of the other productions can be determined by just one
+    // lookahead, do we really need save_state() and revert_state()?
     if (auto stmt = parse_expr_stmt()) {
         return std::move(stmt);
     }
@@ -236,6 +238,9 @@ ExprPtr Parser::parse_literal_expr() {
 
 ExprPtr Parser::parse_ref_expr() {
     auto ref_expr = make_node<RefExpr>();
+
+    ref_expr->start_pos = look().pos;
+    ref_expr->end_pos = look().pos + look().text.length();
 
     std::string text = look().text;
     auto found = name_table.find(text);

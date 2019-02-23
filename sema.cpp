@@ -57,7 +57,7 @@ void SymbolTable::print() const {
         if (!p) {
             continue;
         }
-        std::cout << "[" << std::dec << i << "]";
+        std::cout << "[" << i << "]";
         while (p) {
             std::cout << " {" << p->name->text << "}";
             p = p->next;

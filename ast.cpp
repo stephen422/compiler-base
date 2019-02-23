@@ -5,6 +5,23 @@ namespace cmp {
 
 int AstNode::depth = 0;
 
+std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes) {
+    size_t min = static_cast<size_t>(-1);
+    size_t max = 0;
+    for (auto node : nodes) {
+        if (!node) {
+            continue;
+        }
+        if (node->start_pos < min) {
+            min = node->start_pos;
+        }
+        if (node->end_pos > max) {
+            max = node->end_pos;
+        }
+    }
+    return {min, max};
+}
+
 //
 // AST Traversal
 //
@@ -50,14 +67,17 @@ void VarDecl::traverse(SymbolTable &symtab) const {
 }
 
 void LiteralExpr::traverse(SymbolTable &symtab) const {
+    std::cout << "[LiteralExpr] start_pos: " << start_pos << ", end_pos: " << end_pos << std::endl;
 }
 
 void RefExpr::traverse(SymbolTable &symtab) const {
+    std::cout << "[RefExpr] start_pos: " << start_pos << ", end_pos: " << end_pos << std::endl;
     if (symtab.find(name) == nullptr) {
     }
 }
 
 void BinaryExpr::traverse(SymbolTable &symtab) const {
+    std::cout << "[BinaryExpr] start_pos: " << start_pos << ", end_pos: " << end_pos << std::endl;
     lhs->traverse(symtab);
     rhs->traverse(symtab);
 }
@@ -142,7 +162,7 @@ void LiteralExpr::print() const {
 }
 
 void RefExpr::print() const {
-    out() << "[RefExpr] " << std::hex << "((Name *)";
+    out() << "[RefExpr] " << "((Name *)";
     printf("0x...%08x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(name)));
     std::cout << ") "<< name->text << std::endl;
 }
