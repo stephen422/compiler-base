@@ -58,16 +58,15 @@ public:
     AstNode(AstType type) : type(type) {}
     virtual ~AstNode() = default;
 
+    // AST printing.
     virtual void print() const = 0;
-
     // AST traversal.
-    virtual void traverse(SymbolTable &symtab) const = 0;
-
+    virtual void traverse(Semantics &sema) const = 0;
+    // Convenience method for downcasting.
     template <typename T> constexpr T *as() {
         return static_cast<T *>(this);
     }
-
-    // Convenience ostream for AST dumping code.
+    // Convenience ostream for AST printing.
     // Handles indentation, tree drawing, etc.
     std::ostream &out() const {
         if (depth > 0) {
@@ -84,9 +83,9 @@ public:
         ~PrintScope() { depth -= 2; }
     };
 
-    AstType type = AstType::none;
-    size_t start_pos = 0;
-    size_t end_pos = 0;
+    AstType type = AstType::none; // node type
+    size_t start_pos = 0;         // start pos of this AST in the source text
+    size_t end_pos = 0;           // end pos of this AST in the source text
     // Indentation of the current node when dumping AST.
     // static because all nodes share this.
     static int depth;
@@ -101,7 +100,7 @@ class File : public AstNode {
 public:
     File() : AstNode(AstType::file) {}
     void print() const override;
-    void traverse(SymbolTable &symtab) const override;
+    void traverse(Semantics &sema) const override;
 
     std::vector<ToplevelPtr> toplevels;
 };
@@ -119,7 +118,7 @@ class DeclStmt : public Stmt {
 public:
     DeclStmt(DeclPtr decl) : Stmt(AstType::decl_stmt), decl(std::move(decl)) {}
     void print() const override;
-    void traverse(SymbolTable &symtab) const override;
+    void traverse(Semantics &sema) const override;
 
     DeclPtr decl;
 };
@@ -128,7 +127,7 @@ class ExprStmt : public Stmt {
 public:
     ExprStmt(ExprPtr expr) : Stmt(AstType::expr_stmt), expr(std::move(expr)) {}
     void print() const override;
-    void traverse(SymbolTable &symtab) const override;
+    void traverse(Semantics &sema) const override;
 
     ExprPtr expr;
 };
@@ -137,7 +136,7 @@ class AssignStmt : public Stmt {
 public:
     AssignStmt(const Token &lhs, ExprPtr rhs) : Stmt(AstType::assign_stmt), lhs(lhs), rhs(std::move(rhs)) {}
     void print() const override;
-    void traverse(SymbolTable &symtab) const override;
+    void traverse(Semantics &sema) const override;
 
     // TODO LHS could be multiple tokens.
     Token lhs;
@@ -148,7 +147,7 @@ class ReturnStmt : public Stmt {
 public:
     ReturnStmt(ExprPtr expr) : Stmt(AstType::return_stmt), expr(std::move(expr)) {}
     void print() const override;
-    void traverse(SymbolTable &symtab) const override;
+    void traverse(Semantics &sema) const override;
 
     ExprPtr expr;
 };
@@ -157,7 +156,7 @@ class CompoundStmt : public Stmt {
 public:
     CompoundStmt() : Stmt(AstType::compound_stmt) {}
     void print() const override;
-    void traverse(SymbolTable &symtab) const override;
+    void traverse(Semantics &sema) const override;
 
     std::vector<StmtPtr> stmts;
 };
@@ -179,7 +178,7 @@ public:
         end_pos = lit.pos + lit.text.length();
     }
     void print() const override;
-    void traverse(SymbolTable &symtab) const override;
+    void traverse(Semantics &sema) const override;
     std::string flatten() const override;
 
     Token lit;
@@ -189,7 +188,7 @@ class RefExpr : public Expr {
 public:
     RefExpr() : Expr(AstType::ref_expr) {}
     void print() const override;
-    void traverse(SymbolTable &symtab) const override;
+    void traverse(Semantics &sema) const override;
     std::string flatten() const override;
 
     // The value of this pointer serves as a unique integer ID to be used for
@@ -207,7 +206,7 @@ public:
         end_pos = pair.second;
     }
     void print() const override;
-    void traverse(SymbolTable &symtab) const override;
+    void traverse(Semantics &sema) const override;
     std::string flatten() const override;
 
     ExprPtr lhs;
@@ -231,7 +230,7 @@ public:
     VarDecl(Name *name, ExprPtr expr, bool mut)
         : Decl(AstType::var_decl), name(name), assign_expr(std::move(expr)), mut(mut) {}
     void print() const override;
-    void traverse(SymbolTable &symtab) const override;
+    void traverse(Semantics &sema) const override;
 
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
@@ -255,9 +254,7 @@ class Function : public Toplevel {
 public:
     Function(const Token &id) : Toplevel(AstType::function), id(id) {}
     void print() const override;
-    void traverse(SymbolTable &symtab) const override {
-        body->traverse(symtab);
-    }
+    void traverse(Semantics &sema) const override;
 
     Token id;
     // Compound statement body

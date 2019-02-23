@@ -1,6 +1,7 @@
 #ifndef SEMA_H
 #define SEMA_H
 
+#include "source.h"
 #include <map>
 
 namespace cmp {
@@ -45,6 +46,15 @@ public:
 
 private:
     std::array<Symbol *, symbol_table_key_size> keys;
+};
+
+class Semantics {
+public:
+    Semantics(Source &src_) : src(src_) {}
+    void error(size_t pos, const std::string &msg);
+
+    Source &src;        // source text
+    SymbolTable symtab; // symbol table
 };
 
 } // namespace cmp

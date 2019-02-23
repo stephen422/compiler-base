@@ -76,10 +76,6 @@ private:
     // code should use the returned pointer instead.
     ExprPtr parse_binary_expr_rhs(ExprPtr lhs, int precedence = 0);
 
-    // Name table.
-    // TODO: Document.
-    std::map<std::string, Name> name_table;
-
     // Get the next token from the lexer.
     void next();
 
@@ -99,23 +95,22 @@ private:
 
     void expect(TokenType type, const std::string &msg);
     void error(const std::string &msg);
-
     void skip_newlines();
+
+    Source &get_source() const { return lexer.src; }
 
     // Figure out the current location (line, col) in the source.
     SourceLoc locate() const {
-        return lexer.src.locate(look().pos);
+        return get_source().locate(look().pos);
     }
 
-    Lexer &lexer;
-    Token tok;                          // lookahead token
-    std::vector<Token> tokens;          // lexed tokens
-    std::vector<Token> lookahead_cache; // lookahead tokens cache
-    size_t lookahead_pos = 0;           // lookahead position in the cache
-    size_t saved_pos = 0;               // saved lookahead position (for backtracking)
-
-    // Current operator precedence when parsing an expression.
-    // int precedence = 0;
+    Lexer &lexer;                           // associated lexer
+    Token tok;                              // lookahead token
+    std::map<std::string, Name> name_table; // name table (TODO: document)
+    std::vector<Token> tokens;              // lexed tokens
+    std::vector<Token> lookahead_cache;     // lookahead tokens cache
+    size_t lookahead_pos = 0;               // lookahead position in the cache
+    size_t saved_pos = 0; // saved lookahead position (for backtracking)
 };
 
 } // namespace cmp

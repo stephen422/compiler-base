@@ -16,8 +16,8 @@ test: test.o $(OBJ)
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-main.o: parser.h lexer.h
-test.o: parser.h catch.hpp
+main.o: sema.h parser.h lexer.h
+test.o: sema.h parser.h catch.hpp
 sema.o: sema.h
 parser.o: parser.h lexer.h ast.h
 lexer.o: lexer.h source.h string_view.h

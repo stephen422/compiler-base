@@ -26,60 +26,63 @@ std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes) 
 // AST Traversal
 //
 
-void File::traverse(SymbolTable &symtab) const {
+void File::traverse(Semantics &sema) const {
     for (auto &tl : toplevels) {
-        tl->traverse(symtab);
+        tl->traverse(sema);
     }
 }
 
-void DeclStmt::traverse(SymbolTable &symtab) const {
+void DeclStmt::traverse(Semantics &sema) const {
     std::cout << "traversing DeclStmt\n";
-    decl->traverse(symtab);
+    decl->traverse(sema);
 }
 
-void ExprStmt::traverse(SymbolTable &symtab) const {
+void ExprStmt::traverse(Semantics &sema) const {
     std::cout << "traversing ExprStmt\n";
-    expr->traverse(symtab);
+    expr->traverse(sema);
 }
 
-void AssignStmt::traverse(SymbolTable &symtab) const {
-    rhs->traverse(symtab);
+void AssignStmt::traverse(Semantics &sema) const {
+    rhs->traverse(sema);
 }
 
-void ReturnStmt::traverse(SymbolTable &symtab) const {
-    expr->traverse(symtab);
+void ReturnStmt::traverse(Semantics &sema) const {
+    expr->traverse(sema);
 }
 
-void CompoundStmt::traverse(SymbolTable &symtab) const {
+void CompoundStmt::traverse(Semantics &sema) const {
     std::cout << "traversing CompoundStmt\n";
     for (auto &stmt : stmts) {
-        stmt->traverse(symtab);
+        stmt->traverse(sema);
     }
 }
 
-void VarDecl::traverse(SymbolTable &symtab) const {
+void VarDecl::traverse(Semantics &sema) const {
     std::cout << "traversing VarDecl\n";
     Declaration decl{*name};
-    symtab.push(Symbol {name, decl});
+    sema.symtab.push(Symbol {name, decl});
     if (assign_expr) {
-        assign_expr->traverse(symtab);
+        assign_expr->traverse(sema);
     }
 }
 
-void LiteralExpr::traverse(SymbolTable &symtab) const {
-    std::cout << "[LiteralExpr] start_pos: " << start_pos << ", end_pos: " << end_pos << std::endl;
+void Function::traverse(Semantics &sema) const {
+    body->traverse(sema);
 }
 
-void RefExpr::traverse(SymbolTable &symtab) const {
-    std::cout << "[RefExpr] start_pos: " << start_pos << ", end_pos: " << end_pos << std::endl;
-    if (symtab.find(name) == nullptr) {
+void LiteralExpr::traverse(Semantics &sema) const {
+}
+
+void RefExpr::traverse(Semantics &sema) const {
+    if (sema.symtab.find(name) == nullptr) {
+        sema.error(start_pos, "use before declaration");
     }
 }
 
-void BinaryExpr::traverse(SymbolTable &symtab) const {
+void BinaryExpr::traverse(Semantics &sema) const {
     std::cout << "[BinaryExpr] start_pos: " << start_pos << ", end_pos: " << end_pos << std::endl;
-    lhs->traverse(symtab);
-    rhs->traverse(symtab);
+    lhs->traverse(sema);
+    rhs->traverse(sema);
 }
 
 //

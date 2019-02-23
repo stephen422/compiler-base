@@ -26,17 +26,17 @@ int main(int argc, char **argv) {
     }
 
     Source src{Path{argv[1]}};
+    Semantics sema{src};
     Lexer lexer{src};
 
 #if 0
     test_lexer(lexer);
 #else
-    SymbolTable symtab;
     Parser p{lexer};
     auto ast = p.parse();
     ast->print();
-    ast->traverse(symtab);
-    symtab.print();
+    ast->traverse(sema);
+    sema.symtab.print();
 #endif
     return 0;
 }

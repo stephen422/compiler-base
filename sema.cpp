@@ -66,4 +66,11 @@ void SymbolTable::print() const {
     }
 }
 
+void Semantics::error(size_t pos, const std::string &msg) {
+    auto loc = src.locate(pos);
+    std::cerr << loc.filename << ":" << loc.line << ":" << loc.col << ": ";
+    std::cerr << "error: " << msg << std::endl;
+    exit(1);
+}
+
 } // namespace cmp
