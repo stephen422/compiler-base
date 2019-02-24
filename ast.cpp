@@ -43,6 +43,7 @@ void ExprStmt::traverse(Semantics &sema) const {
 }
 
 void AssignStmt::traverse(Semantics &sema) const {
+    lhs->traverse(sema);
     rhs->traverse(sema);
 }
 
@@ -64,6 +65,7 @@ void VarDecl::traverse(Semantics &sema) const {
     }
     Declaration decl{*name};
     sema.symtab.push(Symbol {name, decl});
+
     if (assign_expr) {
         assign_expr->traverse(sema);
     }
@@ -78,7 +80,7 @@ void LiteralExpr::traverse(Semantics &sema) const {
 
 void RefExpr::traverse(Semantics &sema) const {
     if (sema.symtab.find(name) == nullptr) {
-        sema.error(start_pos, "use before declaration");
+        sema.error(start_pos, "undeclared identifier");
     }
 }
 
@@ -115,7 +117,7 @@ void ExprStmt::print() const {
 void AssignStmt::print() const {
     out() << "[AssignStmt]\n";
     PrintScope start;
-    out() << "[LHS] " << lhs << "\n";
+    lhs->print();
     rhs->print();
 }
 

@@ -132,14 +132,14 @@ public:
     ExprPtr expr;
 };
 
+class RefExpr;
 class AssignStmt : public Stmt {
 public:
-    AssignStmt(const Token &lhs, ExprPtr rhs) : Stmt(AstType::assign_stmt), lhs(lhs), rhs(std::move(rhs)) {}
+    AssignStmt(NodePtr<RefExpr> lhs, ExprPtr rhs) : Stmt(AstType::assign_stmt), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
     void print() const override;
     void traverse(Semantics &sema) const override;
 
-    // TODO LHS could be multiple tokens.
-    Token lhs;
+    NodePtr<RefExpr> lhs;
     ExprPtr rhs;
 };
 

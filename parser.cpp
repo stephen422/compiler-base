@@ -128,12 +128,11 @@ NodePtr<AssignStmt> Parser::parse_assign_stmt() {
         return nullptr;
     }
 
-    Token lhs = look();
-    next();
+    auto lhs = parse_ref_expr();
     expect(TokenType::equals);
     auto rhs_result = parse_expr();
     if (rhs_result.success()) {
-        return make_node<AssignStmt>(lhs, rhs_result.unwrap());
+        return make_node<AssignStmt>(std::move(lhs), rhs_result.unwrap());
     } else {
         // TODO For now, disregard error message and just hand out nullptr.
         return nullptr;
@@ -244,7 +243,7 @@ ExprPtr Parser::parse_literal_expr() {
     return expr;
 }
 
-ExprPtr Parser::parse_ref_expr() {
+NodePtr<RefExpr> Parser::parse_ref_expr() {
     auto ref_expr = make_node<RefExpr>();
 
     ref_expr->start_pos = look().pos;
