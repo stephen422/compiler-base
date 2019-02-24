@@ -176,6 +176,7 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
     Token id = look();
     next();
 
+    // Optional assignment expression
     ExprPtr rhs = nullptr;
     if (!mut) {
         expect(TokenType::equals, "initial value should be provided for immutable variables");
@@ -188,6 +189,7 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
         end_pos = rhs->end_pos;
     }
 
+    // Insert to the name table
     auto found = name_table.find(id.text);
     Name *name = nullptr;
     if (found == name_table.end()) {
@@ -237,7 +239,17 @@ DeclPtr Parser::parse_decl() {
 }
 
 ExprPtr Parser::parse_literal_expr() {
-    auto expr = make_node<LiteralExpr>(look());
+    LiteralType type;
+    // TODO Literals other than integers?
+    switch (look().type) {
+    case TokenType::number:
+        type = LiteralType::integer;
+        break;
+    default:
+        error("non-integer literals not implemented");
+        break;
+    }
+    auto expr = make_node<LiteralExpr>(type, look());
     // TODO takes arbitrary token
     next();
     return expr;

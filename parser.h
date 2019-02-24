@@ -64,6 +64,7 @@ private:
     // Expression parsers
     ParseResult<Expr> parse_expr();
     ExprPtr parse_literal_expr();
+    NodePtr<IntegerLiteral> parse_integer_literal();
     NodePtr<RefExpr> parse_ref_expr();
     // TODO: There's no UnaryExpr, so we can't change this to
     // NodePtr<UnaryExpr>. Better make one?

@@ -20,6 +20,7 @@ enum class AstType {
     compound_stmt,
     var_decl,
     literal_expr,
+    integer_literal,
     ref_expr,
     binary_expr,
     function,
@@ -171,9 +172,29 @@ public:
     virtual std::string flatten() const = 0;
 };
 
+enum class LiteralType {
+    integer,
+    float_,
+    string,
+};
+
 class LiteralExpr : public Expr {
 public:
-    LiteralExpr(const Token &lit) : Expr(AstType::literal_expr), lit(lit) {
+    LiteralExpr(LiteralType type, const Token &lit) : Expr(AstType::literal_expr), type(type), lit(lit) {
+        start_pos = lit.pos;
+        end_pos = lit.pos + lit.text.length();
+    }
+    void print() const override;
+    void traverse(Semantics &sema) const override;
+    std::string flatten() const override;
+
+    LiteralType type;
+    Token lit;
+};
+
+class IntegerLiteral : public Expr {
+public:
+    IntegerLiteral(const Token &lit) : Expr(AstType::integer_literal), lit(lit) {
         start_pos = lit.pos;
         end_pos = lit.pos + lit.text.length();
     }
