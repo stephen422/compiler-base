@@ -58,7 +58,10 @@ void CompoundStmt::traverse(Semantics &sema) const {
 }
 
 void VarDecl::traverse(Semantics &sema) const {
-    std::cout << "traversing VarDecl\n";
+    auto old_decl = sema.symtab.find(name);
+    if (old_decl != nullptr) { // TODO: check scope
+        sema.error(start_pos, "redefinition");
+    }
     Declaration decl{*name};
     sema.symtab.push(Symbol {name, decl});
     if (assign_expr) {

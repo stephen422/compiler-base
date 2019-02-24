@@ -169,9 +169,11 @@ NodePtr<CompoundStmt> Parser::parse_compound_stmt() {
 }
 
 NodePtr<VarDecl> Parser::parse_var_decl() {
+    auto start_pos = look().pos;
     bool mut = look().type == TokenType::kw_var;
     next();
 
+    auto end_pos = look().pos + look().text.length();
     Token id = look();
     next();
 
@@ -182,6 +184,9 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
     } else if (look().type == TokenType::equals) {
         next();
         rhs = parse_expr().unwrap();
+    }
+    if (rhs) {
+        end_pos = rhs->end_pos;
     }
 
     auto found = name_table.find(id.text);
@@ -194,7 +199,10 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
         name = &found->second;
     };
 
-    return make_node<VarDecl>(name, std::move(rhs), mut);
+    auto var_decl = make_node<VarDecl>(name, std::move(rhs), mut);
+    var_decl->start_pos = start_pos;
+    var_decl->end_pos = end_pos;
+    return var_decl;
 }
 
 NodePtr<Function> Parser::parse_function() {
