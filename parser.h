@@ -40,7 +40,7 @@ class Parser {
 public:
     Parser(Lexer &lexer);
 
-    AstNodePtr parse();
+    Ast parse();
 
 private:
     // Parse a whole file.
@@ -107,7 +107,7 @@ private:
 
     Lexer &lexer;                           // associated lexer
     Token tok;                              // lookahead token
-    std::map<std::string, Name> name_table; // name table (TODO: document)
+    NameTable name_table; // name table (TODO: document)
     std::vector<Token> tokens;              // lexed tokens
     std::vector<Token> lookahead_cache;     // lookahead tokens cache
     size_t lookahead_pos = 0;               // lookahead position in the cache

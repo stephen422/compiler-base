@@ -53,6 +53,7 @@ enum class TokenType {
     kw_var,
     kw_if,
     kw_else,
+    kw_int,
     kw_return,
     none // not found
 };
@@ -99,6 +100,7 @@ static const std::pair<StringView, TokenType> keyword_map[] {
     {"var", TokenType::kw_var},
     {"if", TokenType::kw_if},
     {"else", TokenType::kw_else},
+    {"int", TokenType::kw_int},
     {"return", TokenType::kw_return},
 };
 

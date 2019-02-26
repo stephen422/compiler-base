@@ -4,6 +4,8 @@
 #include <sstream>
 #include <vector>
 
+namespace cmp {
+
 Source::Source(const Path &p) : filename(p.path)
 {
     std::ifstream in{filename, std::ios::binary};
@@ -40,3 +42,5 @@ SourceLoc Source::locate(size_t pos) const {
     int col = pos - line_off[line - 1] + 1;
     return SourceLoc{filename, line, col};
 }
+
+} // namespace cmp

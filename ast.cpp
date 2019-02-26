@@ -1,4 +1,5 @@
 #include "ast.h"
+#include "sema.h"
 #include <sstream>
 
 namespace cmp {
@@ -59,12 +60,12 @@ void CompoundStmt::traverse(Semantics &sema) const {
 }
 
 void VarDecl::traverse(Semantics &sema) const {
-    auto old_decl = sema.symtab.find(name);
+    auto old_decl = sema.decl_table.find(name);
     if (old_decl != nullptr) { // TODO: check scope
         sema.error(start_pos, "redefinition");
     }
     Declaration decl{*name};
-    sema.symtab.push(Symbol {name, decl});
+    sema.decl_table.push(Symbol {name, decl});
 
     if (assign_expr) {
         assign_expr->traverse(sema);
@@ -79,7 +80,7 @@ void LiteralExpr::traverse(Semantics &sema) const {
 }
 
 void RefExpr::traverse(Semantics &sema) const {
-    if (sema.symtab.find(name) == nullptr) {
+    if (sema.decl_table.find(name) == nullptr) {
         sema.error(start_pos, "undeclared identifier");
     }
 }

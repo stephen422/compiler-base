@@ -26,7 +26,6 @@ int main(int argc, char **argv) {
     }
 
     Source src{Path{argv[1]}};
-    Semantics sema{src};
     Lexer lexer{src};
 
 #if 0
@@ -34,9 +33,10 @@ int main(int argc, char **argv) {
 #else
     Parser p{lexer};
     auto ast = p.parse();
-    ast->print();
-    ast->traverse(sema);
-    sema.symtab.print();
+    Semantics sema{src, ast.name_table};
+    ast.root->print();
+    semantic_analyze(sema, std::move(ast));
+    sema.decl_table.print();
 #endif
     return 0;
 }

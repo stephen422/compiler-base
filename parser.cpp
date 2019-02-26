@@ -1,3 +1,4 @@
+#include "sema.h"
 #include "parser.h"
 #include <utility>
 #include <sstream>
@@ -23,7 +24,14 @@ NodePtr<T> ParseResult<T>::unwrap() {
     return nullptr;
 }
 
+static void insert_keywords_in_name_table(std::map<std::string, Name> &name_table) {
+    for (auto m : keyword_map) {
+        name_table.insert({m.first, {m.first}});
+    }
+}
+
 Parser::Parser(Lexer &lexer) : lexer(lexer), tok() {
+    insert_keywords_in_name_table(name_table);
     tokens = lexer.lex_all();
 }
 
@@ -402,8 +410,8 @@ FilePtr Parser::parse_file() {
     return file;
 }
 
-AstNodePtr Parser::parse() {
-    return parse_file();
+Ast Parser::parse() {
+    return Ast{parse_file(), name_table};
 }
 
 } // namespace cmp

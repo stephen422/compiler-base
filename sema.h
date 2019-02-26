@@ -1,24 +1,12 @@
 #ifndef SEMA_H
 #define SEMA_H
 
-#include "source.h"
-#include <map>
+#include "ast.h"
+#include <unordered_map>
 
 namespace cmp {
 
-// A Name corresponds to any single unique identifier string in the source
-// text.  There may be multiple occurrences of the string in the source text,
-// but one instance of the matching Name exists in the course of compilation.
-// A NameTable is a hash table of Names queried by their raw string.  It serves
-// to reduce the number of string hashing operation, since we can look up the
-// symbol table using Name instead of raw char * throughout the semantic
-// analysis.
-class Name {
-public:
-    Name(const std::string &s) : text(s) {}
-    std::string text;
-};
-
+class Source;
 
 class Declaration {
 public:
@@ -48,14 +36,27 @@ private:
     std::array<Symbol *, symbol_table_key_size> keys;
 };
 
+// Represents a type, whether it be built-in or user-defined.
+class Type {
+public:
+    Name *name;
+};
+
+// Stores all of the semantic information necessary for semantic analysis
+// phase.
 class Semantics {
 public:
-    Semantics(Source &src_) : src(src_) {}
+    Semantics(Source &src_, NameTable &nt) : src(src_), name_table(nt) {}
     void error(size_t pos, const std::string &msg);
 
-    Source &src;        // source text
-    SymbolTable symtab; // symbol table
+    Source &src;                                 // source text
+    NameTable &name_table;                       // name table
+    SymbolTable decl_table;                      // declaration table
+    std::unordered_map<Name *, Type> type_table; // type table
 };
+
+// Do a semantic analysis on the given AST.
+void semantic_analyze(Semantics &sema, Ast ast);
 
 } // namespace cmp
 

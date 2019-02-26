@@ -2,12 +2,14 @@
 #ifndef AST_H
 #define AST_H
 
-#include "sema.h"
 #include "lexer.h"
 #include <iostream>
 #include <memory>
 
 namespace cmp {
+
+class Semantics;
+class Name;
 
 enum class AstType {
     none, // FIXME necessary?
@@ -53,6 +55,30 @@ NodePtr<T> make_node(Args&&... args) {
 
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
 
+// A Name corresponds to any single unique identifier string in the source
+// text.  There may be multiple occurrences of the string in the source text,
+// but one instance of the matching Name exists in the name table.
+class Name {
+public:
+    Name(const std::string &s) : text(s) {}
+    std::string text;
+};
+
+// A NameTable is a hash table of Names queried by their raw string.  It serves
+// to reduce the number of string hashing operation, since we can look up the
+// symbol table using Name instead of raw char * throughout the semantic
+// analysis.
+using NameTable = std::map<std::string, Name>;
+
+// Ast is the aggregate type that contains all information necessary for
+// semantic analysis of an AST: namely, root node and name table.
+class Ast {
+public:
+    Ast(AstNodePtr r, NameTable &nt) : root(std::move(r)), name_table(nt) {}
+    AstNodePtr root;
+    NameTable &name_table;
+};
+
 class AstNode {
 public:
     AstNode() {}
@@ -62,6 +88,9 @@ public:
     // AST printing.
     virtual void print() const = 0;
     // AST traversal.
+    // TODO: AST is traversed at least twice, i.e. once for semantic analysis
+    // and once for IR generation.  So there should be a generic way to
+    // traverse it; maybe pass in a lambda that does work for a single node?
     virtual void traverse(Semantics &sema) const = 0;
     // Convenience method for downcasting.
     template <typename T> constexpr T *as() {

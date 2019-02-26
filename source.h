@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+namespace cmp {
+
 class Path {
 public:
     Path(const std::string &path) : path(path) {}
@@ -44,5 +46,7 @@ public:
     std::vector<char> buf {};
     std::vector<size_t> line_off {};
 };
+
+} // namespace cmp
 
 #endif
