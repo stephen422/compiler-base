@@ -64,8 +64,10 @@ void VarDecl::traverse(Semantics &sema) const {
     if (old_decl != nullptr) { // TODO: check scope
         sema.error(start_pos, "redefinition");
     }
-    Declaration decl{*name};
-    sema.decl_table.push(Symbol {name, decl});
+    // FIXME: Proper type inference here.
+    Type *type = nullptr;
+    Declaration decl{*name, *type};
+    sema.decl_table.insert({name, decl});
 
     if (assign_expr) {
         assign_expr->traverse(sema);
@@ -77,6 +79,7 @@ void Function::traverse(Semantics &sema) const {
 }
 
 void LiteralExpr::traverse(Semantics &sema) const {
+    (void)sema;
 }
 
 void RefExpr::traverse(Semantics &sema) const {
