@@ -75,7 +75,7 @@ void Semantics::error(size_t pos, const std::string &msg) {
 
 static void initialize_builtin_types(Semantics &sema) {
     // TODO:
-    Name *int_name = &sema.name_table.find("int")->second;
+    Name *int_name = sema.name_table.find("int");
     Type int_type{int_name};
     sema.type_table.insert({int_name, int_type});
 }

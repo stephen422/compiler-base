@@ -68,7 +68,22 @@ public:
 // to reduce the number of string hashing operation, since we can look up the
 // symbol table using Name instead of raw char * throughout the semantic
 // analysis.
-using NameTable = std::map<std::string, Name>;
+class NameTable {
+public:
+    Name *insert(const std::string &s) {
+        auto pair = map.insert({s, {s}});
+        return &pair.first->second;
+    }
+    Name *find(const std::string &s) {
+        auto found = map.find(s);
+        if (found == map.end()) {
+            return nullptr;
+        } else {
+            return &found->second;
+        }
+    }
+    std::map<std::string, Name> map;
+};
 
 // Ast is the aggregate type that contains all information necessary for
 // semantic analysis of an AST: namely, root node and name table.

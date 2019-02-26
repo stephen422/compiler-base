@@ -24,9 +24,9 @@ NodePtr<T> ParseResult<T>::unwrap() {
     return nullptr;
 }
 
-static void insert_keywords_in_name_table(std::map<std::string, Name> &name_table) {
+static void insert_keywords_in_name_table(NameTable &name_table) {
     for (auto m : keyword_map) {
-        name_table.insert({m.first, {m.first}});
+        name_table.insert(m.first);
     }
 }
 
@@ -198,15 +198,11 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
     }
 
     // Insert to the name table
-    auto found = name_table.find(id.text);
-    Name *name = nullptr;
-    if (found == name_table.end()) {
+    Name *name = name_table.find(id.text);
+    if (name == nullptr) {
         // New identifier, into the name table
-        auto pair = name_table.insert({id.text, {id.text}});
-        name = &pair.first->second;
-    } else {
-        name = &found->second;
-    };
+        name = name_table.insert(id.text);
+    }
 
     auto var_decl = make_node<VarDecl>(name, std::move(rhs), mut);
     var_decl->start_pos = start_pos;
@@ -270,14 +266,11 @@ NodePtr<RefExpr> Parser::parse_ref_expr() {
     ref_expr->end_pos = look().pos + look().text.length();
 
     std::string text = look().text;
-    auto found = name_table.find(text);
-    if (found == name_table.end()) {
+    ref_expr->name = name_table.find(text);
+    if (ref_expr->name == nullptr) {
         // New identifier, into the name table
-        auto pair = name_table.insert({text, {text}});
-        ref_expr->name = &pair.first->second;
-    } else {
-        ref_expr->name = &found->second;
-    };
+        ref_expr->name = name_table.insert(text);
+    }
 
     next();
 
