@@ -28,10 +28,6 @@ std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes) 
 // AST Traversal
 //
 
-void test(Semantics &sema) {
-    std::cout << "==== int_type in test:\n" << sema.int_type->name->text << "\n";
-}
-
 void File::traverse(Semantics &sema) {
     for (auto &tl : toplevels) {
         tl->traverse(sema);
@@ -171,7 +167,12 @@ void CompoundStmt::print() const {
 }
 
 void VarDecl::print() const {
-    out() << "[VarDecl] " << name->text << " " << (mut ? "(mut)" : "") <<"\n";
+    out() << "[VarDecl] " << name->text;
+    std::cout << " '" << (type_name ? type_name->text : "(null)") << "'";
+    if (mut) {
+        std::cout << " (mut)";
+    }
+    std::cout << std::endl;
 
     if (assign_expr) {
         out() << "[AssignExpr]\n";
