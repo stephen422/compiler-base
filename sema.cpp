@@ -3,6 +3,16 @@
 
 namespace cmp {
 
+void Type::print() const {
+    if (name) {
+        std::cout << name->text;
+    }
+}
+
+void Declaration::print() const {
+    std::cout << name->text << ":" << type.name->text;
+}
+
 void Semantics::error(size_t pos, const std::string &msg) {
     auto loc = src.locate(pos);
     std::cerr << loc.filename << ":" << loc.line << ":" << loc.col << ": ";
@@ -13,10 +23,10 @@ void Semantics::error(size_t pos, const std::string &msg) {
 static void initialize_builtin_types(Semantics &sema) {
     Name *int_name = sema.name_table.find("int");
     Type int_type{int_name};
-    sema.type_table.insert({int_name, int_type});
+    sema.int_type = sema.type_table.insert({int_name, int_type});
 }
 
-void semantic_analyze(Semantics &sema, Ast ast) {
+void semantic_analyze(Semantics &sema, Ast &ast) {
     initialize_builtin_types(sema);
     ast.root->traverse(sema);
 }

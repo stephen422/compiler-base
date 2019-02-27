@@ -54,6 +54,7 @@ enum class TokenType {
     kw_if,
     kw_else,
     kw_int,
+    kw_float,
     kw_return,
     none // not found
 };

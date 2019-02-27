@@ -1,15 +1,14 @@
-// -*- C++ -*-
 #ifndef AST_H
 #define AST_H
 
 #include "lexer.h"
 #include <iostream>
 #include <memory>
+#include <unordered_map>
 
 namespace cmp {
 
 class Semantics;
-class Name;
 
 enum class AstType {
     none, // FIXME necessary?
@@ -55,18 +54,18 @@ NodePtr<T> make_node(Args&&... args) {
 
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
 
-// A Name corresponds to any single unique identifier string in the source
-// text.  There may be multiple occurrences of the string in the source text,
-// but one instance of the matching Name exists in the name table.
+// A Name corresponds to a single unique identifier string in the source text.
+// There may be multiple occurrences of a string in the source text, but only
+// one instance of the matching Name can reside in the name table.
 class Name {
 public:
     Name(const std::string &s) : text(s) {}
     std::string text;
 };
 
-// A NameTable is a hash table of Names queried by their raw string.  It serves
-// to reduce the number of string hashing operation, since we can look up the
-// symbol table using Name instead of raw char * throughout the semantic
+// A NameTable is a hash table of Names queried by their string value.  It
+// serves to reduce the number of string hashing operation, since we can look
+// up the symbol table using Name instead of raw char * throughout the semantic
 // analysis.
 class NameTable {
 public:
@@ -82,11 +81,11 @@ public:
             return &found->second;
         }
     }
-    std::map<std::string, Name> map;
+    std::unordered_map<std::string, Name> map;
 };
 
-// Ast is the aggregate type that contains all information necessary for
-// semantic analysis of an AST: namely, root node and name table.
+// Ast is aggregate type that contains all information necessary for semantic
+// analysis of an AST: namely, the root node and the name table.
 class Ast {
 public:
     Ast(AstNodePtr r, NameTable &nt) : root(std::move(r)), name_table(nt) {}
@@ -106,7 +105,7 @@ public:
     // TODO: AST is traversed at least twice, i.e. once for semantic analysis
     // and once for IR generation.  So there should be a generic way to
     // traverse it; maybe pass in a lambda that does work for a single node?
-    virtual void traverse(Semantics &sema) const = 0;
+    virtual void traverse(Semantics &sema) = 0;
     // Convenience method for downcasting.
     template <typename T> constexpr T *as() {
         return static_cast<T *>(this);
@@ -145,7 +144,7 @@ class File : public AstNode {
 public:
     File() : AstNode(AstType::file) {}
     void print() const override;
-    void traverse(Semantics &sema) const override;
+    void traverse(Semantics &sema) override;
 
     std::vector<ToplevelPtr> toplevels;
 };
@@ -163,7 +162,7 @@ class DeclStmt : public Stmt {
 public:
     DeclStmt(DeclPtr decl) : Stmt(AstType::decl_stmt), decl(std::move(decl)) {}
     void print() const override;
-    void traverse(Semantics &sema) const override;
+    void traverse(Semantics &sema) override;
 
     DeclPtr decl;
 };
@@ -172,7 +171,7 @@ class ExprStmt : public Stmt {
 public:
     ExprStmt(ExprPtr expr) : Stmt(AstType::expr_stmt), expr(std::move(expr)) {}
     void print() const override;
-    void traverse(Semantics &sema) const override;
+    void traverse(Semantics &sema) override;
 
     ExprPtr expr;
 };
@@ -182,7 +181,7 @@ class AssignStmt : public Stmt {
 public:
     AssignStmt(NodePtr<RefExpr> lhs, ExprPtr rhs) : Stmt(AstType::assign_stmt), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
     void print() const override;
-    void traverse(Semantics &sema) const override;
+    void traverse(Semantics &sema) override;
 
     NodePtr<RefExpr> lhs;
     ExprPtr rhs;
@@ -192,7 +191,7 @@ class ReturnStmt : public Stmt {
 public:
     ReturnStmt(ExprPtr expr) : Stmt(AstType::return_stmt), expr(std::move(expr)) {}
     void print() const override;
-    void traverse(Semantics &sema) const override;
+    void traverse(Semantics &sema) override;
 
     ExprPtr expr;
 };
@@ -201,7 +200,7 @@ class CompoundStmt : public Stmt {
 public:
     CompoundStmt() : Stmt(AstType::compound_stmt) {}
     void print() const override;
-    void traverse(Semantics &sema) const override;
+    void traverse(Semantics &sema) override;
 
     std::vector<StmtPtr> stmts;
 };
@@ -210,51 +209,29 @@ public:
 //   Expressions
 // ===============
 
+class Type;
+
 class Expr : public AstNode {
 public:
     Expr(AstType type) : AstNode(type) {}
-    virtual std::string flatten() const = 0;
-};
 
-enum class LiteralType {
-    integer,
-    float_,
-    string,
-};
-
-class LiteralExpr : public Expr {
-public:
-    LiteralExpr(LiteralType type, const Token &lit) : Expr(AstType::literal_expr), type(type), lit(lit) {
-        start_pos = lit.pos;
-        end_pos = lit.pos + lit.text.length();
-    }
-    void print() const override;
-    void traverse(Semantics &sema) const override;
-    std::string flatten() const override;
-
-    LiteralType type;
-    Token lit;
+    Type *inferred_type = nullptr;
 };
 
 class IntegerLiteral : public Expr {
 public:
-    IntegerLiteral(const Token &lit) : Expr(AstType::integer_literal), lit(lit) {
-        start_pos = lit.pos;
-        end_pos = lit.pos + lit.text.length();
-    }
+    IntegerLiteral(int64_t v) : Expr(AstType::integer_literal), value(v) {}
     void print() const override;
-    void traverse(Semantics &sema) const override;
-    std::string flatten() const override;
+    void traverse(Semantics &sema) override;
 
-    Token lit;
+    int64_t value; // TODO: big integers?
 };
 
 class RefExpr : public Expr {
 public:
     RefExpr() : Expr(AstType::ref_expr) {}
     void print() const override;
-    void traverse(Semantics &sema) const override;
-    std::string flatten() const override;
+    void traverse(Semantics &sema) override;
 
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
@@ -271,8 +248,7 @@ public:
         end_pos = pair.second;
     }
     void print() const override;
-    void traverse(Semantics &sema) const override;
-    std::string flatten() const override;
+    void traverse(Semantics &sema) override;
 
     ExprPtr lhs;
     Token op;
@@ -295,7 +271,7 @@ public:
     VarDecl(Name *name, ExprPtr expr, bool mut)
         : Decl(AstType::var_decl), name(name), assign_expr(std::move(expr)), mut(mut) {}
     void print() const override;
-    void traverse(Semantics &sema) const override;
+    void traverse(Semantics &sema) override;
 
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
@@ -319,13 +295,15 @@ class Function : public Toplevel {
 public:
     Function(const Token &id) : Toplevel(AstType::function), id(id) {}
     void print() const override;
-    void traverse(Semantics &sema) const override;
+    void traverse(Semantics &sema) override;
 
     Token id;
     // Compound statement body
     NodePtr<CompoundStmt> body;
     Token return_type;
 };
+
+void test(Semantics &sema);
 
 } // namespace cmp
 

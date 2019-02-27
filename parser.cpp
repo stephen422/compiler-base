@@ -242,19 +242,24 @@ DeclPtr Parser::parse_decl() {
 }
 
 ExprPtr Parser::parse_literal_expr() {
-    LiteralType type;
+    ExprPtr expr = nullptr;
     // TODO Literals other than integers?
     switch (look().type) {
-    case TokenType::number:
-        type = LiteralType::integer;
+    case TokenType::number: {
+        std::string s{look().text};
+        int value = std::stoi(s);
+        expr = make_node<IntegerLiteral>(value);
         break;
+    }
     default:
         error("non-integer literals not implemented");
         break;
     }
-    auto expr = make_node<LiteralExpr>(type, look());
-    // TODO takes arbitrary token
+    expr->start_pos = look().pos;
+    expr->end_pos = look().pos + look().text.length();
+
     next();
+
     return expr;
 }
 

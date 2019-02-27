@@ -35,8 +35,11 @@ int main(int argc, char **argv) {
     auto ast = p.parse();
     Semantics sema{src, ast.name_table};
     ast.root->print();
-    semantic_analyze(sema, std::move(ast));
-    sema.decl_table.print();
+    semantic_analyze(sema, ast);
+    // std::cout << "==== Declaration table ====\n";
+    // sema.decl_table.print();
+    // std::cout << "==== Type table ====\n";
+    // sema.type_table.print();
 #endif
     return 0;
 }

@@ -17,12 +17,13 @@ SymbolTable<T>::SymbolTable() {
 template <typename T>
 SymbolTable<T>::~SymbolTable() {
     for (int i = 0; i < symbol_table_key_size; i++) {
-        auto *p = keys[i];
+        Symbol<T> *p = keys[i];
         if (!p) {
             continue;
         }
         while (p) {
             auto *next = p->next;
+            delete &p->value;
             delete p;
             p = next;
         }
@@ -30,18 +31,24 @@ SymbolTable<T>::~SymbolTable() {
 }
 
 template <typename T>
-void SymbolTable<T>::insert(const Symbol<T> sym) {
-    int index = hash(sym.name) % symbol_table_key_size;
-    auto **p = &keys[index];
-    auto *head = new Symbol<T>(sym);
+T *SymbolTable<T>::insert(std::pair<Name *, const T &> pair) {
+    Name *name = pair.first;
+    // Allocate memory for T (FIXME: better allocator)
+    T *value = new T(pair.second);
+    Symbol<T> *head = new Symbol<T>(name, *value);
+
+    // Insert into the bucket
+    int index = hash(name) % symbol_table_key_size;
+    Symbol<T> **p = &keys[index];
     head->next = *p;
     *p = head;
+    return &head->value;
 }
 
 template <typename T>
 T *SymbolTable<T>::find(Name *name) const {
     int index = hash(name) % symbol_table_key_size;
-    for (auto *s = keys[index]; s; s = s->next) {
+    for (Symbol<T> *s = keys[index]; s; s = s->next) {
         if (s->name == name) {
             return &s->value;
         }
@@ -51,7 +58,6 @@ T *SymbolTable<T>::find(Name *name) const {
 
 template <typename T>
 void SymbolTable<T>::print() const {
-    std::cout << "==== Symbol table ====\n";
     for (int i = 0; i < symbol_table_key_size; i++) {
         auto *p = keys[i];
         if (!p) {
@@ -59,7 +65,9 @@ void SymbolTable<T>::print() const {
         }
         std::cout << "[" << i << "]";
         while (p) {
-            std::cout << " {" << p->name->text << "}";
+            std::cout << " {";
+            p->value.print();
+            std::cout << "}";
             p = p->next;
         }
         std::cout << std::endl;

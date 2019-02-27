@@ -1,6 +1,6 @@
 CXX ?= clang++
-CXXFLAGS += -g -fsanitize=address -std=c++14 -Wall -Wextra
-LDFLAGS := -fsanitize=address -fuse-ld=lld
+CXXFLAGS += -g -std=c++14 -Wall -Wextra -fsanitize=address
+LDFLAGS := -fuse-ld=lld -fsanitize=address
 PROG := cmp
 OBJ := sema.o parser.o lexer.o ast.o source.o
 

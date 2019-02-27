@@ -11,13 +11,17 @@ class Source;
 // Represents a type, whether it be built-in or user-defined.
 class Type {
 public:
-    Name *name;
+    Type(Name *n) : name(n) {}
+    Name *name = nullptr;
+    void print() const;
 };
 
+// Represents declaration of a variable or a function.
 class Declaration {
 public:
-    Name &id;
+    Name *name = nullptr;
     Type &type;
+    void print() const;
 };
 
 template <typename T>
@@ -37,7 +41,7 @@ class SymbolTable {
 public:
     SymbolTable();
     ~SymbolTable();
-    void insert(const Symbol<T> sym);
+    T *insert(std::pair<Name *, const T &> pair);
     T *find(Name *name) const;
     void print() const;
 
@@ -54,14 +58,15 @@ public:
     Semantics(Source &src_, NameTable &nt) : src(src_), name_table(nt) {}
     void error(size_t pos, const std::string &msg);
 
-    Source &src;                                 // source text
-    NameTable &name_table;                       // name table
-    SymbolTable<Declaration> decl_table;                      // declaration table
-    SymbolTable<Type> type_table; // type table
+    Type *int_type = nullptr;            // integer type object
+    Source &src;                         // source text
+    NameTable &name_table;               // name table
+    SymbolTable<Declaration> decl_table; // declaration table
+    SymbolTable<Type> type_table;        // type table
 };
 
 // Do a semantic analysis on the given AST.
-void semantic_analyze(Semantics &sema, Ast ast);
+void semantic_analyze(Semantics &sema, Ast &ast);
 
 } // namespace cmp
 

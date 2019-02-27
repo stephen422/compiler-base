@@ -1,5 +1,6 @@
 #include "ast.h"
 #include "sema.h"
+#include <cassert>
 #include <sstream>
 
 namespace cmp {
@@ -27,71 +28,87 @@ std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes) 
 // AST Traversal
 //
 
-void File::traverse(Semantics &sema) const {
+void test(Semantics &sema) {
+    std::cout << "==== int_type in test:\n" << sema.int_type->name->text << "\n";
+}
+
+void File::traverse(Semantics &sema) {
     for (auto &tl : toplevels) {
         tl->traverse(sema);
     }
 }
 
-void DeclStmt::traverse(Semantics &sema) const {
+void DeclStmt::traverse(Semantics &sema) {
     std::cout << "traversing DeclStmt\n";
     decl->traverse(sema);
 }
 
-void ExprStmt::traverse(Semantics &sema) const {
+void ExprStmt::traverse(Semantics &sema) {
     std::cout << "traversing ExprStmt\n";
     expr->traverse(sema);
 }
 
-void AssignStmt::traverse(Semantics &sema) const {
+void AssignStmt::traverse(Semantics &sema) {
     lhs->traverse(sema);
     rhs->traverse(sema);
 }
 
-void ReturnStmt::traverse(Semantics &sema) const {
+void ReturnStmt::traverse(Semantics &sema) {
     expr->traverse(sema);
 }
 
-void CompoundStmt::traverse(Semantics &sema) const {
+void CompoundStmt::traverse(Semantics &sema) {
     std::cout << "traversing CompoundStmt\n";
     for (auto &stmt : stmts) {
         stmt->traverse(sema);
     }
 }
 
-void VarDecl::traverse(Semantics &sema) const {
+void VarDecl::traverse(Semantics &sema) {
+    // For VarDecl, assign_expr has to be traversed first because of the type
+    // inference.
+    if (assign_expr) {
+        assign_expr->traverse(sema);
+    }
+
     auto old_decl = sema.decl_table.find(name);
     if (old_decl != nullptr) { // TODO: check scope
         sema.error(start_pos, "redefinition");
     }
-    // FIXME: Proper type inference here.
-    Type *type = nullptr;
-    Declaration decl{*name, *type};
-    sema.decl_table.insert({name, decl});
 
-    if (assign_expr) {
-        assign_expr->traverse(sema);
-    }
+    // TODO: Proper type inference here.
+    Type *type = sema.int_type;
+
+    Declaration decl{name, *type};
+    sema.decl_table.insert({name, decl});
 }
 
-void Function::traverse(Semantics &sema) const {
+void Function::traverse(Semantics &sema) {
     body->traverse(sema);
 }
 
-void LiteralExpr::traverse(Semantics &sema) const {
-    (void)sema;
+void IntegerLiteral::traverse(Semantics &sema) {
+    inferred_type = sema.int_type;
 }
 
-void RefExpr::traverse(Semantics &sema) const {
-    if (sema.decl_table.find(name) == nullptr) {
+void RefExpr::traverse(Semantics &sema) {
+    Declaration *decl = sema.decl_table.find(name);
+    if (decl == nullptr) {
         sema.error(start_pos, "undeclared identifier");
     }
+    // Type inferrence
+    inferred_type = &decl->type;
 }
 
-void BinaryExpr::traverse(Semantics &sema) const {
-    std::cout << "[BinaryExpr] start_pos: " << start_pos << ", end_pos: " << end_pos << std::endl;
+void BinaryExpr::traverse(Semantics &sema) {
+    // std::cout << "[BinaryExpr] start_pos: " << start_pos << ", end_pos: " << end_pos << std::endl;
     lhs->traverse(sema);
     rhs->traverse(sema);
+    // Type inferrence
+    if (lhs->inferred_type && rhs->inferred_type &&
+        lhs->inferred_type != rhs->inferred_type) {
+        sema.error(start_pos, "type mismatch in binary expression");
+    }
 }
 
 //
@@ -165,26 +182,18 @@ void BinaryExpr::print() const {
     rhs->print();
 }
 
-std::string BinaryExpr::flatten() const {
-    return "(" + lhs->flatten() + std::string(op.text) + rhs->flatten() + ")";
-}
-
-void LiteralExpr::print() const {
-    out() << "[LiteralExpr] " << lit.text << std::endl;
+void IntegerLiteral::print() const {
+    out() << "[IntegerLiteral] " << value << std::endl;
 }
 
 void RefExpr::print() const {
     out() << "[RefExpr] " << "((Name *)";
-    printf("0x...%08x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(name)));
-    std::cout << ") "<< name->text << std::endl;
-}
-
-std::string LiteralExpr::flatten() const {
-    return lit.text;
-}
-
-std::string RefExpr::flatten() const {
-    return name->text;
+    printf("0x..%04x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(name)));
+    std::cout << ") "<< name->text;
+    if (inferred_type) {
+        std::cout << " '" << inferred_type->name->text << "'";
+    }
+    std::cout << std::endl;
 }
 
 } // namespace cmp
