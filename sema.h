@@ -27,10 +27,10 @@ public:
 template <typename T>
 class Symbol {
 public:
-    Symbol(Name *n, T &v) : name(n), value(v) {}
+    Symbol(Name *n, const T &v) : name(n), value(v) {}
 
     Name *name;   // name of this symbol
-    T &value;     // semantic value of this symbol
+    T value;     // semantic value of this symbol
     Symbol *next; // pointer to next symbol in the hash table bucket
 };
 

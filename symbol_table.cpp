@@ -23,7 +23,6 @@ SymbolTable<T>::~SymbolTable() {
         }
         while (p) {
             auto *next = p->next;
-            delete &p->value;
             delete p;
             p = next;
         }
@@ -32,13 +31,11 @@ SymbolTable<T>::~SymbolTable() {
 
 template <typename T>
 T *SymbolTable<T>::insert(std::pair<Name *, const T &> pair) {
-    Name *name = pair.first;
-    // Allocate memory for T (FIXME: better allocator)
-    T *value = new T(pair.second);
-    Symbol<T> *head = new Symbol<T>(name, *value);
+    // Memory for T is stored inside the symbol
+    Symbol<T> *head = new Symbol<T>(pair.first, pair.second);
 
     // Insert into the bucket
-    int index = hash(name) % symbol_table_key_size;
+    int index = hash(pair.first) % symbol_table_key_size;
     Symbol<T> **p = &keys[index];
     head->next = *p;
     *p = head;
