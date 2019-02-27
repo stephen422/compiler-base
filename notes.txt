@@ -2,17 +2,17 @@ TODO
 ====
 
 * Complete parser
-  - assignment expression
+  - reference types
+  - if statements
 
-* Symbol table
+* Sema for functions
 
-* pos() returning the raw byte offset in the source seems counterintuitive.  Is
-  there actually a case where a byte offset becomes useful?
+* Better allocator for symbol table
 
 * Parser tests
-A simple integration test with expected parse errors annotated in comments, and
-a postprocessing script matching the error with the annotation, will be
-sufficient.
+  A simple integration test with expected parse errors annotated in comments,
+  and a postprocessing script matching the error with the annotation, will be
+  sufficient.
 
 
 Grammar
