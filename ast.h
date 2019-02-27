@@ -69,7 +69,11 @@ public:
 // analysis.
 class NameTable {
 public:
-    Name *insert(const std::string &s) {
+    Name *find_or_insert(const std::string &s) {
+        Name *found = find(s);
+        if (found) {
+            return found;
+        }
         auto pair = map.insert({s, {s}});
         return &pair.first->second;
     }
@@ -268,16 +272,17 @@ public:
 // Variable declaration.
 class VarDecl : public Decl {
 public:
-    VarDecl(Name *name, ExprPtr expr, bool mut)
-        : Decl(AstType::var_decl), name(name), assign_expr(std::move(expr)), mut(mut) {}
+    VarDecl(Name *n, Name *t, ExprPtr expr, bool mut)
+        : Decl(AstType::var_decl), name(n), type_name(t), assign_expr(std::move(expr)), mut(mut) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
-    Name *name = nullptr;
-    ExprPtr assign_expr;
-    bool mut; // is this a "var" declaration?
+    Name *name = nullptr; // name of the variable
+    Name *type_name = nullptr; // type of the variable. If null, it will be inferred later
+    ExprPtr assign_expr;  // initial assignment value
+    bool mut;             // "var" or "let"?
 };
 
 // ============

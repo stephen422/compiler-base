@@ -25,7 +25,7 @@ NodePtr<T> ParseResult<T>::unwrap() {
 
 static void insert_keywords_in_name_table(NameTable &name_table) {
     for (auto m : keyword_map) {
-        name_table.insert(m.first);
+        name_table.find_or_insert(m.first);
     }
 }
 
@@ -183,7 +183,8 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
     Token id = look();
     next();
 
-    // Optional assignment expression
+    // Assignment expression should be provided if type is not specified.
+    Name *type_name = nullptr;
     ExprPtr rhs = nullptr;
     if (!mut) {
         expect(TokenType::equals, "initial value should be provided for immutable variables");
@@ -191,19 +192,27 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
     } else if (look().type == TokenType::equals) {
         next();
         rhs = parse_expr().unwrap();
+    } else if (look().type == TokenType::colon) {
+        next();
+        // @Cleanup
+        if (look().type == TokenType::newline) {
+            error("expected type");
+        }
+        type_name = name_table.find_or_insert(look().text);
+        next();
+    } else if (look().type == TokenType::newline) {
+        error("either type or initial value should be provided for mutable variables");
+    } else {
+        error("expected '=' or ':'");
     }
     if (rhs) {
         end_pos = rhs->end_pos;
     }
 
     // Insert to the name table
-    Name *name = name_table.find(id.text);
-    if (name == nullptr) {
-        // New identifier, into the name table
-        name = name_table.insert(id.text);
-    }
+    Name *name = name_table.find_or_insert(id.text);
 
-    auto var_decl = make_node<VarDecl>(name, std::move(rhs), mut);
+    auto var_decl = make_node<VarDecl>(name, type_name, std::move(rhs), mut);
     var_decl->start_pos = start_pos;
     var_decl->end_pos = end_pos;
     return var_decl;
@@ -270,11 +279,7 @@ NodePtr<RefExpr> Parser::parse_ref_expr() {
     ref_expr->end_pos = look().pos + look().text.length();
 
     std::string text = look().text;
-    ref_expr->name = name_table.find(text);
-    if (ref_expr->name == nullptr) {
-        // New identifier, into the name table
-        ref_expr->name = name_table.insert(text);
-    }
+    ref_expr->name = name_table.find_or_insert(text);
 
     next();
 

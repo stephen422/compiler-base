@@ -1,6 +1,6 @@
 fn main() -> int {
     var a = 3 + 4
-    var b
+    var b : int
     b = a
 
     1 * 2 + 3 + 4 * 5

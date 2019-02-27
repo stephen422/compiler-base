@@ -65,10 +65,13 @@ void CompoundStmt::traverse(Semantics &sema) {
 }
 
 void VarDecl::traverse(Semantics &sema) {
+    Type *inferred_type = nullptr;
     // For VarDecl, assign_expr has to be traversed first because of the type
     // inference.
     if (assign_expr) {
         assign_expr->traverse(sema);
+        // Propagate type from assign_expr
+        inferred_type = assign_expr->inferred_type;
     }
 
     auto old_decl = sema.decl_table.find(name);
@@ -77,9 +80,18 @@ void VarDecl::traverse(Semantics &sema) {
     }
 
     // TODO: Proper type inference here.
-    Type *type = sema.int_type;
-
-    Declaration decl{name, *type};
+    if (!inferred_type) {
+        if (!type_name) {
+            // Neither is the type explicitly specified, this is an inferrence
+            // failure
+            sema.error(start_pos, "cannot infer type of variable declaration");
+        }
+        inferred_type = sema.type_table.find(type_name);
+        if (!inferred_type) {
+            sema.error(start_pos, "undeclared type");
+        }
+    }
+    Declaration decl{name, *inferred_type};
     sema.decl_table.insert({name, decl});
 }
 
@@ -101,14 +113,16 @@ void RefExpr::traverse(Semantics &sema) {
 }
 
 void BinaryExpr::traverse(Semantics &sema) {
-    // std::cout << "[BinaryExpr] start_pos: " << start_pos << ", end_pos: " << end_pos << std::endl;
     lhs->traverse(sema);
     rhs->traverse(sema);
+
     // Type inferrence
     if (lhs->inferred_type && rhs->inferred_type &&
         lhs->inferred_type != rhs->inferred_type) {
         sema.error(start_pos, "type mismatch in binary expression");
     }
+    // Propagate type of LHS
+    inferred_type = lhs->inferred_type;
 }
 
 //
