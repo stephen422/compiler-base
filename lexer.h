@@ -11,7 +11,7 @@
 
 namespace cmp {
 
-enum class TokenType {
+enum class TokenKind {
     eos,
     newline,
     arrow,
@@ -61,64 +61,64 @@ enum class TokenType {
 
 // This is under linear search, so it is better to place more frequently used
 // symbols at the top.
-static const std::pair<StringView, TokenType> symbol_map[] {
-    {"\"", TokenType::doublequote},
-    {"\n", TokenType::newline},
-    {"->", TokenType::arrow},
-    {"'", TokenType::quote},
-    {"(", TokenType::lparen},
-    {")", TokenType::rparen},
-    {"{", TokenType::lbrace},
-    {"}", TokenType::rbrace},
-    {"[", TokenType::lbracket},
-    {"]", TokenType::rbracket},
-    {"<", TokenType::lesserthan},
-    {">", TokenType::greaterthan},
-    {".", TokenType::dot},
-    {",", TokenType::comma},
-    {":", TokenType::colon},
-    {";", TokenType::semicolon},
-    {"=", TokenType::equals},
-    {"+", TokenType::plus},
-    {"-", TokenType::minus},
-    {"*", TokenType::star},
-    {"&", TokenType::ampersand},
-    {"^", TokenType::caret},
-    {"~", TokenType::tilde},
-    {"/", TokenType::slash},
-    {"\\", TokenType::backslash},
-    {"|", TokenType::pipe},
-    {"!", TokenType::bang},
-    {"?", TokenType::question},
-    {"#", TokenType::hash},
-    {"-", TokenType::dash},
-    {"comment", TokenType::comment},
+static const std::pair<StringView, TokenKind> symbol_map[] {
+    {"\"", TokenKind::doublequote},
+    {"\n", TokenKind::newline},
+    {"->", TokenKind::arrow},
+    {"'", TokenKind::quote},
+    {"(", TokenKind::lparen},
+    {")", TokenKind::rparen},
+    {"{", TokenKind::lbrace},
+    {"}", TokenKind::rbrace},
+    {"[", TokenKind::lbracket},
+    {"]", TokenKind::rbracket},
+    {"<", TokenKind::lesserthan},
+    {">", TokenKind::greaterthan},
+    {".", TokenKind::dot},
+    {",", TokenKind::comma},
+    {":", TokenKind::colon},
+    {";", TokenKind::semicolon},
+    {"=", TokenKind::equals},
+    {"+", TokenKind::plus},
+    {"-", TokenKind::minus},
+    {"*", TokenKind::star},
+    {"&", TokenKind::ampersand},
+    {"^", TokenKind::caret},
+    {"~", TokenKind::tilde},
+    {"/", TokenKind::slash},
+    {"\\", TokenKind::backslash},
+    {"|", TokenKind::pipe},
+    {"!", TokenKind::bang},
+    {"?", TokenKind::question},
+    {"#", TokenKind::hash},
+    {"-", TokenKind::dash},
+    {"comment", TokenKind::comment},
 };
 
-static const std::pair<StringView, TokenType> keyword_map[] {
-    {"fn", TokenType::kw_fn},
-    {"let", TokenType::kw_let},
-    {"var", TokenType::kw_var},
-    {"if", TokenType::kw_if},
-    {"else", TokenType::kw_else},
-    {"int", TokenType::kw_int},
-    {"return", TokenType::kw_return},
+static const std::pair<StringView, TokenKind> keyword_map[] {
+    {"fn", TokenKind::kw_fn},
+    {"let", TokenKind::kw_let},
+    {"var", TokenKind::kw_var},
+    {"if", TokenKind::kw_if},
+    {"else", TokenKind::kw_else},
+    {"int", TokenKind::kw_int},
+    {"return", TokenKind::kw_return},
 };
 
-std::string tokentype_to_string(TokenType type);
+std::string tokentype_to_string(TokenKind kind);
 
-// Token contains the type, a view of the text data, and the source position of
+// Token contains the kind, a view of the text data, and the source position of
 // a token.
 class Token {
 public:
-    TokenType type;
+    TokenKind kind;
     size_t pos;
     StringView text;
 
-    Token() : type(TokenType::none), pos(0), text() {}
-    Token(TokenType type, size_t pos) : type(type), pos(pos), text() {}
-    Token(TokenType type, size_t pos, StringView text)
-        : type(type), pos(pos), text(text) {}
+    Token() : kind(TokenKind::none), pos(0), text() {}
+    Token(TokenKind kind, size_t pos) : kind(kind), pos(pos), text() {}
+    Token(TokenKind kind, size_t pos, StringView text)
+        : kind(kind), pos(pos), text(text) {}
     void print();
 };
 
@@ -152,7 +152,7 @@ public:
     std::vector<size_t> line_off; // offsets of each newline
     size_t num_ident = 0;         // number of identifiers found
 
-    // Lex functions for a single token type.
+    // Lex functions for a single token kind.
     Token lex_ident();
     Token lex_number();
     Token lex_string();
@@ -167,8 +167,8 @@ public:
         return std::cend(sv) - 1;
     }
     size_t pos() const { return curr - std::cbegin(sv); }
-    Token make_token(TokenType type);
-    Token make_token_with_literal(TokenType type);
+    Token make_token(TokenKind kind);
+    Token make_token_with_literal(TokenKind kind);
     template <typename F> void skip_while(F &&lambda);
     void skip_whitespace();
     void error(const std::string &msg);

@@ -32,6 +32,7 @@ SymbolTable<T>::~SymbolTable() {
 template <typename T>
 T *SymbolTable<T>::insert(std::pair<Name *, const T &> pair) {
     // Memory for T is stored inside the symbol
+    // FIXME: bad allocator
     Symbol<T> *head = new Symbol<T>(pair.first, pair.second);
 
     // Insert into the bucket

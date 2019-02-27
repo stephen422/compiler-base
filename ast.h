@@ -10,7 +10,7 @@ namespace cmp {
 
 class Semantics;
 
-enum class AstType {
+enum class AstKind {
     none, // FIXME necessary?
     file,
     toplevel,
@@ -100,7 +100,7 @@ public:
 class AstNode {
 public:
     AstNode() {}
-    AstNode(AstType type) : type(type) {}
+    AstNode(AstKind kind) : kind(kind) {}
     virtual ~AstNode() = default;
 
     // AST printing.
@@ -131,7 +131,7 @@ public:
         ~PrintScope() { depth -= 2; }
     };
 
-    AstType type = AstType::none; // node type
+    AstKind kind = AstKind::none; // node kind
     size_t start_pos = 0;         // start pos of this AST in the source text
     size_t end_pos = 0;           // end pos of this AST in the source text
     // Indentation of the current node when dumping AST.
@@ -146,7 +146,7 @@ public:
 // File is simply a group of Toplevels.
 class File : public AstNode {
 public:
-    File() : AstNode(AstType::file) {}
+    File() : AstNode(AstKind::file) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
@@ -159,12 +159,12 @@ public:
 
 class Stmt : public AstNode {
 public:
-    Stmt(AstType type) : AstNode(type) {}
+    Stmt(AstKind kind) : AstNode(kind) {}
 };
 
 class DeclStmt : public Stmt {
 public:
-    DeclStmt(DeclPtr decl) : Stmt(AstType::decl_stmt), decl(std::move(decl)) {}
+    DeclStmt(DeclPtr decl) : Stmt(AstKind::decl_stmt), decl(std::move(decl)) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
@@ -173,7 +173,7 @@ public:
 
 class ExprStmt : public Stmt {
 public:
-    ExprStmt(ExprPtr expr) : Stmt(AstType::expr_stmt), expr(std::move(expr)) {}
+    ExprStmt(ExprPtr expr) : Stmt(AstKind::expr_stmt), expr(std::move(expr)) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
@@ -183,7 +183,7 @@ public:
 class RefExpr;
 class AssignStmt : public Stmt {
 public:
-    AssignStmt(NodePtr<RefExpr> lhs, ExprPtr rhs) : Stmt(AstType::assign_stmt), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+    AssignStmt(NodePtr<RefExpr> lhs, ExprPtr rhs) : Stmt(AstKind::assign_stmt), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
@@ -193,7 +193,7 @@ public:
 
 class ReturnStmt : public Stmt {
 public:
-    ReturnStmt(ExprPtr expr) : Stmt(AstType::return_stmt), expr(std::move(expr)) {}
+    ReturnStmt(ExprPtr expr) : Stmt(AstKind::return_stmt), expr(std::move(expr)) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
@@ -202,7 +202,7 @@ public:
 
 class CompoundStmt : public Stmt {
 public:
-    CompoundStmt() : Stmt(AstType::compound_stmt) {}
+    CompoundStmt() : Stmt(AstKind::compound_stmt) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
@@ -217,14 +217,14 @@ class Type;
 
 class Expr : public AstNode {
 public:
-    Expr(AstType type) : AstNode(type) {}
+    Expr(AstKind kind) : AstNode(kind) {}
 
     Type *inferred_type = nullptr;
 };
 
 class IntegerLiteral : public Expr {
 public:
-    IntegerLiteral(int64_t v) : Expr(AstType::integer_literal), value(v) {}
+    IntegerLiteral(int64_t v) : Expr(AstKind::integer_literal), value(v) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
@@ -233,7 +233,7 @@ public:
 
 class RefExpr : public Expr {
 public:
-    RefExpr() : Expr(AstType::ref_expr) {}
+    RefExpr() : Expr(AstKind::ref_expr) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
@@ -245,7 +245,7 @@ public:
 class BinaryExpr : public Expr {
 public:
     BinaryExpr(ExprPtr lhs_, Token op_, ExprPtr rhs_)
-        : Expr(AstType::binary_expr), lhs(std::move(lhs_)), op(op_),
+        : Expr(AstKind::binary_expr), lhs(std::move(lhs_)), op(op_),
           rhs(std::move(rhs_)) {
         auto pair = get_ast_range({lhs.get(), rhs.get()});
         start_pos = pair.first;
@@ -266,23 +266,24 @@ public:
 // A declaration.
 class Decl : public AstNode {
 public:
-    Decl(AstType type) : AstNode(type) {}
+    Decl(AstKind kind) : AstNode(kind) {}
 };
 
 // Variable declaration.
 class VarDecl : public Decl {
 public:
     VarDecl(Name *n, Name *t, ExprPtr expr, bool mut)
-        : Decl(AstType::var_decl), name(n), type_name(t), assign_expr(std::move(expr)), mut(mut) {}
+        : Decl(AstKind::var_decl), name(n), type_name(t), assign_expr(std::move(expr)), mut(mut) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
-    Name *name = nullptr; // name of the variable
-    Name *type_name = nullptr; // type of the variable. If null, it will be inferred later
-    ExprPtr assign_expr;  // initial assignment value
-    bool mut;             // "var" or "let"?
+    Name *name = nullptr;      // name of the variable
+    Name *type_name = nullptr; // type of the variable.
+                               // If null, it will be inferred later
+    ExprPtr assign_expr;       // initial assignment value
+    bool mut;                  // "var" or "let"?
 };
 
 // ============
@@ -291,14 +292,14 @@ public:
 
 class Toplevel : public AstNode {
 public:
-    Toplevel(AstType type) : AstNode(type) {}
+    Toplevel(AstKind kind) : AstNode(kind) {}
 };
 
 // Function definition.  There is no separate 'function declaration': functions
 // should always be defined whenever they are declared.
 class Function : public Toplevel {
 public:
-    Function(const Token &id) : Toplevel(AstType::function), id(id) {}
+    Function(const Token &id) : Toplevel(AstKind::function), id(id) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 

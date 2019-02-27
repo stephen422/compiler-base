@@ -10,9 +10,9 @@ using namespace cmp;
 void test_lexer(Lexer &lexer) {
     Token token;
 
-    while ((token = lexer.lex()).type != TokenType::eos) {
-        if (token.type == TokenType::none) {
-            std::cerr << "lex error: [" << token.text << "]: Unrecognized token type\n";
+    while ((token = lexer.lex()).kind != TokenKind::eos) {
+        if (token.kind == TokenKind::none) {
+            std::cerr << "lex error: [" << token.text << "]: Unrecognized token kind\n";
             break;
         }
         std::cout << token << std::endl;
@@ -34,6 +34,7 @@ int main(int argc, char **argv) {
     Parser p{lexer};
     auto ast = p.parse();
     Semantics sema{src, ast.name_table};
+    std::cout << "After parsing:\n";
     ast.root->print();
     semantic_analyze(sema, ast);
     // std::cout << "==== Declaration table ====\n";

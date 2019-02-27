@@ -94,7 +94,7 @@ private:
     // Get the precedence of an operator.
     int get_precedence(const Token &op) const;
 
-    void expect(TokenType type, const std::string &msg);
+    void expect(TokenKind kind, const std::string &msg);
     void error(const std::string &msg);
     void skip_newlines();
 

@@ -35,7 +35,7 @@ Parser::Parser(Lexer &lexer) : lexer(lexer), tok() {
 }
 
 void Parser::next() {
-    if (tokens[lookahead_pos].type != TokenType::eos) {
+    if (tokens[lookahead_pos].kind != TokenKind::eos) {
         lookahead_pos++;
     }
 }
@@ -52,12 +52,12 @@ void Parser::revert_state() {
     lookahead_pos = saved_pos;
 }
 
-void Parser::expect(TokenType type, const std::string &msg = "") {
-    if (look().type != type) {
+void Parser::expect(TokenKind kind, const std::string &msg = "") {
+    if (look().kind != kind) {
         std::stringstream ss;
         if (msg.empty()) {
-            ss << "expected '" << tokentype_to_string(type) << "', got '"
-               << tokentype_to_string(look().type) << "'";
+            ss << "expected '" << tokentype_to_string(kind) << "', got '"
+               << tokentype_to_string(look().kind) << "'";
         } else {
 	    ss << msg;
 	}
@@ -84,19 +84,19 @@ ParseResult<Stmt> Parser::parse_stmt() {
     // We use lookahead (LL(k)) to revert state if a production fails.
     // (See "recursive descent with backtracking":
     // https://en.wikipedia.org/wiki/Recursive_descent_parser)
-    if (look().type == TokenType::comment) {
+    if (look().kind == TokenKind::comment) {
         next();
         return parse_stmt();
-    } else if (look().type == TokenType::kw_return) {
+    } else if (look().kind == TokenKind::kw_return) {
         result = parse_return_stmt();
-        expect(TokenType::newline, "unexpected token at end of statement");
+        expect(TokenKind::newline, "unexpected token at end of statement");
         return result;
     }
 
     // @Cleanup: confusing control flow. Maybe use a loop? RAII?
 
     if (auto decl = parse_decl()) {
-        expect(TokenType::newline, "unexpected token at end of declaration");
+        expect(TokenKind::newline, "unexpected token at end of declaration");
         return make_node<DeclStmt>(std::move(decl));
     }
     revert_state();
@@ -122,7 +122,7 @@ NodePtr<ExprStmt> Parser::parse_expr_stmt() {
     auto r = parse_expr();
     // Only if the lookahead token points to a newline is the whole expression
     // successfully parsed.
-    if (r.success() && look().type == TokenType::newline) {
+    if (r.success() && look().kind == TokenKind::newline) {
         next();
         return make_node<ExprStmt>(r.unwrap());
     } else {
@@ -131,12 +131,12 @@ NodePtr<ExprStmt> Parser::parse_expr_stmt() {
 }
 
 NodePtr<AssignStmt> Parser::parse_assign_stmt() {
-    if (look().type != TokenType::ident) {
+    if (look().kind != TokenKind::ident) {
         return nullptr;
     }
 
     auto lhs = parse_ref_expr();
-    expect(TokenType::equals);
+    expect(TokenKind::equals);
     auto rhs_result = parse_expr();
     if (rhs_result.success()) {
         return make_node<AssignStmt>(std::move(lhs), rhs_result.unwrap());
@@ -147,7 +147,7 @@ NodePtr<AssignStmt> Parser::parse_assign_stmt() {
 }
 
 NodePtr<ReturnStmt> Parser::parse_return_stmt() {
-    expect(TokenType::kw_return);
+    expect(TokenKind::kw_return);
     ExprPtr expr = parse_expr().unwrap();
     return make_node<ReturnStmt>(std::move(expr));
 }
@@ -159,48 +159,48 @@ NodePtr<ReturnStmt> Parser::parse_return_stmt() {
 // CompoundStmt:
 //     { Stmt* }
 NodePtr<CompoundStmt> Parser::parse_compound_stmt() {
-    expect(TokenType::lbrace);
+    expect(TokenKind::lbrace);
     auto compound = make_node<CompoundStmt>();
     ParseResult<Stmt> stmt_res;
     while ((stmt_res = parse_stmt()).success()) {
         compound->stmts.push_back(stmt_res.unwrap());
     }
     // did parse_stmt() fail at the end properly?
-    if (look().type != TokenType::rbrace) {
+    if (look().kind != TokenKind::rbrace) {
         // report the last statement failure
         stmt_res.unwrap();
     }
-    expect(TokenType::rbrace);
+    expect(TokenKind::rbrace);
     return compound;
 }
 
 NodePtr<VarDecl> Parser::parse_var_decl() {
     auto start_pos = look().pos;
-    bool mut = look().type == TokenType::kw_var;
+    bool mut = look().kind == TokenKind::kw_var;
     next();
 
     auto end_pos = look().pos + look().text.length();
     Token id = look();
     next();
 
-    // Assignment expression should be provided if type is not specified.
+    // Assignment expression should be provided if kind is not specified.
     Name *type_name = nullptr;
     ExprPtr rhs = nullptr;
     if (!mut) {
-        expect(TokenType::equals, "initial value should be provided for immutable variables");
+        expect(TokenKind::equals, "initial value should be provided for immutable variables");
         rhs = parse_expr().unwrap();
-    } else if (look().type == TokenType::equals) {
+    } else if (look().kind == TokenKind::equals) {
         next();
         rhs = parse_expr().unwrap();
-    } else if (look().type == TokenType::colon) {
+    } else if (look().kind == TokenKind::colon) {
         next();
         // @Cleanup
-        if (look().type == TokenType::newline) {
+        if (look().kind == TokenKind::newline) {
             error("expected type");
         }
         type_name = name_table.find_or_insert(look().text);
         next();
-    } else if (look().type == TokenType::newline) {
+    } else if (look().kind == TokenKind::newline) {
         error("either type or initial value should be provided for mutable variables");
     } else {
         error("expected '=' or ':'");
@@ -219,18 +219,18 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
 }
 
 NodePtr<Function> Parser::parse_function() {
-    expect(TokenType::kw_fn);
+    expect(TokenKind::kw_fn);
 
     Token name = look();
     auto func = make_node<Function>(name);
     next();
 
     // TODO: Argument list (foo(...))
-    expect(TokenType::lparen);
-    expect(TokenType::rparen);
+    expect(TokenKind::lparen);
+    expect(TokenKind::rparen);
 
     // Return type (-> ...)
-    expect(TokenType::arrow);
+    expect(TokenKind::arrow);
     func->return_type = look();
     next();
 
@@ -241,9 +241,9 @@ NodePtr<Function> Parser::parse_function() {
 }
 
 DeclPtr Parser::parse_decl() {
-    switch (look().type) {
-    case TokenType::kw_let:
-    case TokenType::kw_var:
+    switch (look().kind) {
+    case TokenKind::kw_let:
+    case TokenKind::kw_var:
         return parse_var_decl();
     default:
         return nullptr;
@@ -253,8 +253,8 @@ DeclPtr Parser::parse_decl() {
 ExprPtr Parser::parse_literal_expr() {
     ExprPtr expr = nullptr;
     // TODO Literals other than integers?
-    switch (look().type) {
-    case TokenType::number: {
+    switch (look().kind) {
+    case TokenKind::number: {
         std::string s{look().text};
         int value = std::stoi(s);
         expr = make_node<IntegerLiteral>(value);
@@ -287,16 +287,16 @@ NodePtr<RefExpr> Parser::parse_ref_expr() {
 }
 
 ParseResult<Expr> Parser::parse_unary_expr() {
-    switch (look().type) {
-    case TokenType::number:
-    case TokenType::string:
+    switch (look().kind) {
+    case TokenKind::number:
+    case TokenKind::string:
         return parse_literal_expr();
-    case TokenType::ident:
+    case TokenKind::ident:
         return parse_ref_expr();
-    case TokenType::lparen: {
-        expect(TokenType::lparen);
+    case TokenKind::lparen: {
+        expect(TokenKind::lparen);
         auto expr = parse_expr();
-        expect(TokenType::rparen);
+        expect(TokenKind::rparen);
         return expr;
     }
     default:
@@ -308,12 +308,12 @@ ParseResult<Expr> Parser::parse_unary_expr() {
 }
 
 int Parser::get_precedence(const Token &op) const {
-    switch (op.type) {
-    case TokenType::star:
-    case TokenType::slash:
+    switch (op.kind) {
+    case TokenKind::star:
+    case TokenKind::slash:
         return 1;
-    case TokenType::plus:
-    case TokenType::minus:
+    case TokenKind::plus:
+    case TokenKind::minus:
         return 0;
     default:
         // Not an operator
@@ -381,7 +381,7 @@ void Parser::error(const std::string &msg) {
 // this to skip over them.
 // @Cleanup: what about comments?
 void Parser::skip_newlines() {
-    while (look().type == TokenType::newline) {
+    while (look().kind == TokenKind::newline) {
         next();
     }
 }
@@ -389,13 +389,13 @@ void Parser::skip_newlines() {
 ToplevelPtr Parser::parse_toplevel() {
     skip_newlines();
 
-    switch (look().type) {
-    case TokenType::eos:
+    switch (look().kind) {
+    case TokenKind::eos:
         return nullptr;
-    case TokenType::kw_fn:
+    case TokenKind::kw_fn:
         return parse_function();
-    case TokenType::comment:
-    case TokenType::semicolon:
+    case TokenKind::comment:
+    case TokenKind::semicolon:
         next();
         return parse_toplevel();
     default:
