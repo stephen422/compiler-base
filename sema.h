@@ -3,6 +3,7 @@
 
 #include "ast.h"
 #include <unordered_map>
+#include <array>
 
 namespace cmp {
 
