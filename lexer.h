@@ -54,6 +54,7 @@ enum class TokenKind {
     kw_if,
     kw_else,
     kw_int,
+    kw_i64,
     kw_float,
     kw_return,
     none // not found
@@ -102,6 +103,7 @@ static const std::pair<StringView, TokenKind> keyword_map[] {
     {"if", TokenKind::kw_if},
     {"else", TokenKind::kw_else},
     {"int", TokenKind::kw_int},
+    {"i64", TokenKind::kw_i64},
     {"return", TokenKind::kw_return},
 };
 

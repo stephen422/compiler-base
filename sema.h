@@ -31,7 +31,7 @@ public:
     Symbol(Name *n, const T &v) : name(n), value(v) {}
 
     Name *name;   // name of this symbol
-    T value;     // semantic value of this symbol
+    T value;      // semantic value of this symbol
     Symbol *next; // pointer to next symbol in the hash table bucket
 };
 
@@ -59,7 +59,8 @@ public:
     Semantics(Source &src_, NameTable &nt) : src(src_), name_table(nt) {}
     void error(size_t pos, const std::string &msg);
 
-    Type *int_type = nullptr;            // integer type object
+    Type *int_type = nullptr;
+    Type *i64_type = nullptr;
     Source &src;                         // source text
     NameTable &name_table;               // name table
     SymbolTable<Declaration> decl_table; // declaration table

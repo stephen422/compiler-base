@@ -37,10 +37,10 @@ int main(int argc, char **argv) {
     std::cout << "After parsing:\n";
     ast.root->print();
     semantic_analyze(sema, ast);
-    // std::cout << "==== Declaration table ====\n";
-    // sema.decl_table.print();
-    // std::cout << "==== Type table ====\n";
-    // sema.type_table.print();
+    std::cout << "==== Declaration table ====\n";
+    sema.decl_table.print();
+    std::cout << "==== Type table ====\n";
+    sema.type_table.print();
 #endif
     return 0;
 }

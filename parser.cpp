@@ -135,11 +135,16 @@ NodePtr<AssignStmt> Parser::parse_assign_stmt() {
         return nullptr;
     }
 
+    auto start_pos = look().pos;
     auto lhs = parse_ref_expr();
     expect(TokenKind::equals);
     auto rhs_result = parse_expr();
+    auto end_pos = look().pos;
     if (rhs_result.success()) {
-        return make_node<AssignStmt>(std::move(lhs), rhs_result.unwrap());
+        auto assign_stmt = make_node<AssignStmt>(std::move(lhs), rhs_result.unwrap());
+        assign_stmt->start_pos = start_pos;
+        assign_stmt->end_pos = end_pos;
+        return assign_stmt;
     } else {
         // TODO For now, disregard error message and just hand out nullptr.
         return nullptr;

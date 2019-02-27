@@ -47,6 +47,10 @@ void ExprStmt::traverse(Semantics &sema) {
 void AssignStmt::traverse(Semantics &sema) {
     lhs->traverse(sema);
     rhs->traverse(sema);
+    // Type match.  For now, type of LHS and RHS should match exactly.
+    if (lhs->inferred_type != rhs->inferred_type) {
+        sema.error(start_pos, "type mismatch in assignment");
+    }
 }
 
 void ReturnStmt::traverse(Semantics &sema) {
