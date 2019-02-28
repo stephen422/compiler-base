@@ -65,6 +65,7 @@ private:
     ExprPtr parse_literal_expr();
     NodePtr<IntegerLiteral> parse_integer_literal();
     NodePtr<RefExpr> parse_ref_expr();
+    NodePtr<TypeExpr> parse_type_expr();
     // TODO: There's no UnaryExpr, so we can't change this to
     // NodePtr<UnaryExpr>. Better make one?
     ParseResult<Expr> parse_unary_expr();

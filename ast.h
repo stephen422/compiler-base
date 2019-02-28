@@ -23,6 +23,7 @@ enum class AstKind {
     literal_expr,
     integer_literal,
     ref_expr,
+    type_expr,
     binary_expr,
     function,
 };
@@ -242,6 +243,17 @@ public:
     Name *name = nullptr;
 };
 
+// FIXME: should I call this an expression?
+class TypeExpr : public Expr {
+public:
+    TypeExpr() : Expr(AstKind::type_expr) {}
+    void print() const override;
+    void traverse(Semantics &sema) override;
+
+    Name *name = nullptr; // name of the type
+    bool ref = false;     // is this a reference to a type?
+};
+
 class BinaryExpr : public Expr {
 public:
     BinaryExpr(ExprPtr lhs_, Token op_, ExprPtr rhs_)
@@ -272,18 +284,18 @@ public:
 // Variable declaration.
 class VarDecl : public Decl {
 public:
-    VarDecl(Name *n, Name *t, ExprPtr expr, bool mut)
-        : Decl(AstKind::var_decl), name(n), type_name(t), assign_expr(std::move(expr)), mut(mut) {}
+    VarDecl(Name *n, NodePtr<TypeExpr> t, ExprPtr expr, bool mut)
+        : Decl(AstKind::var_decl), name(n), type_expr(std::move(t)), assign_expr(std::move(expr)), mut(mut) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
-    Name *name = nullptr;      // name of the variable
-    Name *type_name = nullptr; // type of the variable.
-                               // If null, it will be inferred later
-    ExprPtr assign_expr;       // initial assignment value
-    bool mut;                  // "var" or "let"?
+    Name *name = nullptr;                  // name of the variable
+    NodePtr<TypeExpr> type_expr = nullptr; // type node of the variable.
+                                           // If null, it will be inferred later
+    ExprPtr assign_expr;                   // initial assignment value
+    bool mut;                              // "var" or "let"?
 };
 
 // ============

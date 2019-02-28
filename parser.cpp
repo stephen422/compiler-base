@@ -189,7 +189,7 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
     next();
 
     // Assignment expression should be provided if kind is not specified.
-    Name *type_name = nullptr;
+    NodePtr<TypeExpr> type_expr = nullptr;
     ExprPtr rhs = nullptr;
     if (!mut) {
         expect(TokenKind::equals, "initial value should be provided for immutable variables");
@@ -203,8 +203,7 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
         if (look().kind == TokenKind::newline) {
             error("expected type");
         }
-        type_name = name_table.find_or_insert(look().text);
-        next();
+        type_expr = parse_type_expr();
     } else if (look().kind == TokenKind::newline) {
         error("either type or initial value should be provided for mutable variables");
     } else {
@@ -217,7 +216,7 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
     // Insert to the name table
     Name *name = name_table.find_or_insert(id.text);
 
-    auto var_decl = make_node<VarDecl>(name, type_name, std::move(rhs), mut);
+    auto var_decl = make_node<VarDecl>(name, std::move(type_expr), std::move(rhs), mut);
     var_decl->start_pos = start_pos;
     var_decl->end_pos = end_pos;
     return var_decl;
@@ -289,6 +288,25 @@ NodePtr<RefExpr> Parser::parse_ref_expr() {
     next();
 
     return ref_expr;
+}
+
+NodePtr<TypeExpr> Parser::parse_type_expr() {
+    auto type_expr = make_node<TypeExpr>();
+
+    type_expr->start_pos = look().pos;
+
+    if (look().kind == TokenKind::ampersand) {
+        type_expr->ref = true;
+        next();
+    }
+
+    std::string text = look().text;
+    type_expr->name = name_table.find_or_insert(text);
+    next();
+
+    type_expr->end_pos = look().pos;
+
+    return type_expr;
 }
 
 ParseResult<Expr> Parser::parse_unary_expr() {

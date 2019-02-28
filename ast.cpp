@@ -81,12 +81,12 @@ void VarDecl::traverse(Semantics &sema) {
 
     // TODO: Proper type inference here.
     if (!inferred_type) {
-        if (!type_name) {
+        if (!type_expr) {
             // Neither is the type explicitly specified, this is an inferrence
             // failure
             sema.error(start_pos, "cannot infer type of variable declaration");
         }
-        inferred_type = sema.type_table.find(type_name);
+        inferred_type = sema.type_table.find(type_expr->name);
         if (!inferred_type) {
             sema.error(start_pos, "undeclared type");
         }
@@ -110,6 +110,13 @@ void RefExpr::traverse(Semantics &sema) {
     }
     // Type inferrence
     inferred_type = &decl->type;
+}
+
+void TypeExpr::traverse(Semantics &sema) {
+    Type *type = sema.type_table.find(name);
+    if (type == nullptr) {
+        sema.error(start_pos, "unknown type");
+    }
 }
 
 void BinaryExpr::traverse(Semantics &sema) {
@@ -171,12 +178,11 @@ void CompoundStmt::print() const {
 }
 
 void VarDecl::print() const {
-    out() << "[VarDecl] " << name->text;
-    std::cout << " '" << (type_name ? type_name->text : "(null)") << "'";
-    if (mut) {
-        std::cout << " (mut)";
+    out() << "[VarDecl] " << name->text << (mut ? " (mut)" : " ") << "\n";
+    PrintScope start;
+    if (type_expr) {
+        type_expr->print();
     }
-    std::cout << std::endl;
 
     if (assign_expr) {
         out() << "[AssignExpr]\n";
@@ -213,6 +219,10 @@ void RefExpr::print() const {
         std::cout << " '" << inferred_type->name->text << "'";
     }
     std::cout << std::endl;
+}
+
+void TypeExpr::print() const {
+    out() << "[TypeExpr] " << (ref ? "&" : "") << name->text << std::endl;
 }
 
 } // namespace cmp
