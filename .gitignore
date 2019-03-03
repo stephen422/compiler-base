@@ -26,6 +26,13 @@
 *.a
 *.lib
 
+# CMake files
+*.ninja*
+CMakeFiles/
+CMakeCache.txt
+CTestTestfile.cmake
+cmake_install.cmake
+
 # Executables
 cmp
 cmp-test
