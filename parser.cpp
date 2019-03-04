@@ -295,15 +295,22 @@ NodePtr<TypeExpr> Parser::parse_type_expr() {
 
     type_expr->start_pos = look().pos;
 
+    // We encode each type into a unique Name, so that they are easy to find in
+    // the type table in the semantic analysis phase.
+    std::string text;
     if (look().kind == TokenKind::ampersand) {
+        next();
         type_expr->ref = true;
+        type_expr->subexpr = parse_type_expr();
+        text = "&" + type_expr->subexpr->name->text;
+    } else {
+        type_expr->ref = false;
+        type_expr->subexpr = nullptr;
+        text = look().text;
         next();
     }
 
-    std::string text = look().text;
     type_expr->name = name_table.find_or_insert(text);
-    next();
-
     type_expr->end_pos = look().pos;
 
     return type_expr;

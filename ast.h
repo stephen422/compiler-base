@@ -1,6 +1,7 @@
 #ifndef AST_H
 #define AST_H
 
+#include "sema.h"
 #include "lexer.h"
 #include <iostream>
 #include <memory>
@@ -8,7 +9,10 @@
 
 namespace cmp {
 
-class Semantics;
+// Note about header dependency: AST depends on Sema because it is traversed
+// multiple times in the course of compilation, and therefore it has to be able
+// to retain semantic informations for the next traverse, as class members of
+// AstNodes.
 
 enum class AstKind {
     none, // FIXME necessary?
@@ -54,40 +58,6 @@ NodePtr<T> make_node(Args&&... args) {
 }
 
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
-
-// A Name corresponds to a single unique identifier string in the source text.
-// There may be multiple occurrences of a string in the source text, but only
-// one instance of the matching Name can reside in the name table.
-class Name {
-public:
-    Name(const std::string &s) : text(s) {}
-    std::string text;
-};
-
-// A NameTable is a hash table of Names queried by their string value.  It
-// serves to reduce the number of string hashing operation, since we can look
-// up the symbol table using Name instead of raw char * throughout the semantic
-// analysis.
-class NameTable {
-public:
-    Name *find_or_insert(const std::string &s) {
-        Name *found = find(s);
-        if (found) {
-            return found;
-        }
-        auto pair = map.insert({s, {s}});
-        return &pair.first->second;
-    }
-    Name *find(const std::string &s) {
-        auto found = map.find(s);
-        if (found == map.end()) {
-            return nullptr;
-        } else {
-            return &found->second;
-        }
-    }
-    std::unordered_map<std::string, Name> map;
-};
 
 // Ast is aggregate type that contains all information necessary for semantic
 // analysis of an AST: namely, the root node and the name table.
@@ -220,6 +190,8 @@ class Expr : public AstNode {
 public:
     Expr(AstKind kind) : AstNode(kind) {}
 
+    // This value will be propagated by post-order tree traversal, starting
+    // from RefExpr or literal expressions.
     Type *inferred_type = nullptr;
 };
 
@@ -229,7 +201,7 @@ public:
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    int64_t value; // TODO: big integers?
+    int64_t value;
 };
 
 class RefExpr : public Expr {
@@ -250,8 +222,9 @@ public:
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    Name *name = nullptr; // name of the type
-    bool ref = false;     // is this a reference to a type?
+    Name *name = nullptr;                // name of the type
+    bool ref = false;                    // is this a reference type?
+    NodePtr<TypeExpr> subexpr = nullptr; // 'T' part of '&T'
 };
 
 class BinaryExpr : public Expr {

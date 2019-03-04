@@ -66,31 +66,33 @@ void CompoundStmt::traverse(Semantics &sema) {
 
 void VarDecl::traverse(Semantics &sema) {
     Type *inferred_type = nullptr;
-    // For VarDecl, assign_expr has to be traversed first because of the type
-    // inference.
-    if (assign_expr) {
-        assign_expr->traverse(sema);
-        // Propagate type from assign_expr
-        inferred_type = assign_expr->inferred_type;
-    }
 
-    auto old_decl = sema.decl_table.find(name);
-    if (old_decl != nullptr) { // TODO: check scope
+    // Check for redefinition
+    if (sema.decl_table.find(name) != nullptr) { // TODO: check scope
         sema.error(start_pos, "redefinition");
     }
 
-    // TODO: Proper type inference here.
-    if (!inferred_type) {
-        if (!type_expr) {
-            // Neither is the type explicitly specified, this is an inferrence
-            // failure
-            sema.error(start_pos, "cannot infer type of variable declaration");
-        }
-        inferred_type = sema.type_table.find(type_expr->name);
-        if (!inferred_type) {
-            sema.error(start_pos, "undeclared type");
-        }
+    // Infer type from the assignment expression.
+    if (assign_expr) {
+        assign_expr->traverse(sema);
+        inferred_type = assign_expr->inferred_type;
     }
+    // If none, try explicit type expression.
+    // Assumes assign_expr and type_expr do not coexist.
+    else if (type_expr) {
+        type_expr->traverse(sema);
+        // FIXME: This is kinda hack; inferred_type depicts the type of the
+        // _value_ of a Expr, but TypeExpr does not have any value.
+        inferred_type = type_expr->inferred_type;
+    } else {
+        assert(!"unreachable");
+    }
+
+    // Inferrence failure!
+    if (!inferred_type) {
+        sema.error(start_pos, "cannot infer type of variable declaration");
+    }
+
     Declaration decl{name, *inferred_type};
     sema.decl_table.insert({name, decl});
 }
@@ -113,10 +115,27 @@ void RefExpr::traverse(Semantics &sema) {
 }
 
 void TypeExpr::traverse(Semantics &sema) {
+    if (subexpr) {
+        subexpr->traverse(sema);
+    }
+
     Type *type = sema.type_table.find(name);
     if (type == nullptr) {
-        sema.error(start_pos, "unknown type");
+        // If this is a value type (canonical type in Clang?), we should check use
+        // before declaration.
+        if (!ref) {
+            sema.error(start_pos, "reference of undeclared type");
+        }
+        // If not, this is an instantiation of a derivative type, and should be
+        // put into the table.
+        else {
+            assert(subexpr);
+            Type ref_type {subexpr->inferred_type, true};
+            type = sema.type_table.insert({name, ref_type});
+        }
     }
+    inferred_type = type;
+    assert(inferred_type);
 }
 
 void BinaryExpr::traverse(Semantics &sema) {
@@ -222,7 +241,7 @@ void RefExpr::print() const {
 }
 
 void TypeExpr::print() const {
-    out() << "[TypeExpr] " << (ref ? "&" : "") << name->text << std::endl;
+    out() << "[TypeExpr] " << name->text << std::endl;
 }
 
 } // namespace cmp

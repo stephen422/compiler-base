@@ -37,6 +37,7 @@ cmake_install.cmake
 cmp
 cmp-test
 build*/
+bin/
 TAGS
 *.s
 *.exe

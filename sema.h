@@ -1,28 +1,82 @@
 #ifndef SEMA_H
 #define SEMA_H
 
-#include "ast.h"
-#include <unordered_map>
 #include <array>
+#include <iostream>
+#include <unordered_map>
 
 namespace cmp {
 
 class Source;
 
-// Represents a type, whether it be built-in or user-defined.
+// A Name corresponds to a single unique identifier string in the source text.
+// There may be multiple occurrences of a string in the source text, but only
+// one instance of the matching Name can reside in the name table.
+class Name {
+public:
+    Name(const std::string &s) : text(s) {}
+    std::string text;
+};
+
+// A NameTable is a hash table of Names queried by their string value.  It
+// serves to reduce the number of string hashing operation, since we can look
+// up the symbol table using Name instead of raw char * throughout the semantic
+// analysis.
+class NameTable {
+public:
+    Name *find_or_insert(const std::string &s) {
+        Name *found = find(s);
+        if (found) {
+            return found;
+        }
+        auto pair = map.insert({s, {s}});
+        return &pair.first->second;
+    }
+    Name *find(const std::string &s) {
+        auto found = map.find(s);
+        if (found == map.end()) {
+            return nullptr;
+        } else {
+            return &found->second;
+        }
+    }
+    std::unordered_map<std::string, Name> map;
+};
+
+// Represents a value type: types that are not references, but themselves.
+// These are stored in the symbol table for reference from Type objects.
+class ValueType {
+public:
+    ValueType(Name *n) : name(n) {}
+    void print() const;
+
+    Name *name = nullptr; // name of this type
+};
+
+// Represents a type, whether it be built-in, user-defined, or a reference to
+// another type.  Types are usually stored and passed by value, so their size
+// should be small.
 class Type {
 public:
+    Type() {}
     Type(Name *n) : name(n) {}
-    Name *name = nullptr;
+    Type(Type *v, bool r) : value_type(v), ref(r) {}
     void print() const;
+
+    Name *name = nullptr;       // name of this type
+    Type *value_type = nullptr; // the type this reference refers to
+    bool ref = false;           // is this a reference type?
+
+    Type *get_reference();
 };
 
 // Represents declaration of a variable or a function.
 class Declaration {
 public:
+    void print() const;
+
     Name *name = nullptr;
     Type &type;
-    void print() const;
 };
 
 template <typename T>
@@ -66,6 +120,8 @@ public:
     SymbolTable<Declaration> decl_table; // declaration table
     SymbolTable<Type> type_table;        // type table
 };
+
+class Ast;
 
 // Do a semantic analysis on the given AST.
 void semantic_analyze(Semantics &sema, Ast &ast);

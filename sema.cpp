@@ -1,16 +1,27 @@
 #include "sema.h"
+#include "source.h"
+#include "ast.h"
 #include <iostream>
+#include <cassert>
 
 namespace cmp {
 
+void ValueType::print() const {
+    assert(name);
+    std::cout << name->text;
+}
+
 void Type::print() const {
-    if (name) {
-        std::cout << name->text;
-    }
+    std::cout << (ref ? "&" : "") << name->text;
+}
+
+static std::string referencify(const std::string &str) {
+    return "ref@" + str;
 }
 
 void Declaration::print() const {
-    std::cout << name->text << ":" << type.name->text;
+    std::cout << name->text << ":";
+    type.print();
 }
 
 void Semantics::error(size_t pos, const std::string &msg) {
@@ -25,7 +36,7 @@ static void initialize_builtin_types(Semantics &sema) {
     Type int_type{int_name};
     sema.int_type = sema.type_table.insert({int_name, int_type});
     Name *i64_name = sema.name_table.find("i64");
-    Type i64_type{int_name};
+    Type i64_type{i64_name};
     sema.i64_type = sema.type_table.insert({i64_name, i64_type});
 }
 

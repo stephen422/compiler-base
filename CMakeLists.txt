@@ -7,7 +7,8 @@ include_directories ("${PROJECT_BINARY_DIR}")
 
 add_definitions (-std=c++17)
 set (CMAKE_BUILD_TYPE Debug)
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -fno-omit-frame-pointer")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -fno-omit-frame-pointer -fsanitize=address")
+set (CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fno-omit-frame-pointer -fsanitize=address")
 
 # Compiler invocation switch
 option (COMPILER_VERBOSE "Print verbose compiler invocation" OFF)
@@ -28,7 +29,7 @@ endif ()
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # Creates executable target "compiler".
-add_executable (compiler main.cpp sema.cpp symbol_table.cpp parser.cpp ast.cpp lexer.cpp source.cpp)
+add_executable (compiler main.cpp sema.cpp parser.cpp ast.cpp lexer.cpp source.cpp)
 
 if (APPLE)
   # Should be below the add_executable () line to avoid complaining about
