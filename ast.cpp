@@ -35,12 +35,10 @@ void File::traverse(Semantics &sema) {
 }
 
 void DeclStmt::traverse(Semantics &sema) {
-    std::cout << "traversing DeclStmt\n";
     decl->traverse(sema);
 }
 
 void ExprStmt::traverse(Semantics &sema) {
-    std::cout << "traversing ExprStmt\n";
     expr->traverse(sema);
 }
 
@@ -48,7 +46,12 @@ void AssignStmt::traverse(Semantics &sema) {
     lhs->traverse(sema);
     rhs->traverse(sema);
     // Type match.  For now, type of LHS and RHS should match exactly.
+    assert(lhs->inferred_type);
+    assert(rhs->inferred_type);
     if (lhs->inferred_type != rhs->inferred_type) {
+        sema.type_table.print();
+        std::cout << "LHS: " << lhs->inferred_type->to_string() << std::endl;
+        std::cout << "RHS: " << rhs->inferred_type->to_string() << std::endl;
         sema.error(start_pos, "type mismatch in assignment");
     }
 }
@@ -58,7 +61,6 @@ void ReturnStmt::traverse(Semantics &sema) {
 }
 
 void CompoundStmt::traverse(Semantics &sema) {
-    std::cout << "traversing CompoundStmt\n";
     for (auto &stmt : stmts) {
         stmt->traverse(sema);
     }
@@ -130,12 +132,12 @@ void TypeExpr::traverse(Semantics &sema) {
         // put into the table.
         else {
             assert(subexpr);
-            Type ref_type {subexpr->inferred_type, true};
+            Type ref_type {name, subexpr->inferred_type, true};
             type = sema.type_table.insert({name, ref_type});
         }
     }
+    assert(type);
     inferred_type = type;
-    assert(inferred_type);
 }
 
 void BinaryExpr::traverse(Semantics &sema) {

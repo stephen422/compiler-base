@@ -60,8 +60,8 @@ class Type {
 public:
     Type() {}
     Type(Name *n) : name(n) {}
-    Type(Type *v, bool r) : value_type(v), ref(r) {}
-    void print() const;
+    Type(Name *n, Type *v, bool r) : name(n), value_type(v), ref(r) {}
+    std::string to_string() const;
 
     Name *name = nullptr;       // name of this type
     Type *value_type = nullptr; // the type this reference refers to
@@ -73,7 +73,7 @@ public:
 // Represents declaration of a variable or a function.
 class Declaration {
 public:
-    void print() const;
+    std::string to_string() const;
 
     Name *name = nullptr;
     Type &type;

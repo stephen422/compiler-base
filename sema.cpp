@@ -11,17 +11,16 @@ void ValueType::print() const {
     std::cout << name->text;
 }
 
-void Type::print() const {
-    std::cout << (ref ? "&" : "") << name->text;
+std::string Type::to_string() const {
+    return name->text;
 }
 
 static std::string referencify(const std::string &str) {
     return "ref@" + str;
 }
 
-void Declaration::print() const {
-    std::cout << name->text << ":";
-    type.print();
+std::string Declaration::to_string() const {
+    return name->text + ":" + type.to_string();
 }
 
 void Semantics::error(size_t pos, const std::string &msg) {

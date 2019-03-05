@@ -63,9 +63,7 @@ void SymbolTable<T>::print() const {
         }
         std::cout << "[" << i << "]";
         while (p) {
-            std::cout << " {";
-            p->value.print();
-            std::cout << "}";
+            std::cout << " {" << p->value.to_string() << "}";
             p = p->next;
         }
         std::cout << std::endl;
