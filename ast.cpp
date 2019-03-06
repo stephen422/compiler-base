@@ -104,10 +104,24 @@ void Function::traverse(Semantics &sema) {
 }
 
 void UnaryExpr::traverse(Semantics &sema) {
-    if (operand) {
+    // DeclRefs and Literals bypass this function altogether by virtual
+    // dispatch, so no need to handle them in this switch.
+    switch (unary_kind) {
+    case Paren:
         operand->traverse(sema);
+        inferred_type = operand->inferred_type;
+        break;
+    case Address:
+        operand->traverse(sema);
+        if (node_cast<UnaryExpr>(operand)->unary_kind != DeclRef) {
+            // TODO: LValue & RValue
+            sema.error(start_pos, "cannot take address of a non-variable (TODO: rvalue)");
+        }
+        inferred_type = get_reference_type(sema, operand->inferred_type);
+        break;
+    default:
+        assert(!"unreachable");
     }
-    std::cout << "unimplemented traverse of unaryexpr\n";
 }
 
 void IntegerLiteral::traverse(Semantics &sema) {
@@ -238,7 +252,7 @@ void BinaryExpr::print() const {
 void UnaryExpr::print() const {
     out() << "[UnaryExpr] ";
 
-    switch (kind) {
+    switch (unary_kind) {
     case Paren: {
         std::cout << "Paren\n";
         PrintScope start;

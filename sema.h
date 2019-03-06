@@ -56,8 +56,6 @@ public:
     Name *name = nullptr;       // name of this type
     Type *value_type = nullptr; // the type this reference refers to
     bool ref = false;           // is this a reference type?
-
-    Type *get_reference();
 };
 
 // Represents declaration of a variable or a function.
@@ -101,6 +99,7 @@ private:
 class Semantics {
 public:
     Semantics(Source &src_, NameTable &nt) : src(src_), name_table(nt) {}
+    Semantics(const Semantics &) = delete;
     void error(size_t pos, const std::string &msg);
 
     Type *int_type = nullptr;
@@ -110,6 +109,10 @@ public:
     SymbolTable<Declaration> decl_table; // declaration table
     SymbolTable<Type> type_table;        // type table
 };
+
+// Get a reference type of a given type.
+// Constructs the type if it wasn't in the type table beforehand.
+Type *get_reference_type(Semantics &sema, Type *type);
 
 class Ast;
 

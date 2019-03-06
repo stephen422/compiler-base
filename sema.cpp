@@ -30,6 +30,16 @@ static void initialize_builtin_types(Semantics &sema) {
     sema.i64_type = sema.type_table.insert({i64_name, i64_type});
 }
 
+// @Future: inefficient string operations?
+Type *get_reference_type(Semantics &sema, Type *type) {
+    Name *name = sema.name_table.find_or_insert("&" + type->name->text);
+    Type ref_type {name, type, true};
+    if (auto found = sema.type_table.find(name)) {
+        return found;
+    }
+    return sema.type_table.insert({name, ref_type});
+}
+
 void semantic_analyze(Semantics &sema, Ast &ast) {
     initialize_builtin_types(sema);
     ast.root->traverse(sema);

@@ -58,6 +58,18 @@ NodePtr<T> make_node(Args&&... args) {
     return std::make_unique<T>(std::forward<Args>(args)...);
 }
 
+template<typename T, typename... Args>
+NodePtr<T> make_node_with_pos(size_t start_pos, size_t end_pos, Args&&... args) {
+    auto node = std::make_unique<T>(std::forward<Args>(args)...);
+    node->start_pos = start_pos;
+    node->end_pos = end_pos;
+    return node;
+}
+
+template <typename T, typename U> constexpr T *node_cast(NodePtr<U> &ptr) {
+    return static_cast<T *>(ptr.get());
+}
+
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
 
 // Ast is aggregate type that contains all information necessary for semantic
@@ -211,11 +223,11 @@ public:
     };
 
     UnaryExpr(UnaryKind k, ExprPtr oper)
-        : Expr(AstKind::unary_expr), kind(k), operand(std::move(oper)) {}
+        : Expr(AstKind::unary_expr), unary_kind(k), operand(std::move(oper)) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    UnaryKind kind;
+    UnaryKind unary_kind;
     ExprPtr operand;
 };
 

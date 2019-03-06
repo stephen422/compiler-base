@@ -316,21 +316,26 @@ NodePtr<TypeExpr> Parser::parse_type_expr() {
 }
 
 ParseResult<UnaryExpr> Parser::parse_unary_expr() {
+    auto start_pos = look().pos;
+
     switch (look().kind) {
     case TokenKind::number:
     case TokenKind::string:
         return parse_literal_expr();
     case TokenKind::ident:
         return parse_ref_expr();
+    case TokenKind::ampersand: {
+        next();
+        auto expr = parse_unary_expr();
+        return make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Address, expr.unwrap());
+    }
     case TokenKind::lparen: {
         expect(TokenKind::lparen);
         auto expr = parse_expr();
         expect(TokenKind::rparen);
         // TODO: check unwrap
-        return make_node<UnaryExpr>(UnaryExpr::Paren, expr.unwrap());
+        return make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Paren, expr.unwrap());
     }
-    case TokenKind::ampersand:
-        return {};
     default:
         // Because all expressions start with a unary expression, failing here
         // means no other expression could be matched either, so just do a
