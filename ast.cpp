@@ -259,6 +259,12 @@ void UnaryExpr::print() const {
         operand->print();
         break;
     }
+    case Address: {
+        std::cout << "Address\n";
+        PrintScope start;
+        operand->print();
+        break;
+    }
     default:
         std::cout << "not implemented\n";
         break;
