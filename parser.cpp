@@ -141,13 +141,8 @@ NodePtr<AssignStmt> Parser::parse_assign_stmt() {
     expect(TokenKind::equals);
 
     auto rhs_result = parse_expr();
-    auto end_pos = look().pos;
 
-    auto assign_stmt = make_node<AssignStmt>(std::move(lhs), rhs_result.unwrap());
-    assign_stmt->start_pos = start_pos;
-    assign_stmt->end_pos = end_pos;
-
-    return assign_stmt;
+    return make_node_with_pos<AssignStmt>(start_pos, look().pos, std::move(lhs), rhs_result.unwrap());
 }
 
 NodePtr<ReturnStmt> Parser::parse_return_stmt() {
@@ -215,10 +210,7 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
     // Insert to the name table
     Name *name = name_table.find_or_insert(id.text);
 
-    auto var_decl = make_node<VarDecl>(name, std::move(type_expr), std::move(rhs), mut);
-    var_decl->start_pos = start_pos;
-    var_decl->end_pos = end_pos;
-    return var_decl;
+    return make_node_with_pos<VarDecl>(start_pos, end_pos, name, std::move(type_expr), std::move(rhs), mut);
 }
 
 NodePtr<Function> Parser::parse_function() {
