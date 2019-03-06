@@ -136,7 +136,7 @@ NodePtr<AssignStmt> Parser::parse_assign_stmt() {
     }
 
     auto start_pos = look().pos;
-    auto lhs = parse_ref_expr();
+    auto lhs = parse_declref_expr();
 
     expect(TokenKind::equals);
 
@@ -267,8 +267,8 @@ NodePtr<UnaryExpr> Parser::parse_literal_expr() {
     return expr;
 }
 
-NodePtr<RefExpr> Parser::parse_ref_expr() {
-    auto ref_expr = make_node<RefExpr>();
+NodePtr<DeclRefExpr> Parser::parse_declref_expr() {
+    auto ref_expr = make_node<DeclRefExpr>();
 
     ref_expr->start_pos = look().pos;
     ref_expr->end_pos = look().pos + look().text.length();
@@ -315,7 +315,7 @@ ParseResult<UnaryExpr> Parser::parse_unary_expr() {
     case TokenKind::string:
         return parse_literal_expr();
     case TokenKind::ident:
-        return parse_ref_expr();
+        return parse_declref_expr();
     case TokenKind::ampersand: {
         next();
         auto expr = parse_unary_expr();

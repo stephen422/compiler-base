@@ -164,15 +164,15 @@ public:
     ExprPtr expr;
 };
 
-class RefExpr;
-// TODO: Can't handle cases where LHS is not an RefExpr, e.g. a[0] = 0.
+class DeclRefExpr;
+// TODO: Can't handle cases where LHS is not an DeclRefExpr, e.g. a[0] = 0.
 class AssignStmt : public Stmt {
 public:
-    AssignStmt(NodePtr<RefExpr> lhs, ExprPtr rhs) : Stmt(AstKind::assign_stmt), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+    AssignStmt(NodePtr<DeclRefExpr> lhs, ExprPtr rhs) : Stmt(AstKind::assign_stmt), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    NodePtr<RefExpr> lhs;
+    NodePtr<DeclRefExpr> lhs;
     ExprPtr rhs;
 };
 
@@ -205,7 +205,7 @@ public:
     Expr(AstKind kind) : AstNode(kind) {}
 
     // This value will be propagated by post-order tree traversal, starting
-    // from RefExpr or literal expressions.
+    // from DeclRefExpr or literal expressions.
     Type *inferred_type = nullptr;
 };
 
@@ -240,9 +240,9 @@ public:
     int64_t value;
 };
 
-class RefExpr : public UnaryExpr {
+class DeclRefExpr : public UnaryExpr {
 public:
-    RefExpr() : UnaryExpr(DeclRef, nullptr) {}
+    DeclRefExpr() : UnaryExpr(DeclRef, nullptr) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 

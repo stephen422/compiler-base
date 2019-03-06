@@ -74,7 +74,7 @@ private:
     ParseResult<Expr> parse_expr();
     NodePtr<UnaryExpr> parse_literal_expr();
     NodePtr<IntegerLiteral> parse_integer_literal();
-    NodePtr<RefExpr> parse_ref_expr();
+    NodePtr<DeclRefExpr> parse_declref_expr();
     NodePtr<TypeExpr> parse_type_expr();
     ParseResult<UnaryExpr> parse_unary_expr();
     // Extend a unary expression into binary if possible, by parsing any

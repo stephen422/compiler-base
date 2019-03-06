@@ -128,7 +128,7 @@ void IntegerLiteral::traverse(Semantics &sema) {
     inferred_type = sema.int_type;
 }
 
-void RefExpr::traverse(Semantics &sema) {
+void DeclRefExpr::traverse(Semantics &sema) {
     Declaration *decl = sema.decl_table.find(name);
     if (decl == nullptr) {
         sema.error(start_pos, "undeclared identifier");
@@ -269,8 +269,8 @@ void IntegerLiteral::print() const {
     out() << "[IntegerLiteral] " << value << std::endl;
 }
 
-void RefExpr::print() const {
-    out() << "[RefExpr] " << "((Name *)";
+void DeclRefExpr::print() const {
+    out() << "[DeclRefExpr] " << "((Name *)";
     printf("0x..%04x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(name)));
     std::cout << ") "<< name->text;
     if (inferred_type) {
