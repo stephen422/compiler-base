@@ -6,17 +6,8 @@
 
 namespace cmp {
 
-void ValueType::print() const {
-    assert(name);
-    std::cout << name->text;
-}
-
 std::string Type::to_string() const {
     return name->text;
-}
-
-static std::string referencify(const std::string &str) {
-    return "ref@" + str;
 }
 
 std::string Declaration::to_string() const {

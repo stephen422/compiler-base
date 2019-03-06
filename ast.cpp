@@ -103,6 +103,13 @@ void Function::traverse(Semantics &sema) {
     body->traverse(sema);
 }
 
+void UnaryExpr::traverse(Semantics &sema) {
+    if (operand) {
+        operand->traverse(sema);
+    }
+    std::cout << "unimplemented traverse of unaryexpr\n";
+}
+
 void IntegerLiteral::traverse(Semantics &sema) {
     inferred_type = sema.int_type;
 }
@@ -226,6 +233,22 @@ void BinaryExpr::print() const {
     lhs->print();
     out() << "[Op] '" << op.text << "'\n";
     rhs->print();
+}
+
+void UnaryExpr::print() const {
+    out() << "[UnaryExpr] ";
+
+    switch (kind) {
+    case Paren: {
+        std::cout << "Paren\n";
+        PrintScope start;
+        operand->print();
+        break;
+    }
+    default:
+        std::cout << "not implemented\n";
+        break;
+    }
 }
 
 void IntegerLiteral::print() const {

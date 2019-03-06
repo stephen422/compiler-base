@@ -28,6 +28,7 @@ enum class AstKind {
     integer_literal,
     ref_expr,
     type_expr,
+    unary_expr,
     binary_expr,
     function,
 };
@@ -152,6 +153,7 @@ public:
 };
 
 class RefExpr;
+// TODO: Can't handle cases where LHS is not an RefExpr, e.g. a[0] = 0.
 class AssignStmt : public Stmt {
 public:
     AssignStmt(NodePtr<RefExpr> lhs, ExprPtr rhs) : Stmt(AstKind::assign_stmt), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
@@ -195,18 +197,40 @@ public:
     Type *inferred_type = nullptr;
 };
 
-class IntegerLiteral : public Expr {
+class UnaryExpr : public Expr {
 public:
-    IntegerLiteral(int64_t v) : Expr(AstKind::integer_literal), value(v) {}
+    enum UnaryKind {
+        DeclRef,
+        Literal,
+        Paren,
+        Address,
+        // TODO:
+        Deref,
+        Plus,
+        Minus,
+    };
+
+    UnaryExpr(UnaryKind k, ExprPtr oper)
+        : Expr(AstKind::unary_expr), kind(k), operand(std::move(oper)) {}
+    void print() const override;
+    void traverse(Semantics &sema) override;
+
+    UnaryKind kind;
+    ExprPtr operand;
+};
+
+class IntegerLiteral : public UnaryExpr {
+public:
+    IntegerLiteral(int64_t v) : UnaryExpr(Literal, nullptr), value(v) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
     int64_t value;
 };
 
-class RefExpr : public Expr {
+class RefExpr : public UnaryExpr {
 public:
-    RefExpr() : Expr(AstKind::ref_expr) {}
+    RefExpr() : UnaryExpr(DeclRef, nullptr) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 

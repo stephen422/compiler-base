@@ -43,16 +43,6 @@ public:
     std::unordered_map<std::string, Name> map;
 };
 
-// Represents a value type: types that are not references, but themselves.
-// These are stored in the symbol table for reference from Type objects.
-class ValueType {
-public:
-    ValueType(Name *n) : name(n) {}
-    void print() const;
-
-    Name *name = nullptr; // name of this type
-};
-
 // Represents a type, whether it be built-in, user-defined, or a reference to
 // another type.  Types are usually stored and passed by value, so their size
 // should be small.

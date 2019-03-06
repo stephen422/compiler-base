@@ -16,9 +16,15 @@ public:
     std::string message;
 };
 
-// TODO Document
-template <typename T>
-class ParseResult {
+// ParseResult wraps the result of a single parse operation, along with
+// possible errors generated in the process.  It serves two main purposes:
+//   1. it enables the parser to proceed and try alternative productions
+//   without being interrupted by an error generated in a failed production;
+//   2. it allows higher, more context-aware parse operations to override the
+//   error message with a more descriptive one.
+//
+// TODO: isn't this an overkill?
+template <typename T> class ParseResult {
 public:
     ParseResult() {}
     // Successful result
@@ -26,6 +32,10 @@ public:
     ParseResult(NodePtr<U> ptr): ptr(std::move(ptr)), errors() {}
     // Erroneous result
     ParseResult(const ParseError &error): errors({error}) {}
+    // Upcasting
+    template <typename U>
+    ParseResult(ParseResult<U> &res): ptr(std::move(res.ptr)), errors(std::move(res.errors)) {}
+
     // Returns 'res', provided there were no errors; if there were, report them
     // and cause the compiler to exit.
     NodePtr<T> unwrap();
@@ -62,13 +72,11 @@ private:
 
     // Expression parsers
     ParseResult<Expr> parse_expr();
-    ExprPtr parse_literal_expr();
+    NodePtr<UnaryExpr> parse_literal_expr();
     NodePtr<IntegerLiteral> parse_integer_literal();
     NodePtr<RefExpr> parse_ref_expr();
     NodePtr<TypeExpr> parse_type_expr();
-    // TODO: There's no UnaryExpr, so we can't change this to
-    // NodePtr<UnaryExpr>. Better make one?
-    ParseResult<Expr> parse_unary_expr();
+    ParseResult<UnaryExpr> parse_unary_expr();
     // Extend a unary expression into binary if possible, by parsing any
     // attached RHS.  Returns the owning pointer to the newly constructed binary
     // expression.

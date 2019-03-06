@@ -137,18 +137,17 @@ NodePtr<AssignStmt> Parser::parse_assign_stmt() {
 
     auto start_pos = look().pos;
     auto lhs = parse_ref_expr();
+
     expect(TokenKind::equals);
+
     auto rhs_result = parse_expr();
     auto end_pos = look().pos;
-    if (rhs_result.success()) {
-        auto assign_stmt = make_node<AssignStmt>(std::move(lhs), rhs_result.unwrap());
-        assign_stmt->start_pos = start_pos;
-        assign_stmt->end_pos = end_pos;
-        return assign_stmt;
-    } else {
-        // TODO For now, disregard error message and just hand out nullptr.
-        return nullptr;
-    }
+
+    auto assign_stmt = make_node<AssignStmt>(std::move(lhs), rhs_result.unwrap());
+    assign_stmt->start_pos = start_pos;
+    assign_stmt->end_pos = end_pos;
+
+    return assign_stmt;
 }
 
 NodePtr<ReturnStmt> Parser::parse_return_stmt() {
@@ -254,8 +253,8 @@ DeclPtr Parser::parse_decl() {
     }
 }
 
-ExprPtr Parser::parse_literal_expr() {
-    ExprPtr expr = nullptr;
+NodePtr<UnaryExpr> Parser::parse_literal_expr() {
+    NodePtr<UnaryExpr> expr = nullptr;
     // TODO Literals other than integers?
     switch (look().kind) {
     case TokenKind::number: {
@@ -316,7 +315,7 @@ NodePtr<TypeExpr> Parser::parse_type_expr() {
     return type_expr;
 }
 
-ParseResult<Expr> Parser::parse_unary_expr() {
+ParseResult<UnaryExpr> Parser::parse_unary_expr() {
     switch (look().kind) {
     case TokenKind::number:
     case TokenKind::string:
@@ -327,11 +326,14 @@ ParseResult<Expr> Parser::parse_unary_expr() {
         expect(TokenKind::lparen);
         auto expr = parse_expr();
         expect(TokenKind::rparen);
-        return expr;
+        // TODO: check unwrap
+        return make_node<UnaryExpr>(UnaryExpr::Paren, expr.unwrap());
     }
+    case TokenKind::ampersand:
+        return {};
     default:
         // Because all expressions start with a unary expression, failing here
-        // means no other expression could be matched as well, so just do a
+        // means no other expression could be matched either, so just do a
         // really generic report.
         return ParseError(locate(), "expected an expression");
     }
