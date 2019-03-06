@@ -7,6 +7,7 @@ include_directories ("${PROJECT_BINARY_DIR}")
 
 add_definitions (-std=c++17)
 set (CMAKE_BUILD_TYPE Debug)
+set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -fno-omit-frame-pointer -fsanitize=address")
 set (CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fno-omit-frame-pointer -fsanitize=address")
 

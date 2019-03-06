@@ -27,11 +27,19 @@
 *.lib
 
 # CMake files
-*.ninja*
-CMakeFiles/
+CMakeLists.txt.user
 CMakeCache.txt
-CTestTestfile.cmake
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+build.ninja
 cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+*.ninja*
 
 # Executables
 cmp
