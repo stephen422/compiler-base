@@ -234,9 +234,9 @@ void VarDecl::print() const {
 }
 
 void Function::print() const {
-    out() << "[Function] " << id << " " << return_type << "\n";
+    out() << "[Function] " << name->text << "\n";
     PrintScope start;
-
+    return_type_expr->print();
     body->print();
 }
 

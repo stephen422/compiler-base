@@ -320,14 +320,13 @@ public:
 // should always be defined whenever they are declared.
 class Function : public Toplevel {
 public:
-    Function(const Token &id) : Toplevel(AstKind::function), id(id) {}
+    Function(Name *n) : Toplevel(AstKind::function), name(n) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    Token id;
-    // Compound statement body
-    NodePtr<CompoundStmt> body;
-    Token return_type;
+    Name *name = nullptr;                         // name of the function
+    NodePtr<CompoundStmt> body = nullptr;         // body statements
+    NodePtr<TypeExpr> return_type_expr = nullptr; // return type expression
 };
 
 void test(Semantics &sema);

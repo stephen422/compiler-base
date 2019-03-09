@@ -1,12 +1,12 @@
 fn main() -> int {
     var a = 3 + 4
-    var b : int
+    var b: int
     b = a
 
     1 * 2 + 3 + 4 * 5
     3 + (a - (b + a * 3)) * 2
 
-    var c : &int
+    var c: &int
     c = &b
 
     return a

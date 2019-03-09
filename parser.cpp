@@ -216,8 +216,9 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
 NodePtr<Function> Parser::parse_function() {
     expect(TokenKind::kw_fn);
 
-    Token name = look();
+    Name *name = name_table.find_or_insert(look().text);
     auto func = make_node<Function>(name);
+    func->start_pos = look().pos;
     next();
 
     // TODO: Argument list (foo(...))
@@ -226,11 +227,11 @@ NodePtr<Function> Parser::parse_function() {
 
     // Return type (-> ...)
     expect(TokenKind::arrow);
-    func->return_type = look();
-    next();
+    func->return_type_expr = parse_type_expr();
 
     // Function body
     func->body = parse_compound_stmt();
+    func->end_pos = look().pos;
 
     return func;
 }
