@@ -213,11 +213,11 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
     return make_node_with_pos<VarDecl>(start_pos, end_pos, name, std::move(type_expr), std::move(rhs), mut);
 }
 
-NodePtr<Function> Parser::parse_function() {
+NodePtr<FuncDecl> Parser::parse_func_decl() {
     expect(TokenKind::kw_fn);
 
     Name *name = name_table.find_or_insert(look().text);
-    auto func = make_node<Function>(name);
+    auto func = make_node<FuncDecl>(name);
     func->start_pos = look().pos;
     next();
 
@@ -416,14 +416,14 @@ void Parser::skip_newlines() {
     }
 }
 
-ToplevelPtr Parser::parse_toplevel() {
+AstNodePtr Parser::parse_toplevel() {
     skip_newlines();
 
     switch (look().kind) {
     case TokenKind::eos:
         return nullptr;
     case TokenKind::kw_fn:
-        return parse_function();
+        return parse_func_decl();
     case TokenKind::comment:
     case TokenKind::semicolon:
         next();

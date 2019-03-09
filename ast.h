@@ -24,13 +24,13 @@ enum class AstKind {
     return_stmt,
     compound_stmt,
     var_decl,
+    func_decl,
     literal_expr,
     integer_literal,
     ref_expr,
     type_expr,
     unary_expr,
     binary_expr,
-    function,
 };
 
 class AstNode;
@@ -39,7 +39,7 @@ class Toplevel;
 class Stmt;
 class Expr;
 class Decl;
-class Function;
+class FuncDecl;
 
 // Owning pointers to each AST node.
 using AstNodePtr = std::unique_ptr<AstNode>;
@@ -48,7 +48,6 @@ using ToplevelPtr = std::unique_ptr<Toplevel>;
 using StmtPtr = std::unique_ptr<Stmt>;
 using ExprPtr = std::unique_ptr<Expr>;
 using DeclPtr = std::unique_ptr<Decl>;
-using FunctionPtr = std::unique_ptr<Function>;
 
 template <typename T>
 using NodePtr = std::unique_ptr<T>;
@@ -134,7 +133,7 @@ public:
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    std::vector<ToplevelPtr> toplevels;
+    std::vector<AstNodePtr> toplevels;
 };
 
 // =============
@@ -307,20 +306,11 @@ public:
     bool mut;                              // "var" or "let"?
 };
 
-// ============
-//   Toplevel
-// ============
-
-class Toplevel : public AstNode {
-public:
-    Toplevel(AstKind kind) : AstNode(kind) {}
-};
-
-// Function definition.  There is no separate 'function declaration': functions
+// Function declaration.  There is no separate function definition: functions
 // should always be defined whenever they are declared.
-class Function : public Toplevel {
+class FuncDecl : public Decl {
 public:
-    Function(Name *n) : Toplevel(AstKind::function), name(n) {}
+    FuncDecl(Name *n) : Decl(AstKind::func_decl), name(n) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 

@@ -99,7 +99,7 @@ void VarDecl::traverse(Semantics &sema) {
     sema.decl_table.insert({name, decl});
 }
 
-void Function::traverse(Semantics &sema) {
+void FuncDecl::traverse(Semantics &sema) {
     body->traverse(sema);
 }
 
@@ -233,8 +233,8 @@ void VarDecl::print() const {
     }
 }
 
-void Function::print() const {
-    out() << "[Function] " << name->text << "\n";
+void FuncDecl::print() const {
+    out() << "[FuncDecl] " << name->text << "\n";
     PrintScope start;
     return_type_expr->print();
     body->print();

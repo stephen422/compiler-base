@@ -56,7 +56,7 @@ private:
     FilePtr parse_file();
 
     // Parse a toplevel statement.
-    ToplevelPtr parse_toplevel();
+    AstNodePtr parse_toplevel();
 
     // Statement parsers
     ParseResult<Stmt> parse_stmt();
@@ -68,7 +68,7 @@ private:
     // Declaration parsers
     DeclPtr parse_decl();
     NodePtr<VarDecl> parse_var_decl();
-    NodePtr<Function> parse_function();
+    NodePtr<FuncDecl> parse_func_decl();
 
     // Expression parsers
     ParseResult<Expr> parse_expr();
