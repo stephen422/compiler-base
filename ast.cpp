@@ -248,6 +248,9 @@ void VarDecl::print() const {
 void FuncDecl::print() const {
     out() << "[FuncDecl] " << name->text << "\n";
     PrintScope start;
+    for (auto &param_decl : param_decl_list) {
+        param_decl->print();
+    }
     return_type_expr->print();
     body->print();
 }
