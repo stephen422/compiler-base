@@ -82,9 +82,6 @@ ParseResult<Stmt> Parser::parse_stmt() {
 
     skip_newlines();
 
-    // TODO are we certain that the parsing up to this point is correct?
-    save_state();
-
     // Try all possible productions and use the first successful one.
     // We use lookahead (LL(k)) to revert state if a production fails.
     // (See "recursive descent with backtracking":
@@ -104,12 +101,10 @@ ParseResult<Stmt> Parser::parse_stmt() {
         expect(TokenKind::newline, "unexpected token at end of declaration");
         return make_node<DeclStmt>(std::move(decl));
     }
-    revert_state();
 
     if (auto stmt = parse_assign_stmt()) {
         return std::move(stmt);
     }
-    revert_state();
 
     // parse_expr() is pretty much the only one that we can't trivially predict
     // using lookaheads.
@@ -118,7 +113,6 @@ ParseResult<Stmt> Parser::parse_stmt() {
     if (auto stmt = parse_expr_stmt()) {
         return std::move(stmt);
     }
-    revert_state();
 
     return ParseError(locate(), "expected a statement");
 }
@@ -184,7 +178,7 @@ ParseResult<ParamDecl> Parser::parse_param_decl() {
     ParseResult<ParamDecl> res {lookahead_pos};
 
     if (look().kind != TokenKind::ident) {
-        add_error(res, "expected an identifer");
+        add_error(res, "expected an identifier");
         return res;
     }
 
@@ -194,6 +188,7 @@ ParseResult<ParamDecl> Parser::parse_param_decl() {
     next();
 
     if (look().kind != TokenKind::colon) {
+        // This is a greedy error, whereever it happens.
         add_error(res, "expected ':' after name of the variable");
         return res;
     }
@@ -216,8 +211,13 @@ std::vector<NodePtr<ParamDecl>> Parser::parse_param_decl_list() {
         if (look().kind != TokenKind::comma) {
             break;
         }
+        next();
     }
-    // TODO: rewind remnants
+    // If there was a parse failure, but there were something between the '()',
+    // it should be reported.
+    if (lookahead_pos != res.start_pos) {
+        res.unwrap();
+    }
     return decl_list;
 }
 
@@ -341,7 +341,9 @@ NodePtr<TypeExpr> Parser::parse_type_expr() {
         type_expr->ref = true;
         type_expr->subexpr = parse_type_expr();
         text = "&" + type_expr->subexpr->name->text;
-    } else {
+    }
+    // TODO: check for identifier or keyword after this
+    else {
         type_expr->ref = false;
         type_expr->subexpr = nullptr;
         text = look().text;

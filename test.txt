@@ -1,4 +1,4 @@
-fn swap (a: &int) -> int {
+fn swap (a: &int, b: &int) -> int {
 }
 
 fn main() -> int {
