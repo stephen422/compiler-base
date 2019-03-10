@@ -17,7 +17,7 @@ SymbolTable<T>::SymbolTable() {
 template <typename T>
 SymbolTable<T>::~SymbolTable() {
     for (int i = 0; i < symbol_table_key_size; i++) {
-        Symbol<T> *p = keys[i];
+        Symbol *p = keys[i];
         if (!p) {
             continue;
         }
@@ -33,11 +33,11 @@ template <typename T>
 T *SymbolTable<T>::insert(std::pair<Name *, const T &> pair) {
     // Memory for T is stored inside the symbol
     // FIXME: bad allocator
-    Symbol<T> *head = new Symbol<T>(pair.first, pair.second);
+    Symbol *head = new Symbol(pair.first, pair.second);
 
     // Insert into the bucket
     int index = hash(pair.first) % symbol_table_key_size;
-    Symbol<T> **p = &keys[index];
+    Symbol **p = &keys[index];
     head->next = *p;
     *p = head;
     return &head->value;
@@ -46,7 +46,7 @@ T *SymbolTable<T>::insert(std::pair<Name *, const T &> pair) {
 template <typename T>
 T *SymbolTable<T>::find(Name *name) const {
     int index = hash(name) % symbol_table_key_size;
-    for (Symbol<T> *s = keys[index]; s; s = s->next) {
+    for (Symbol *s = keys[index]; s; s = s->next) {
         if (s->name == name) {
             return &s->value;
         }

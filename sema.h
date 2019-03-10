@@ -68,16 +68,6 @@ public:
     Type &type;
 };
 
-template <typename T>
-class Symbol {
-public:
-    Symbol(Name *n, const T &v) : name(n), value(v) {}
-
-    Name *name;   // name of this symbol
-    T value;      // semantic value of this symbol
-    Symbol *next; // pointer to next symbol in the hash table bucket
-};
-
 constexpr int symbol_table_key_size = 512;
 
 template<typename T>
@@ -90,7 +80,16 @@ public:
     void print() const;
 
 private:
-    std::array<Symbol<T> *, symbol_table_key_size> keys;
+    class Symbol {
+    public:
+        Symbol(Name *n, const T &v) : name(n), value(v) {}
+
+        Name *name;   // name of this symbol
+        T value;      // semantic value of this symbol
+        Symbol *next; // pointer to next symbol in the hash table bucket
+    };
+
+    std::array<Symbol *, symbol_table_key_size> keys;
 };
 
 #include "symbol_table.cpp"
