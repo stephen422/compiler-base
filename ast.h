@@ -24,6 +24,7 @@ enum class AstKind {
     return_stmt,
     compound_stmt,
     var_decl,
+    param_decl,
     func_decl,
     literal_expr,
     integer_literal,
@@ -289,6 +290,19 @@ public:
     Decl(AstKind kind) : AstNode(kind) {}
 };
 
+class ParamDecl : public Decl {
+public:
+    ParamDecl(Name *n, NodePtr<TypeExpr> t, bool m)
+        : Decl(AstKind::param_decl), name(n), type_expr(std::move(t)), mut(m) {}
+    void print() const override;
+    void traverse(Semantics &sema) override;
+
+    Name *name = nullptr;                  // name of the variable
+    NodePtr<TypeExpr> type_expr = nullptr; // type node of the variable.
+                                           // If null, it will be inferred later
+    bool mut = false;                      // "var" or "let"?
+};
+
 // Variable declaration.
 class VarDecl : public Decl {
 public:
@@ -302,8 +316,8 @@ public:
     Name *name = nullptr;                  // name of the variable
     NodePtr<TypeExpr> type_expr = nullptr; // type node of the variable.
                                            // If null, it will be inferred later
-    ExprPtr assign_expr;                   // initial assignment value
-    bool mut;                              // "var" or "let"?
+    ExprPtr assign_expr = nullptr;         // initial assignment value
+    bool mut = false;                      // "var" or "let"?
 };
 
 // Function declaration.  There is no separate function definition: functions
@@ -314,9 +328,10 @@ public:
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    Name *name = nullptr;                         // name of the function
-    NodePtr<CompoundStmt> body = nullptr;         // body statements
-    NodePtr<TypeExpr> return_type_expr = nullptr; // return type expression
+    Name *name = nullptr;                            // name of the function
+    std::vector<NodePtr<ParamDecl>> param_decl_list; // list of parameters
+    NodePtr<CompoundStmt> body = nullptr;            // body statements
+    NodePtr<TypeExpr> return_type_expr = nullptr;    // return type expression
 };
 
 void test(Semantics &sema);

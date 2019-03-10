@@ -66,6 +66,10 @@ void CompoundStmt::traverse(Semantics &sema) {
     }
 }
 
+void ParamDecl::traverse(Semantics &sema) {
+    type_expr->traverse(sema);
+}
+
 void VarDecl::traverse(Semantics &sema) {
     Type *inferred_type = nullptr;
 
@@ -216,6 +220,14 @@ void CompoundStmt::print() const {
     PrintScope start;
     for (auto const& s : stmts) {
         s->print();
+    }
+}
+
+void ParamDecl::print() const {
+    out() << "[ParamDecl] " << name->text << (mut ? " (mut)" : " ") << "\n";
+    PrintScope start;
+    if (type_expr) {
+        type_expr->print();
     }
 }
 

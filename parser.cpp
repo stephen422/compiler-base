@@ -52,6 +52,11 @@ void Parser::revert_state() {
     lookahead_pos = saved_pos;
 }
 
+template <typename T>
+void Parser::undo(const ParseResult<T> &res) {
+    lookahead_pos = res.start_pos;
+}
+
 void Parser::expect(TokenKind kind, const std::string &msg = "") {
     if (look().kind != kind) {
         std::stringstream ss;
@@ -59,8 +64,8 @@ void Parser::expect(TokenKind kind, const std::string &msg = "") {
             ss << "expected '" << tokentype_to_string(kind) << "', got '"
                << tokentype_to_string(look().kind) << "'";
         } else {
-	    ss << msg;
-	}
+            ss << msg;
+        }
         error(ss.str());
     }
     next();
@@ -173,44 +178,84 @@ NodePtr<CompoundStmt> Parser::parse_compound_stmt() {
     return compound;
 }
 
+// ParamDecls are not trivially lookaheadable with a single token ('a' in 'a:
+// int' does not guarantee anything), so this needs to be easily revertable.
+ParseResult<ParamDecl> Parser::parse_param_decl() {
+    ParseResult<ParamDecl> res {lookahead_pos};
+
+    if (look().kind != TokenKind::ident) {
+        add_error(res, "expected an identifer");
+        return res;
+    }
+
+    auto start_pos = look().pos;
+    // Insert into the name table
+    Name *name = name_table.find_or_insert(look().text);
+    next();
+
+    if (look().kind != TokenKind::colon) {
+        add_error(res, "expected ':' after name of the variable");
+        return res;
+    }
+    next();
+
+    auto type_expr = parse_type_expr();
+
+    // TODO: mut?
+    auto node = make_node_with_pos<ParamDecl>(start_pos, look().pos, name,
+                                              std::move(type_expr), false);
+    res.set_node(std::move(node));
+    return res;
+}
+
+std::vector<NodePtr<ParamDecl>> Parser::parse_param_decl_list() {
+    std::vector<NodePtr<ParamDecl>> decl_list;
+    ParseResult<ParamDecl> res;
+    while ((res = parse_param_decl()).success()) {
+        decl_list.push_back(res.unwrap());
+        if (look().kind != TokenKind::comma) {
+            break;
+        }
+    }
+    // TODO: rewind remnants
+    return decl_list;
+}
+
 NodePtr<VarDecl> Parser::parse_var_decl() {
     auto start_pos = look().pos;
+
+    // 'let' or 'var'
     bool mut = look().kind == TokenKind::kw_var;
     next();
 
-    auto end_pos = look().pos + look().text.length();
-    Token id = look();
-    next();
-
-    // Assignment expression should be provided if kind is not specified.
-    NodePtr<TypeExpr> type_expr = nullptr;
-    ExprPtr rhs = nullptr;
-    if (!mut) {
-        expect(TokenKind::equals, "initial value should be provided for immutable variables");
-        rhs = parse_expr().unwrap();
-    } else if (look().kind == TokenKind::equals) {
-        next();
-        rhs = parse_expr().unwrap();
-    } else if (look().kind == TokenKind::colon) {
-        next();
-        // @Cleanup
-        if (look().kind == TokenKind::newline) {
-            error("expected type");
+    // Try parse_param_decl() first
+    auto param_res = parse_param_decl();
+    if (param_res.success()) {
+        // 'let' cannot be used with explicit type specfication
+        if (!mut) {
+            error("initial value required");
         }
-        type_expr = parse_type_expr();
-    } else if (look().kind == TokenKind::newline) {
-        error("either type or initial value should be provided for mutable variables");
-    } else {
-        error("expected '=' or ':'");
+        auto param_decl = param_res.unwrap();
+        // TODO: if param_decl->mut unmatches mut?
+        return make_node_with_pos<VarDecl>(
+            start_pos, param_decl->end_pos, param_decl->name,
+            std::move(param_decl->type_expr), nullptr, param_decl->mut);
     }
-    if (rhs) {
-        end_pos = rhs->end_pos;
+    // If there's no explicit type specification, assignment expression is
+    // required for both 'let' and 'var'.  Parse them here by hand.
+    else {
+        undo(param_res);
+
+        Name *name = name_table.find_or_insert(look().text);
+        next();
+
+        // Assignment expression should be provided if kind is not specified.
+        expect(TokenKind::equals, mut ? "type or initial value required"
+                                      : "initial value required");
+        auto rhs = parse_expr().unwrap();
+        return make_node_with_pos<VarDecl>(start_pos, rhs->end_pos, name,
+                                           nullptr, std::move(rhs), mut);
     }
-
-    // Insert to the name table
-    Name *name = name_table.find_or_insert(id.text);
-
-    return make_node_with_pos<VarDecl>(start_pos, end_pos, name, std::move(type_expr), std::move(rhs), mut);
 }
 
 NodePtr<FuncDecl> Parser::parse_func_decl() {
@@ -221,8 +266,9 @@ NodePtr<FuncDecl> Parser::parse_func_decl() {
     func->start_pos = look().pos;
     next();
 
-    // TODO: Argument list (foo(...))
+    // Argument list
     expect(TokenKind::lparen);
+    func->param_decl_list = parse_param_decl_list();
     expect(TokenKind::rparen);
 
     // Return type (-> ...)
@@ -404,6 +450,11 @@ void Parser::error(const std::string &msg) {
     std::cerr << loc.filename << ":" << loc.line << ":" << loc.col << ": ";
     std::cerr << "parse error: " << msg << std::endl;
     exit(1);
+}
+
+template <typename T>
+void Parser::add_error(ParseResult<T> &res, const std::string &msg) {
+    res.errors.push_back(ParseError {locate(), msg});
 }
 
 // The language is newline-aware, but newlines are mostly meaningless unless

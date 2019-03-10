@@ -27,6 +27,8 @@ public:
 template <typename T> class ParseResult {
 public:
     ParseResult() {}
+    // Mark starting position
+    ParseResult(size_t pos) : start_pos(pos) {}
     // Successful result
     template <typename U>
     ParseResult(NodePtr<U> ptr): ptr(std::move(ptr)), errors() {}
@@ -36,13 +38,16 @@ public:
     template <typename U>
     ParseResult(ParseResult<U> &res): ptr(std::move(res.ptr)), errors(std::move(res.errors)) {}
 
+    // Store the AST node result.
+    void set_node(NodePtr<T> p) { ptr = std::move(p); }
     // Returns 'res', provided there were no errors; if there were, report them
     // and cause the compiler to exit.
     NodePtr<T> unwrap();
     bool success() { return errors.empty(); }
 
-    NodePtr<T> ptr = nullptr;
-    std::vector<ParseError> errors;
+    size_t start_pos;               // original position where the parse started
+    NodePtr<T> ptr = nullptr;       // wrapped AST node
+    std::vector<ParseError> errors; // error list
 };
 
 class Parser {
@@ -67,6 +72,8 @@ private:
 
     // Declaration parsers
     DeclPtr parse_decl();
+    ParseResult<ParamDecl> parse_param_decl();
+    std::vector<NodePtr<ParamDecl>> parse_param_decl_list();
     NodePtr<VarDecl> parse_var_decl();
     NodePtr<FuncDecl> parse_func_decl();
 
@@ -98,12 +105,19 @@ private:
     void save_state();
     // Revert parsing state back to the last saved state by save_state().
     void revert_state();
+    // Undo the effect of a parse operation, represented by a ParseResult.
+    template <typename T>
+    void undo(const ParseResult<T> &res);
 
     // Get the precedence of an operator.
     int get_precedence(const Token &op) const;
 
     void expect(TokenKind kind, const std::string &msg);
+    // Report an error and terminate.
     void error(const std::string &msg);
+    // Add an error to the given ParseResult.
+    template <typename T>
+    void add_error(ParseResult<T> &res, const std::string &msg);
     void skip_newlines();
 
     Source &get_source() const { return lexer.src; }
