@@ -365,6 +365,11 @@ ParseResult<UnaryExpr> Parser::parse_unary_expr() {
         return parse_literal_expr();
     case TokenKind::ident:
         return parse_declref_expr();
+    case TokenKind::star: {
+        next();
+        auto expr = parse_unary_expr();
+        return make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Deref, expr.unwrap());
+    }
     case TokenKind::ampersand: {
         next();
         auto expr = parse_unary_expr();

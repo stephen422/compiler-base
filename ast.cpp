@@ -137,7 +137,7 @@ void UnaryExpr::traverse(Semantics &sema) {
 }
 
 void IntegerLiteral::traverse(Semantics &sema) {
-    inferred_type = sema.int_type;
+    inferred_type = sema.get_int_type();
 }
 
 void DeclRefExpr::traverse(Semantics &sema) {
@@ -278,6 +278,12 @@ void UnaryExpr::print() const {
     switch (unary_kind) {
     case Paren: {
         std::cout << "Paren\n";
+        PrintScope start;
+        operand->print();
+        break;
+    }
+    case Deref: {
+        std::cout << "Deref\n";
         PrintScope start;
         operand->print();
         break;

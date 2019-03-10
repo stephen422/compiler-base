@@ -216,8 +216,8 @@ public:
         Literal,
         Paren,
         Address,
-        // TODO:
         Deref,
+        // TODO:
         Plus,
         Minus,
     };

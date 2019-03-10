@@ -30,15 +30,6 @@ static Type make_type_from_text(Semantics &sema, const std::string &text) {
     return Type{name};
 }
 
-static void initialize_builtin_types(Semantics &sema) {
-    Name *int_name = sema.name_table.find_or_insert("int");
-    Type int_type{int_name};
-    sema.int_type = sema.type_table.insert({int_name, int_type});
-    Name *i64_name = sema.name_table.find_or_insert("i64");
-    Type i64_type{i64_name};
-    sema.i64_type = sema.type_table.insert({i64_name, i64_type});
-}
-
 // @Future: inefficient string operations?
 Type *get_reference_type(Semantics &sema, Type *type) {
     Name *name = sema.name_table.find_or_insert("&" + type->name->text);
@@ -49,9 +40,15 @@ Type *get_reference_type(Semantics &sema, Type *type) {
     return sema.type_table.insert({name, ref_type});
 }
 
-void semantic_analyze(Semantics &sema, Ast &ast) {
-    initialize_builtin_types(sema);
-    ast.root->traverse(sema);
+Semantics::Semantics(Source &src_, NameTable &nt) : src(src_), name_table(nt) {
+    Name *int_name = name_table.find_or_insert("int");
+    Type int_type{int_name};
+    this->int_type = type_table.insert({int_name, int_type});
+    Name *i64_name = name_table.find_or_insert("i64");
+    Type i64_type{i64_name};
+    this->i64_type = type_table.insert({i64_name, i64_type});
 }
+
+void semantic_analyze(Semantics &sema, Ast &ast) { ast.root->traverse(sema); }
 
 } // namespace cmp

@@ -113,16 +113,22 @@ private:
 // phase.
 class Semantics {
 public:
-    Semantics(Source &src_, NameTable &nt) : src(src_), name_table(nt) {}
+    Semantics(Source &src_, NameTable &nt);
     Semantics(const Semantics &) = delete;
     void error(size_t pos, const std::string &msg);
 
-    Type *int_type = nullptr;
-    Type *i64_type = nullptr;
-    Source &src;                         // source text
+    // Access functions for the statically allocated built-in type objects.
+    Type *get_int_type() { return int_type; }
+    Type *get_i64_type() { return i64_type; }
+
+        Source &src;                     // source text
     NameTable &name_table;               // name table
     SymbolTable<Declaration> decl_table; // declaration table
     SymbolTable<Type> type_table;        // type table
+
+private:
+    Type *int_type = nullptr;
+    Type *i64_type = nullptr;
 };
 
 // Get a reference type of a given type.
