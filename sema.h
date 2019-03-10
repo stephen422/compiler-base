@@ -4,6 +4,7 @@
 #include <array>
 #include <iostream>
 #include <unordered_map>
+#include <vector>
 
 namespace cmp {
 
@@ -56,6 +57,7 @@ public:
     Name *name = nullptr;       // name of this type
     Type *value_type = nullptr; // the type this reference refers to
     bool ref = false;           // is this a reference type?
+    int scope_level = 0;        // scope that this was declared
 };
 
 // Represents declaration of a variable or a function.
@@ -66,6 +68,7 @@ public:
 
     Name *name = nullptr;
     Type &type;
+    int scope_level = 0;        // scope that this was declared
 };
 
 constexpr int symbol_table_key_size = 512;
@@ -79,17 +82,29 @@ public:
     T *find(Name *name) const;
     void print() const;
 
+    // Start a new scope.
+    void open_scope();
+    // Close current cope.
+    void close_scope();
+    // Get current scope level.
+    int get_scope_level() { return scope_level; }
+
 private:
     class Symbol {
     public:
         Symbol(Name *n, const T &v) : name(n), value(v) {}
 
-        Name *name;   // name of this symbol
-        T value;      // semantic value of this symbol
-        Symbol *next; // pointer to next symbol in the hash table bucket
+        Name *name; // name of this symbol
+        T value;    // semantic value of this symbol
+        Symbol *next =
+            nullptr; // pointer to next symbol in the hash table bucket
+        Symbol *cross = nullptr; // pointer to next symbol in the same scope
+        int scope_level;
     };
 
     std::array<Symbol *, symbol_table_key_size> keys;
+    std::vector<Symbol *> scope_stack = {};
+    int scope_level = 0;
 };
 
 #include "symbol_table.cpp"

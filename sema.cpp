@@ -25,11 +25,16 @@ void Semantics::error(size_t pos, const std::string &msg) {
     exit(1);
 }
 
+static Type make_type_from_text(Semantics &sema, const std::string &text) {
+    Name *name = sema.name_table.find_or_insert(text);
+    return Type{name};
+}
+
 static void initialize_builtin_types(Semantics &sema) {
-    Name *int_name = sema.name_table.find("int");
+    Name *int_name = sema.name_table.find_or_insert("int");
     Type int_type{int_name};
     sema.int_type = sema.type_table.insert({int_name, int_type});
-    Name *i64_name = sema.name_table.find("i64");
+    Name *i64_name = sema.name_table.find_or_insert("i64");
     Type i64_type{i64_name};
     sema.i64_type = sema.type_table.insert({i64_name, i64_type});
 }

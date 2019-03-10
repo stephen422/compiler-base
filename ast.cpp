@@ -76,7 +76,8 @@ void VarDecl::traverse(Semantics &sema) {
     Type *inferred_type = nullptr;
 
     // Check for redefinition
-    if (sema.decl_table.find(name) != nullptr) { // TODO: check scope
+    auto found = sema.decl_table.find(name);
+    if (found && found->scope_level == sema.decl_table.get_scope_level()) { // TODO: check scope
         sema.error(start_pos, "redefinition");
     }
 
@@ -106,10 +107,12 @@ void VarDecl::traverse(Semantics &sema) {
 }
 
 void FuncDecl::traverse(Semantics &sema) {
+    sema.decl_table.open_scope();
     for (auto &param_decl : param_decl_list) {
         param_decl->traverse(sema);
     }
     body->traverse(sema);
+    sema.decl_table.close_scope();
 }
 
 void UnaryExpr::traverse(Semantics &sema) {

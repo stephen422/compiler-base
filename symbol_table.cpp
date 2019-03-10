@@ -12,6 +12,7 @@ SymbolTable<T>::SymbolTable() {
     for (int i = 0; i < symbol_table_key_size; i++) {
         keys[i] = nullptr;
     }
+    open_scope();
 }
 
 template <typename T>
@@ -40,6 +41,11 @@ T *SymbolTable<T>::insert(std::pair<Name *, const T &> pair) {
     Symbol **p = &keys[index];
     head->next = *p;
     *p = head;
+
+    // Set the scope chain
+    head->scope_level = scope_stack.size() - 1;
+    head->cross = scope_stack.back();
+    scope_stack.back() = head;
     return &head->value;
 }
 
@@ -55,6 +61,26 @@ T *SymbolTable<T>::find(Name *name) const {
 }
 
 template <typename T>
+void SymbolTable<T>::open_scope() {
+    scope_stack.push_back(nullptr);
+    scope_level++;
+}
+
+template <typename T>
+void SymbolTable<T>::close_scope() {
+    Symbol *p = scope_stack.back();
+    while (p) {
+        int index = hash(p->name) % symbol_table_key_size;
+        keys[index] = p->next;
+        auto cross = p->cross;
+        delete p;
+        p = cross;
+    }
+    scope_stack.pop_back();
+    scope_level--;
+}
+
+template <typename T>
 void SymbolTable<T>::print() const {
     for (int i = 0; i < symbol_table_key_size; i++) {
         auto *p = keys[i];
@@ -65,6 +91,13 @@ void SymbolTable<T>::print() const {
         while (p) {
             std::cout << " {" << p->value.to_string() << "}";
             p = p->next;
+        }
+        std::cout << std::endl;
+    }
+    for (size_t i = 0; i < scope_stack.size(); i++) {
+        std::cout << "Scope " << i << ":";
+        for (Symbol *p = scope_stack[i]; p; p = p->cross) {
+            std::cout << " {" << p->value.to_string() << "}";
         }
         std::cout << std::endl;
     }
