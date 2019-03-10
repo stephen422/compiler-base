@@ -18,6 +18,10 @@ void Semantics::error(size_t pos, const std::string &msg) {
     auto loc = src.locate(pos);
     std::cerr << loc.filename << ":" << loc.line << ":" << loc.col << ": ";
     std::cerr << "error: " << msg << std::endl;
+    std::cout << "==== Declaration table ====\n";
+    decl_table.print();
+    std::cout << "==== Type table ====\n";
+    type_table.print();
     exit(1);
 }
 

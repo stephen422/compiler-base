@@ -68,6 +68,8 @@ void CompoundStmt::traverse(Semantics &sema) {
 
 void ParamDecl::traverse(Semantics &sema) {
     type_expr->traverse(sema);
+    Declaration decl{name, *type_expr->inferred_type};
+    sema.decl_table.insert({name, decl});
 }
 
 void VarDecl::traverse(Semantics &sema) {
@@ -104,6 +106,9 @@ void VarDecl::traverse(Semantics &sema) {
 }
 
 void FuncDecl::traverse(Semantics &sema) {
+    for (auto &param_decl : param_decl_list) {
+        param_decl->traverse(sema);
+    }
     body->traverse(sema);
 }
 

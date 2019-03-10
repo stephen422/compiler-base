@@ -61,6 +61,7 @@ public:
 // Represents declaration of a variable or a function.
 class Declaration {
 public:
+    Declaration(Name *n, Type &t) : name(n), type(t) {}
     std::string to_string() const;
 
     Name *name = nullptr;
