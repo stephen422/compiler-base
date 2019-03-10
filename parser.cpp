@@ -78,7 +78,7 @@ void Parser::expect(TokenKind kind, const std::string &msg = "") {
 //     Expr ;
 //     ;
 ParseResult<Stmt> Parser::parse_stmt() {
-    ParseResult<Stmt> result;
+    auto result = start_recording<Stmt>();
 
     skip_newlines();
 
@@ -130,18 +130,24 @@ NodePtr<ExprStmt> Parser::parse_expr_stmt() {
 }
 
 NodePtr<AssignStmt> Parser::parse_assign_stmt() {
-    if (look().kind != TokenKind::ident) {
+    auto start_pos = look().pos;
+    auto lhs_res = parse_expr();
+    if (!lhs_res.success()) {
+        undo(lhs_res);
         return nullptr;
     }
 
-    auto start_pos = look().pos;
-    auto lhs = parse_declref_expr();
-
+    if (look().kind != TokenKind::equals) {
+        undo(lhs_res);
+        return nullptr;
+    }
     expect(TokenKind::equals);
 
-    auto rhs_result = parse_expr();
+    // At this point, it becomes certain that this is an assignment statement,
+    // so we can safely unwrap for RHS.
+    auto rhs = parse_expr().unwrap();
 
-    return make_node_with_pos<AssignStmt>(start_pos, look().pos, std::move(lhs), rhs_result.unwrap());
+    return make_node_with_pos<AssignStmt>(start_pos, look().pos, lhs_res.unwrap(), std::move(rhs));
 }
 
 NodePtr<ReturnStmt> Parser::parse_return_stmt() {
@@ -157,9 +163,10 @@ NodePtr<ReturnStmt> Parser::parse_return_stmt() {
 // CompoundStmt:
 //     { Stmt* }
 NodePtr<CompoundStmt> Parser::parse_compound_stmt() {
+    auto stmt_res = start_recording<Stmt>();
+
     expect(TokenKind::lbrace);
     auto compound = make_node<CompoundStmt>();
-    ParseResult<Stmt> stmt_res;
     while ((stmt_res = parse_stmt()).success()) {
         compound->stmts.push_back(stmt_res.unwrap());
     }
@@ -175,7 +182,7 @@ NodePtr<CompoundStmt> Parser::parse_compound_stmt() {
 // ParamDecls are not trivially lookaheadable with a single token ('a' in 'a:
 // int' does not guarantee anything), so this needs to be easily revertable.
 ParseResult<ParamDecl> Parser::parse_param_decl() {
-    ParseResult<ParamDecl> res {lookahead_pos};
+    ParseResult<ParamDecl> res{lookahead_pos};
 
     if (look().kind != TokenKind::ident) {
         add_error(res, "expected an identifier");
@@ -204,8 +211,8 @@ ParseResult<ParamDecl> Parser::parse_param_decl() {
 }
 
 std::vector<NodePtr<ParamDecl>> Parser::parse_param_decl_list() {
+    auto res = start_recording<ParamDecl>();
     std::vector<NodePtr<ParamDecl>> decl_list;
-    ParseResult<ParamDecl> res;
     while ((res = parse_param_decl()).success()) {
         decl_list.push_back(res.unwrap());
         if (look().kind != TokenKind::comma) {
@@ -357,37 +364,48 @@ NodePtr<TypeExpr> Parser::parse_type_expr() {
 }
 
 ParseResult<UnaryExpr> Parser::parse_unary_expr() {
+    auto result = start_recording<UnaryExpr>();
     auto start_pos = look().pos;
 
     switch (look().kind) {
     case TokenKind::number:
     case TokenKind::string:
-        return parse_literal_expr();
+        result.set_node(parse_literal_expr());
+        break;
     case TokenKind::ident:
-        return parse_declref_expr();
+        result.set_node(parse_declref_expr());
+        break;
     case TokenKind::star: {
         next();
         auto expr = parse_unary_expr();
-        return make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Deref, expr.unwrap());
+        auto node = make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Deref, expr.unwrap());
+        result.set_node(std::move(node));
+        break;
     }
     case TokenKind::ampersand: {
         next();
         auto expr = parse_unary_expr();
-        return make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Address, expr.unwrap());
+        auto node = make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Address, expr.unwrap());
+        result.set_node(std::move(node));
+        break;
     }
     case TokenKind::lparen: {
         expect(TokenKind::lparen);
         auto expr = parse_expr();
         expect(TokenKind::rparen);
         // TODO: check unwrap
-        return make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Paren, expr.unwrap());
+        auto node = make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Paren, expr.unwrap());
+        result.set_node(std::move(node));
+        break;
     }
     default:
         // Because all expressions start with a unary expression, failing here
         // means no other expression could be matched either, so just do a
         // really generic report.
-        return ParseError(locate(), "expected an expression");
+        add_error(result, "expected an expression");
+        break;
     }
+    return result;
 }
 
 int Parser::get_precedence(const Token &op) const {
@@ -444,12 +462,14 @@ ExprPtr Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
 }
 
 ParseResult<Expr> Parser::parse_expr() {
-    auto res = parse_unary_expr();
-    if (!res.success()) {
-        return res;
+    auto r = start_recording<Expr>();
+    auto unary_r = parse_unary_expr();
+    if (!unary_r.success()) {
+        return unary_r;
     }
     // TODO don't unwrap here.
-    return parse_binary_expr_rhs(res.unwrap());
+    r.set_node(parse_binary_expr_rhs(unary_r.unwrap()));
+    return r;
 }
 
 void Parser::error(const std::string &msg) {

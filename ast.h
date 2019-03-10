@@ -164,15 +164,18 @@ public:
     ExprPtr expr;
 };
 
-class DeclRefExpr;
-// TODO: Can't handle cases where LHS is not an DeclRefExpr, e.g. a[0] = 0.
+// Assignment statement, e.g. a[0] = func().
+// Non-single-token expressions can come at the RHS as long as they are lvalues,
+// but this is not easily determined at the parsing stage.  As such, parse both
+// LHS and RHS as generic Exprs, and check the assignability at the semantic
+// stage.
 class AssignStmt : public Stmt {
 public:
-    AssignStmt(NodePtr<DeclRefExpr> lhs, ExprPtr rhs) : Stmt(AstKind::assign_stmt), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+    AssignStmt(ExprPtr lhs, ExprPtr rhs) : Stmt(AstKind::assign_stmt), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    NodePtr<DeclRefExpr> lhs;
+    ExprPtr lhs;
     ExprPtr rhs;
 };
 

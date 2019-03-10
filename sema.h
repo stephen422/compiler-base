@@ -121,7 +121,7 @@ public:
     Type *get_int_type() { return int_type; }
     Type *get_i64_type() { return i64_type; }
 
-        Source &src;                     // source text
+    Source &src;                         // source text
     NameTable &name_table;               // name table
     SymbolTable<Declaration> decl_table; // declaration table
     SymbolTable<Type> type_table;        // type table

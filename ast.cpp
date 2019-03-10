@@ -123,6 +123,10 @@ void UnaryExpr::traverse(Semantics &sema) {
         operand->traverse(sema);
         inferred_type = operand->inferred_type;
         break;
+    case Deref:
+        operand->traverse(sema);
+        // TODO
+        break;
     case Address:
         operand->traverse(sema);
         if (node_cast<UnaryExpr>(operand)->unary_kind != DeclRef) {
