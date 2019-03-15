@@ -125,7 +125,10 @@ void UnaryExpr::traverse(Semantics &sema) {
         break;
     case Deref:
         operand->traverse(sema);
-        // TODO
+        if (!operand->inferred_type->ref) {
+            sema.error(start_pos, "cannot dereference a non-reference");
+        }
+        inferred_type = operand->inferred_type->value_type;
         break;
     case Address:
         operand->traverse(sema);
