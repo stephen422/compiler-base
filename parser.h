@@ -7,9 +7,9 @@
 
 namespace cmp {
 
-class ParseError {
+class ParserError {
 public:
-    ParseError(SourceLoc loc, const std::string &msg): location(loc), message(msg) {}
+    ParserError(SourceLoc loc, const std::string &msg): location(loc), message(msg) {}
     // Report this error to stderr.
     void report() const;
 
@@ -17,7 +17,7 @@ public:
     std::string message;
 };
 
-// ParseResult wraps the result of a single parse operation, i.e. the resulting
+// ParserResult wraps the result of a single parse operation, i.e. the resulting
 // AST node in the successful case, or an error object in the failing case. It
 // also marks the position where the parse operation started.  With these
 // information, it enables several helpful features:
@@ -30,21 +30,24 @@ public:
 //
 //   3. it allows the caller to overwrite the error with a more descriptive,
 //   context-aware one.
-template <typename T> class ParseResult {
+template <typename T> class ParserResult {
 public:
     // Uninitialized
-    ParseResult() {}
+    ParserResult() {}
 
     // Successful result
     template <typename U>
-    ParseResult(NodePtr<U> ptr) : result(std::move(ptr)) {}
+    ParserResult(NodePtr<U> ptr) : result(std::move(ptr)) {}
 
     // Erroneous result
-    ParseResult(const ParseError &error) : result(error) {}
+    ParserResult(const ParserError &error) : result(error) {}
+
+    // ParserResult owns the AST node, so it cannot be copied.
+    ParserResult(const ParserResult<T> &res) = delete;
 
     // Upcasting
     template <typename U>
-    ParseResult(ParseResult<U> &res) {
+    ParserResult(ParserResult<U> &&res) {
         if (res.success()) {
             result = res.get_ptr();
         } else {
@@ -52,15 +55,23 @@ public:
         }
     }
 
+    ParserResult &operator=(ParserResult &&res) = default;
+
     // Returns 'res', provided there were no errors; if there were, report them
     // and cause the compiler to exit.
     NodePtr<T> unwrap();
-    // TODO
+
+    // Get the stored node pointer, handing over the ownership.
     NodePtr<T> get_ptr() { return std::move(std::get<NodePtr<T>>(result)); }
-    ParseError &get_error() { return std::get<ParseError>(result); }
+
+    // Get the stored ParserError object.
+    ParserError &get_error() { return std::get<ParserError>(result); }
+
+    // Is this result successful?
     bool success() { return std::holds_alternative<NodePtr<T>>(result); }
 
-    std::variant<NodePtr<T>, ParseError> result;
+private:
+    std::variant<NodePtr<T>, ParserError> result;
 };
 
 class Parser {
@@ -71,39 +82,39 @@ public:
 
 private:
     // Parse a whole file.
-    FilePtr parse_file();
+    ParserResult<File> parse_file();
 
     // Parse a toplevel statement.
-    AstNodePtr parse_toplevel();
+    ParserResult<AstNode> parse_toplevel();
 
     // Statement parsers
-    ParseResult<Stmt> parse_stmt();
-    NodePtr<ExprStmt> parse_expr_stmt();
-    NodePtr<AssignStmt> parse_assign_stmt();
-    NodePtr<ReturnStmt> parse_return_stmt();
-    NodePtr<CompoundStmt> parse_compound_stmt();
+    ParserResult<Stmt> parse_stmt();
+    ParserResult<ExprStmt> parse_expr_stmt();
+    ParserResult<AssignStmt> parse_assign_stmt();
+    ParserResult<ReturnStmt> parse_return_stmt();
+    ParserResult<CompoundStmt> parse_compound_stmt();
 
     // Declaration parsers
-    DeclPtr parse_decl();
-    ParseResult<ParamDecl> parse_param_decl();
+    ParserResult<Decl> parse_decl();
+    ParserResult<ParamDecl> parse_param_decl();
     std::vector<NodePtr<ParamDecl>> parse_param_decl_list();
-    NodePtr<VarDecl> parse_var_decl();
-    NodePtr<FuncDecl> parse_func_decl();
+    ParserResult<VarDecl> parse_var_decl();
+    ParserResult<FuncDecl> parse_func_decl();
 
     // Expression parsers
-    ParseResult<Expr> parse_expr();
-    NodePtr<UnaryExpr> parse_literal_expr();
-    NodePtr<IntegerLiteral> parse_integer_literal();
-    NodePtr<DeclRefExpr> parse_declref_expr();
-    NodePtr<TypeExpr> parse_type_expr();
-    ParseResult<UnaryExpr> parse_unary_expr();
+    ParserResult<Expr> parse_expr();
+    ParserResult<UnaryExpr> parse_literal_expr();
+    ParserResult<IntegerLiteral> parse_integer_literal();
+    ParserResult<DeclRefExpr> parse_declref_expr();
+    ParserResult<TypeExpr> parse_type_expr();
+    ParserResult<UnaryExpr> parse_unary_expr();
     // Extend a unary expression into binary if possible, by parsing any
     // attached RHS.  Returns the owning pointer to the newly constructed binary
     // expression.
     //
     // After the call, 'lhs' is invalidated by being moved away.  Subsequent
     // code should use the returned pointer instead.
-    ExprPtr parse_binary_expr_rhs(ExprPtr lhs, int precedence = 0);
+    ParserResult<Expr> parse_binary_expr_rhs(ExprPtr lhs, int precedence = 0);
 
     // Get the next token from the lexer.
     void next();
@@ -132,7 +143,7 @@ private:
     // Report an error and terminate.
     void error(const std::string &msg);
 
-    // Construct a successful ParseResult, annotating it with the start
+    // Construct a successful ParserResult, annotating it with the start
     // position.
     template <typename T> auto ok(NodePtr<T> ptr) {
         // Every time a parse operation succeeds, we update prev_pos to point
@@ -140,10 +151,10 @@ private:
         return ptr;
     }
 
-    // Construct a failed ParseResult, annotating it with an error message and
+    // Construct a failed ParserResult, annotating it with an error message and
     // the start position.
-    ParseError fail(const std::string &msg) {
-        return ParseError{locate(), msg};
+    ParserError make_error(const std::string &msg) {
+        return ParserError{locate(), msg};
     }
 
     void skip_newlines();

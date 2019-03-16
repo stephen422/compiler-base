@@ -5,18 +5,17 @@
 
 namespace cmp {
 
-void ParseError::report() const {
+void ParserError::report() const {
     std::cerr << location.filename << ":" << location.line << ":" << location.col << ": ";
     std::cerr << "parse error: " << message << std::endl;
 }
 
 template <typename T>
-NodePtr<T> ParseResult<T>::unwrap() {
+NodePtr<T> ParserResult<T>::unwrap() {
     if (success()) {
         return std::move(std::get<NodePtr<T>>(result));
     }
-
-    std::get<ParseError>(result).report();
+    std::get<ParserError>(result).report();
     // TODO: exit more gracefully?
     exit(EXIT_FAILURE);
 }
@@ -62,7 +61,7 @@ void Parser::expect(TokenKind kind, const std::string &msg = "") {
 //     Decl ;
 //     Expr ;
 //     ;
-ParseResult<Stmt> Parser::parse_stmt() {
+ParserResult<Stmt> Parser::parse_stmt() {
     skip_newlines();
 
     // Try all possible productions and use the first successful one.
@@ -73,34 +72,34 @@ ParseResult<Stmt> Parser::parse_stmt() {
         next();
         return parse_stmt();
     } else if (look().kind == TokenKind::kw_return) {
-        ParseResult<Stmt> result{parse_return_stmt()};
+        ParserResult<Stmt> result{parse_return_stmt()};
         expect(TokenKind::newline, "unexpected token at end of statement");
         return result;
     }
 
     // @Cleanup: confusing control flow. Maybe use a loop? RAII?
 
-    if (auto decl = parse_decl()) {
+    if (auto decl = parse_decl(); decl.success()) {
         expect(TokenKind::newline, "unexpected token at end of declaration");
-        return make_node<DeclStmt>(std::move(decl));
+        return make_node<DeclStmt>(decl.unwrap());
     }
 
-    if (auto stmt = parse_assign_stmt()) {
-        return ok(std::move(stmt));
+    if (auto stmt = parse_assign_stmt(); stmt.success()) {
+        return stmt;
     }
 
     // parse_expr() is pretty much the only one that we can't trivially predict
     // using lookaheads.
     // FIXME: if all of the other productions can be determined by just one
     // lookahead, do we really need save_state() and revert_state()?
-    if (auto stmt = parse_expr_stmt()) {
-        return std::move(stmt);
+    if (auto stmt = parse_expr_stmt(); stmt.success()) {
+        return stmt;
     }
 
-    return fail("expected a statement");
+    return make_error("expected a statement");
 }
 
-NodePtr<ExprStmt> Parser::parse_expr_stmt() {
+ParserResult<ExprStmt> Parser::parse_expr_stmt() {
     auto r = parse_expr();
     // Only if the lookahead token points to a newline is the whole expression
     // successfully parsed.
@@ -108,22 +107,22 @@ NodePtr<ExprStmt> Parser::parse_expr_stmt() {
         next();
         return make_node<ExprStmt>(r.unwrap());
     } else {
-        return nullptr;
+        return make_error("expected newline");
     }
 }
 
-NodePtr<AssignStmt> Parser::parse_assign_stmt() {
+ParserResult<AssignStmt> Parser::parse_assign_stmt() {
     auto save = get_position();
     auto start_pos = look().pos;
     auto lhs_res = parse_expr();
     if (!lhs_res.success()) {
         restore_position(save);
-        return nullptr;
+        return {lhs_res.get_error()};
     }
 
     if (look().kind != TokenKind::equals) {
         restore_position(save);
-        return nullptr;
+        return make_error("expected '=' after LHS of assignment");
     }
     expect(TokenKind::equals);
 
@@ -134,7 +133,7 @@ NodePtr<AssignStmt> Parser::parse_assign_stmt() {
     return make_node_with_pos<AssignStmt>(start_pos, look().pos, lhs_res.unwrap(), std::move(rhs));
 }
 
-NodePtr<ReturnStmt> Parser::parse_return_stmt() {
+ParserResult<ReturnStmt> Parser::parse_return_stmt() {
     expect(TokenKind::kw_return);
     ExprPtr expr = parse_expr().unwrap();
     return make_node<ReturnStmt>(std::move(expr));
@@ -146,10 +145,10 @@ NodePtr<ReturnStmt> Parser::parse_return_stmt() {
 //
 // CompoundStmt:
 //     { Stmt* }
-NodePtr<CompoundStmt> Parser::parse_compound_stmt() {
+ParserResult<CompoundStmt> Parser::parse_compound_stmt() {
     expect(TokenKind::lbrace);
     auto compound = make_node<CompoundStmt>();
-    ParseResult<Stmt> stmt_res;
+    ParserResult<Stmt> stmt_res;
     while ((stmt_res = parse_stmt()).success()) {
         compound->stmts.push_back(stmt_res.unwrap());
     }
@@ -159,14 +158,14 @@ NodePtr<CompoundStmt> Parser::parse_compound_stmt() {
         stmt_res.unwrap();
     }
     expect(TokenKind::rbrace);
-    return compound;
+    return {std::move(compound)};
 }
 
 // ParamDecls are not trivially lookaheadable with a single token ('a' in 'a:
 // int' does not guarantee anything), so this needs to be easily revertable.
-ParseResult<ParamDecl> Parser::parse_param_decl() {
+ParserResult<ParamDecl> Parser::parse_param_decl() {
     if (look().kind != TokenKind::ident) {
-        return fail("expected an identifier");
+        return make_error("expected an identifier");
     }
 
     auto start_pos = look().pos;
@@ -176,11 +175,11 @@ ParseResult<ParamDecl> Parser::parse_param_decl() {
 
     if (look().kind != TokenKind::colon) {
         // This is a greedy error, wherever it happens.
-        return fail("expected ':' after name of the variable");
+        return make_error("expected ':' after name of the variable");
     }
     next();
 
-    auto type_expr = parse_type_expr();
+    auto type_expr = parse_type_expr().unwrap();
 
     // TODO: mut?
     auto node = make_node_with_pos<ParamDecl>(start_pos, look().pos, name,
@@ -192,7 +191,7 @@ std::vector<NodePtr<ParamDecl>> Parser::parse_param_decl_list() {
     std::vector<NodePtr<ParamDecl>> decl_list;
     auto before_param = get_position();
 
-    ParseResult<ParamDecl> res;
+    ParserResult<ParamDecl> res;
     while ((res = parse_param_decl()).success()) {
         decl_list.push_back(res.unwrap());
         if (look().kind != TokenKind::comma) {
@@ -208,7 +207,7 @@ std::vector<NodePtr<ParamDecl>> Parser::parse_param_decl_list() {
     return decl_list;
 }
 
-NodePtr<VarDecl> Parser::parse_var_decl() {
+ParserResult<VarDecl> Parser::parse_var_decl() {
     auto start_pos = look().pos;
 
     // 'let' or 'var'
@@ -246,7 +245,7 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
     }
 }
 
-NodePtr<FuncDecl> Parser::parse_func_decl() {
+ParserResult<FuncDecl> Parser::parse_func_decl() {
     expect(TokenKind::kw_fn);
 
     Name *name = name_table.find_or_insert(look().text);
@@ -261,26 +260,26 @@ NodePtr<FuncDecl> Parser::parse_func_decl() {
 
     // Return type (-> ...)
     expect(TokenKind::arrow);
-    func->return_type_expr = parse_type_expr();
+    func->return_type_expr = parse_type_expr().unwrap();
 
     // Function body
-    func->body = parse_compound_stmt();
+    func->body = parse_compound_stmt().unwrap();
     func->end_pos = look().pos;
 
-    return func;
+    return std::move(func);
 }
 
-DeclPtr Parser::parse_decl() {
+ParserResult<Decl> Parser::parse_decl() {
     switch (look().kind) {
     case TokenKind::kw_let:
     case TokenKind::kw_var:
         return parse_var_decl();
     default:
-        return nullptr;
+        return make_error("not a start of a declaration");
     }
 }
 
-NodePtr<UnaryExpr> Parser::parse_literal_expr() {
+ParserResult<UnaryExpr> Parser::parse_literal_expr() {
     NodePtr<UnaryExpr> expr = nullptr;
     // TODO Literals other than integers?
     switch (look().kind) {
@@ -299,10 +298,10 @@ NodePtr<UnaryExpr> Parser::parse_literal_expr() {
 
     next();
 
-    return expr;
+    return {std::move(expr)};
 }
 
-NodePtr<DeclRefExpr> Parser::parse_declref_expr() {
+ParserResult<DeclRefExpr> Parser::parse_declref_expr() {
     auto ref_expr = make_node<DeclRefExpr>();
 
     ref_expr->start_pos = look().pos;
@@ -313,10 +312,10 @@ NodePtr<DeclRefExpr> Parser::parse_declref_expr() {
 
     next();
 
-    return ref_expr;
+    return {std::move(ref_expr)};
 }
 
-NodePtr<TypeExpr> Parser::parse_type_expr() {
+ParserResult<TypeExpr> Parser::parse_type_expr() {
     auto type_expr = make_node<TypeExpr>();
 
     type_expr->start_pos = look().pos;
@@ -327,7 +326,7 @@ NodePtr<TypeExpr> Parser::parse_type_expr() {
     if (look().kind == TokenKind::ampersand) {
         next();
         type_expr->ref = true;
-        type_expr->subexpr = parse_type_expr();
+        type_expr->subexpr = parse_type_expr().unwrap();
         text = "&" + type_expr->subexpr->name->text;
     }
     // TODO: check for identifier or keyword after this
@@ -341,10 +340,10 @@ NodePtr<TypeExpr> Parser::parse_type_expr() {
     type_expr->name = name_table.find_or_insert(text);
     type_expr->end_pos = look().pos;
 
-    return type_expr;
+    return {std::move(type_expr)};
 }
 
-ParseResult<UnaryExpr> Parser::parse_unary_expr() {
+ParserResult<UnaryExpr> Parser::parse_unary_expr() {
     auto start_pos = look().pos;
 
     switch (look().kind) {
@@ -374,7 +373,7 @@ ParseResult<UnaryExpr> Parser::parse_unary_expr() {
         // Because all expressions start with a unary expression, failing here
         // means no other expression could be matched either, so just do a
         // really generic report.
-        return fail("expected an expression");
+        return make_error("expected an expression");
     }
 }
 
@@ -392,7 +391,7 @@ int Parser::get_precedence(const Token &op) const {
     }
 }
 
-ExprPtr Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
+ParserResult<Expr> Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
     ExprPtr root = std::move(lhs);
 
     while (true) {
@@ -402,7 +401,7 @@ ExprPtr Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
         // It will be treated as a single term when this function is re-called
         // with lower precedence.
         if (this_prec < precedence) {
-            return root;
+            return {std::move(root)};
         }
 
         Token op = look();
@@ -420,7 +419,7 @@ ExprPtr Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
         // precedence. Else ("(a * b) + c"), just treat it as a unary
         // expression.
         if (this_prec < next_prec) {
-            rhs = parse_binary_expr_rhs(std::move(rhs), precedence + 1);
+            rhs = parse_binary_expr_rhs(std::move(rhs), precedence + 1).unwrap();
         }
 
         // Create a new root with the old root as its LHS, and the recursion
@@ -428,10 +427,10 @@ ExprPtr Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
         root = make_node<BinaryExpr>(std::move(root), op, std::move(rhs));
     }
 
-    return root;
+    return {std::move(root)};
 }
 
-ParseResult<Expr> Parser::parse_expr() {
+ParserResult<Expr> Parser::parse_expr() {
     auto unary_r = parse_unary_expr();
     if (!unary_r.success()) {
         return unary_r;
@@ -457,14 +456,15 @@ void Parser::skip_newlines() {
     }
 }
 
-AstNodePtr Parser::parse_toplevel() {
+ParserResult<AstNode> Parser::parse_toplevel() {
     skip_newlines();
 
     switch (look().kind) {
     case TokenKind::eos:
-        return nullptr;
+        // TODO how to handle this?
+        return make_error("end of file");
     case TokenKind::kw_fn:
-        return parse_func_decl();
+        return parse_func_decl().unwrap();
     case TokenKind::comment:
     case TokenKind::semicolon:
         next();
@@ -472,19 +472,21 @@ AstNodePtr Parser::parse_toplevel() {
     default:
         error("unrecognized toplevel statement");
     }
-    return nullptr;
+    return make_error("unreachable");
 }
 
-FilePtr Parser::parse_file() {
+ParserResult<File> Parser::parse_file() {
     auto file = make_node<File>();
-    while (auto toplevel = parse_toplevel()) {
-        file->toplevels.push_back(std::move(toplevel));
+    ParserResult<AstNode> top_r;
+    while ((top_r = parse_toplevel()).success()) {
+        file->toplevels.push_back(top_r.unwrap());
     }
-    return file;
+    // TODO no need to unwrap top_r here?
+    return {std::move(file)};
 }
 
 Ast Parser::parse() {
-    return Ast{parse_file(), name_table};
+    return Ast{parse_file().unwrap(), name_table};
 }
 
 } // namespace cmp
