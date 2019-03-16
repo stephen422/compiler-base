@@ -3,6 +3,7 @@
 
 #include "lexer.h"
 #include "ast.h"
+#include <variant>
 
 namespace cmp {
 
@@ -16,37 +17,50 @@ public:
     std::string message;
 };
 
-// ParseResult wraps the result of a single parse operation, along with
-// possible errors generated in the process.  It serves two main purposes:
-//   1. it enables the parser to proceed and try alternative productions
-//   without being interrupted by an error generated in a failed production;
-//   2. it allows higher, more context-aware parse operations to override the
-//   error message with a more descriptive one.
+// ParseResult wraps the result of a single parse operation, i.e. the resulting
+// AST node in the successful case, or an error object in the failing case. It
+// also marks the position where the parse operation started.  With these
+// information, it enables several helpful features:
 //
-// TODO: isn't this an overkill?
+//   1. it allows the caller to easily recover from the parse failure, using the
+//   marked position info;
+//
+//   2. it enables the parser to proceed and try alternative productions
+//   without being interrupted by an error generated in the failed production;
+//
+//   3. it allows the caller to overwrite the error with a more descriptive,
+//   context-aware one.
 template <typename T> class ParseResult {
 public:
-    // Mark starting position
-    ParseResult(size_t pos) : start_pos(pos) {}
+    // Uninitialized
+    ParseResult() {}
+
     // Successful result
     template <typename U>
-    ParseResult(NodePtr<U> ptr): ptr(std::move(ptr)), errors() {}
+    ParseResult(NodePtr<U> ptr) : result(std::move(ptr)) {}
+
     // Erroneous result
-    ParseResult(const ParseError &error): errors({error}) {}
+    ParseResult(const ParseError &error) : result(error) {}
+
     // Upcasting
     template <typename U>
-    ParseResult(ParseResult<U> &res): ptr(std::move(res.ptr)), errors(std::move(res.errors)), start_pos(res.start_pos) {}
+    ParseResult(ParseResult<U> &res) {
+        if (res.success()) {
+            result = res.get_ptr();
+        } else {
+            result = res.get_error();
+        }
+    }
 
-    // Store the AST node result.
-    void set_node(NodePtr<T> p) { ptr = std::move(p); }
     // Returns 'res', provided there were no errors; if there were, report them
     // and cause the compiler to exit.
     NodePtr<T> unwrap();
-    bool success() { return errors.empty(); }
+    // TODO
+    NodePtr<T> get_ptr() { return std::move(std::get<NodePtr<T>>(result)); }
+    ParseError &get_error() { return std::get<ParseError>(result); }
+    bool success() { return std::holds_alternative<NodePtr<T>>(result); }
 
-    NodePtr<T> ptr = nullptr;       // wrapped AST node
-    std::vector<ParseError> errors; // error list
-    size_t start_pos;               // original position where the parse started
+    std::variant<NodePtr<T>, ParseError> result;
 };
 
 class Parser {
@@ -97,16 +111,19 @@ private:
     // Get the current lookahead token.
     const Token look() const;
 
-    // Save the current parsing state so that the parser could be reverted back
-    // to it later.
-    // This disposes any state saved earlier, and makes it impossible to revert
-    // the parser to any earlier state.
-    void save_state();
-    // Revert parsing state back to the last saved state by save_state().
-    void revert_state();
-    // Undo the effect of a parse operation, represented by a ParseResult.
-    template <typename T>
-    void undo(const ParseResult<T> &res);
+    class ParserPosition {
+    public:
+        ParserPosition(size_t pos) : pos(pos) {}
+
+        size_t pos;
+    };
+
+    auto get_position() const { return lookahead_pos; }
+
+    // Restore the parsing position back to the given one.
+    void restore_position(size_t pos) {
+        lookahead_pos = pos;
+    }
 
     // Get the precedence of an operator.
     int get_precedence(const Token &op) const;
@@ -115,14 +132,19 @@ private:
     // Report an error and terminate.
     void error(const std::string &msg);
 
-    // Get an ParseResult object whose start_pos is marked as the current
-    // lookahead position.
-    template <typename T> ParseResult<T> start_recording() const {
-        return ParseResult<T>{lookahead_pos};
+    // Construct a successful ParseResult, annotating it with the start
+    // position.
+    template <typename T> auto ok(NodePtr<T> ptr) {
+        // Every time a parse operation succeeds, we update prev_pos to point
+        // the position where the operation finished.
+        return ptr;
     }
-    // Add an error to the given ParseResult.
-    template <typename T>
-    void add_error(ParseResult<T> &res, const std::string &msg);
+
+    // Construct a failed ParseResult, annotating it with an error message and
+    // the start position.
+    ParseError fail(const std::string &msg) {
+        return ParseError{locate(), msg};
+    }
 
     void skip_newlines();
 
@@ -139,7 +161,6 @@ private:
     std::vector<Token> tokens;              // lexed tokens
     std::vector<Token> lookahead_cache;     // lookahead tokens cache
     size_t lookahead_pos = 0;               // lookahead position in the cache
-    size_t saved_pos = 0; // saved lookahead position (for backtracking)
 };
 
 } // namespace cmp

@@ -13,14 +13,12 @@ void ParseError::report() const {
 template <typename T>
 NodePtr<T> ParseResult<T>::unwrap() {
     if (success()) {
-        return std::move(ptr);
+        return std::move(std::get<NodePtr<T>>(result));
     }
-    for (auto const& e : errors) {
-        e.report();
-    }
+
+    std::get<ParseError>(result).report();
     // TODO: exit more gracefully?
     exit(EXIT_FAILURE);
-    return nullptr;
 }
 
 static void insert_keywords_in_name_table(NameTable &name_table) {
@@ -44,19 +42,6 @@ const Token Parser::look() const {
     return tokens[lookahead_pos];
 }
 
-void Parser::save_state() {
-    saved_pos = lookahead_pos;
-}
-
-void Parser::revert_state() {
-    lookahead_pos = saved_pos;
-}
-
-template <typename T>
-void Parser::undo(const ParseResult<T> &res) {
-    lookahead_pos = res.start_pos;
-}
-
 void Parser::expect(TokenKind kind, const std::string &msg = "") {
     if (look().kind != kind) {
         std::stringstream ss;
@@ -78,8 +63,6 @@ void Parser::expect(TokenKind kind, const std::string &msg = "") {
 //     Expr ;
 //     ;
 ParseResult<Stmt> Parser::parse_stmt() {
-    auto result = start_recording<Stmt>();
-
     skip_newlines();
 
     // Try all possible productions and use the first successful one.
@@ -90,7 +73,7 @@ ParseResult<Stmt> Parser::parse_stmt() {
         next();
         return parse_stmt();
     } else if (look().kind == TokenKind::kw_return) {
-        result = parse_return_stmt();
+        ParseResult<Stmt> result{parse_return_stmt()};
         expect(TokenKind::newline, "unexpected token at end of statement");
         return result;
     }
@@ -103,7 +86,7 @@ ParseResult<Stmt> Parser::parse_stmt() {
     }
 
     if (auto stmt = parse_assign_stmt()) {
-        return std::move(stmt);
+        return ok(std::move(stmt));
     }
 
     // parse_expr() is pretty much the only one that we can't trivially predict
@@ -114,7 +97,7 @@ ParseResult<Stmt> Parser::parse_stmt() {
         return std::move(stmt);
     }
 
-    return ParseError(locate(), "expected a statement");
+    return fail("expected a statement");
 }
 
 NodePtr<ExprStmt> Parser::parse_expr_stmt() {
@@ -130,15 +113,16 @@ NodePtr<ExprStmt> Parser::parse_expr_stmt() {
 }
 
 NodePtr<AssignStmt> Parser::parse_assign_stmt() {
+    auto save = get_position();
     auto start_pos = look().pos;
     auto lhs_res = parse_expr();
     if (!lhs_res.success()) {
-        undo(lhs_res);
+        restore_position(save);
         return nullptr;
     }
 
     if (look().kind != TokenKind::equals) {
-        undo(lhs_res);
+        restore_position(save);
         return nullptr;
     }
     expect(TokenKind::equals);
@@ -163,10 +147,9 @@ NodePtr<ReturnStmt> Parser::parse_return_stmt() {
 // CompoundStmt:
 //     { Stmt* }
 NodePtr<CompoundStmt> Parser::parse_compound_stmt() {
-    auto stmt_res = start_recording<Stmt>();
-
     expect(TokenKind::lbrace);
     auto compound = make_node<CompoundStmt>();
+    ParseResult<Stmt> stmt_res;
     while ((stmt_res = parse_stmt()).success()) {
         compound->stmts.push_back(stmt_res.unwrap());
     }
@@ -182,11 +165,8 @@ NodePtr<CompoundStmt> Parser::parse_compound_stmt() {
 // ParamDecls are not trivially lookaheadable with a single token ('a' in 'a:
 // int' does not guarantee anything), so this needs to be easily revertable.
 ParseResult<ParamDecl> Parser::parse_param_decl() {
-    ParseResult<ParamDecl> res{lookahead_pos};
-
     if (look().kind != TokenKind::ident) {
-        add_error(res, "expected an identifier");
-        return res;
+        return fail("expected an identifier");
     }
 
     auto start_pos = look().pos;
@@ -195,9 +175,8 @@ ParseResult<ParamDecl> Parser::parse_param_decl() {
     next();
 
     if (look().kind != TokenKind::colon) {
-        // This is a greedy error, whereever it happens.
-        add_error(res, "expected ':' after name of the variable");
-        return res;
+        // This is a greedy error, wherever it happens.
+        return fail("expected ':' after name of the variable");
     }
     next();
 
@@ -206,13 +185,14 @@ ParseResult<ParamDecl> Parser::parse_param_decl() {
     // TODO: mut?
     auto node = make_node_with_pos<ParamDecl>(start_pos, look().pos, name,
                                               std::move(type_expr), false);
-    res.set_node(std::move(node));
-    return res;
+    return ok(std::move(node));
 }
 
 std::vector<NodePtr<ParamDecl>> Parser::parse_param_decl_list() {
-    auto res = start_recording<ParamDecl>();
     std::vector<NodePtr<ParamDecl>> decl_list;
+    auto before_param = get_position();
+
+    ParseResult<ParamDecl> res;
     while ((res = parse_param_decl()).success()) {
         decl_list.push_back(res.unwrap());
         if (look().kind != TokenKind::comma) {
@@ -220,9 +200,9 @@ std::vector<NodePtr<ParamDecl>> Parser::parse_param_decl_list() {
         }
         next();
     }
-    // If there was a parse failure, but there were something between the '()',
-    // it should be reported.
-    if (lookahead_pos != res.start_pos) {
+
+    // If the parse position moved, but the parse failed, it should be reported.
+    if (get_position() != before_param) {
         res.unwrap();
     }
     return decl_list;
@@ -236,6 +216,7 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
     next();
 
     // Try parse_param_decl() first
+    auto before_param = get_position();
     auto param_res = parse_param_decl();
     if (param_res.success()) {
         // 'let' cannot be used with explicit type specfication
@@ -251,7 +232,7 @@ NodePtr<VarDecl> Parser::parse_var_decl() {
     // If there's no explicit type specification, assignment expression is
     // required for both 'let' and 'var'.  Parse them here by hand.
     else {
-        undo(param_res);
+        restore_position(before_param);
 
         Name *name = name_table.find_or_insert(look().text);
         next();
@@ -364,48 +345,37 @@ NodePtr<TypeExpr> Parser::parse_type_expr() {
 }
 
 ParseResult<UnaryExpr> Parser::parse_unary_expr() {
-    auto result = start_recording<UnaryExpr>();
     auto start_pos = look().pos;
 
     switch (look().kind) {
     case TokenKind::number:
     case TokenKind::string:
-        result.set_node(parse_literal_expr());
-        break;
+        return parse_literal_expr();
     case TokenKind::ident:
-        result.set_node(parse_declref_expr());
-        break;
+        return parse_declref_expr();
     case TokenKind::star: {
         next();
         auto expr = parse_unary_expr();
-        auto node = make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Deref, expr.unwrap());
-        result.set_node(std::move(node));
-        break;
+        return make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Deref, expr.unwrap());
     }
     case TokenKind::ampersand: {
         next();
         auto expr = parse_unary_expr();
-        auto node = make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Address, expr.unwrap());
-        result.set_node(std::move(node));
-        break;
+        return make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Address, expr.unwrap());
     }
     case TokenKind::lparen: {
         expect(TokenKind::lparen);
         auto expr = parse_expr();
         expect(TokenKind::rparen);
         // TODO: check unwrap
-        auto node = make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Paren, expr.unwrap());
-        result.set_node(std::move(node));
-        break;
+        return make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Paren, expr.unwrap());
     }
     default:
         // Because all expressions start with a unary expression, failing here
         // means no other expression could be matched either, so just do a
         // really generic report.
-        add_error(result, "expected an expression");
-        break;
+        return fail("expected an expression");
     }
-    return result;
 }
 
 int Parser::get_precedence(const Token &op) const {
@@ -462,14 +432,12 @@ ExprPtr Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
 }
 
 ParseResult<Expr> Parser::parse_expr() {
-    auto r = start_recording<Expr>();
     auto unary_r = parse_unary_expr();
     if (!unary_r.success()) {
         return unary_r;
     }
     // TODO don't unwrap here.
-    r.set_node(parse_binary_expr_rhs(unary_r.unwrap()));
-    return r;
+    return parse_binary_expr_rhs(unary_r.unwrap());
 }
 
 void Parser::error(const std::string &msg) {
@@ -477,11 +445,6 @@ void Parser::error(const std::string &msg) {
     std::cerr << loc.filename << ":" << loc.line << ":" << loc.col << ": ";
     std::cerr << "parse error: " << msg << std::endl;
     exit(1);
-}
-
-template <typename T>
-void Parser::add_error(ParseResult<T> &res, const std::string &msg) {
-    res.errors.push_back(ParseError {locate(), msg});
 }
 
 // The language is newline-aware, but newlines are mostly meaningless unless
