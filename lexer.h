@@ -48,6 +48,7 @@ enum class TokenKind {
     string,
     character,
     comment,
+    KWSTART,
     kw_fn,
     kw_let,
     kw_var,
@@ -57,6 +58,7 @@ enum class TokenKind {
     kw_i64,
     kw_float,
     kw_return,
+    KWEND,
     none // not found
 };
 
@@ -122,6 +124,7 @@ public:
     Token(TokenKind kind, size_t pos, StringView text)
         : kind(kind), pos(pos), text(text) {}
     void print();
+    bool is_identifier_or_keyword() const;
 };
 
 std::ostream& operator<<(std::ostream& os, const Token& token);

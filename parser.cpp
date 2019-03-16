@@ -329,12 +329,13 @@ ParserResult<TypeExpr> Parser::parse_type_expr() {
         type_expr->subexpr = parse_type_expr().unwrap();
         text = "&" + type_expr->subexpr->name->text;
     }
-    // TODO: check for identifier or keyword after this
-    else {
+    else if (look().is_identifier_or_keyword()) {
         type_expr->ref = false;
         type_expr->subexpr = nullptr;
         text = look().text;
         next();
+    } else {
+        return make_error("expected type name");
     }
 
     type_expr->name = name_table.find_or_insert(text);

@@ -22,6 +22,10 @@ std::ostream &operator<<(std::ostream &os, const Token &token) {
     return os;
 }
 
+bool Token::is_identifier_or_keyword() const {
+    return kind == TokenKind::ident || (kind > TokenKind::KWSTART && kind < TokenKind::KWEND);
+}
+
 void Lexer::step() {
     if (look < eos()) {
         // Register newline first
