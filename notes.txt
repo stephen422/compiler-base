@@ -15,6 +15,12 @@ TODO
   sufficient.
 
 
+Parser
+======
+
+* Recovery logic
+  - Swift: ParserPositionRAII (include/swift/Parse/Parser.h)
+
 Grammar
 =======
 
