@@ -84,14 +84,12 @@ ParserResult<Stmt> Parser::parse_stmt() {
         return make_node<DeclStmt>(decl.unwrap());
     }
 
+    auto save = get_position();
     if (auto stmt = parse_assign_stmt(); stmt.success()) {
         return stmt;
     }
+    restore_position(save);
 
-    // parse_expr() is pretty much the only one that we can't trivially predict
-    // using lookaheads.
-    // FIXME: if all of the other productions can be determined by just one
-    // lookahead, do we really need save_state() and revert_state()?
     if (auto stmt = parse_expr_stmt(); stmt.success()) {
         return stmt;
     }
@@ -112,16 +110,14 @@ ParserResult<ExprStmt> Parser::parse_expr_stmt() {
 }
 
 ParserResult<AssignStmt> Parser::parse_assign_stmt() {
-    auto save = get_position();
     auto start_pos = look().pos;
+
     auto lhs_res = parse_expr();
     if (!lhs_res.success()) {
-        restore_position(save);
         return {lhs_res.get_error()};
     }
 
     if (look().kind != TokenKind::equals) {
-        restore_position(save);
         return make_error("expected '=' after LHS of assignment");
     }
     expect(TokenKind::equals);
@@ -184,7 +180,7 @@ ParserResult<ParamDecl> Parser::parse_param_decl() {
     // TODO: mut?
     auto node = make_node_with_pos<ParamDecl>(start_pos, look().pos, name,
                                               std::move(type_expr), false);
-    return ok(std::move(node));
+    return make_result(std::move(node));
 }
 
 std::vector<NodePtr<ParamDecl>> Parser::parse_param_decl_list() {

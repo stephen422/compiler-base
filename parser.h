@@ -122,19 +122,26 @@ private:
     // Get the current lookahead token.
     const Token look() const;
 
-    class ParserPosition {
-    public:
-        ParserPosition(size_t pos) : pos(pos) {}
-
-        size_t pos;
-    };
-
+    // Get the current parsing position.
     auto get_position() const { return lookahead_pos; }
-
     // Restore the parsing position back to the given one.
     void restore_position(size_t pos) {
         lookahead_pos = pos;
     }
+
+    // RAII object that when deleted restores the parser position back to the
+    // point of its creation.
+    class ParserPositionRAII {
+    public:
+        ParserPositionRAII(Parser &p) : p(p) {
+            pos = p.get_position();
+        }
+        ~ParserPositionRAII() {
+            p.restore_position(pos);
+        }
+        Parser &p;
+        size_t pos;
+    };
 
     // Get the precedence of an operator.
     int get_precedence(const Token &op) const;
@@ -145,10 +152,8 @@ private:
 
     // Construct a successful ParserResult, annotating it with the start
     // position.
-    template <typename T> auto ok(NodePtr<T> ptr) {
-        // Every time a parse operation succeeds, we update prev_pos to point
-        // the position where the operation finished.
-        return ptr;
+    template <typename T> auto make_result(NodePtr<T> ptr) {
+        return ParserResult<T>{std::move(ptr)};
     }
 
     // Construct a failed ParserResult, annotating it with an error message and

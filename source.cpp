@@ -32,6 +32,7 @@ void Source::init(std::istream &in) {
     buf.push_back('\0');
 }
 
+// TODO: perf shows this as the main bottleneck.
 SourceLoc Source::locate(size_t pos) const {
     // Search linearly for the current line.
     int line;
