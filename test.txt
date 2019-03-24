@@ -1,6 +1,6 @@
 fn swap (a: &int, b: &int) -> int {
-    let t = *a
-    *a = *b
+    let t = *a // hi
+    *a = *b // there
     *b = t
 }
 

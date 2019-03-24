@@ -16,7 +16,6 @@ NodePtr<T> ParserResult<T>::unwrap() {
         return std::move(std::get<NodePtr<T>>(result));
     }
     std::get<ParserError>(result).report();
-    // TODO: exit more gracefully?
     exit(EXIT_FAILURE);
 }
 
@@ -55,6 +54,10 @@ void Parser::expect(TokenKind kind, const std::string &msg = "") {
     next();
 }
 
+static bool is_end_of_stmt(Token tok) {
+    return tok.kind == TokenKind::newline || tok.kind == TokenKind::comment;
+}
+
 // Parse a statement.
 //
 // Stmt:
@@ -68,19 +71,24 @@ ParserResult<Stmt> Parser::parse_stmt() {
     // We use lookahead (LL(k)) to revert state if a production fails.
     // (See "recursive descent with backtracking":
     // https://en.wikipedia.org/wiki/Recursive_descent_parser)
-    if (look().kind == TokenKind::comment) {
+    if (is_end_of_stmt(look())) {
+        // Empty statements (comments, ...)
         next();
         return parse_stmt();
     } else if (look().kind == TokenKind::kw_return) {
         ParserResult<Stmt> result{parse_return_stmt()};
-        expect(TokenKind::newline, "unexpected token at end of statement");
+        if (!is_end_of_stmt(look())) {
+            return make_error("unexpected token at end of statement");
+        }
         return result;
     }
 
     // @Cleanup: confusing control flow. Maybe use a loop? RAII?
 
     if (auto decl = parse_decl(); decl.success()) {
-        expect(TokenKind::newline, "unexpected token at end of declaration");
+        if (!is_end_of_stmt(look())) {
+            return make_error("unexpected token at end of declaration");
+        }
         return make_node<DeclStmt>(decl.unwrap());
     }
 
@@ -101,11 +109,11 @@ ParserResult<ExprStmt> Parser::parse_expr_stmt() {
     auto r = parse_expr();
     // Only if the lookahead token points to a newline is the whole expression
     // successfully parsed.
-    if (r.success() && look().kind == TokenKind::newline) {
+    if (r.success() && is_end_of_stmt(look())) {
         next();
         return make_node<ExprStmt>(r.unwrap());
     } else {
-        return make_error("expected newline");
+        return make_error("unexpected token after expression statement");
     }
 }
 

@@ -147,6 +147,7 @@ private:
     int get_precedence(const Token &op) const;
 
     void expect(TokenKind kind, const std::string &msg);
+
     // Report an error and terminate.
     void error(const std::string &msg);
 
