@@ -10,11 +10,20 @@ import (
 
 type Token int
 
+var keywords = map[string]Token  {
+	"fn": FN,
+	"let": LET,
+	"var": VAR,
+}
+
 const (
 	IDENT Token = iota
 	INTEGER
 	DECIMAL
 	STRING
+	FN
+	LET
+	VAR
 
 	EOF = -1
 )
@@ -62,12 +71,17 @@ func (l *Lexer) next() {
 	}
 }
 
-func (l *Lexer) lexIdent() string {
+func (l *Lexer) lexIdent() (tok Token, lit string) {
 	off := l.off
 	for isLetter(l.look) || isDigit(l.look) {
 		l.next()
 	}
-	return string(l.src[off:l.off])
+
+	lit = string(l.src[off:l.off])
+	if tok, ok := keywords[lit]; ok {
+		return tok, lit
+	}
+	return IDENT, lit
 }
 
 func (l *Lexer) lexString() string {
@@ -117,9 +131,11 @@ func (l *Lexer) skipWhitespace() {
 }
 
 func (l *Lexer) Lex() (tok Token, lit string) {
-	if isLetter(l.look) {
+	if l.look == EOF {
+		tok = EOF
+	} else if isLetter(l.look) {
 		tok = IDENT
-		lit = l.lexIdent()
+		_, lit = l.lexIdent()
 	} else if isDigit(l.look) {
 		tok, lit = l.lexNumber()
 	} else if l.look == '"' {

@@ -14,7 +14,10 @@ func main() {
 
 	l := lexer.New(os.Args[1])
 	for {
-		_, lit := l.Lex()
+		tok, lit := l.Lex()
+		if tok == lexer.EOF {
+			break
+		}
 		fmt.Printf("[%v]\n", lit)
 	}
 }
