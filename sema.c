@@ -49,7 +49,7 @@ static Symbol *symbol_find(SymbolTable tab, const char *name)
     return NULL;
 }
 
-void traverse(AstNode *node)
+void traverse(Node *node)
 {
     switch (node->type) {
     case ND_FUNCTION:

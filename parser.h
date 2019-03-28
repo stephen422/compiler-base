@@ -16,31 +16,31 @@ typedef enum NodeType {
     ND_FUNCTION,
 } NodeType ;
 
-typedef struct AstNode AstNode;
-typedef struct AstNode {
+typedef struct Node Node;
+typedef struct Node {
     NodeType type;
     // Literal/token-only expression
     Token token;
     // Binary expression
-    AstNode *lhs;
-    AstNode *op;
-    AstNode *rhs;
+    Node *lhs;
+    Node *op;
+    Node *rhs;
     // Variable declaration
-    AstNode *decltype;
-    AstNode *expr;
+    Node *decltype;
+    Node *expr;
     int mutable;
     // Expression statement
-    AstNode *stmt_expr;
+    Node *stmt_expr;
     // Declaration statement
-    AstNode *decl;
+    Node *decl;
     // Compound statement
-    AstNode **stmt_buf;
-    AstNode *body;
+    Node **stmt_buf;
+    Node *body;
     // Function name (FIXME: unnecessary)
     Token name;
     // Function return type (TODO: type node)
     Token return_type;
-} AstNode;
+} Node;
 
 // A Name corresponds to any single unique identifier string in the source
 // text.  There may be multiple occurrences of the string in the source text,
@@ -66,7 +66,7 @@ typedef struct {
     Lexer lexer;            // lexer driven by this parser
     Token *lookahead_cache; // lookahead tokens cache
     int cache_index;        // current lookahead position in lookahead_cache
-    AstNode **nodep_buf;    // pointers to the allocated nodes
+    Node **nodep_buf;    // pointers to the allocated nodes
     NameTable name_table;   // name table
 } Parser;
 
@@ -74,6 +74,6 @@ void parser_push_name(Parser *p, Token tok);
 Name *parser_get_name(Parser *p, Token tok);
 void parser_init(Parser *p, const char *filename);
 void parser_cleanup(Parser *p);
-AstNode *parse(Parser *p);
+Node *parse(Parser *p);
 
 #endif

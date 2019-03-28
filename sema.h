@@ -42,6 +42,6 @@ void cmpstate_init(CmpState *cs, const char *filename);
 void cmpstate_cleanup(CmpState *cs);
 
 // Traverse the AST starting from 'node' as the root node.
-void traverse(AstNode *node);
+void traverse(Node *node);
 
 #endif

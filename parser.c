@@ -7,14 +7,14 @@
 #include <stdio.h>
 
 static Token look(Parser *p);
-static AstNode *parse_expr(Parser *p);
-static AstNode *parse_decl(Parser *p);
+static Node *parse_expr(Parser *p);
+static Node *parse_decl(Parser *p);
 
-static AstNode *make_node(Parser *p, NodeType t, Token tok)
+static Node *make_node(Parser *p, NodeType t, Token tok)
 {
     // TODO: maybe store all nodes in a contiguous buffer for better locality?
     // Should be careful about node pointers going stale though
-    AstNode *node = calloc(1, sizeof(AstNode));
+    Node *node = calloc(1, sizeof(Node));
     if (!node) {
         fprintf(stderr, "alloc error\n");
         exit(1);
@@ -25,43 +25,43 @@ static AstNode *make_node(Parser *p, NodeType t, Token tok)
     return node;
 }
 
-static AstNode *make_expr_stmt(Parser *p, AstNode *expr)
+static Node *make_expr_stmt(Parser *p, Node *expr)
 {
-    AstNode *node = make_node(p, ND_EXPRSTMT, look(p));
+    Node *node = make_node(p, ND_EXPRSTMT, look(p));
     node->expr = expr;
     return node;
 }
 
-static AstNode *make_decl_stmt(Parser *p, AstNode *decl) {
-    AstNode *node = make_node(p, ND_DECLSTMT, look(p));
+static Node *make_decl_stmt(Parser *p, Node *decl) {
+    Node *node = make_node(p, ND_DECLSTMT, look(p));
     node->decl = decl;
     return node;
 }
 
-static AstNode *make_return_stmt(Parser *p, AstNode *expr) {
-    AstNode *node = make_node(p, ND_RETURNSTMT, look(p));
+static Node *make_return_stmt(Parser *p, Node *expr) {
+    Node *node = make_node(p, ND_RETURNSTMT, look(p));
     node->expr = expr;
     return node;
 }
 
-static AstNode *make_compound_stmt(Parser *p)
+static Node *make_compound_stmt(Parser *p)
 {
-    AstNode *node = make_node(p, ND_COMPOUNDSTMT, look(p));
+    Node *node = make_node(p, ND_COMPOUNDSTMT, look(p));
     return node;
 }
 
-static AstNode *make_binexpr(Parser *p, AstNode *lhs, AstNode *op, AstNode *rhs)
+static Node *make_binexpr(Parser *p, Node *lhs, Node *op, Node *rhs)
 {
-    AstNode *node = make_node(p, ND_BINEXPR, look(p));
+    Node *node = make_node(p, ND_BINEXPR, look(p));
     node->lhs = lhs;
     node->op = op;
     node->rhs = rhs;
     return node;
 }
 
-static AstNode *make_vardecl(Parser *p, AstNode *decltype, int mutable, Token name, AstNode *expr)
+static Node *make_vardecl(Parser *p, Node *decltype, int mutable, Token name, Node *expr)
 {
-    AstNode *node = make_node(p, ND_VARDECL, look(p));
+    Node *node = make_node(p, ND_VARDECL, look(p));
     node->decltype = decltype;
     node->mutable = mutable;
     node->name = name;
@@ -69,9 +69,9 @@ static AstNode *make_vardecl(Parser *p, AstNode *decltype, int mutable, Token na
     return node;
 }
 
-static AstNode *make_function(Parser *p, Token name)
+static Node *make_function(Parser *p, Token name)
 {
-    AstNode *node = make_node(p, ND_FUNCTION, look(p));
+    Node *node = make_node(p, ND_FUNCTION, look(p));
     node->name = name;
     return node;
 }
@@ -85,7 +85,7 @@ static void iprintf(int indent, const char *fmt, ...) {
     va_end(args);
 }
 
-static void print_ast_indent(Parser *p, const AstNode *node, int indent)
+static void print_ast_indent(Parser *p, const Node *node, int indent)
 {
     if (!node) {
         iprintf(indent, "(null)\n");
@@ -167,7 +167,7 @@ static void print_ast_indent(Parser *p, const AstNode *node, int indent)
     }
 }
 
-static void print_ast(Parser *p, const AstNode *node)
+static void print_ast(Parser *p, const Node *node)
 {
     print_ast_indent(p, node, 0);
 }
@@ -214,7 +214,7 @@ void parser_cleanup(Parser *p)
 {
     // Free all nodes.
     for (int i = 0; i < sb_count(p->nodep_buf); i++) {
-        AstNode *node = p->nodep_buf[i];
+        Node *node = p->nodep_buf[i];
         if (node) {
             if (node->stmt_buf) {
                 sb_free(node->stmt_buf);
@@ -260,19 +260,19 @@ static void revert_state(Parser *p)
     p->cache_index = 0;
 }
 
-static AstNode *parse_return_stmt(Parser *p)
+static Node *parse_return_stmt(Parser *p)
 {
     expect(p, TOK_RETURN);
-    AstNode *expr = parse_expr(p);
+    Node *expr = parse_expr(p);
     if (!expr) {
         error(p, "expected expression");
     }
     return make_return_stmt(p, expr);
 }
 
-static AstNode *parse_stmt(Parser *p)
+static Node *parse_stmt(Parser *p)
 {
-    AstNode *stmt, *node = NULL;
+    Node *stmt, *node = NULL;
 
     save_state(p);
 
@@ -314,11 +314,11 @@ static AstNode *parse_stmt(Parser *p)
     return NULL;
 }
 
-static AstNode *parse_compound_stmt(Parser *p)
+static Node *parse_compound_stmt(Parser *p)
 {
     expect(p, TOK_LBRACE);
-    AstNode *compound = make_compound_stmt(p);
-    AstNode *stmt;
+    Node *compound = make_compound_stmt(p);
+    Node *stmt;
     while ((stmt = parse_stmt(p)) != NULL) {
         sb_push(compound->stmt_buf, stmt);
     }
@@ -326,16 +326,16 @@ static AstNode *parse_compound_stmt(Parser *p)
     return compound;
 }
 
-static AstNode *parse_literal_expr(Parser *p)
+static Node *parse_literal_expr(Parser *p)
 {
-    AstNode *expr = make_node(p, ND_LITEXPR, look(p));
+    Node *expr = make_node(p, ND_LITEXPR, look(p));
     next(p);
     return expr;
 }
 
-static AstNode *parse_unary_expr(Parser *p)
+static Node *parse_unary_expr(Parser *p)
 {
-    AstNode *expr = NULL;
+    Node *expr = NULL;
     Name *name;
 
     switch (look(p).type) {
@@ -387,7 +387,7 @@ static int get_precedence(const Token op)
 //     UnaryExpr (op BinaryExpr)*
 //
 // Return the pointer to the node respresenting the reduced binary expression.
-static AstNode *parse_binary_expr_rhs(Parser *p, AstNode *lhs, int precedence)
+static Node *parse_binary_expr_rhs(Parser *p, Node *lhs, int precedence)
 {
     while (1) {
         int this_prec = get_precedence(look(p));
@@ -399,13 +399,13 @@ static AstNode *parse_binary_expr_rhs(Parser *p, AstNode *lhs, int precedence)
         if (this_prec < precedence)
             break;
 
-        AstNode *op = make_node(p, ND_TOKEN, look(p));
+        Node *op = make_node(p, ND_TOKEN, look(p));
         next(p);
 
         // Parse the next term.  We do not know yet if this term should bind to
         // LHS or RHS; e.g. "a * b + c" or "a + b * c".  To know this, we should
         // look ahead for the operator that follows this term.
-        AstNode *rhs = parse_unary_expr(p);
+        Node *rhs = parse_unary_expr(p);
         if (!rhs) {
             error(p, "expected expression");
         }
@@ -438,17 +438,17 @@ static AstNode *parse_binary_expr_rhs(Parser *p, AstNode *lhs, int precedence)
 // This grammar requires two or more lookahead, because a single token
 // lookahead would not tell us whether it is a single-ID expression or a call
 // expression.
-static AstNode *parse_expr(Parser *p)
+static Node *parse_expr(Parser *p)
 {
-    AstNode *expr = parse_unary_expr(p);
+    Node *expr = parse_unary_expr(p);
     expr = parse_binary_expr_rhs(p, expr, 0);
     return expr;
 }
 
-static AstNode *parse_var_decl(Parser *p)
+static Node *parse_var_decl(Parser *p)
 {
-    AstNode *decltype = NULL;
-    AstNode *assign = NULL;
+    Node *decltype = NULL;
+    Node *assign = NULL;
 
     int mut = look(p).type == TOK_VAR;
     next(p);
@@ -483,9 +483,9 @@ static AstNode *parse_var_decl(Parser *p)
 // Decl:
 //     VarDecl
 //     Function
-static AstNode *parse_decl(Parser *p)
+static Node *parse_decl(Parser *p)
 {
-    AstNode *decl;
+    Node *decl;
 
     switch (look(p).type) {
     case TOK_LET:
@@ -499,12 +499,12 @@ static AstNode *parse_decl(Parser *p)
     return decl;
 }
 
-static AstNode *parse_function(Parser *p)
+static Node *parse_function(Parser *p)
 {
     expect(p, TOK_FN);
 
     Token name = look(p);
-    AstNode *func = make_function(p, name);
+    Node *func = make_function(p, name);
     next(p);
 
     expect(p, TOK_LPAREN);
@@ -522,11 +522,11 @@ static AstNode *parse_function(Parser *p)
     return func;
 }
 
-AstNode *parse(Parser *p)
+Node *parse(Parser *p)
 {
-    printf("sizeof(AstNode)=%zu\n", sizeof(AstNode));
+    printf("sizeof(Node)=%zu\n", sizeof(Node));
     printf("sizeof(Token)=%zu\n", sizeof(Token));
-    AstNode *node;
+    Node *node;
     node = parse_function(p);
     print_ast(p, node);
     return node;
