@@ -47,7 +47,15 @@ static Node *make_decl_stmt(Parser *p, Node *decl) {
     return node;
 }
 
-static Node *make_return_stmt(Parser *p, Node *expr) {
+static Node *make_assignstmt(Parser *p, Node *lhs, Node *rhs)
+{
+    Node *node = make_node(p, ND_ASSIGNSTMT, look(p));
+    node->lhs = lhs;
+    node->rhs = rhs;
+    return node;
+}
+
+static Node *make_retstmt(Parser *p, Node *expr) {
     Node *node = make_node(p, ND_RETURNSTMT, look(p));
     node->expr = expr;
     return node;
@@ -56,6 +64,13 @@ static Node *make_return_stmt(Parser *p, Node *expr) {
 static Node *make_compoundstmt(Parser *p)
 {
     Node *node = make_node(p, ND_COMPOUNDSTMT, look(p));
+    return node;
+}
+
+static Node *make_unaryexpr(Parser *p, NodeType t, Node *expr)
+{
+    Node *node = make_node(p, t, look(p));
+    node->expr = expr;
     return node;
 }
 
@@ -133,6 +148,13 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
         print_ast_indent(p, node->expr, indent);
         indent -= 2;
         break;
+    case ND_ASSIGNSTMT:
+        printf("[AssignStmt]\n");
+        indent += 2;
+        print_ast_indent(p, node->lhs, indent);
+        print_ast_indent(p, node->rhs, indent);
+        indent -= 2;
+        break;
     case ND_RETURNSTMT:
         printf("[ReturnStmt]\n");
         indent += 2;
@@ -146,6 +168,9 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
             print_ast_indent(p, node->nodes[i], indent);
         }
         indent -= 2;
+        break;
+    case ND_REFEXPR:
+        printf("[RefExpr] '%s'\n", node->name->text);
         break;
     case ND_LITEXPR:
         printf("[LiteralExpr] ");
@@ -161,8 +186,11 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
             break;
         }
         break;
-    case ND_REFEXPR:
-        printf("[RefExpr] '%s'\n", node->name->text);
+    case ND_DEREFEXPR:
+        printf("[DerefExpr]\n");
+        indent += 2;
+        print_ast_indent(p, node->expr, indent);
+        indent -= 2;
         break;
     case ND_BINEXPR:
         printf("[BinaryExpr]\n");
@@ -271,6 +299,34 @@ static void expect(Parser *p, TokenType t)
     next(p);
 }
 
+static Node *parse_assignstmt(Parser *p)
+{
+    Node *lhs = parse_expr(p);
+    if (look(p).type != TOK_EQUALS) {
+        return NULL;
+    }
+    next(p);
+    Node *rhs = parse_expr(p);
+    return make_assignstmt(p, lhs, rhs);
+}
+
+static Node *parse_returnstmt(Parser *p)
+{
+    expect(p, TOK_RETURN);
+    Node *expr = parse_expr(p);
+    if (!expr) {
+        error(p, "expected expression");
+    }
+    return make_retstmt(p, expr);
+}
+
+static void skip_invisibles(Parser *p)
+{
+    while (look(p).type == TOK_NEWLINE) {
+        next(p);
+    }
+}
+
 static void save_state(Parser *p)
 {
     // clear cache except the current lookahead
@@ -282,23 +338,6 @@ static void save_state(Parser *p)
 static void revert_state(Parser *p)
 {
     p->cache_index = 0;
-}
-
-static Node *parse_return_stmt(Parser *p)
-{
-    expect(p, TOK_RETURN);
-    Node *expr = parse_expr(p);
-    if (!expr) {
-        error(p, "expected expression");
-    }
-    return make_return_stmt(p, expr);
-}
-
-static void skip_invisibles(Parser *p)
-{
-    while (look(p).type == TOK_NEWLINE) {
-        next(p);
-    }
 }
 
 static Node *parse_stmt(Parser *p)
@@ -318,7 +357,7 @@ static Node *parse_stmt(Parser *p)
         next(p);
         return parse_stmt(p); // FIXME stack overflow
     case TOK_RETURN:
-        stmt = parse_return_stmt(p);
+        stmt = parse_returnstmt(p);
         expect(p, TOK_NEWLINE);
         return stmt;
     default:
@@ -329,6 +368,13 @@ static Node *parse_stmt(Parser *p)
     if (node) {
         stmt = make_decl_stmt(p, node);
         expect(p, TOK_NEWLINE);
+        return stmt;
+    }
+    revert_state(p);
+
+    node = parse_assignstmt(p);
+    if (node) {
+        stmt = node;
         return stmt;
     }
     revert_state(p);
@@ -374,7 +420,7 @@ static Node *parse_refexpr(Parser *p)
     return make_refexpr(p, name);
 }
 
-static Node *parse_unary_expr(Parser *p)
+static Node *parse_unaryexpr(Parser *p)
 {
     Node *expr = NULL;
 
@@ -384,6 +430,11 @@ static Node *parse_unary_expr(Parser *p)
         break;
     case TOK_NUM:
         expr = parse_litexpr(p);
+        break;
+    case TOK_STAR:
+        next(p);
+        expr = parse_unaryexpr(p);
+        expr = make_unaryexpr(p, ND_DEREFEXPR, expr);
         break;
     case TOK_LPAREN:
         expect(p, TOK_LPAREN);
@@ -434,7 +485,7 @@ static Node *parse_binexpr_rhs(Parser *p, Node *lhs, int precedence)
         // Parse the next term.  We do not know yet if this term should bind to
         // LHS or RHS; e.g. "a * b + c" or "a + b * c".  To know this, we should
         // look ahead for the operator that follows this term.
-        Node *rhs = parse_unary_expr(p);
+        Node *rhs = parse_unaryexpr(p);
         if (!rhs) {
             error(p, "expected expression");
         }
@@ -469,7 +520,7 @@ static Node *parse_binexpr_rhs(Parser *p, Node *lhs, int precedence)
 // expression.
 static Node *parse_expr(Parser *p)
 {
-    Node *expr = parse_unary_expr(p);
+    Node *expr = parse_unaryexpr(p);
     expr = parse_binexpr_rhs(p, expr, 0);
     return expr;
 }
