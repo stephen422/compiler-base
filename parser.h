@@ -29,7 +29,7 @@ typedef enum NodeType {
     ND_TOKEN,
     ND_VARDECL,
     ND_PARAMDECL,
-    ND_TYPE,
+    ND_TYPEEXPR,
     ND_REFEXPR,
     ND_LITEXPR,
     ND_DEREFEXPR,
@@ -54,7 +54,7 @@ typedef struct Node {
     Node **nodes; // compoundstmt, file
 
     // vardecl
-    Node *decltype;
+    Node *typeexpr;
     Node *expr;
     int mutable;
 

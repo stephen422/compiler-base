@@ -82,6 +82,13 @@ static Node *make_binexpr(Parser *p, Node *lhs, Node *op, Node *rhs)
     return node;
 }
 
+static Node *make_typeexpr(Parser *p, Name *name)
+{
+    Node *node = make_node(p, ND_TYPEEXPR, look(p));
+    node->name = name;
+    return node;
+}
+
 static Node *make_refexpr(Parser *p, Name *name)
 {
     Node *node = make_node(p, ND_REFEXPR, look(p));
@@ -89,20 +96,21 @@ static Node *make_refexpr(Parser *p, Name *name)
     return node;
 }
 
-static Node *make_vardecl(Parser *p, Node *decltype, int mutable, Name *name, Node *expr)
+static Node *make_vardecl(Parser *p, Node *typeexpr, int mutable, Name *name, Node *expr)
 {
     Node *node = make_node(p, ND_VARDECL, look(p));
-    node->decltype = decltype;
+    node->typeexpr = typeexpr;
     node->mutable = mutable;
     node->name = name;
     node->expr = expr;
     return node;
 }
 
-static Node *make_paramdecl(Parser *p, Name *name)
+static Node *make_paramdecl(Parser *p, Name *name, Node *typeexpr)
 {
     Node *node = make_node(p, ND_PARAMDECL, look(p));
     node->name = name;
+    node->typeexpr = typeexpr;
     return node;
 }
 
@@ -207,7 +215,8 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
         indent -= 2;
         break;
     case ND_VARDECL:
-        printf("[VarDecl] '%s'\n", node->name->text);
+        printf("[VarDecl] '%s' %s\n", node->name->text,
+               node->typeexpr ? node->typeexpr->name->text : "(null)");
         indent += 2;
         iprintf(indent, "mutable: %d\n", node->mutable);
         print_ast_indent(p, node->expr, indent);
@@ -440,6 +449,13 @@ static Node *parse_litexpr(Parser *p)
     return expr;
 }
 
+static Node *parse_typeexpr(Parser *p)
+{
+    Name *name = get_or_push_name(p, look(p));
+    next(p);
+    return make_typeexpr(p, name);
+}
+
 static Node *parse_refexpr(Parser *p)
 {
     Name *name = get_or_push_name(p, look(p));
@@ -554,7 +570,7 @@ static Node *parse_expr(Parser *p)
 
 static Node *parse_vardecl(Parser *p)
 {
-    Node *decltype = NULL;
+    Node *typeexpr = NULL;
     Node *assign = NULL;
 
     int mut = look(p).type == TOK_VAR;
@@ -563,25 +579,22 @@ static Node *parse_vardecl(Parser *p)
     next(p);
 
     if (!mut) {
-        // 'let' declarations require assignment expression
         expect(p, TOK_EQUALS);
         assign = parse_expr(p);
     } else if (look(p).type == TOK_EQUALS) {
-        // type inference from assignment expression
         next(p);
         assign = parse_expr(p);
     } else if (look(p).type == TOK_COLON) {
         // explicit type
         next(p);
-        decltype = make_node(p, ND_TYPE, look(p));
-        next(p);
+        typeexpr = parse_typeexpr(p);
     }
 
-    if (decltype == NULL && assign == NULL) {
+    if (typeexpr == NULL && assign == NULL) {
         error(p, "declarations should at least specify its type or its value.");
     }
 
-    return make_vardecl(p, decltype, mut, name, assign);
+    return make_vardecl(p, typeexpr, mut, name, assign);
 }
 
 // Parse a declaration.
@@ -616,10 +629,9 @@ static Node *parse_paramdecl(Parser *p)
     Name *name = get_or_push_name(p, tok);
 
     expect(p, TOK_COLON);
-    // TODO type
-    next(p);
+    Node *typeexpr = parse_typeexpr(p);
 
-    return make_paramdecl(p, name);
+    return make_paramdecl(p, name, typeexpr);
 }
 
 static Node **parse_paramdecllist(Parser *p)
