@@ -312,14 +312,21 @@ static void add_error(Parser *p, SrcRange range, const char *msg)
     sb_push(p->errors, error);
 }
 
-static void expect(Parser *p, TokenType t)
+static void error_expected(Parser *p, TokenType t)
 {
+    error(p, "expected '%s', got '%s'\n", token_names[t], token_names[look(p).type]);
+    exit(1);
+}
+
+static Token expect(Parser *p, TokenType t)
+{
+    Token tok = look(p);
     if (look(p).type != t) {
-        error(p, "expected '%s', got '%s'\n", token_names[t], token_names[look(p).type]);
-        exit(1);
+        error_expected(p, t);
     }
     // make progress
     next(p);
+    return tok;
 }
 
 static Node *parse_assignstmt(Parser *p)
@@ -598,14 +605,15 @@ static Node *parse_decl(Parser *p)
     return decl;
 }
 
+static int is_paramdecl_start(Parser *p)
+{
+    return look(p).type == TOK_IDENT;
+}
+
 static Node *parse_paramdecl(Parser *p)
 {
-    if (look(p).type != TOK_IDENT) {
-        return NULL;
-    }
-
-    Name *name = get_or_push_name(p, look(p));
-    next(p);
+    Token tok = expect(p, TOK_IDENT);
+    Name *name = get_or_push_name(p, tok);
 
     expect(p, TOK_COLON);
     // TODO type
@@ -617,8 +625,8 @@ static Node *parse_paramdecl(Parser *p)
 static Node **parse_paramdecllist(Parser *p)
 {
     Node **list = NULL;
-    Node *node;
-    while ((node = parse_paramdecl(p))) {
+    while (is_paramdecl_start(p)) {
+        Node *node = parse_paramdecl(p);
         sb_push(list, node);
     }
     return list;

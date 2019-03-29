@@ -31,6 +31,7 @@ char *token_names[NUM_TOKENTYPES] = {
     [TOK_LET] = "let",
     [TOK_VAR] = "var",
     [TOK_RETURN] = "return",
+    [TOK_INT] = "int",
     [TOK_ERR] = "unknown",
 };
 
