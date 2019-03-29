@@ -27,8 +27,8 @@ struct NameTable {
 typedef enum NodeType {
     ND_FILE,
     ND_TOKEN,
-    ND_VARDECL,
     ND_PARAMDECL,
+    ND_VARDECL,
     ND_TYPEEXPR,
     ND_REFEXPR,
     ND_LITEXPR,
@@ -74,8 +74,8 @@ typedef struct {
 
 typedef struct {
     Lexer lexer;            // lexer driven by this parser
-    Token *lookahead_cache; // lookahead tokens cache
-    int cache_index;        // current lookahead position in lookahead_cache
+    Token *token_cache;     // lookahead tokens cache
+    int cache_index;        // current lookahead position in token_cache
     Error *errors;          // list of possible parse errors
     Node **nodep_buf;       // pointers to the allocated nodes
     NameTable name_table;   // name table

@@ -247,7 +247,7 @@ void print_ast(Parser *p, const Node *node)
 
 static Token look(Parser *p)
 {
-    return p->lookahead_cache[p->cache_index];
+    return p->token_cache[p->cache_index];
 }
 
 static void error(Parser *p, const char *fmt, ...)
@@ -267,7 +267,7 @@ void parser_init(Parser *p, const char *filename)
     *p = (const Parser) {0};
     lexer_init(&p->lexer, filename);
     lexer_next(&p->lexer);
-    sb_push(p->lookahead_cache, p->lexer.token);
+    sb_push(p->token_cache, p->lexer.token);
 }
 
 static void name_table_cleanup(Parser *p)
@@ -299,16 +299,16 @@ void parser_cleanup(Parser *p)
         }
     }
     sb_free(p->nodep_buf);
-    sb_free(p->lookahead_cache);
+    sb_free(p->token_cache);
     lexer_free(&p->lexer);
     name_table_cleanup(p);
 }
 
 static void next(Parser *p)
 {
-    if (p->cache_index >= sb_count(p->lookahead_cache) - 1) {
+    if (p->cache_index >= sb_count(p->token_cache) - 1) {
         lexer_next(&p->lexer);
-        sb_push(p->lookahead_cache, p->lexer.token);
+        sb_push(p->token_cache, p->lexer.token);
     }
     p->cache_index++;
 }
@@ -366,24 +366,21 @@ static void skip_invisibles(Parser *p)
     }
 }
 
-static void save_state(Parser *p)
+static int get_pos(Parser *p)
 {
-    // clear cache except the current lookahead
-    p->lookahead_cache[0] = p->lookahead_cache[p->cache_index];
-    stb__sbn(p->lookahead_cache) = 1;
-    p->cache_index = 0;
+    return p->cache_index;
 }
 
-static void revert_state(Parser *p)
+static void restore_pos(Parser *p, int pos)
 {
-    p->cache_index = 0;
+    p->cache_index = pos;
 }
 
 static Node *parse_stmt(Parser *p)
 {
     Node *stmt, *node = NULL;
 
-    save_state(p);
+    int pos = get_pos(p);
 
     // Try all possible productions and use the first successful one.
     // We use lookahead (LL(k)) to revert state if a production fails.
@@ -409,14 +406,14 @@ static Node *parse_stmt(Parser *p)
         expect(p, TOK_NEWLINE);
         return stmt;
     }
-    revert_state(p);
+    restore_pos(p, pos);
 
     node = parse_assignstmt(p);
     if (node) {
         stmt = node;
         return stmt;
     }
-    revert_state(p);
+    restore_pos(p, pos);
 
     node = parse_expr(p);
     if (node) {
@@ -424,7 +421,7 @@ static Node *parse_stmt(Parser *p)
         expect(p, TOK_NEWLINE);
         return stmt;
     }
-    revert_state(p);
+    restore_pos(p, pos);
 
     // no production has succeeded and node is NULL
     return NULL;
@@ -568,33 +565,59 @@ static Node *parse_expr(Parser *p)
     return expr;
 }
 
-static Node *parse_vardecl(Parser *p)
+static int is_paramdecl_start(Parser *p)
 {
-    Node *typeexpr = NULL;
-    Node *assign = NULL;
+    return look(p).type == TOK_IDENT;
+}
 
-    int mut = look(p).type == TOK_VAR;
-    next(p);
+static Node *parse_paramdecl(Parser *p)
+{
     Name *name = get_or_push_name(p, look(p));
     next(p);
 
-    if (!mut) {
-        expect(p, TOK_EQUALS);
-        assign = parse_expr(p);
-    } else if (look(p).type == TOK_EQUALS) {
-        next(p);
-        assign = parse_expr(p);
-    } else if (look(p).type == TOK_COLON) {
-        // explicit type
-        next(p);
-        typeexpr = parse_typeexpr(p);
+    expect(p, TOK_COLON);
+    Node *typeexpr = parse_typeexpr(p);
+
+    return make_paramdecl(p, name, typeexpr);
+}
+
+static Node **parse_paramdecllist(Parser *p)
+{
+    Node **list = NULL;
+    while (is_paramdecl_start(p)) {
+        Node *node = parse_paramdecl(p);
+        sb_push(list, node);
+    }
+    return list;
+}
+
+static Node *parse_vardecl(Parser *p)
+{
+    int mut = (look(p).type == TOK_VAR);
+    next(p);
+
+    int pos = get_pos(p);
+
+    // try to reuse parse_paramdecl()
+    Node *param = NULL;
+    if (is_paramdecl_start(p)) {
+        param = parse_paramdecl(p);
+        // 'let' cannot be used with explicit type specfication
+        if (param && mut) {
+            error(p, "initial value required");
+        }
+        return make_vardecl(p, param->typeexpr, mut, param->name, NULL);
     }
 
-    if (typeexpr == NULL && assign == NULL) {
-        error(p, "declarations should at least specify its type or its value.");
-    }
+    restore_pos(p, pos);
 
-    return make_vardecl(p, typeexpr, mut, name, assign);
+    Name *name = get_or_push_name(p, look(p));
+    next(p);
+
+    expect(p, TOK_EQUALS);
+    Node *assign = parse_expr(p);
+
+    return make_vardecl(p, NULL, mut, name, assign);
 }
 
 // Parse a declaration.
@@ -616,32 +639,6 @@ static Node *parse_decl(Parser *p)
         break;
     }
     return decl;
-}
-
-static int is_paramdecl_start(Parser *p)
-{
-    return look(p).type == TOK_IDENT;
-}
-
-static Node *parse_paramdecl(Parser *p)
-{
-    Token tok = expect(p, TOK_IDENT);
-    Name *name = get_or_push_name(p, tok);
-
-    expect(p, TOK_COLON);
-    Node *typeexpr = parse_typeexpr(p);
-
-    return make_paramdecl(p, name, typeexpr);
-}
-
-static Node **parse_paramdecllist(Parser *p)
-{
-    Node **list = NULL;
-    while (is_paramdecl_start(p)) {
-        Node *node = parse_paramdecl(p);
-        sb_push(list, node);
-    }
-    return list;
 }
 
 static Node *parse_funcdecl(Parser *p)
