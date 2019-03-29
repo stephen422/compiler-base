@@ -9,6 +9,8 @@
 static Token look(Parser *p);
 static Node *parse_expr(Parser *p);
 static Node *parse_decl(Parser *p);
+static Name *push_name(Parser *p, Token tok);
+static Name *get_name(Parser *p, Token tok);
 
 static Node *make_node(Parser *p, NodeType t, Token tok)
 {
@@ -59,7 +61,14 @@ static Node *make_binexpr(Parser *p, Node *lhs, Node *op, Node *rhs)
     return node;
 }
 
-static Node *make_vardecl(Parser *p, Node *decltype, int mutable, Token name, Node *expr)
+static Node *make_ref_expr(Parser *p, Name *name)
+{
+    Node *node = make_node(p, ND_REFEXPR, look(p));
+    node->name = name;
+    return node;
+}
+
+static Node *make_vardecl(Parser *p, Node *decltype, int mutable, Name *name, Node *expr)
 {
     Node *node = make_node(p, ND_VARDECL, look(p));
     node->decltype = decltype;
@@ -69,7 +78,7 @@ static Node *make_vardecl(Parser *p, Node *decltype, int mutable, Token name, No
     return node;
 }
 
-static Node *make_function(Parser *p, Token name)
+static Node *make_function(Parser *p, Name *name)
 {
     Node *node = make_node(p, ND_FUNCTION, look(p));
     node->name = name;
@@ -147,16 +156,14 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
         indent -= 2;
         break;
     case ND_VARDECL:
-        printf("[VarDecl] ");
-        print_token(&p->lexer, node->name);
+        printf("[VarDecl] '%s'\n", node->name->text);
         indent += 2;
         iprintf(indent, "mutable: %d\n", node->mutable);
         print_ast_indent(p, node->expr, indent);
         indent -= 2;
         break;
     case ND_FUNCTION:
-        printf("[Function] ");
-        print_token(&p->lexer, node->name);
+        printf("[Function] '%s'\n", node->name->text);
         indent += 2;
         print_ast_indent(p, node->body, indent);
         indent -= 2;
@@ -179,7 +186,7 @@ static Token look(Parser *p)
 
 static void error(Parser *p, const char *fmt, ...)
 {
-    SourceLoc loc = locate_line_col(&p->lexer, look(p).range.start);
+    SrcLoc loc = locate_line_col(&p->lexer, look(p).range.start);
     va_list args;
     fprintf(stderr, "%s:%d:%d: parse error: ", p->lexer.filename, loc.line, loc.col);
     va_start(args, fmt);
@@ -243,13 +250,13 @@ static void expect(Parser *p, TokenType t)
         error(p, "expected '%s', got '%s'\n", token_names[t], token_names[look(p).type]);
         exit(1);
     }
-    // Make progress in expect()!
+    // make progress
     next(p);
 }
 
 static void save_state(Parser *p)
 {
-    // Clear cache except the current lookahead.
+    // clear cache except the current lookahead
     p->lookahead_cache[0] = p->lookahead_cache[p->cache_index];
     stb__sbn(p->lookahead_cache) = 1;
     p->cache_index = 0;
@@ -310,7 +317,7 @@ static Node *parse_stmt(Parser *p)
     }
     revert_state(p);
 
-    // By now, no production has succeeded and node is NULL.
+    // no production has succeeded and node is NULL
     return NULL;
 }
 
@@ -333,6 +340,16 @@ static Node *parse_literal_expr(Parser *p)
     return expr;
 }
 
+static Node *parse_ref_expr(Parser *p)
+{
+    Name *name = get_name(p, look(p));
+    if (!name) {
+        name = push_name(p, look(p));
+    }
+    next(p);
+    return make_ref_expr(p, name);
+}
+
 static Node *parse_unary_expr(Parser *p)
 {
     Node *expr = NULL;
@@ -341,11 +358,11 @@ static Node *parse_unary_expr(Parser *p)
     switch (look(p).type) {
     case TOK_IDENT:
         expr = make_node(p, ND_TOKEN, look(p));
-        name = parser_get_name(p, look(p));
+        name = get_name(p, look(p));
         if (!name) {
             printf("First seen name, pushing ");
             print_token(&p->lexer, look(p));
-            parser_push_name(p, look(p));
+            name = push_name(p, look(p));
         } else {
             printf("Found name ");
             print_token(&p->lexer, look(p));
@@ -452,7 +469,10 @@ static Node *parse_var_decl(Parser *p)
 
     int mut = look(p).type == TOK_VAR;
     next(p);
-    Token name = look(p);
+    Name *name = get_name(p, look(p));
+    if (!name) {
+        name = push_name(p, look(p));
+    }
     next(p);
 
     if (!mut) {
@@ -460,17 +480,16 @@ static Node *parse_var_decl(Parser *p)
         expect(p, TOK_EQUALS);
         assign = parse_expr(p);
     } else if (look(p).type == TOK_EQUALS) {
-        // Type inference from assignment expression
+        // type inference from assignment expression
         next(p);
         assign = parse_expr(p);
     } else if (look(p).type == TOK_COLON) {
-        // Explicit type
+        // explicit type
         next(p);
         decltype = make_node(p, ND_TYPE, look(p));
         next(p);
     }
-    // At least one of the declaration type and assignment expression
-    // should be specified.
+
     if (decltype == NULL && assign == NULL) {
         error(p, "declarations should at least specify its type or its value.");
     }
@@ -503,7 +522,10 @@ static Node *parse_function(Parser *p)
 {
     expect(p, TOK_FN);
 
-    Token name = look(p);
+    Name *name = get_name(p, look(p));
+    if (!name) {
+        name = push_name(p, look(p));
+    }
     Node *func = make_function(p, name);
     next(p);
 
@@ -526,8 +548,7 @@ Node *parse(Parser *p)
 {
     printf("sizeof(Node)=%zu\n", sizeof(Node));
     printf("sizeof(Token)=%zu\n", sizeof(Token));
-    Node *node;
-    node = parse_function(p);
+    Node *node = parse_function(p);
     print_ast(p, node);
     return node;
 }
@@ -543,7 +564,7 @@ static uint64_t hash(const char *text, int len)
     return hash;
 }
 
-static char *copy_source_range(Parser *p, SourceRange range)
+static char *copy_source_range(Parser *p, SrcRange range)
 {
     int len = range.end - range.start;
     char *s = calloc(len + 1, sizeof(char));
@@ -551,7 +572,7 @@ static char *copy_source_range(Parser *p, SourceRange range)
     return s;
 }
 
-void parser_push_name(Parser *p, Token tok)
+static Name *push_name(Parser *p, Token tok)
 {
     Name *name = calloc(1, sizeof(Name));
     name->text = copy_source_range(p, tok.range);
@@ -561,9 +582,10 @@ void parser_push_name(Parser *p, Token tok)
     Name **keyp = &p->name_table.keys[index];
     name->next = *keyp;
     *keyp = name;
+    return *keyp;
 }
 
-Name *parser_get_name(Parser *p, Token tok)
+static Name *get_name(Parser *p, Token tok)
 {
     char *src_text = p->lexer.src + tok.range.start;
     size_t len = tok.range.end - tok.range.start;

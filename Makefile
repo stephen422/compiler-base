@@ -1,5 +1,5 @@
-CFLAGS += -g3 -gdwarf -std=c11 -fsanitize=address,leak,undefined -Wall -Wextra
-# CFLAGS += -g3 -gdwarf -std=c11 -Wall -Wextra
+#CFLAGS += -g3 -gdwarf -std=c11 -fsanitize=address,leak,undefined -Wall -Wextra
+CFLAGS += -g3 -gdwarf -std=c11 -Wall -Wextra
 PROG := cmp
 
 $(PROG): main.o sema.o parser.o lexer.o

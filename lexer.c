@@ -157,7 +157,7 @@ static void make_token(Lexer *l, TokenType type)
 {
     memset(&l->token, 0, sizeof(Token));
     l->token.type = type;
-    l->token.range = (SourceRange) {l->start, l->off};
+    l->token.range = (SrcRange) {l->start, l->off};
 }
 
 void token_free(Token *t)
@@ -264,12 +264,12 @@ int lexer_next(Lexer *l)
     return 0;
 }
 
-SourceLoc locate_line_col(Lexer *l, size_t pos)
+SrcLoc locate_line_col(Lexer *l, size_t pos)
 {
     // Search linearly for line that contains this position.
     if (sb_count(l->line_offs) == 0) {
         // First line
-        return (SourceLoc) {1, pos + 1};
+        return (SrcLoc) {1, pos + 1};
     }
     int line;
     for (line = 0; line < sb_count(l->line_offs); line++) {
@@ -278,7 +278,7 @@ SourceLoc locate_line_col(Lexer *l, size_t pos)
         }
     }
     int col = pos - l->line_offs[line - 1];
-    return (SourceLoc) {line + 1, col};
+    return (SrcLoc) {line + 1, col};
 }
 
 void print_token(Lexer *lex, const Token tok)
