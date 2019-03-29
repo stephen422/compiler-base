@@ -40,6 +40,7 @@ int main(int argc, char **argv)
     Parser p;
     parser_init(&p, argv[1]);
     Node *program = parse(&p);
+    print_ast(&p, program);
     traverse(program);
     parser_cleanup(&p);
     return 0;

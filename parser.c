@@ -27,6 +27,13 @@ static Node *make_node(Parser *p, NodeType t, Token tok)
     return node;
 }
 
+static Node *make_file(Parser *p, Node **nodes)
+{
+    Node *node =make_node(p, ND_FILE, look(p));
+    node->nodes = nodes;
+    return node;
+}
+
 static Node *make_expr_stmt(Parser *p, Node *expr)
 {
     Node *node = make_node(p, ND_EXPRSTMT, look(p));
@@ -46,7 +53,7 @@ static Node *make_return_stmt(Parser *p, Node *expr) {
     return node;
 }
 
-static Node *make_compound_stmt(Parser *p)
+static Node *make_compoundstmt(Parser *p)
 {
     Node *node = make_node(p, ND_COMPOUNDSTMT, look(p));
     return node;
@@ -61,7 +68,7 @@ static Node *make_binexpr(Parser *p, Node *lhs, Node *op, Node *rhs)
     return node;
 }
 
-static Node *make_ref_expr(Parser *p, Name *name)
+static Node *make_refexpr(Parser *p, Name *name)
 {
     Node *node = make_node(p, ND_REFEXPR, look(p));
     node->name = name;
@@ -78,9 +85,9 @@ static Node *make_vardecl(Parser *p, Node *decltype, int mutable, Name *name, No
     return node;
 }
 
-static Node *make_function(Parser *p, Name *name)
+static Node *make_funcdecl(Parser *p, Name *name)
 {
-    Node *node = make_node(p, ND_FUNCTION, look(p));
+    Node *node = make_node(p, ND_FUNCDECL, look(p));
     node->name = name;
     return node;
 }
@@ -104,6 +111,13 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
     iprintf(indent, "");
 
     switch (node->type) {
+    case ND_FILE:
+        printf("[File]\n");
+        indent += 2;
+        for (int i = 0; i < sb_count(node->nodes); i++) {
+            print_ast_indent(p, node->nodes[i], indent);
+        }
+        break;
     case ND_TOKEN:
         print_token(&p->lexer, node->token);
         break;
@@ -128,8 +142,8 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
     case ND_COMPOUNDSTMT:
         printf("[CompoundStmt]\n");
         indent += 2;
-        for (int i = 0; i < sb_count(node->stmt_buf); i++) {
-            print_ast_indent(p, node->stmt_buf[i], indent);
+        for (int i = 0; i < sb_count(node->nodes); i++) {
+            print_ast_indent(p, node->nodes[i], indent);
         }
         indent -= 2;
         break;
@@ -147,6 +161,9 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
             break;
         }
         break;
+    case ND_REFEXPR:
+        printf("[RefExpr] '%s'\n", node->name->text);
+        break;
     case ND_BINEXPR:
         printf("[BinaryExpr]\n");
         indent += 2;
@@ -162,8 +179,8 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
         print_ast_indent(p, node->expr, indent);
         indent -= 2;
         break;
-    case ND_FUNCTION:
-        printf("[Function] '%s'\n", node->name->text);
+    case ND_FUNCDECL:
+        printf("[FuncDecl] '%s'\n", node->name->text);
         indent += 2;
         print_ast_indent(p, node->body, indent);
         indent -= 2;
@@ -174,7 +191,7 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
     }
 }
 
-static void print_ast(Parser *p, const Node *node)
+void print_ast(Parser *p, const Node *node)
 {
     print_ast_indent(p, node, 0);
 }
@@ -223,8 +240,8 @@ void parser_cleanup(Parser *p)
     for (int i = 0; i < sb_count(p->nodep_buf); i++) {
         Node *node = p->nodep_buf[i];
         if (node) {
-            if (node->stmt_buf) {
-                sb_free(node->stmt_buf);
+            if (node->nodes) {
+                sb_free(node->nodes);
             }
             free(node);
         }
@@ -277,6 +294,13 @@ static Node *parse_return_stmt(Parser *p)
     return make_return_stmt(p, expr);
 }
 
+static void skip_invisibles(Parser *p)
+{
+    while (look(p).type == TOK_NEWLINE) {
+        next(p);
+    }
+}
+
 static Node *parse_stmt(Parser *p)
 {
     Node *stmt, *node = NULL;
@@ -321,56 +345,45 @@ static Node *parse_stmt(Parser *p)
     return NULL;
 }
 
-static Node *parse_compound_stmt(Parser *p)
+static Node *parse_compoundstmt(Parser *p)
 {
     expect(p, TOK_LBRACE);
-    Node *compound = make_compound_stmt(p);
+    Node *compound = make_compoundstmt(p);
     Node *stmt;
     while ((stmt = parse_stmt(p)) != NULL) {
-        sb_push(compound->stmt_buf, stmt);
+        sb_push(compound->nodes, stmt);
     }
     expect(p, TOK_RBRACE);
     return compound;
 }
 
-static Node *parse_literal_expr(Parser *p)
+static Node *parse_litexpr(Parser *p)
 {
     Node *expr = make_node(p, ND_LITEXPR, look(p));
     next(p);
     return expr;
 }
 
-static Node *parse_ref_expr(Parser *p)
+static Node *parse_refexpr(Parser *p)
 {
     Name *name = get_name(p, look(p));
     if (!name) {
         name = push_name(p, look(p));
     }
     next(p);
-    return make_ref_expr(p, name);
+    return make_refexpr(p, name);
 }
 
 static Node *parse_unary_expr(Parser *p)
 {
     Node *expr = NULL;
-    Name *name;
 
     switch (look(p).type) {
     case TOK_IDENT:
-        expr = make_node(p, ND_TOKEN, look(p));
-        name = get_name(p, look(p));
-        if (!name) {
-            printf("First seen name, pushing ");
-            print_token(&p->lexer, look(p));
-            name = push_name(p, look(p));
-        } else {
-            printf("Found name ");
-            print_token(&p->lexer, look(p));
-        }
-        next(p);
+        expr = parse_refexpr(p);
         break;
     case TOK_NUM:
-        expr = parse_literal_expr(p);
+        expr = parse_litexpr(p);
         break;
     case TOK_LPAREN:
         expect(p, TOK_LPAREN);
@@ -378,7 +391,6 @@ static Node *parse_unary_expr(Parser *p)
         expect(p, TOK_RPAREN);
         break;
     default:
-        expr = NULL;
         break;
     }
     return expr;
@@ -404,7 +416,7 @@ static int get_precedence(const Token op)
 //     UnaryExpr (op BinaryExpr)*
 //
 // Return the pointer to the node respresenting the reduced binary expression.
-static Node *parse_binary_expr_rhs(Parser *p, Node *lhs, int precedence)
+static Node *parse_binexpr_rhs(Parser *p, Node *lhs, int precedence)
 {
     while (1) {
         int this_prec = get_precedence(look(p));
@@ -436,7 +448,7 @@ static Node *parse_binary_expr_rhs(Parser *p, Node *lhs, int precedence)
         // If this_prec == next_prec, don't shift, but reduce it with lhs.
         // This implies left associativity.
         if (this_prec < next_prec)
-            rhs = parse_binary_expr_rhs(p, rhs, precedence + 1);
+            rhs = parse_binexpr_rhs(p, rhs, precedence + 1);
         lhs = make_binexpr(p, lhs, op, rhs);
     }
     return lhs;
@@ -458,11 +470,11 @@ static Node *parse_binary_expr_rhs(Parser *p, Node *lhs, int precedence)
 static Node *parse_expr(Parser *p)
 {
     Node *expr = parse_unary_expr(p);
-    expr = parse_binary_expr_rhs(p, expr, 0);
+    expr = parse_binexpr_rhs(p, expr, 0);
     return expr;
 }
 
-static Node *parse_var_decl(Parser *p)
+static Node *parse_vardecl(Parser *p)
 {
     Node *decltype = NULL;
     Node *assign = NULL;
@@ -501,7 +513,7 @@ static Node *parse_var_decl(Parser *p)
 //
 // Decl:
 //     VarDecl
-//     Function
+//     FuncDecl
 static Node *parse_decl(Parser *p)
 {
     Node *decl;
@@ -509,7 +521,7 @@ static Node *parse_decl(Parser *p)
     switch (look(p).type) {
     case TOK_LET:
     case TOK_VAR:
-        decl = parse_var_decl(p);
+        decl = parse_vardecl(p);
         break;
     default:
         decl = NULL;
@@ -518,15 +530,18 @@ static Node *parse_decl(Parser *p)
     return decl;
 }
 
-static Node *parse_function(Parser *p)
+static Node *parse_funcdecl(Parser *p)
 {
-    expect(p, TOK_FN);
+    if (look(p).type != TOK_FN) {
+        return NULL;
+    }
+    next(p);
 
     Name *name = get_name(p, look(p));
     if (!name) {
         name = push_name(p, look(p));
     }
-    Node *func = make_function(p, name);
+    Node *func = make_funcdecl(p, name);
     next(p);
 
     expect(p, TOK_LPAREN);
@@ -539,7 +554,7 @@ static Node *parse_function(Parser *p)
     next(p);
 
     // Function body
-    func->body = parse_compound_stmt(p);
+    func->body = parse_compoundstmt(p);
 
     return func;
 }
@@ -548,9 +563,15 @@ Node *parse(Parser *p)
 {
     printf("sizeof(Node)=%zu\n", sizeof(Node));
     printf("sizeof(Token)=%zu\n", sizeof(Token));
-    Node *node = parse_function(p);
-    print_ast(p, node);
-    return node;
+
+    Node **nodes = NULL;
+    Node *func;
+    skip_invisibles(p);
+    while ((func = parse_funcdecl(p))) {
+        sb_push(nodes, func);
+        skip_invisibles(p);
+    }
+    return make_file(p, nodes);
 }
 
 static uint64_t hash(const char *text, int len)

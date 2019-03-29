@@ -52,7 +52,12 @@ static Symbol *symbol_find(SymbolTable tab, const char *name)
 void traverse(Node *node)
 {
     switch (node->type) {
-    case ND_FUNCTION:
+    case ND_FILE:
+        for (int i = 0; i < sb_count(node->nodes); i++) {
+            traverse(node->nodes[i]);
+        }
+        break;
+    case ND_FUNCDECL:
         printf("traversing ND_FUNCTION\n");
         traverse(node->body);
         break;
@@ -67,8 +72,8 @@ void traverse(Node *node)
         break;
     case ND_COMPOUNDSTMT:
         printf("traversing ND_COMPOUNDSTMT\n");
-        for (int i = 0; i < sb_count(node->stmt_buf); i++) {
-            traverse(node->stmt_buf[i]);
+        for (int i = 0; i < sb_count(node->nodes); i++) {
+            traverse(node->nodes[i]);
         }
         break;
     default:

@@ -24,6 +24,7 @@ typedef struct {
 } NameTable;
 
 typedef enum NodeType {
+    ND_FILE,
     ND_TOKEN,
     ND_VARDECL,
     ND_TYPE,
@@ -34,7 +35,7 @@ typedef enum NodeType {
     ND_DECLSTMT,
     ND_RETURNSTMT,
     ND_COMPOUNDSTMT,
-    ND_FUNCTION,
+    ND_FUNCDECL,
 } NodeType;
 
 typedef struct Node Node;
@@ -46,24 +47,18 @@ typedef struct Node {
     Node *lhs;
     Node *op;
     Node *rhs;
+    Node **nodes; // compoundstmt, file
 
     // vardecl
     Node *decltype;
     Node *expr;
     int mutable;
 
-    // expression statement
-    Node *stmt_expr;
+    Node *stmt_expr; // exprstmt
+    Node *decl;      // declstmt
 
-    // declaration statement
-    Node *decl;
-
-    // compound statement
-    Node **stmt_buf;
-    Node *body;
-
-    // function return type (TODO: type node)
-    Token return_type;
+    Node *body;        // funcdecl
+    Token return_type; // funcdecl
 } Node;
 
 typedef struct {
@@ -79,5 +74,6 @@ Name *parser_get_name(Parser *p, Token tok);
 void parser_init(Parser *p, const char *filename);
 void parser_cleanup(Parser *p);
 Node *parse(Parser *p);
+void print_ast(Parser *p, const Node *node);
 
 #endif

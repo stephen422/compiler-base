@@ -14,6 +14,7 @@ struct token_map {
 char *token_names[NUM_TOKENTYPES] = {
     [TOK_IDENT] = "identifier",
     [TOK_NUM] = "number",
+    [TOK_NEWLINE] = "\\n",
     [TOK_LPAREN] = "(",
     [TOK_RPAREN] = ")",
     [TOK_LBRACE] = "{",
