@@ -7,10 +7,10 @@
 // text.  There may be multiple occurrences of the string in the source text,
 // but only one matching Name object is created in the course of compilation.
 typedef struct Name Name;
-typedef struct Name {
+struct Name {
     char *text;
-    struct Name *next;
-} Name;
+    Name *next;
+};
 
 // A NameTable is a hash table of Names queried by their raw string.  It serves
 // to reduce the number of string hashing operation, since we can lookup the
@@ -18,15 +18,17 @@ typedef struct Name {
 // analysis.
 #define NAMETABLE_SIZE 512
 
-typedef struct {
+typedef struct NameTable NameTable;
+struct NameTable {
     Name *keys[NAMETABLE_SIZE];
     Name *name_buf; // memory buffer that stores Names
-} NameTable;
+};
 
 typedef enum NodeType {
     ND_FILE,
     ND_TOKEN,
     ND_VARDECL,
+    ND_PARAMDECL,
     ND_TYPE,
     ND_REFEXPR,
     ND_LITEXPR,
@@ -59,14 +61,22 @@ typedef struct Node {
     Node *stmt_expr; // exprstmt
     Node *decl;      // declstmt
 
-    Node *body;        // funcdecl
-    Token return_type; // funcdecl
+    // funcdecl
+    Node *body;
+    Node **paramdecls;
+    Token return_type;
 } Node;
+
+typedef struct {
+    SrcRange range;
+    char *msg;
+} Error;
 
 typedef struct {
     Lexer lexer;            // lexer driven by this parser
     Token *lookahead_cache; // lookahead tokens cache
     int cache_index;        // current lookahead position in lookahead_cache
+    Error *errors;          // list of possible parse errors
     Node **nodep_buf;       // pointers to the allocated nodes
     NameTable name_table;   // name table
 } Parser;

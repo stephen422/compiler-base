@@ -9,8 +9,7 @@
 static Token look(Parser *p);
 static Node *parse_expr(Parser *p);
 static Node *parse_decl(Parser *p);
-static Name *push_name(Parser *p, Token tok);
-static Name *get_name(Parser *p, Token tok);
+static Name *get_or_push_name(Parser *p, Token tok);
 
 static Node *make_node(Parser *p, NodeType t, Token tok)
 {
@@ -97,6 +96,13 @@ static Node *make_vardecl(Parser *p, Node *decltype, int mutable, Name *name, No
     node->mutable = mutable;
     node->name = name;
     node->expr = expr;
+    return node;
+}
+
+static Node *make_paramdecl(Parser *p, Name *name)
+{
+    Node *node = make_node(p, ND_PARAMDECL, look(p));
+    node->name = name;
     return node;
 }
 
@@ -207,9 +213,15 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
         print_ast_indent(p, node->expr, indent);
         indent -= 2;
         break;
+    case ND_PARAMDECL:
+        printf("[ParamDecl] '%s'\n", node->name->text);
+        break;
     case ND_FUNCDECL:
         printf("[FuncDecl] '%s'\n", node->name->text);
         indent += 2;
+        for (int i = 0; i < sb_count(node->paramdecls); i++) {
+            print_ast_indent(p, node->paramdecls[i], indent);
+        }
         print_ast_indent(p, node->body, indent);
         indent -= 2;
         break;
@@ -271,6 +283,9 @@ void parser_cleanup(Parser *p)
             if (node->nodes) {
                 sb_free(node->nodes);
             }
+            if (node->paramdecls) {
+                sb_free(node->paramdecls);
+            }
             free(node);
         }
     }
@@ -287,6 +302,14 @@ static void next(Parser *p)
         sb_push(p->lookahead_cache, p->lexer.token);
     }
     p->cache_index++;
+}
+
+static void add_error(Parser *p, SrcRange range, const char *msg)
+{
+    Error error = {.range = range};
+    error.msg = calloc(strlen(msg) + 1, 1);
+    strcpy(error.msg, msg);
+    sb_push(p->errors, error);
 }
 
 static void expect(Parser *p, TokenType t)
@@ -412,10 +435,7 @@ static Node *parse_litexpr(Parser *p)
 
 static Node *parse_refexpr(Parser *p)
 {
-    Name *name = get_name(p, look(p));
-    if (!name) {
-        name = push_name(p, look(p));
-    }
+    Name *name = get_or_push_name(p, look(p));
     next(p);
     return make_refexpr(p, name);
 }
@@ -532,10 +552,7 @@ static Node *parse_vardecl(Parser *p)
 
     int mut = look(p).type == TOK_VAR;
     next(p);
-    Name *name = get_name(p, look(p));
-    if (!name) {
-        name = push_name(p, look(p));
-    }
+    Name *name = get_or_push_name(p, look(p));
     next(p);
 
     if (!mut) {
@@ -581,6 +598,32 @@ static Node *parse_decl(Parser *p)
     return decl;
 }
 
+static Node *parse_paramdecl(Parser *p)
+{
+    if (look(p).type != TOK_IDENT) {
+        return NULL;
+    }
+
+    Name *name = get_or_push_name(p, look(p));
+    next(p);
+
+    expect(p, TOK_COLON);
+    // TODO type
+    next(p);
+
+    return make_paramdecl(p, name);
+}
+
+static Node **parse_paramdecllist(Parser *p)
+{
+    Node **list = NULL;
+    Node *node;
+    while ((node = parse_paramdecl(p))) {
+        sb_push(list, node);
+    }
+    return list;
+}
+
 static Node *parse_funcdecl(Parser *p)
 {
     if (look(p).type != TOK_FN) {
@@ -588,23 +631,20 @@ static Node *parse_funcdecl(Parser *p)
     }
     next(p);
 
-    Name *name = get_name(p, look(p));
-    if (!name) {
-        name = push_name(p, look(p));
-    }
+    Name *name = get_or_push_name(p, look(p));
     Node *func = make_funcdecl(p, name);
     next(p);
 
+    // parameter list
     expect(p, TOK_LPAREN);
-    // TODO: Argument list (foo(...))
+    func->paramdecls = parse_paramdecllist(p);
     expect(p, TOK_RPAREN);
 
-    // Return type (-> ...)
+    // return type
     expect(p, TOK_ARROW);
     func->return_type = look(p);
     next(p);
 
-    // Function body
     func->body = parse_compoundstmt(p);
 
     return func;
@@ -668,4 +708,13 @@ static Name *get_name(Parser *p, Token tok)
         }
     }
     return NULL;
+}
+
+static Name *get_or_push_name(Parser *p, Token tok)
+{
+    Name *name = get_name(p, tok);
+    if (!name) {
+        name = push_name(p, tok);
+    }
+    return name;
 }

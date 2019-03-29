@@ -74,7 +74,7 @@ typedef struct token {
 typedef struct SrcLoc {
     int line;
     int col;
-} SrcLoc ;
+} SrcLoc;
 
 typedef struct {
     Token token;       // currently lexed token
