@@ -68,7 +68,7 @@ typedef struct Node {
 } Node;
 
 typedef struct {
-    SrcRange range;
+    SrcLoc loc;
     char *msg;
 } Error;
 
