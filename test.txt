@@ -12,7 +12,7 @@ fn main() -> int {
     return 3
 }
 
-fn swap(a: int, b: ) -> int {
+fn swap(a: int, b: int) -> int {
     let t = *a
     *a = *b
     *b = t

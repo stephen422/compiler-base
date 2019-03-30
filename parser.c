@@ -603,7 +603,11 @@ static Node *parse_paramdecl(Parser *p)
     Token tok = expect(p, TOK_IDENT);
     Name *name = get_or_push_name(p, tok);
 
-    expect(p, TOK_COLON);
+    if (look(p).type != TOK_COLON) {
+        error_expected(p, TOK_COLON);
+        return NULL;
+    }
+    next(p);
     Node *typeexpr = parse_typeexpr(p);
 
     return make_paramdecl(p, name, typeexpr);
@@ -650,7 +654,7 @@ static Node *parse_vardecl(Parser *p)
 
 }
 
-// Declarations have clear starting tokens.
+// Declarations have clear indicator tokens.
 static int is_decl_start(Parser *p)
 {
     switch (look(p).type) {
