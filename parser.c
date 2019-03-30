@@ -404,16 +404,13 @@ static Node *parse_stmt(Parser *p)
 {
     Node *stmt;
 
-    // Try all possible productions and use the first successful one.
-    // We use lookahead (LL(k)) to revert state if a production fails.
-    // (See "recursive descent with backtracking":
-    // https://en.wikipedia.org/wiki/Recursive_descent_parser)
+    skip_invisibles(p);
+
+    // try all possible productions and use the first successful one
     switch (look(p).type) {
     case TOK_EOF:
+    case TOK_RBRACE:
         return NULL;
-    case TOK_NEWLINE:
-        next(p);
-        return parse_stmt(p); // FIXME stack overflow
     case TOK_RETURN:
         stmt = parse_returnstmt(p);
         expect(p, TOK_NEWLINE);
