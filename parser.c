@@ -340,7 +340,7 @@ void parser_report_errors(Parser *p)
 
 static void error_expected(Parser *p, TokenType t)
 {
-    error(p, "expected '%s', got '%s'\n", token_names[t], token_names[look(p).type]);
+    error(p, "expected '%s', got '%s'", token_names[t], token_names[look(p).type]);
 }
 
 static Token expect(Parser *p, TokenType t)
@@ -390,6 +390,7 @@ static Node *parse_returnstmt(Parser *p)
     if (!expr) {
         error(p, "expected expression");
     }
+    expect(p, TOK_NEWLINE);
     return make_retstmt(p, expr);
 }
 
@@ -409,11 +410,10 @@ static Node *parse_stmt(Parser *p)
     // try all possible productions and use the first successful one
     switch (look(p).type) {
     case TOK_EOF:
-    case TOK_RBRACE:
+    case TOK_RBRACE: // compoundstmt end
         return NULL;
     case TOK_RETURN:
         stmt = parse_returnstmt(p);
-        expect(p, TOK_NEWLINE);
         return stmt;
     default:
         break;
@@ -458,8 +458,23 @@ static Node *parse_litexpr(Parser *p)
     return expr;
 }
 
+static int is_typename(Token tok)
+{
+    switch (tok.type) {
+    case TOK_INT:
+    case TOK_IDENT:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
 static Node *parse_typeexpr(Parser *p)
 {
+    if (!is_typename(look(p))) {
+        error(p, "invalid type name '%s'", token_names[look(p).type]);
+        return NULL;
+    }
     Name *name = get_or_push_name(p, look(p));
     next(p);
     return make_typeexpr(p, name);
@@ -585,8 +600,8 @@ static int is_paramdecl_start(Parser *p)
 
 static Node *parse_paramdecl(Parser *p)
 {
-    Name *name = get_or_push_name(p, look(p));
-    next(p);
+    Token tok = expect(p, TOK_IDENT);
+    Name *name = get_or_push_name(p, tok);
 
     expect(p, TOK_COLON);
     Node *typeexpr = parse_typeexpr(p);
@@ -597,9 +612,16 @@ static Node *parse_paramdecl(Parser *p)
 static Node **parse_paramdecllist(Parser *p)
 {
     Node **list = NULL;
-    while (is_paramdecl_start(p)) {
+    // assumes enclosed in parentheses
+    while (look(p).type != TOK_RPAREN) {
         Node *node = parse_paramdecl(p);
+        if (!success(p)) {
+            return NULL;
+        }
         sb_push(list, node);
+        if (look(p).type == TOK_COMMA) {
+            next(p);
+        }
     }
     return list;
 }
