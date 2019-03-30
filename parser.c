@@ -83,10 +83,12 @@ static Node *make_binexpr(Parser *p, Node *lhs, Node *op, Node *rhs)
     return node;
 }
 
-static Node *make_typeexpr(Parser *p, Name *name)
+static Node *make_typeexpr(Parser *p, Name *name, int ref, Node *canon)
 {
     Node *node = make_node(p, ND_TYPEEXPR, look(p));
     node->name = name;
+    node->ref = ref;
+    node->typeexpr = canon;
     return node;
 }
 
@@ -439,6 +441,7 @@ static Node *parse_stmt(Parser *p)
 static Node *parse_compoundstmt(Parser *p)
 {
     expect(p, TOK_LBRACE);
+
     Node *compound = make_compoundstmt(p);
     Node *stmt;
     while ((stmt = parse_stmt(p)) != NULL) {
@@ -447,7 +450,9 @@ static Node *parse_compoundstmt(Parser *p)
         }
         sb_push(compound->nodes, stmt);
     }
+
     expect(p, TOK_RBRACE);
+
     return compound;
 }
 
@@ -471,13 +476,29 @@ static int is_typename(Token tok)
 
 static Node *parse_typeexpr(Parser *p)
 {
-    if (!is_typename(look(p))) {
-        error(p, "invalid type name '%s'", token_names[look(p).type]);
-        return NULL;
+    Node *canon;
+    Name *name;
+    int ref;
+
+    if (look(p).type == TOK_AMPERSAND) {
+        next(p);
+        ref = 1;
+        canon = parse_typeexpr(p);
+        name = NULL;
+    } else {
+        ref = 0;
+        canon = NULL;
+
+        if (!is_typename(look(p))) {
+            error(p, "invalid type name '%s'", token_names[look(p).type]);
+            return NULL;
+        }
+
+        name = get_or_push_name(p, look(p));
+        next(p);
     }
-    Name *name = get_or_push_name(p, look(p));
-    next(p);
-    return make_typeexpr(p, name);
+
+    return make_typeexpr(p, name, ref, canon);
 }
 
 static Node *parse_refexpr(Parser *p)
@@ -554,9 +575,8 @@ static Node *parse_binexpr_rhs(Parser *p, Node *lhs, int precedence)
         // LHS or RHS; e.g. "a * b + c" or "a + b * c".  To know this, we should
         // look ahead for the operator that follows this term.
         Node *rhs = parse_unaryexpr(p);
-        if (!rhs) {
+        if (!rhs)
             error(p, "expected expression");
-        }
         int next_prec = get_precedence(look(p));
 
         // If the next operator is indeed higher-level, evaluate the RHS as a
@@ -616,10 +636,12 @@ static Node *parse_paramdecl(Parser *p)
 static Node **parse_paramdecllist(Parser *p)
 {
     Node **list = NULL;
+
     // assumes enclosed in parentheses
     while (look(p).type != TOK_RPAREN) {
         Node *node = parse_paramdecl(p);
         if (!success(p)) {
+            parser_report_errors(p);
             return NULL;
         }
         sb_push(list, node);
@@ -627,6 +649,7 @@ static Node **parse_paramdecllist(Parser *p)
             next(p);
         }
     }
+
     return list;
 }
 

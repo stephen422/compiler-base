@@ -54,8 +54,9 @@ typedef struct Node {
     Node **nodes; // compoundstmt, file
 
     // vardecl
-    Node *typeexpr;
+    Node *typeexpr; // decl, typeexpr (ref)
     Node *expr;
+    int ref;
     int mutable;
 
     Node *stmt_expr; // exprstmt
