@@ -1,9 +1,10 @@
-#CFLAGS += -g3 -gdwarf -std=c11 -fsanitize=address,leak,undefined -Wall -Wextra
-CFLAGS += -g3 -gdwarf -std=c11 -Wall -Wextra -Wno-unused-function
+#CFLAGS += -g -std=c11 -fsanitize=address,leak,undefined -Wall -Wextra
+CFLAGS += -g -std=c11 -Wall -Wextra -Wno-unused-function
 PROG := cmp
+OBJ := main.o sema.o parser.o lexer.o
 
-$(PROG): main.o sema.o parser.o lexer.o
-	$(CC) $(CFLAGS) -o $(PROG) $^
+$(PROG): $(OBJ)
+	$(CC) $(CFLAGS) -o $(PROG) $(OBJ)
 
 .SUFFIXES: .c .o
 .c.o:
