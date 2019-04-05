@@ -25,21 +25,21 @@ struct NameTable {
 };
 
 typedef enum NodeType {
-	ND_FILE,
 	ND_TOKEN,
-	ND_PARAMDECL,
-	ND_VARDECL,
 	ND_TYPEEXPR,
 	ND_REFEXPR,
 	ND_LITEXPR,
 	ND_DEREFEXPR,
 	ND_BINEXPR,
 	ND_EXPRSTMT,
+	ND_PARAMDECL,
+	ND_VARDECL,
 	ND_DECLSTMT,
 	ND_ASSIGNSTMT,
 	ND_RETURNSTMT,
 	ND_COMPOUNDSTMT,
 	ND_FUNCDECL,
+	ND_FILE,
 } NodeType;
 
 typedef struct Node Node;
@@ -60,7 +60,7 @@ typedef struct Node {
 	int mutable;
 
 	Node *stmt_expr; // exprstmt
-	Node *decl;	  // declstmt
+	Node *decl;	 // declstmt
 
 	// funcdecl
 	Node *body;

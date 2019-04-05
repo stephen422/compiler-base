@@ -1,8 +1,8 @@
 TODO
 ====
 
-* Function arguments & return types
-* Symbol table
+* Memory leak in symbol table
+* Sema error location report
 * Tests
 
 Language Features

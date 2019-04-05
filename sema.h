@@ -5,37 +5,36 @@
 
 #define HASHTABLE_SIZE 512
 
-typedef struct {
+typedef struct Func {
 } Func;
 
-typedef struct {
-    int mutable;
+typedef struct Var {
+	int mut;
 } Var;
 
-typedef struct {
-    int type;
-    union {
-        Var *var;
-        Func *func;
-    };
+typedef struct Type {
+} Type;
+
+typedef struct Decl {
+	Name *name;
+	Type *type;
 } Decl;
 
-typedef struct Symbol Symbol;
 typedef struct Symbol {
-    char *name;
-    Decl decl;
-    Symbol *next;  // link to symbol in the same bucket
-    Symbol *cross; // cross link to symbol in the same scope
+	Name *name;
+	void *value;
+	struct Symbol *next;  // link to symbol in the same bucket
+	struct Symbol *cross; // cross link to symbol in the same scope
 } Symbol;
 
-// Symbol table.
-//
-// Find Decl that matches the given Id.
-typedef Symbol **SymbolTable;
+// A Map, or a symbol table.
+// This type is intended to be small.
+typedef Symbol **Map;
 
-typedef struct {
-    Parser parser;
-    SymbolTable symbol_table;
+typedef struct CmpState {
+	Parser parser;
+	Map declmap;
+	Map typemap;
 } CmpState;
 
 void cmpstate_init(CmpState *cs, const char *filename);
@@ -43,5 +42,6 @@ void cmpstate_cleanup(CmpState *cs);
 
 // Traverse the AST starting from 'node' as the root node.
 void traverse(Node *node);
+void sema(Node *node);
 
 #endif
