@@ -732,8 +732,7 @@ static Node *parse_funcdecl(Parser *p)
 
 	// return type
 	expect(p, TOK_ARROW);
-	func->return_type = look(p);
-	next(p);
+	func->rettypeexpr = parse_typeexpr(p);
 
 	func->body = parse_compoundstmt(p);
 
