@@ -204,8 +204,11 @@ void traverse(Node *node) {
 	}
 }
 
-static void setup_builtin_types(void)
+static void setup_builtin_types(NameTable *nt)
 {
+	Name *int_name = push_name(nt, "int", 3);
+	Type *int_type = make_type(int_name, NULL);
+	map_push(typemap, int_name, int_type);
 }
 
 void sema(ASTContext ast)
@@ -214,7 +217,7 @@ void sema(ASTContext ast)
 	map_init(&typemap);
 
 	// Start by pushing built-in types into the type map.
-	setup_builtin_types();
+	setup_builtin_types(ast.nametable);
 
 	traverse(ast.root);
 
