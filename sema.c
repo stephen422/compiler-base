@@ -208,7 +208,7 @@ static void setup_builtin_types(void)
 {
 }
 
-void sema(Node *node)
+void sema(ASTContext ast)
 {
 	map_init(&declmap);
 	map_init(&typemap);
@@ -216,7 +216,7 @@ void sema(Node *node)
 	// Start by pushing built-in types into the type map.
 	setup_builtin_types();
 
-	traverse(node);
+	traverse(ast.root);
 
 	map_free(&declmap);
 	map_free(&typemap);

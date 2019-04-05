@@ -255,13 +255,13 @@ static Token look(Parser *p)
 
 void parser_init(Parser *p, const char *filename)
 {
-	*p = (const Parser) {0};
+	memset(p, 0, sizeof(Parser));
 	lexer_init(&p->lexer, filename);
 	lexer_next(&p->lexer);
 	sb_push(p->token_cache, p->lexer.token);
 }
 
-static void name_table_cleanup(NameTable *nt)
+static void nametable_cleanup(NameTable *nt)
 {
 	for (int i = 0; i < NAMETABLE_SIZE; i++) {
 		Name *n = nt->keys[i];
@@ -292,7 +292,7 @@ void parser_cleanup(Parser *p)
 	sb_free(p->nodep_buf);
 	sb_free(p->token_cache);
 	lexer_free(&p->lexer);
-	name_table_cleanup(&p->name_table);
+	nametable_cleanup(&p->nametable);
 }
 
 static void next(Parser *p)
@@ -742,10 +742,11 @@ static Node *parse_funcdecl(Parser *p)
 	return func;
 }
 
-Node *parse(Parser *p)
+ASTContext parse(Parser *p)
 {
 	Node **nodes = NULL;
 	Node *func;
+	ASTContext ast = {0};
 
 	skip_invisibles(p);
 
@@ -755,10 +756,13 @@ Node *parse(Parser *p)
 		skip_invisibles(p);
 	}
 
-	return make_file(p, nodes);
+	ast.root = make_file(p, nodes);
+	ast.nametable = &p->nametable;
+
+	return ast;
 }
 
 static Name *register_name(Parser *p, Token tok)
 {
-	return get_or_push_name(&p->name_table, p->lexer.src + tok.range.start, tok.range.end - tok.range.start);
+	return get_or_push_name(&p->nametable, p->lexer.src + tok.range.start, tok.range.end - tok.range.start);
 }

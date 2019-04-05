@@ -1,6 +1,7 @@
 #ifndef SEMA_H
 #define SEMA_H
 
+#include "ast.h"
 #include <stdlib.h>
 
 #define HASHTABLE_SIZE 512
@@ -20,11 +21,10 @@ struct Name {
 // analysis.
 #define NAMETABLE_SIZE 512
 
-typedef struct NameTable NameTable;
-struct NameTable {
+typedef struct NameTable {
 	Name *keys[NAMETABLE_SIZE];
 	Name *name_buf; // memory buffer that stores Names
-};
+} NameTable;
 
 Name *push_name(NameTable *nt, char *s, size_t len);
 Name *get_name(NameTable *nt, char *s, size_t len);
@@ -79,6 +79,6 @@ typedef struct Node Node;
 
 // Traverse the AST starting from 'node' as the root node.
 void traverse(Node *node);
-void sema(Node *node);
+void sema(ASTContext sema);
 
 #endif

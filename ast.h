@@ -2,7 +2,10 @@
 #define AST_H
 
 #include "lexer.h"
-#include "sema.h"
+
+typedef struct Name Name;
+typedef struct NameTable NameTable;
+typedef struct Type Type;
 
 typedef enum NodeKind {
 	ND_TOKEN,
@@ -48,5 +51,11 @@ typedef struct Node {
 	Node **paramdecls;
 	Node *rettypeexpr;
 } Node;
+
+// ASTContext wraps the root node of AST with metadata such as the name table.
+typedef struct ASTContext {
+	NameTable *nametable;
+	Node *root;
+} ASTContext;
 
 #endif
