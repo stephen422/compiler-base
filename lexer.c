@@ -175,18 +175,22 @@ static void lex_ident(Lexer *l)
     while (isalnum(l->ch) || l->ch == '_')
         step(l);
 
-    for (const struct token_map *m = &keywords[0]; m->text != NULL; m++) {
+    for (struct token_map *m = &keywords[0]; m->text != NULL; m++) {
         const char *c = m->text;
         const char *s = l->src + l->start;
+
+		// Skip over characters common for the source text and the candidate.
         for (; *c != '\0' && s < l->src + l->off && *c == *s; c++, s++)
-            /* nothing */;
-        if (*c == '\0') {
-            // This is a keyword.
+			/* nothing */;
+
+        if (*c == '\0' && s == l->src + l->off) {
+            // If both are terminated, a keyword successfully matched.
             make_token(l, m->type);
             return;
         }
     }
-    // This is an identifier.
+
+    // Otherwise, this is an identifier.
     make_token(l, TOK_IDENT);
 }
 
