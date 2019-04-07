@@ -9,6 +9,8 @@
 static Map declmap;
 static Map typemap;
 
+extern struct token_map keywords[];
+
 static void fatal(const char *msg) {
 	fprintf(stderr, "%s\n", msg);
 	exit(EXIT_FAILURE);
@@ -147,7 +149,7 @@ void traverse(Node *node) {
 		break;
 	default:
 		fprintf(stderr, "%s: don't know how to traverse node kind %d\n",
-			__func__, node->kind);
+		        __func__, node->kind);
 		break;
 	}
 }

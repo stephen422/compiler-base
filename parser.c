@@ -29,7 +29,7 @@ static Node *make_node(Parser *p, NodeKind k, Token tok)
 
 static Node *make_file(Parser *p, Node **nodes)
 {
-	Node *node =make_node(p, ND_FILE, look(p));
+	Node *node = make_node(p, ND_FILE, look(p));
 	node->nodes = nodes;
 	return node;
 }
@@ -301,7 +301,12 @@ static void next(Parser *p)
 		lexer_next(&p->lexer);
 		sb_push(p->token_cache, p->lexer.token);
 	}
+
 	p->cache_pos++;
+
+	// Push keywords that we come by into the name table.
+	if (is_keyword(look(p)))
+		get_or_push_name(p, look(p));
 }
 
 static void add_error(Parser *p, SrcLoc loc, const char *msg)
@@ -371,9 +376,10 @@ static void restore_pos(Parser *p, int pos)
 	p->cache_pos = pos;
 }
 
-// Assignment statements start with an expression, so it cannot be determined
-// whether a statement is an expression or an assignment until the LHS is fully
-// parsed.
+// Assignment statements start with an expression, so we cannot easily
+// predetermine whether a statement is just an expression or an assignment
+// until we see the '='.  We therefore first parse the expression (LHS) and
+// then call this to transform that node into an assignment if needed.
 static Node *parse_assignstmt_or_exprstmt(Parser *p, Node *expr)
 {
 	if (look(p).type == TOK_EQUALS) {
@@ -390,9 +396,8 @@ static Node *parse_returnstmt(Parser *p)
 	expect(p, TOK_RETURN);
 
 	Node *expr = parse_expr(p);
-	if (!expr) {
+	if (!expr)
 		error(p, "expected expression");
-	}
 
 	expect(p, TOK_NEWLINE);
 
@@ -430,11 +435,10 @@ static Node *parse_stmt(Parser *p)
 		return stmt;
 	}
 
-	// all productions below start with an expression
+	// all productions from now on start with an expression
 	Node *expr = parse_expr(p);
-	if (expr) {
+	if (expr)
 		return parse_assignstmt_or_exprstmt(p, expr);
-	}
 
 	// no production has succeeded
 	return NULL;
@@ -742,11 +746,15 @@ Node *parse(Parser *p)
 {
 	Node **nodes = NULL;
 	Node *func;
+
 	skip_invisibles(p);
+
+	// TODO: proper toplevel parsing.
 	while ((func = parse_funcdecl(p))) {
 		sb_push(nodes, func);
 		skip_invisibles(p);
 	}
+
 	return make_file(p, nodes);
 }
 
@@ -765,7 +773,9 @@ static char *copy_source_range(Parser *p, SrcRange range)
 {
 	int len = range.end - range.start;
 	char *s = calloc(len + 1, sizeof(char));
+
 	memcpy(s, p->lexer.src + range.start, len);
+
 	return s;
 }
 
@@ -802,6 +812,5 @@ static Name *get_or_push_name(Parser *p, Token tok)
 
 	if (!name)
 		name = push_name(p, tok);
-
 	return name;
 }

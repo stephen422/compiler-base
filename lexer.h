@@ -61,12 +61,17 @@ typedef enum TokenType {
 
 char *token_names[NUM_TOKENTYPES];
 
+struct token_map {
+	const char *text;
+	TokenType type;
+};
+
 typedef struct {
     size_t start; // start position in the source
     size_t end;   // end position in the source
 } SrcRange;
 
-typedef struct token {
+typedef struct Token {
     TokenType type;
     SrcRange range;
 } Token;
@@ -76,7 +81,7 @@ typedef struct SrcLoc {
     int col;
 } SrcLoc;
 
-typedef struct {
+typedef struct Lexer {
     Token token;       // currently lexed token
     char ch;           // lookahead character
     long off;          // lookahead character offset
@@ -92,7 +97,7 @@ typedef struct {
 
 void token_free(Token *t);
 void print_token(Lexer *l, const Token t);
-
+int is_keyword(Token tok);
 SrcLoc locate_line_col(Lexer *l, size_t pos);
 int lexer_init(Lexer *l, const char *filename);
 int lexer_next(Lexer *l);

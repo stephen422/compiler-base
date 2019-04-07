@@ -6,11 +6,6 @@
 #include "lexer.h"
 #include "stretchy_buffer.h"
 
-struct token_map {
-	const char *text;
-	TokenType type;
-};
-
 char *token_names[NUM_TOKENTYPES] = {
 	[TOK_IDENT] = "identifier",
 	[TOK_NUM] = "number",
@@ -76,7 +71,7 @@ static struct token_map symbols[] = {
 	{NULL, 0}
 };
 
-static struct token_map keywords[] = {
+struct token_map keywords[] = {
 	{"fn", TOK_FN},
 	{"let", TOK_LET},
 	{"var", TOK_VAR},
@@ -87,6 +82,11 @@ static struct token_map keywords[] = {
 	{"for", TOK_FOR},
 	{NULL, 0}
 };
+
+int is_keyword(Token tok)
+{
+	return TOK_KEYWORDS < tok.type && tok.type < TOK_ERR;
+}
 
 static char *readfile(const char *filename, long *filesize)
 {
@@ -170,7 +170,7 @@ void token_free(Token *t)
 	free(t);
 }
 
-static void lex_ident(Lexer *l)
+static void lex_ident_or_keyword(Lexer *l)
 {
 	while (isalnum(l->ch) || l->ch == '_')
 		step(l);
@@ -261,7 +261,7 @@ int lexer_next(Lexer *l)
 		}
 		default: {
 			if (isalpha(l->ch) || l->ch == '_') {
-				lex_ident(l);
+				lex_ident_or_keyword(l);
 			} else {
 				lex_symbol(l);
 			}
