@@ -250,7 +250,7 @@ void print_ast(Parser *p, const Node *node)
 
 static Token look(Parser *p)
 {
-	return p->token_cache[p->cache_index];
+	return p->token_cache[p->cache_pos];
 }
 
 void parser_init(Parser *p, const char *filename)
@@ -261,10 +261,10 @@ void parser_init(Parser *p, const char *filename)
 	sb_push(p->token_cache, p->lexer.token);
 }
 
-static void name_table_cleanup(Parser *p)
+static void name_table_cleanup(NameTable *nt)
 {
 	for (int i = 0; i < NAMETABLE_SIZE; i++) {
-		Name *n = p->name_table.keys[i];
+		Name *n = nt->keys[i];
 		while (n) {
 			Name *next = n->next;
 			free(n->text);
@@ -277,31 +277,31 @@ static void name_table_cleanup(Parser *p)
 void parser_cleanup(Parser *p)
 {
 	// Free all nodes.
+	// Some nodes have children nodes, reap them as well.
 	for (int i = 0; i < sb_count(p->nodep_buf); i++) {
 		Node *node = p->nodep_buf[i];
 		if (node) {
-			if (node->nodes) {
+			if (node->nodes)
 				sb_free(node->nodes);
-			}
-			if (node->paramdecls) {
+			if (node->paramdecls)
 				sb_free(node->paramdecls);
-			}
 			free(node);
 		}
 	}
+
 	sb_free(p->nodep_buf);
 	sb_free(p->token_cache);
 	lexer_free(&p->lexer);
-	name_table_cleanup(p);
+	name_table_cleanup(&p->name_table);
 }
 
 static void next(Parser *p)
 {
-	if (p->cache_index >= sb_count(p->token_cache) - 1) {
+	if (p->cache_pos >= sb_count(p->token_cache) - 1) {
 		lexer_next(&p->lexer);
 		sb_push(p->token_cache, p->lexer.token);
 	}
-	p->cache_index++;
+	p->cache_pos++;
 }
 
 static void add_error(Parser *p, SrcLoc loc, const char *msg)
@@ -363,12 +363,12 @@ static int success(Parser *p)
 
 static int get_pos(Parser *p)
 {
-	return p->cache_index;
+	return p->cache_pos;
 }
 
 static void restore_pos(Parser *p, int pos)
 {
-	p->cache_index = pos;
+	p->cache_pos = pos;
 }
 
 // Assignment statements start with an expression, so it cannot be determined
@@ -401,9 +401,8 @@ static Node *parse_returnstmt(Parser *p)
 
 static void skip_invisibles(Parser *p)
 {
-	while (look(p).type == TOK_NEWLINE) {
+	while (look(p).type == TOK_NEWLINE)
 		next(p);
-	}
 }
 
 static Node *parse_stmt(Parser *p)

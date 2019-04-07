@@ -31,7 +31,26 @@ typedef struct Var {
 	int mut;
 } Var;
 
+enum TypeKind {
+	T_PTR,
+	T_ARRAY,
+	T_CANON,
+};
+
+// Type represents every type present in a program.
+// Each type has a one-to-one correspondence with each Type object, and
+// therefore the equality check between two types can be done by directly
+// comparing Type * pointers.
+//
+// All Types have a pointer to their canonical type.
+// Canonical type is the 'atom' type that is actually being associated with.
+// For example, the canonical type of a pointer type is the type that it points
+// to, and an array type the type of its elements.
+// Canonical types has their `kind` value as T_CANON, and `canon_type` as NULL.
 typedef struct Type {
+	enum TypeKind kind;
+	Name *name;
+	struct Type *canon_type;
 } Type;
 
 typedef struct Decl {

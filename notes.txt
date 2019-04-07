@@ -1,6 +1,7 @@
 TODO
 ====
 
+* Push keywords to the name table
 * Memory leak in symbol table
 * Sema error location report
 * Tests

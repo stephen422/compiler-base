@@ -12,7 +12,7 @@ typedef struct {
 typedef struct {
 	Lexer lexer;	      // lexer driven by this parser
 	Token *token_cache;   // lookahead tokens cache
-	int cache_index;      // current lookahead position in token_cache
+	int cache_pos;        // current lookahead position in token_cache
 	Error *errors;	      // list of possible parse errors
 	Node **nodep_buf;     // pointers to the allocated nodes
 	NameTable name_table; // name table

@@ -73,7 +73,7 @@ static struct token_map symbols[] = {
     {"$", TOK_DOLLAR},
     {"%", TOK_PERCENT},
     {"-", TOK_DASH},
-    {NULL, 0} // terminator
+    {NULL, 0}
 };
 
 static struct token_map keywords[] = {
@@ -85,7 +85,7 @@ static struct token_map keywords[] = {
     {"if", TOK_IF},
     {"else", TOK_ELSE},
     {"for", TOK_FOR},
-    {NULL, 0} // terminator
+    {NULL, 0}
 };
 
 static char *readfile(const char *filename, long *filesize)

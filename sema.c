@@ -27,6 +27,16 @@ static void error(const char *fmt, ...)
 	exit(EXIT_FAILURE);
 }
 
+static Type *make_type(Name *name, Type *canon_type)
+{
+	Type *type = calloc(1, sizeof(Type));
+
+	type->name = name;
+	type->canon_type = canon_type;
+
+	return type;
+}
+
 static Decl *make_decl(Name *name, Type *type)
 {
 	Decl *decl = calloc(1, sizeof(Decl));
@@ -74,10 +84,10 @@ static void map_init(Map *map)
 	*map = calloc(HASHTABLE_SIZE, sizeof(Symbol *));
 }
 
-static Symbol *map_find(Map tab, Name *name) {
+static Symbol *map_find(Map map, Name *name) {
 	int index = hash(name) % HASHTABLE_SIZE;
 
-	for (Symbol *s = tab[index]; s; s = s->next)
+	for (Symbol *s = map[index]; s; s = s->next)
 		if (s->name == name)
 			return s;
 
@@ -85,10 +95,12 @@ static Symbol *map_find(Map tab, Name *name) {
 }
 
 static void map_push(Map map, Name *name, void *value) {
+	int i;
+
 	if (map_find(map, name) != NULL)
 		return;
 
-	int i = hash(name) % HASHTABLE_SIZE;
+	i = hash(name) % HASHTABLE_SIZE;
 	Symbol **p = &map[i];
 	Symbol *s = make_symbol(name, value);
 
@@ -140,10 +152,17 @@ void traverse(Node *node) {
 	}
 }
 
+static void setup_builtin_types(void)
+{
+}
+
 void sema(Node *node)
 {
 	map_init(&declmap);
 	map_init(&typemap);
+
+	// Start by pushing built-in types into the type map.
+	setup_builtin_types();
 
 	traverse(node);
 
