@@ -10,9 +10,9 @@ $(PROG): $(OBJ)
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-main.o: sema.h parser.h lexer.h
-sema.o: sema.h parser.h lexer.h
-parser.o: parser.h lexer.h
+main.o: sema.h parser.h ast.h lexer.h sema.h
+sema.o: sema.h ast.h lexer.h sema.h
+parser.o: parser.h ast.h lexer.h sema.h
 lexer.o: lexer.h
 
 .PHONY: clean

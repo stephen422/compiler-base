@@ -12,7 +12,7 @@ static int is_decl_start(Parser *p);
 static Node *parse_decl(Parser *p);
 static Name *get_or_push_name(Parser *p, Token tok);
 
-static Node *make_node(Parser *p, NodeType t, Token tok)
+static Node *make_node(Parser *p, NodeKind k, Token tok)
 {
 	// TODO: maybe store all nodes in a contiguous buffer for better locality?
 	// Should be careful about node pointers going stale though
@@ -21,7 +21,7 @@ static Node *make_node(Parser *p, NodeType t, Token tok)
 		fprintf(stderr, "alloc error\n");
 		exit(1);
 	}
-	node->type = t;
+	node->kind = k;
 	node->token = tok;
 	sb_push(p->nodep_buf, node);
 	return node;
@@ -67,7 +67,7 @@ static Node *make_compoundstmt(Parser *p)
 	return node;
 }
 
-static Node *make_unaryexpr(Parser *p, NodeType t, Node *expr)
+static Node *make_unaryexpr(Parser *p, NodeKind t, Node *expr)
 {
 	Node *node = make_node(p, t, look(p));
 	node->expr = expr;
@@ -142,7 +142,7 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
 
 	iprintf(indent, "");
 
-	switch (node->type) {
+	switch (node->kind) {
 	case ND_FILE:
 		printf("[File]\n");
 		indent += 2;
@@ -238,7 +238,7 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
 		indent -= 2;
 		break;
 	default:
-		fprintf(stderr, "%s: unrecognized node type %d\n", __func__, node->type);
+		fprintf(stderr, "%s: unrecognized node type %d\n", __func__, node->kind);
 		break;
 	}
 }

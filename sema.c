@@ -1,4 +1,5 @@
 #include "sema.h"
+#include "ast.h"
 #include "stretchy_buffer.h"
 #include <stdio.h>
 #include <stdint.h>
@@ -43,9 +44,11 @@ static void free_decl(Decl *decl)
 
 static uint64_t hash(const void *p) {
 	uint64_t x = (uint64_t)p;
+
 	x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
 	x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
 	x = x ^ (x >> 31);
+
 	return x;
 }
 
@@ -104,7 +107,7 @@ static void map_free(Map *map)
 void traverse(Node *node) {
 	Decl *decl;
 
-	switch (node->type) {
+	switch (node->kind) {
 	case ND_FILE:
 		for (int i = 0; i < sb_count(node->nodes); i++)
 			traverse(node->nodes[i]);
@@ -131,8 +134,8 @@ void traverse(Node *node) {
 		}
 		break;
 	default:
-		fprintf(stderr, "%s: don't know how to traverse node type %d\n",
-			__func__, node->type);
+		fprintf(stderr, "%s: don't know how to traverse node kind %d\n",
+			__func__, node->kind);
 		break;
 	}
 }
