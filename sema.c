@@ -29,6 +29,56 @@ static void error(const char *fmt, ...)
 	exit(EXIT_FAILURE);
 }
 
+///
+/// Name table API
+///
+
+static uint64_t strhash(const char *text, int len)
+{
+	uint64_t hash = 5381;
+	for (int i = 0; i < len; i++) {
+		int c = text[i];
+		hash = ((hash << 5) + hash) + c; // hash * 33 + c
+		len--;
+	}
+	return hash;
+}
+
+Name *push_name(NameTable *nt, char *s, size_t len)
+{
+	int i = strhash(s, len) % NAMETABLE_SIZE;
+	Name *name = calloc(1, sizeof(Name));
+	Name **p;
+
+	name->text = calloc(len + 1, sizeof(char));
+	strncpy(name->text, s, len);
+
+	p = &nt->keys[i];
+	name->next = *p;
+	*p = name;
+	return *p;
+}
+
+Name *get_name(NameTable *nt, char *s, size_t len)
+{
+	int index = strhash(s, len) % NAMETABLE_SIZE;
+
+	for (Name *n = nt->keys[index]; n; n = n->next)
+		if (strlen(n->text) == len && !strncmp(n->text, s, len))
+			return n;
+
+	return NULL;
+}
+
+Name *get_or_push_name(NameTable *nt, char *s, size_t len)
+{
+	Name *name = get_name(nt, s, len);
+
+	if (!name)
+		name = push_name(nt, s, len);
+	return name;
+}
+
 static Type *make_type(Name *name, Type *canon_type)
 {
 	Type *type = calloc(1, sizeof(Type));
@@ -54,7 +104,7 @@ static void free_decl(Decl *decl)
 	free(decl);
 }
 
-static uint64_t hash(const void *p) {
+static uint64_t ptrhash(const void *p) {
 	uint64_t x = (uint64_t)p;
 
 	x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
@@ -87,7 +137,7 @@ static void map_init(Map *map)
 }
 
 static Symbol *map_find(Map map, Name *name) {
-	int index = hash(name) % HASHTABLE_SIZE;
+	int index = ptrhash(name) % HASHTABLE_SIZE;
 
 	for (Symbol *s = map[index]; s; s = s->next)
 		if (s->name == name)
@@ -102,7 +152,7 @@ static void map_push(Map map, Name *name, void *value) {
 	if (map_find(map, name) != NULL)
 		return;
 
-	i = hash(name) % HASHTABLE_SIZE;
+	i = ptrhash(name) % HASHTABLE_SIZE;
 	Symbol **p = &map[i];
 	Symbol *s = make_symbol(name, value);
 

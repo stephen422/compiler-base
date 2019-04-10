@@ -1,6 +1,8 @@
 #ifndef SEMA_H
 #define SEMA_H
 
+#include <stdlib.h>
+
 #define HASHTABLE_SIZE 512
 
 // A Name corresponds to any single unique identifier string in the source
@@ -23,6 +25,10 @@ struct NameTable {
 	Name *keys[NAMETABLE_SIZE];
 	Name *name_buf; // memory buffer that stores Names
 };
+
+Name *push_name(NameTable *nt, char *s, size_t len);
+Name *get_name(NameTable *nt, char *s, size_t len);
+Name *get_or_push_name(NameTable *nt, char *s, size_t len);
 
 typedef struct Func {
 } Func;

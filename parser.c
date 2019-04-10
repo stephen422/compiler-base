@@ -10,7 +10,7 @@ static Token look(Parser *p);
 static Node *parse_expr(Parser *p);
 static int is_decl_start(Parser *p);
 static Node *parse_decl(Parser *p);
-static Name *get_or_push_name(Parser *p, Token tok);
+static Name *register_name(Parser *p, Token tok);
 
 static Node *make_node(Parser *p, NodeKind k, Token tok)
 {
@@ -306,7 +306,7 @@ static void next(Parser *p)
 
 	// Push keywords that we come by into the name table.
 	if (is_keyword(look(p)))
-		get_or_push_name(p, look(p));
+		register_name(p, look(p));
 }
 
 static void add_error(Parser *p, SrcLoc loc, const char *msg)
@@ -500,7 +500,7 @@ static Node *parse_typeexpr(Parser *p)
 			return NULL;
 		}
 
-		name = get_or_push_name(p, look(p));
+		name = register_name(p, look(p));
 		next(p);
 	}
 
@@ -509,7 +509,7 @@ static Node *parse_typeexpr(Parser *p)
 
 static Node *parse_refexpr(Parser *p)
 {
-	Name *name = get_or_push_name(p, look(p));
+	Name *name = register_name(p, look(p));
 	next(p);
 	return make_refexpr(p, name);
 }
@@ -627,7 +627,7 @@ static int is_paramdecl_start(Parser *p)
 static Node *parse_paramdecl(Parser *p)
 {
 	Token tok = expect(p, TOK_IDENT);
-	Name *name = get_or_push_name(p, tok);
+	Name *name = register_name(p, tok);
 
 	if (look(p).type != TOK_COLON) {
 		error_expected(p, TOK_COLON);
@@ -665,7 +665,7 @@ static Node *parse_vardecl(Parser *p)
 	next(p);
 
 	Token tok = expect(p, TOK_IDENT);
-	Name *name = get_or_push_name(p, tok);
+	Name *name = register_name(p, tok);
 
 	if (look(p).type == TOK_COLON) {
 		next(p);
@@ -724,7 +724,7 @@ static Node *parse_funcdecl(Parser *p)
 	}
 	next(p);
 
-	Name *name = get_or_push_name(p, look(p));
+	Name *name = register_name(p, look(p));
 	Node *func = make_funcdecl(p, name);
 	next(p);
 
@@ -758,59 +758,7 @@ Node *parse(Parser *p)
 	return make_file(p, nodes);
 }
 
-static uint64_t hash(const char *text, int len)
+static Name *register_name(Parser *p, Token tok)
 {
-	uint64_t hash = 5381;
-	for (int i = 0; i < len; i++) {
-		int c = text[i];
-		hash = ((hash << 5) + hash) + c; // hash * 33 + c
-		len--;
-	}
-	return hash;
-}
-
-static char *copy_source_range(Parser *p, SrcRange range)
-{
-	int len = range.end - range.start;
-	char *s = calloc(len + 1, sizeof(char));
-
-	memcpy(s, p->lexer.src + range.start, len);
-
-	return s;
-}
-
-static Name *push_name(Parser *p, Token tok)
-{
-	Name *name = calloc(1, sizeof(Name));
-	name->text = copy_source_range(p, tok.range);
-
-	size_t len = tok.range.end - tok.range.start;
-	int index = hash(name->text, len) % NAMETABLE_SIZE;
-	Name **keyp = &p->name_table.keys[index];
-	name->next = *keyp;
-	*keyp = name;
-	return *keyp;
-}
-
-static Name *get_name(Parser *p, Token tok)
-{
-	char *src_text = p->lexer.src + tok.range.start;
-	size_t len = tok.range.end - tok.range.start;
-	int index = hash(src_text, len) % NAMETABLE_SIZE;
-
-	for (Name *n = p->name_table.keys[index]; n; n = n->next) {
-		if (strlen(n->text) == len && !strncmp(n->text, src_text, len))
-			return n;
-	}
-
-	return NULL;
-}
-
-static Name *get_or_push_name(Parser *p, Token tok)
-{
-	Name *name = get_name(p, tok);
-
-	if (!name)
-		name = push_name(p, tok);
-	return name;
+	return get_or_push_name(&p->name_table, p->lexer.src + tok.range.start, tok.range.end - tok.range.start);
 }
