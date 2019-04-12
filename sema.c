@@ -168,7 +168,6 @@ static Symbol *map_find(Map *m, Name *name) {
 	for (Symbol *s = m->buckets[index]; s; s = s->next)
 		if (s->name == name)
 			return s;
-
 	return NULL;
 }
 
@@ -218,15 +217,15 @@ static void map_pop_scope(Map *m)
 	Symbol *s = m->scopes[m->n_scope-1];
 	while (s) {
 		int i = ptrhash(s->name) % HASHTABLE_SIZE;
-		m->buckets[i]->next = s->next;
+		m->buckets[i] = s->next;
 
 		Symbol *t = s->cross;
 		free_symbol(s);
 		s = t;
 	}
 
-	sb_len(m->scopes)--;
 	m->n_scope--;
+	sb_len(m->scopes) = m->n_scope;
 }
 
 static void push_scope(void)
@@ -269,7 +268,11 @@ void traverse(Node *node) {
 			traverse(node->nodes[i]);
 		break;
 	case ND_FUNCDECL:
+		push_scope();
+		for (int i = 0; i < sb_count(node->paramdecls); i++)
+			traverse(node->paramdecls[i]);
 		traverse(node->body);
+		pop_scope();
 		break;
 	case ND_REFEXPR:
 		if (!map_find(&declmap, node->name))
@@ -286,6 +289,13 @@ void traverse(Node *node) {
 		break;
 	case ND_EXPRSTMT:
 		traverse(node->expr);
+		break;
+	case ND_PARAMDECL:
+		if (is_redefinition(&declmap, node->name))
+			error("redefinition of '%s'", node->name->text);
+
+		decl = make_decl(node->name, NULL);
+		map_push(&declmap, node->name, decl);
 		break;
 	case ND_VARDECL:
 		if (is_redefinition(&declmap, node->name))
