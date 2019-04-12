@@ -764,5 +764,5 @@ ASTContext parse(Parser *p)
 
 static Name *register_name(Parser *p, Token tok)
 {
-	return get_or_push_name(&p->nametable, p->lexer.src + tok.range.start, tok.range.end - tok.range.start);
+	return push_name(&p->nametable, p->lexer.src + tok.range.start, tok.range.end - tok.range.start);
 }

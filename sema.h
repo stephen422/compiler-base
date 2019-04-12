@@ -87,8 +87,8 @@ typedef struct Map {
 
 typedef struct Node Node;
 
-// Traverse the AST starting from 'node' as the root node.
-void traverse(Node *node);
+// Walk the AST starting from 'node' as the root node.
+void walk(Node *node);
 void sema(ASTContext sema);
 
 #endif

@@ -9,6 +9,8 @@
 
 static Map declmap;
 static Map typemap;
+static Type *i32_type;
+static Type *i64_type;
 
 extern struct token_map keywords[];
 static void map_push_scope(Map *m);
@@ -57,16 +59,21 @@ static uint64_t strhash(const char *text, int len)
 
 Name *push_name(NameTable *nt, char *s, size_t len)
 {
-	int i = strhash(s, len) % NAMETABLE_SIZE;
-	Name *name = calloc(1, sizeof(Name));
-	Name **p;
+	Name *n, **p;
+	int i;
 
-	name->text = calloc(len + 1, sizeof(char));
-	strncpy(name->text, s, len);
+	n = get_name(nt, s, len);
+	if (n)
+		return n;
+
+	i = strhash(s, len) % NAMETABLE_SIZE;
+	n = calloc(1, sizeof(Name));
+	n->text = calloc(len + 1, sizeof(char));
+	strncpy(n->text, s, len);
 
 	p = &nt->keys[i];
-	name->next = *p;
-	*p = name;
+	n->next = *p;
+	*p = n;
 
 	return *p;
 }
@@ -80,16 +87,6 @@ Name *get_name(NameTable *nt, char *s, size_t len)
 			return n;
 
 	return NULL;
-}
-
-Name *get_or_push_name(NameTable *nt, char *s, size_t len)
-{
-	Name *name = get_name(nt, s, len);
-
-	if (!name)
-		name = push_name(nt, s, len);
-
-	return name;
 }
 
 static Type *make_type(Name *name, Type *canon_type)
@@ -163,22 +160,22 @@ static void map_destroy(Map *m)
 }
 
 static Symbol *map_find(Map *m, Name *name) {
-	int index = ptrhash(name) % HASHTABLE_SIZE;
+	int i = ptrhash(name) % HASHTABLE_SIZE;
 
-	for (Symbol *s = m->buckets[index]; s; s = s->next)
+	for (Symbol *s = m->buckets[i]; s; s = s->next)
 		if (s->name == name)
 			return s;
 	return NULL;
 }
 
-static void map_push(Map *m, Name *name, void *value) {
+static Symbol *map_push(Map *m, Name *name, void *value) {
 	Symbol *found, *s, **p;
 	int i;
 
 	found = map_find(m, name);
 	if (found && found->scope == m->n_scope - 1)
 		/* same one in current scope */
-		return;
+		return found;
 
 	i = ptrhash(name) % HASHTABLE_SIZE;
 	s = make_symbol(m, name, value);
@@ -192,6 +189,8 @@ static void map_push(Map *m, Name *name, void *value) {
 	p = &m->scopes[m->n_scope-1];
 	s->cross = *p;
 	*p = s;
+
+	return s;
 }
 
 static void free_bucket(Symbol *s)
@@ -244,10 +243,18 @@ static void map_print(const Map *m)
 {
 	for (int i = 0; i < m->n_scope; i++) {
 		printf("[Scope %d]:", i);
-
 		for (Symbol *s = m->scopes[i]; s; s = s->cross)
 			printf(" {%s}", s->name->text);
+		printf("\n");
+	}
 
+	for (int i = 0; i < HASHTABLE_SIZE; i++) {
+		if (!m->buckets[i])
+			continue;
+
+		printf("[%2d]:", i);
+		for (Symbol *s = m->buckets[i]; s; s = s->next)
+			printf(" {%s}", s->name->text);
 		printf("\n");
 	}
 }
@@ -259,36 +266,49 @@ static int is_redefinition(Map *m, Name *name)
 	return s && (s->scope == m->n_scope - 1);
 }
 
-void traverse(Node *node) {
+void walk(Node *node) {
 	Decl *decl;
+	Symbol *s;
 
 	switch (node->kind) {
 	case ND_FILE:
 		for (int i = 0; i < sb_count(node->nodes); i++)
-			traverse(node->nodes[i]);
+			walk(node->nodes[i]);
 		break;
 	case ND_FUNCDECL:
 		push_scope();
 		for (int i = 0; i < sb_count(node->paramdecls); i++)
-			traverse(node->paramdecls[i]);
-		traverse(node->body);
+			walk(node->paramdecls[i]);
+		walk(node->body);
 		pop_scope();
+		break;
+	case ND_TYPEEXPR:
+		s = map_find(&typemap, node->name);
+		if (s)
+			node->type = s->value;
 		break;
 	case ND_REFEXPR:
 		if (!map_find(&declmap, node->name))
 			error("'%s' is not declared", node->name->text);
 		break;
 	case ND_LITEXPR:
+		/* TODO: proper type inferrence */
+		node->type = i32_type;
 		break;
 	case ND_DEREFEXPR:
-		traverse(node->expr);
+		walk(node->expr);
 		break;
 	case ND_BINEXPR:
-		traverse(node->lhs);
-		traverse(node->rhs);
+		walk(node->lhs);
+		walk(node->rhs);
+
+		if (node->lhs->type != node->rhs->type) {
+			printf("%s vs %s\n", node->lhs->type->name->text, node->rhs->type->name->text);
+			error("LHS and RHS of binary expression differs in type");
+		}
 		break;
 	case ND_EXPRSTMT:
-		traverse(node->expr);
+		walk(node->expr);
 		break;
 	case ND_PARAMDECL:
 		if (is_redefinition(&declmap, node->name))
@@ -301,43 +321,60 @@ void traverse(Node *node) {
 		if (is_redefinition(&declmap, node->name))
 			error("redefinition of '%s'", node->name->text);
 
+		/* infer type from assignment. */
+		if (node->expr) {
+			walk(node->expr);
+			node->type = node->expr->type;
+		}
+		/* else, try explicit type specification. */
+		else if (node->typeexpr) {
+			walk(node->typeexpr);
+			node->type = node->typeexpr->type;
+		} else
+			assert(0 && "unreachable");
+
+		if (!node->type)
+			/* inferrence failure */
+			error("cannot infer type of '%s'", node->name->text);
+
 		decl = make_decl(node->name, NULL);
 		map_push(&declmap, node->name, decl);
 		break;
 	case ND_DECLSTMT:
-		traverse(node->decl);
+		walk(node->decl);
 		break;
 	case ND_ASSIGNSTMT:
 		/* RHS first */
-		traverse(node->rhs);
-		traverse(node->lhs);
+		walk(node->rhs);
+		walk(node->lhs);
 		break;
 	case ND_RETURNSTMT:
+		walk(node->expr);
 		break;
 	case ND_COMPOUNDSTMT:
 		push_scope();
 		for (int i = 0; i < sb_count(node->nodes); i++)
-			traverse(node->nodes[i]);
+			walk(node->nodes[i]);
 		pop_scope();
 		break;
 	default:
-		fprintf(stderr, "%s: don't know how to traverse node kind %d\n",
+		fprintf(stderr, "%s: don't know how to walk node kind %d\n",
 		        __func__, node->kind);
 		break;
 	}
 }
 
-static void setup_type_from_str(NameTable *nt, char *s)
+static Type *setup_type_from_str(NameTable *nt, char *s)
 {
 	Name *n = push_name(nt, s, strlen(s));
 	Type *t = make_type(n, NULL);
-	map_push(&typemap, n, t);
+	return map_push(&typemap, n, t)->value;
 }
 
 static void setup_builtin_types(NameTable *nt)
 {
-	setup_type_from_str(nt, "i32");
-	setup_type_from_str(nt, "i64");
+	i32_type = setup_type_from_str(nt, "i32");
+	i64_type = setup_type_from_str(nt, "i64");
 }
 
 void sema(ASTContext ast)
@@ -345,10 +382,9 @@ void sema(ASTContext ast)
 	map_init(&declmap);
 	map_init(&typemap);
 
-	// Start by pushing built-in types into the type map.
 	setup_builtin_types(ast.nametable);
 
-	traverse(ast.root);
+	walk(ast.root);
 
 	map_destroy(&declmap);
 	map_destroy(&typemap);
