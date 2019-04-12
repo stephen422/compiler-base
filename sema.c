@@ -257,9 +257,7 @@ static int is_redefinition(Map *m, Name *name)
 {
 	Symbol *s = map_find(m, name);
 
-	if (s && s->scope == m->n_scope - 1)
-		return 1;
-	return 0;
+	return s && (s->scope == m->n_scope - 1);
 }
 
 void traverse(Node *node) {
@@ -273,7 +271,21 @@ void traverse(Node *node) {
 	case ND_FUNCDECL:
 		traverse(node->body);
 		break;
+	case ND_REFEXPR:
+		if (!map_find(&declmap, node->name))
+			error("'%s' is not declared", node->name->text);
+		break;
+	case ND_LITEXPR:
+		break;
+	case ND_DEREFEXPR:
+		traverse(node->expr);
+		break;
+	case ND_BINEXPR:
+		traverse(node->lhs);
+		traverse(node->rhs);
+		break;
 	case ND_EXPRSTMT:
+		traverse(node->expr);
 		break;
 	case ND_VARDECL:
 		if (is_redefinition(&declmap, node->name))
@@ -284,6 +296,11 @@ void traverse(Node *node) {
 		break;
 	case ND_DECLSTMT:
 		traverse(node->decl);
+		break;
+	case ND_ASSIGNSTMT:
+		/* RHS first */
+		traverse(node->rhs);
+		traverse(node->lhs);
 		break;
 	case ND_RETURNSTMT:
 		break;

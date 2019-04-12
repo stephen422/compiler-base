@@ -1,6 +1,6 @@
 fn main() -> int {
-    let letb = 4
-    var a: int
+    let a = 4
+    var b: int
     a * b + 2
     b = 3
 
@@ -13,7 +13,6 @@ fn main() -> int {
 
 fn swap(a: &int, b: int) -> int {
     let t = *a
-    var a: i32
     *a = *b
     *b = t
 }
