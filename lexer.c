@@ -128,7 +128,7 @@ static void step(Lexer *l)
 
 int lexer_init(Lexer *l, const char *filename)
 {
-	*l = (const Lexer) {0};
+	memset(l, 0, sizeof(Lexer));
 	l->filename = malloc(256);
 	l->filename = memcpy(l->filename, filename, 255);
 	l->filename[255] = '\0';

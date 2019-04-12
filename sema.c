@@ -36,11 +36,13 @@ static void error(const char *fmt, ...)
 static uint64_t strhash(const char *text, int len)
 {
 	uint64_t hash = 5381;
+
 	for (int i = 0; i < len; i++) {
 		int c = text[i];
 		hash = ((hash << 5) + hash) + c; // hash * 33 + c
 		len--;
 	}
+
 	return hash;
 }
 
@@ -56,6 +58,7 @@ Name *push_name(NameTable *nt, char *s, size_t len)
 	p = &nt->keys[i];
 	name->next = *p;
 	*p = name;
+
 	return *p;
 }
 
@@ -76,6 +79,7 @@ Name *get_or_push_name(NameTable *nt, char *s, size_t len)
 
 	if (!name)
 		name = push_name(nt, s, len);
+
 	return name;
 }
 
@@ -104,6 +108,10 @@ static void free_decl(Decl *decl)
 	free(decl);
 }
 
+///
+/// Symbol map API
+///
+
 static uint64_t ptrhash(const void *p) {
 	uint64_t x = (uint64_t)p;
 
@@ -131,41 +139,40 @@ static void free_symbol(Symbol *s) {
 	free(s);
 }
 
-static void map_init(Map *map)
+static void map_init(Map *m)
 {
-	*map = calloc(HASHTABLE_SIZE, sizeof(Symbol *));
+	memset(m, 0, sizeof(Map));
 }
 
-static Symbol *map_find(Map map, Name *name) {
+static Symbol *map_find(Map *m, Name *name) {
 	int index = ptrhash(name) % HASHTABLE_SIZE;
 
-	for (Symbol *s = map[index]; s; s = s->next)
+	for (Symbol *s = m->heads[index]; s; s = s->next)
 		if (s->name == name)
 			return s;
 
 	return NULL;
 }
 
-static void map_push(Map map, Name *name, void *value) {
+static void map_push(Map *m, Name *name, void *value) {
 	int i;
 
-	if (map_find(map, name) != NULL)
+	if (map_find(m, name) != NULL)
 		return;
 
 	i = ptrhash(name) % HASHTABLE_SIZE;
-	Symbol **p = &map[i];
+	Symbol **p = &m->heads[i];
 	Symbol *s = make_symbol(name, value);
 
 	s->next = *p;
 	*p = s;
 }
 
-static void map_free(Map *map)
+static void map_destroy(Map *m)
 {
 	for (int i = 0; i < HASHTABLE_SIZE; i++)
-		if ((*map)[i])
-			free_symbol((*map)[i]);
-	free(*map);
+		if (m->heads[i])
+			free_symbol(m->heads[i]);
 }
 
 void traverse(Node *node) {
@@ -182,10 +189,10 @@ void traverse(Node *node) {
 	case ND_EXPRSTMT:
 		break;
 	case ND_VARDECL:
-		if (map_find(declmap, node->name) != NULL)
+		if (map_find(&declmap, node->name) != NULL)
 			error("redefinition of '%s'", node->name->text);
 		decl = make_decl(node->name, NULL);
-		map_push(declmap, node->name, decl);
+		map_push(&declmap, node->name, decl);
 		break;
 	case ND_DECLSTMT:
 		traverse(node->decl);
@@ -193,9 +200,8 @@ void traverse(Node *node) {
 	case ND_RETURNSTMT:
 		break;
 	case ND_COMPOUNDSTMT:
-		for (int i = 0; i < sb_count(node->nodes); i++) {
+		for (int i = 0; i < sb_count(node->nodes); i++)
 			traverse(node->nodes[i]);
-		}
 		break;
 	default:
 		fprintf(stderr, "%s: don't know how to traverse node kind %d\n",
@@ -204,11 +210,17 @@ void traverse(Node *node) {
 	}
 }
 
+static void setup_type_from_str(NameTable *nt, char *s)
+{
+	Name *n = push_name(nt, s, strlen(s));
+	Type *t = make_type(n, NULL);
+	map_push(&typemap, n, t);
+}
+
 static void setup_builtin_types(NameTable *nt)
 {
-	Name *int_name = push_name(nt, "int", 3);
-	Type *int_type = make_type(int_name, NULL);
-	map_push(typemap, int_name, int_type);
+	setup_type_from_str(nt, "i32");
+	setup_type_from_str(nt, "i64");
 }
 
 void sema(ASTContext ast)
@@ -221,6 +233,6 @@ void sema(ASTContext ast)
 
 	traverse(ast.root);
 
-	map_free(&declmap);
-	map_free(&typemap);
+	map_destroy(&declmap);
+	map_destroy(&typemap);
 }

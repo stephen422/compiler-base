@@ -1,8 +1,7 @@
 TODO
 ====
 
-* Push keywords to the name table
-  * Push char * to the name table
+* VarDecl sema
 * Memory leak in symbol table
 * Sema error location report
 * Tests

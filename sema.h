@@ -15,10 +15,11 @@ struct Name {
 	Name *next;
 };
 
-// A NameTable is a hash table of Names queried by their raw string.  It serves
-// to reduce the number of string hashing operation, since we can lookup the
-// symbol table using Name instead of raw char * throughout the semantic
-// analysis.
+/* A NameTable is a hash table of Names queried by their raw string.  It serves
+ * to reduce the number of string hashing operation, since we can lookup the
+ * symbol table using Name instead of raw char * throughout the semantic
+ * analysis.
+ */
 #define NAMETABLE_SIZE 512
 
 typedef struct NameTable {
@@ -43,16 +44,18 @@ enum TypeKind {
 	T_CANON,
 };
 
-// Type represents every type present in a program.
-// Each type has a one-to-one correspondence with each Type object, and
-// therefore the equality check between two types can be done by directly
-// comparing Type * pointers.
-//
-// All Types have a pointer to their canonical type.
-// Canonical type is the 'atom' type that is actually being associated with.
-// For example, the canonical type of a pointer type is the type that it points
-// to, and an array type the type of its elements.
-// Canonical types has their `kind` value as T_CANON, and `canon_type` as NULL.
+/* Type represents every type present in a program.
+ * Each type has a one-to-one correspondence with each Type object, and
+ * therefore the equality check between two types can be done by directly
+ * comparing Type * pointers.
+ *
+ * All Types have a pointer to their canonical type.  Canonical type is the
+ * 'atom' type that is actually being associated with.  For example, the
+ * canonical type of a pointer type is the type that it points to, and an array
+ * type the type of its elements.
+ *
+ * Canonical types has their `kind` value as T_CANON, and `canon_type` as NULL.
+ */
 typedef struct Type {
 	enum TypeKind kind;
 	Name *name;
@@ -61,19 +64,23 @@ typedef struct Type {
 
 typedef struct Decl {
 	Name *name;
+	int scope;
 	Type *type;
 } Decl;
 
 typedef struct Symbol {
 	Name *name;
+	int scope;
 	void *value;
 	struct Symbol *next;  // link to symbol in the same bucket
 	struct Symbol *cross; // cross link to symbol in the same scope
 } Symbol;
 
-// A Map, or a symbol table.
-// This type is intended to be small.
-typedef Symbol **Map;
+/* A Map, or a symbol table. */
+typedef struct Map {
+	Symbol *heads[HASHTABLE_SIZE];
+	int scope; /* current scope level */
+} Map;
 
 typedef struct Node Node;
 
