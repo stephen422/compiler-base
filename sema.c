@@ -195,15 +195,6 @@ static void free_bucket(Symbol *s)
 	}
 }
 
-static void free_crosslink(Symbol *s)
-{
-	while (s) {
-		Symbol *t = s->cross;
-		free_symbol(s);
-		s = t;
-	}
-}
-
 static void map_push_scope(Map *m)
 {
 	m->n_scope++;
@@ -212,8 +203,19 @@ static void map_push_scope(Map *m)
 
 static void map_pop_scope(Map *m)
 {
-	assert(m->n_scope > 0);
-	free_crosslink(m->scopes[m->n_scope-1]);
+	assert(m->n_scope > 0 && "attempt to pop from empty map!");
+
+	/* free the cross link */
+	Symbol *s = m->scopes[m->n_scope-1];
+	while (s) {
+		int i = ptrhash(s->name) % HASHTABLE_SIZE;
+		m->buckets[i]->next = s->next;
+
+		Symbol *t = s->cross;
+		free_symbol(s);
+		s = t;
+	}
+
 	sb_len(m->scopes)--;
 	m->n_scope--;
 }
