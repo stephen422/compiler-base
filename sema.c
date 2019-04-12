@@ -5,11 +5,14 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <string.h>
+#include <assert.h>
 
 static Map declmap;
 static Map typemap;
 
 extern struct token_map keywords[];
+static void map_push_scope(Map *m);
+static void map_print(const Map *m);
 
 static void fatal(const char *msg) {
 	fprintf(stderr, "%s\n", msg);
@@ -25,6 +28,11 @@ static void error(const char *fmt, ...)
 	vfprintf(stderr, fmt, args);
 	va_end(args);
 	fprintf(stderr, "\n");
+
+	printf("==== declmap ====\n");
+	map_print(&declmap);
+	printf("==== typemap ====\n");
+	map_print(&typemap);
 
 	exit(EXIT_FAILURE);
 }
@@ -142,12 +150,13 @@ static void free_symbol(Symbol *s) {
 static void map_init(Map *m)
 {
 	memset(m, 0, sizeof(Map));
+	map_push_scope(m);
 }
 
 static Symbol *map_find(Map *m, Name *name) {
 	int index = ptrhash(name) % HASHTABLE_SIZE;
 
-	for (Symbol *s = m->heads[index]; s; s = s->next)
+	for (Symbol *s = m->buckets[index]; s; s = s->next)
 		if (s->name == name)
 			return s;
 
@@ -155,24 +164,89 @@ static Symbol *map_find(Map *m, Name *name) {
 }
 
 static void map_push(Map *m, Name *name, void *value) {
+	Symbol *found, *s, **p;
 	int i;
 
-	if (map_find(m, name) != NULL)
+	found = map_find(m, name);
+	if (found && found->scope == m->n_scope - 1)
+		/* same one in current scope */
 		return;
 
 	i = ptrhash(name) % HASHTABLE_SIZE;
-	Symbol **p = &m->heads[i];
-	Symbol *s = make_symbol(name, value);
+	s = make_symbol(name, value);
 
+	/* insert into the bucket */
+	p = &m->buckets[i];
 	s->next = *p;
 	*p = s;
+
+	/* swap scope head */
+	p = &m->scopes[m->n_scope-1];
+	s->cross = *p;
+	*p = s;
+}
+
+static void free_bucket(Symbol *s)
+{
+	while (s) {
+		Symbol *t = s->next;
+		free_symbol(s);
+		s = t;
+	}
+}
+
+static void free_crosslink(Symbol *s)
+{
+	while (s) {
+		Symbol *t = s->cross;
+		free_symbol(s);
+		s = t;
+	}
+}
+
+static void map_push_scope(Map *m)
+{
+	m->n_scope++;
+	sb_push(m->scopes, NULL);
+}
+
+static void map_pop_scope(Map *m)
+{
+	assert(m->n_scope > 0);
+	free_crosslink(m->scopes[m->n_scope-1]);
+	sb_len(m->scopes)--;
+	m->n_scope--;
 }
 
 static void map_destroy(Map *m)
 {
-	for (int i = 0; i < HASHTABLE_SIZE; i++)
-		if (m->heads[i])
-			free_symbol(m->heads[i]);
+	for (int i = 0; i < m->n_scope; i++)
+		map_pop_scope(m);
+	sb_free(m->scopes);
+}
+
+static void push_scope(void)
+{
+	map_push_scope(&declmap);
+	map_push_scope(&typemap);
+}
+
+static void pop_scope(void)
+{
+	map_pop_scope(&declmap);
+	map_pop_scope(&typemap);
+}
+
+static void map_print(const Map *m)
+{
+	for (int i = 0; i < m->n_scope; i++) {
+		printf("[Scope %d]:", i);
+
+		for (Symbol *s = m->scopes[i]; s; s = s->cross)
+			printf(" {%s}", s->name->text);
+
+		printf("\n");
+	}
 }
 
 void traverse(Node *node) {
@@ -200,8 +274,10 @@ void traverse(Node *node) {
 	case ND_RETURNSTMT:
 		break;
 	case ND_COMPOUNDSTMT:
+		push_scope();
 		for (int i = 0; i < sb_count(node->nodes); i++)
 			traverse(node->nodes[i]);
+		pop_scope();
 		break;
 	default:
 		fprintf(stderr, "%s: don't know how to traverse node kind %d\n",

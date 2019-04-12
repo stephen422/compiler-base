@@ -76,10 +76,13 @@ typedef struct Symbol {
 	struct Symbol *cross; // cross link to symbol in the same scope
 } Symbol;
 
-/* A Map, or a symbol table. */
+/* Map is a generic scoped hash table data structure used for all kinds of
+ * symbols in the program, such as declarations or types.
+ */
 typedef struct Map {
-	Symbol *heads[HASHTABLE_SIZE];
-	int scope; /* current scope level */
+	Symbol *buckets[HASHTABLE_SIZE];
+	Symbol **scopes;
+	int n_scope; /* innermost scope level */
 } Map;
 
 typedef struct Node Node;

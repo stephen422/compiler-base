@@ -1,13 +1,12 @@
 fn main() -> int {
     let letb = 4
-    let a = 3
     var a: int
-    a * b + c
+    a * b + 2
     b = 3
 
     // This is a line comment.
-    let a = 3
-    var b = 4.3 / 3.1415926535
+    let c = 3
+    var d = 4.3 / 3.1415926535
     // return a
     return 3
 }
