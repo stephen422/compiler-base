@@ -52,7 +52,10 @@ typedef struct Node {
 	Node *rettypeexpr;
 } Node;
 
-// ASTContext wraps the root node of AST with metadata such as the name table.
+/* ASTContext wraps the root node of AST with metadata such as the name table.
+ * It does not own any of the metadata, and should consist only of pointers to
+ * the structures.  It is intended to be passed around by value.
+ */
 typedef struct ASTContext {
 	NameTable *nametable;
 	Node *root;

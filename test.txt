@@ -13,6 +13,7 @@ fn main() -> int {
 
 fn swap(a: &int, b: int) -> int {
     let t = *a
+    var a: i32
     *a = *b
     *b = t
 }

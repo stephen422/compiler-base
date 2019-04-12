@@ -12,6 +12,7 @@ static Map typemap;
 
 extern struct token_map keywords[];
 static void map_push_scope(Map *m);
+static void map_pop_scope(Map *m);
 static void map_print(const Map *m);
 
 static void fatal(const char *msg) {
@@ -130,13 +131,14 @@ static uint64_t ptrhash(const void *p) {
 	return x;
 }
 
-static Symbol *make_symbol(Name *name, void *value) {
+static Symbol *make_symbol(Map *m, Name *name, void *value) {
 	Symbol *s;
 
 	s = calloc(1, sizeof(Symbol));
 	if (!s)
 		fatal("out of memory");
 	s->name = name;
+	s->scope = m->n_scope - 1;
 	s->value = value;
 
 	return s;
@@ -151,6 +153,13 @@ static void map_init(Map *m)
 {
 	memset(m, 0, sizeof(Map));
 	map_push_scope(m);
+}
+
+static void map_destroy(Map *m)
+{
+	for (int i = 0; i < m->n_scope; i++)
+		map_pop_scope(m);
+	sb_free(m->scopes);
 }
 
 static Symbol *map_find(Map *m, Name *name) {
@@ -173,7 +182,7 @@ static void map_push(Map *m, Name *name, void *value) {
 		return;
 
 	i = ptrhash(name) % HASHTABLE_SIZE;
-	s = make_symbol(name, value);
+	s = make_symbol(m, name, value);
 
 	/* insert into the bucket */
 	p = &m->buckets[i];
@@ -220,13 +229,6 @@ static void map_pop_scope(Map *m)
 	m->n_scope--;
 }
 
-static void map_destroy(Map *m)
-{
-	for (int i = 0; i < m->n_scope; i++)
-		map_pop_scope(m);
-	sb_free(m->scopes);
-}
-
 static void push_scope(void)
 {
 	map_push_scope(&declmap);
@@ -251,6 +253,15 @@ static void map_print(const Map *m)
 	}
 }
 
+static int is_redefinition(Map *m, Name *name)
+{
+	Symbol *s = map_find(m, name);
+
+	if (s && s->scope == m->n_scope - 1)
+		return 1;
+	return 0;
+}
+
 void traverse(Node *node) {
 	Decl *decl;
 
@@ -265,8 +276,9 @@ void traverse(Node *node) {
 	case ND_EXPRSTMT:
 		break;
 	case ND_VARDECL:
-		if (map_find(&declmap, node->name) != NULL)
+		if (is_redefinition(&declmap, node->name))
 			error("redefinition of '%s'", node->name->text);
+
 		decl = make_decl(node->name, NULL);
 		map_push(&declmap, node->name, decl);
 		break;
