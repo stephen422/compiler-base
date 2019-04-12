@@ -84,7 +84,8 @@ Token Lexer::lex_string() {
 
 Token Lexer::lex_comment() {
     skip_while([](char c) { return c != '\n'; });
-    return make_token_with_literal(TokenKind::comment);
+    auto tok = make_token_with_literal(TokenKind::comment);
+    return tok;
 }
 
 Token Lexer::lex_symbol() {
@@ -108,8 +109,9 @@ Token Lexer::lex_symbol() {
 }
 
 Lexer::char_iterator Lexer::lookn(long n) const {
-    if (look + n < eos())
+    if (look + n < eos()) {
         return look + n;
+    }
     return eos();
 }
 
@@ -155,7 +157,7 @@ Token Lexer::lex() {
         break;
     }
 
-    // Advance lexed position
+    // Advance token start position
     curr = look;
 
     return tok;

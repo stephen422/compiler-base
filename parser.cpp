@@ -71,11 +71,7 @@ ParserResult<Stmt> Parser::parse_stmt() {
     // We use lookahead (LL(k)) to revert state if a production fails.
     // (See "recursive descent with backtracking":
     // https://en.wikipedia.org/wiki/Recursive_descent_parser)
-    if (is_end_of_stmt(look())) {
-        // Empty statements (comments, ...)
-        next();
-        return parse_stmt();
-    } else if (look().kind == TokenKind::kw_return) {
+    if (look().kind == TokenKind::kw_return) {
         ParserResult<Stmt> result{parse_return_stmt()};
         if (!is_end_of_stmt(look())) {
             return make_error("unexpected token at end of statement");
@@ -451,12 +447,21 @@ void Parser::error(const std::string &msg) {
     exit(1);
 }
 
+static std::string error_beacon_extract_msg(StringView text) {
+    std::string s{text};
+    return s;
+}
+
 // The language is newline-aware, but newlines are mostly meaningless unless
 // they are at the end of a statement or a declaration.  In those cases we use
 // this to skip over them.
 // @Cleanup: what about comments?
 void Parser::skip_newlines() {
-    while (look().kind == TokenKind::newline) {
+    while (look().kind == TokenKind::newline ||
+           look().kind == TokenKind::comment) {
+        if (look().kind == TokenKind::comment) {
+            std::string msg = error_beacon_extract_msg(look().text);
+        }
         next();
     }
 }
@@ -470,10 +475,6 @@ ParserResult<AstNode> Parser::parse_toplevel() {
         return make_error("end of file");
     case TokenKind::kw_fn:
         return parse_func_decl().unwrap();
-    case TokenKind::comment:
-    case TokenKind::semicolon:
-        next();
-        return parse_toplevel();
     default:
         error("unrecognized toplevel statement");
     }

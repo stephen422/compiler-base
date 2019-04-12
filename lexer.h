@@ -135,29 +135,19 @@ class Lexer {
 public:
     using char_iterator = StringView::iterator;
 
-    /// Make a lexer for the given source.
     Lexer(Source &s)
         : src(s), sv(src.buf.data(), src.buf.size()), look(std::cbegin(sv)),
           curr(std::cbegin(sv)) {}
 
     /// Lex the current token and advance to the next one.
     Token lex();
-    /// Completely lex the source text and return array of tokens.
+    /// Lex all of the source text and return the array of tokens.
     std::vector<Token> lex_all();
-
     /// Peek the next token without consuming it.
     Token peek();
+    Source &get_source() { return src; }
 
-    // Source object associated to this lexer.
-    Source &src;
-
-    StringView sv;                // view into the source buffer
-    char_iterator look;           // lookahead position
-    char_iterator curr;           // start of the current token
-    std::vector<size_t> line_off; // offsets of each newline
-    size_t num_ident = 0;         // number of identifiers found
-
-    // Lex functions for a single token kind.
+private:
     Token lex_ident();
     Token lex_number();
     Token lex_string();
@@ -177,6 +167,16 @@ public:
     template <typename F> void skip_while(F &&lambda);
     void skip_whitespace();
     void error(const std::string &msg);
+
+    // Source object associated to this lexer.
+    Source &src;
+
+    StringView sv;                // view into the source buffer
+    char_iterator look;           // lookahead position
+    char_iterator curr;           // start of the current token
+    std::vector<size_t> line_off; // offsets of each newline
+    size_t num_ident = 0;         // number of identifiers found
+
 };
 
 } // namespace cmp

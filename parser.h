@@ -165,11 +165,9 @@ private:
 
     void skip_newlines();
 
-    Source &get_source() const { return lexer.src; }
-
     // Figure out the current location (line, col) in the source.
     SourceLoc locate() const {
-        return get_source().locate(look().pos);
+        return lexer.get_source().locate(look().pos);
     }
 
     Lexer &lexer;                           // associated lexer
