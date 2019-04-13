@@ -15,7 +15,7 @@ fn main() {
                 println!("[{}]", name.str);
             }
             Token::Eof => {
-                println!("breaking on Eof");
+                println!("EOF");
                 break;
             },
             Token::Err => {

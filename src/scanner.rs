@@ -11,6 +11,7 @@ pub struct Name {
 pub enum Token {
     Ident(Name),
     Number,
+    Comment,
     Newline,
     Arrow,
     Quote,
@@ -19,10 +20,14 @@ pub enum Token {
     Rparen,
     Lbrace,
     Rbrace,
+    Dot,
+    Comma,
     Colon,
     Equals,
     Plus,
     Star,
+    Ampersand,
+    Slash,
     Eof,
     Err,
 }
@@ -51,10 +56,14 @@ const TOKEN_STR_MAP: &[(&str, Token)] = &[
     (")", Token::Rparen),
     ("{", Token::Lbrace),
     ("}", Token::Rbrace),
+    (".", Token::Dot),
+    (",", Token::Comma),
     (":", Token::Colon),
     ("=", Token::Equals),
     ("+", Token::Plus),
     ("*", Token::Star),
+    ("&", Token::Ampersand),
+    ("/", Token::Slash),
 ];
 
 impl<'a> Scanner<'a> {
@@ -143,9 +152,9 @@ impl<'a> Scanner<'a> {
                 match cand_iter.next() {
                     Some(ch) => ch_cand = ch,
                     None => {
-                        // Termination of candidate string means a complete match.  The
-                        // longest-to-front rule for TOKEN_STR_MAP guarantees that no other
-                        // candidate can match the source string with more characters.
+                        // Termination of candidate string alone is sufficient for a complete
+                        // match.  The longest-to-front rule for TOKEN_STR_MAP guarantees that no
+                        // other candidate can match the source string with more characters.
                         self.iter = iter;
                         self.cache();
                         return TokenAndPos {tok: tok.clone(), pos: self.pos};
@@ -156,7 +165,8 @@ impl<'a> Scanner<'a> {
                 match iter.next() {
                     Some((_, ch)) => ch_src = ch,
                     None => {
-                        // Termination of the source string means a failed match.
+                        // Termination of the source string, without the candidate string being
+                        // terminated, means a failed match.
                         continue 'cand;
                     }
                 }
@@ -167,10 +177,31 @@ impl<'a> Scanner<'a> {
             }
         }
 
-        println!("err on [{}]", self.ch);
+        println!("unknown symbol: [{}]", self.ch);
         TokenAndPos {
             tok: Token::Err,
             pos: self.pos,
+        }
+    }
+
+    fn scan_comment_or_slash(&mut self) -> TokenAndPos {
+        let save = self.iter.clone();
+
+        self.bump();
+        match self.ch {
+            '/' => {
+                self.skip_while(&|ch: char| ch != '\n');
+                return TokenAndPos {
+                    tok: Token::Comment,
+                    pos: self.pos,
+                };
+            }
+            _ => {
+                return TokenAndPos {
+                    tok: Token::Slash,
+                    pos: self.pos,
+                };
+            }
         }
     }
 
@@ -189,10 +220,7 @@ impl<'a> Scanner<'a> {
                 tok: Token::Err,
                 pos: self.pos,
             },
-            '/' => TokenAndPos {
-                tok: Token::Err,
-                pos: self.pos,
-            },
+            '/' => self.scan_comment_or_slash(),
             ch => {
                 if ch.is_alphabetic() || ch == '_' {
                     self.scan_ident()
