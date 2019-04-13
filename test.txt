@@ -1,0 +1,24 @@
+fn main() -> int {
+    let a = 4
+    var b: i32
+    a * b + 2
+    b = 3
+
+    // This is a line comment.
+    let c = 3
+    var d = 4.3 / 3.1415926535
+    // return a
+    return 3
+}
+
+fn swap(a: &i32, b: i32) -> int {
+    let t = *a
+    *a = *b
+    *b = t
+}
+
+// fn parser_free(&self) -> own *T {
+//     for var i = 0; i < 5; i++ {
+//         next(lexer);
+//     }
+// }
