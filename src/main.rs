@@ -11,6 +11,9 @@ fn main() {
     loop {
         let ts = s.scan();
         match ts.tok {
+            Token::Ident(name) => {
+                println!("[{}]", name.str);
+            }
             Token::Eof => {
                 println!("breaking on Eof");
                 break;

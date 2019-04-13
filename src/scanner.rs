@@ -4,18 +4,25 @@ use std::str::CharIndices;
 // TODO
 #[derive(Clone)]
 pub struct Name {
-    str: String,
+    pub str: String,
 }
 
 #[derive(Clone)]
 pub enum Token {
     Ident(Name),
+    Number,
     Newline,
     Arrow,
     Quote,
     DQuote,
     Lparen,
     Rparen,
+    Lbrace,
+    Rbrace,
+    Colon,
+    Equals,
+    Plus,
+    Star,
     Eof,
     Err,
 }
@@ -42,6 +49,12 @@ const TOKEN_STR_MAP: &[(&str, Token)] = &[
     ("'", Token::Quote),
     ("(", Token::Lparen),
     (")", Token::Rparen),
+    ("{", Token::Lbrace),
+    ("}", Token::Rbrace),
+    (":", Token::Colon),
+    ("=", Token::Equals),
+    ("+", Token::Plus),
+    ("*", Token::Star),
 ];
 
 impl<'a> Scanner<'a> {
@@ -67,8 +80,7 @@ impl<'a> Scanner<'a> {
                 }
             }
             None => {
-                // self.pos = self.src.len();
-                self.ch = '\0'; // EOF
+                self.ch = '\0';
             }
         }
     }
@@ -76,13 +88,6 @@ impl<'a> Scanner<'a> {
     fn bump(&mut self) {
         self.iter.next();
         self.cache();
-    }
-
-    fn lookn(&mut self, n: usize) -> Option<char> {
-        match self.iter.nth(n) {
-            Some((_, ch)) => Some(ch),
-            None => None,
-        }
     }
 
     fn is_end(&self) -> bool {
@@ -110,9 +115,17 @@ impl<'a> Scanner<'a> {
 
     fn scan_ident(&mut self) -> TokenAndPos {
         let s = self.take_while(&|ch: char| ch.is_alphanumeric() || ch == '_');
-        println!("scan_ident: [{}]", s);
         TokenAndPos {
             tok: Token::Ident(Name { str: s }),
+            pos: self.pos,
+        }
+    }
+
+    fn scan_number(&mut self) -> TokenAndPos {
+        self.skip_while(&|ch: char| ch.is_numeric());
+        // TODO: take the numeric value
+        TokenAndPos {
+            tok: Token::Number,
             pos: self.pos,
         }
     }
@@ -183,6 +196,8 @@ impl<'a> Scanner<'a> {
             ch => {
                 if ch.is_alphabetic() || ch == '_' {
                     self.scan_ident()
+                } else if ch.is_numeric() {
+                    self.scan_number()
                 } else {
                     self.scan_symbol()
                 }
