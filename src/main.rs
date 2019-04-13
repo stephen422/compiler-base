@@ -12,7 +12,7 @@ fn main() {
         let ts = s.scan();
         match ts.tok {
             Token::Ident(name) => {
-                println!("[{}]", name.str);
+                println!("{}:[{}]", ts.pos, name.str);
             }
             Token::Eof => {
                 println!("EOF");

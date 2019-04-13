@@ -34,13 +34,13 @@ pub enum Token {
 
 pub struct TokenAndPos {
     pub tok: Token,
-    pos: usize,
+    pub pos: usize,
 }
 
 pub struct Scanner<'a> {
     ch: char,
     pos: usize,   // current lookahead position
-    pivot: usize, // start of the currently scanned token
+    start: usize, // start of the currently scanned token
     line_offs: Vec<usize>,
     iter: Peekable<CharIndices<'a>>,
 }
@@ -71,7 +71,7 @@ impl<'a> Scanner<'a> {
         let mut l = Scanner {
             ch: '\0',
             pos: 0,
-            pivot: 0,
+            start: 0,
             line_offs: Vec::new(),
             iter: src.char_indices().peekable(),
         };
@@ -126,7 +126,7 @@ impl<'a> Scanner<'a> {
         let s = self.take_while(&|ch: char| ch.is_alphanumeric() || ch == '_');
         TokenAndPos {
             tok: Token::Ident(Name { str: s }),
-            pos: self.pos,
+            pos: self.start,
         }
     }
 
@@ -135,7 +135,7 @@ impl<'a> Scanner<'a> {
         // TODO: take the numeric value
         TokenAndPos {
             tok: Token::Number,
-            pos: self.pos,
+            pos: self.start,
         }
     }
 
@@ -157,7 +157,7 @@ impl<'a> Scanner<'a> {
                         // other candidate can match the source string with more characters.
                         self.iter = iter;
                         self.cache();
-                        return TokenAndPos {tok: tok.clone(), pos: self.pos};
+                        return TokenAndPos {tok: tok.clone(), pos: self.start};
                     }
                 }
 
@@ -180,26 +180,24 @@ impl<'a> Scanner<'a> {
         println!("unknown symbol: [{}]", self.ch);
         TokenAndPos {
             tok: Token::Err,
-            pos: self.pos,
+            pos: self.start,
         }
     }
 
     fn scan_comment_or_slash(&mut self) -> TokenAndPos {
-        let save = self.iter.clone();
-
         self.bump();
         match self.ch {
             '/' => {
                 self.skip_while(&|ch: char| ch != '\n');
                 return TokenAndPos {
                     tok: Token::Comment,
-                    pos: self.pos,
+                    pos: self.start,
                 };
             }
             _ => {
                 return TokenAndPos {
                     tok: Token::Slash,
-                    pos: self.pos,
+                    pos: self.start,
                 };
             }
         }
@@ -208,17 +206,19 @@ impl<'a> Scanner<'a> {
     pub fn scan(&mut self) -> TokenAndPos {
         self.skip_whitespace();
 
+        self.start = self.pos;
+
         if self.is_end() {
             return TokenAndPos {
                 tok: Token::Eof,
-                pos: self.pos,
+                pos: self.start,
             };
         }
 
         match self.ch {
             '"' => TokenAndPos {
                 tok: Token::Err,
-                pos: self.pos,
+                pos: self.start,
             },
             '/' => self.scan_comment_or_slash(),
             ch => {
