@@ -28,6 +28,14 @@ pub enum Token {
     Star,
     Ampersand,
     Slash,
+    KwFn,
+    KwLet,
+    KwVar,
+    KwReturn,
+    KwIf,
+    KwElse,
+    KwFor,
+    KwInt,
     Eof,
     Err,
 }
@@ -64,6 +72,14 @@ const TOKEN_STR_MAP: &[(&str, Token)] = &[
     ("*", Token::Star),
     ("&", Token::Ampersand),
     ("/", Token::Slash),
+    ("fn", Token::KwFn),
+    ("let", Token::KwLet),
+    ("var", Token::KwVar),
+    ("return", Token::KwReturn),
+    ("if", Token::KwIf),
+    ("else", Token::KwElse),
+    ("for", Token::KwFor),
+    ("int", Token::KwInt),
 ];
 
 impl<'a> Scanner<'a> {
@@ -75,11 +91,11 @@ impl<'a> Scanner<'a> {
             line_offs: Vec::new(),
             iter: src.char_indices().peekable(),
         };
-        l.cache();
+        l.sync_cache();
         l
     }
 
-    fn cache(&mut self) {
+    fn sync_cache(&mut self) {
         match self.iter.peek() {
             Some(&(pos, ch)) => {
                 self.pos = pos;
@@ -96,7 +112,7 @@ impl<'a> Scanner<'a> {
 
     fn bump(&mut self) {
         self.iter.next();
-        self.cache();
+        self.sync_cache();
     }
 
     fn is_end(&self) -> bool {
@@ -123,6 +139,12 @@ impl<'a> Scanner<'a> {
     }
 
     fn scan_ident(&mut self) -> TokenAndPos {
+        // First try to match with a keyword.
+        match self.scan_symbol() {
+            Some(tp) => return tp,
+            None => (),
+        }
+
         let s = self.take_while(&|ch: char| ch.is_alphanumeric() || ch == '_');
         TokenAndPos {
             tok: Token::Ident(Name { str: s }),
@@ -139,7 +161,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn scan_symbol(&mut self) -> TokenAndPos {
+    fn scan_symbol(&mut self) -> Option<TokenAndPos> {
         // Should be careful about comparing against multi-char symbols as the source string may
         // terminate early.
 
@@ -156,8 +178,11 @@ impl<'a> Scanner<'a> {
                         // match.  The longest-to-front rule for TOKEN_STR_MAP guarantees that no
                         // other candidate can match the source string with more characters.
                         self.iter = iter;
-                        self.cache();
-                        return TokenAndPos {tok: tok.clone(), pos: self.start};
+                        self.sync_cache();
+                        return Some(TokenAndPos {
+                            tok: tok.clone(),
+                            pos: self.start,
+                        });
                     }
                 }
 
@@ -177,11 +202,7 @@ impl<'a> Scanner<'a> {
             }
         }
 
-        println!("unknown symbol: [{}]", self.ch);
-        TokenAndPos {
-            tok: Token::Err,
-            pos: self.start,
-        }
+        None
     }
 
     fn scan_comment_or_slash(&mut self) -> TokenAndPos {
@@ -227,7 +248,13 @@ impl<'a> Scanner<'a> {
                 } else if ch.is_numeric() {
                     self.scan_number()
                 } else {
-                    self.scan_symbol()
+                    match self.scan_symbol() {
+                        Some(tp) => tp,
+                        None => TokenAndPos {
+                            tok: Token::Err,
+                            pos: self.start,
+                        },
+                    }
                 }
             }
         }
