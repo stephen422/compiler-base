@@ -11,6 +11,7 @@ pub struct Name {
 pub enum Token {
     Ident(Name),
     Number,
+    String,
     Comment,
     Newline,
     Arrow,
@@ -161,6 +162,28 @@ impl<'a> Scanner<'a> {
         }
     }
 
+    fn scan_string(&mut self) -> TokenAndPos {
+        self.bump(); // opening "
+        while !self.is_end() {
+            self.skip_while(&|ch: char| ch != '\\' && ch != '"');
+            match self.ch {
+                '"' => {
+                    self.bump(); // closing "
+                    break;
+                }
+                _ => {
+                    // escaped character ("\x")
+                    self.bump();
+                    self.bump();
+                }
+            }
+        }
+        TokenAndPos {
+            tok: Token::String,
+            pos: self.start,
+        }
+    }
+
     fn scan_symbol(&mut self) -> Option<TokenAndPos> {
         // Should be careful about comparing against multi-char symbols as the source string may
         // terminate early.
@@ -237,10 +260,7 @@ impl<'a> Scanner<'a> {
         }
 
         match self.ch {
-            '"' => TokenAndPos {
-                tok: Token::Err,
-                pos: self.start,
-            },
+            '"' => self.scan_string(),
             '/' => self.scan_comment_or_slash(),
             ch => {
                 if ch.is_alphabetic() || ch == '_' {
