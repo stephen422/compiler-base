@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::iter::Peekable;
 use std::str::CharIndices;
 
@@ -52,11 +53,20 @@ pub struct Scanner<'a> {
     start: usize, // start of the currently scanned token
     line_offs: Vec<usize>,
     iter: Peekable<CharIndices<'a>>,
+    name_table: HashMap<&'a str, Name>,
 }
 
-// NOTE: Longer strings should come first, as this map is subject to front-to-rear linear search,
-// and the search may terminate prematurely if a shorter substring matches the given string first.
+// NOTE: Longer strings should come first, as this map is subject to front-to-rear linear search.
+// The search may end prematurely if a shorter substring matches first.
 const TOKEN_STR_MAP: &[(&str, Token)] = &[
+    ("return", Token::KwReturn),
+    ("else", Token::KwElse),
+    ("let", Token::KwLet),
+    ("var", Token::KwVar),
+    ("for", Token::KwFor),
+    ("int", Token::KwInt),
+    ("fn", Token::KwFn),
+    ("if", Token::KwIf),
     ("->", Token::Arrow),
     ("\"", Token::DQuote),
     ("\n", Token::Newline),
@@ -73,14 +83,6 @@ const TOKEN_STR_MAP: &[(&str, Token)] = &[
     ("*", Token::Star),
     ("&", Token::Ampersand),
     ("/", Token::Slash),
-    ("fn", Token::KwFn),
-    ("let", Token::KwLet),
-    ("var", Token::KwVar),
-    ("return", Token::KwReturn),
-    ("if", Token::KwIf),
-    ("else", Token::KwElse),
-    ("for", Token::KwFor),
-    ("int", Token::KwInt),
 ];
 
 impl<'a> Scanner<'a> {
@@ -91,6 +93,7 @@ impl<'a> Scanner<'a> {
             start: 0,
             line_offs: Vec::new(),
             iter: src.char_indices().peekable(),
+            name_table: HashMap::new(),
         };
         l.sync_cache();
         l
@@ -127,7 +130,7 @@ impl<'a> Scanner<'a> {
     }
 
     fn take_while(&mut self, f: &Fn(char) -> bool) -> String {
-        let mut s = "".to_string();
+        let mut s = String::new();
         while !self.is_end() && f(self.ch) {
             s.push(self.ch);
             self.bump();
@@ -164,20 +167,24 @@ impl<'a> Scanner<'a> {
 
     fn scan_string(&mut self) -> TokenAndPos {
         self.bump(); // opening "
+
         while !self.is_end() {
             self.skip_while(&|ch: char| ch != '\\' && ch != '"');
+
             match self.ch {
                 '"' => {
                     self.bump(); // closing "
                     break;
                 }
-                _ => {
+                '\\' => {
                     // escaped character ("\x")
                     self.bump();
                     self.bump();
                 }
+                _ => unreachable!(),
             }
         }
+
         TokenAndPos {
             tok: Token::String,
             pos: self.start,
@@ -185,43 +192,18 @@ impl<'a> Scanner<'a> {
     }
 
     fn scan_symbol(&mut self) -> Option<TokenAndPos> {
-        // Should be careful about comparing against multi-char symbols as the source string may
-        // terminate early.
+        for (str, tok) in TOKEN_STR_MAP {
+            let excerpt = self.iter.clone().map(|(_, ch)| ch).take(str.len());
 
-        'cand: for (s, tok) in TOKEN_STR_MAP {
-            let mut cand_iter = s.chars();
-            let mut iter = self.iter.clone();
-
-            loop {
-                let ch_cand: char;
-                match cand_iter.next() {
-                    Some(ch) => ch_cand = ch,
-                    None => {
-                        // Termination of candidate string alone is sufficient for a complete
-                        // match.  The longest-to-front rule for TOKEN_STR_MAP guarantees that no
-                        // other candidate can match the source string with more characters.
-                        self.iter = iter;
-                        self.sync_cache();
-                        return Some(TokenAndPos {
-                            tok: tok.clone(),
-                            pos: self.start,
-                        });
-                    }
+            if str.chars().eq(excerpt) {
+                for _ in 0..str.len() {
+                    self.bump();
                 }
 
-                let ch_src: char;
-                match iter.next() {
-                    Some((_, ch)) => ch_src = ch,
-                    None => {
-                        // Termination of the source string, without the candidate string being
-                        // terminated, means a failed match.
-                        continue 'cand;
-                    }
-                }
-
-                if ch_src != ch_cand {
-                    continue 'cand;
-                }
+                return Some(TokenAndPos {
+                    tok: tok.clone(),
+                    pos: self.start,
+                });
             }
         }
 
@@ -249,7 +231,6 @@ impl<'a> Scanner<'a> {
 
     pub fn scan(&mut self) -> TokenAndPos {
         self.skip_whitespace();
-
         self.start = self.pos;
 
         if self.is_end() {

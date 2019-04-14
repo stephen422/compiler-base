@@ -5,7 +5,7 @@ use scanner::Token;
 use std::fs;
 
 fn main() {
-    let src = fs::read_to_string("test.txt").expect("something went wrong");
+    let src = fs::read_to_string("test.txt").expect("could not open file");
     let mut s = Scanner::from_string(&src);
 
     loop {
@@ -14,7 +14,7 @@ fn main() {
             Token::Ident(name) => println!("{}:[{}]", ts.pos, name.str),
             Token::KwLet => println!("{}:let", ts.pos),
             Token::Eof => {
-                println!("EOF");
+                println!("{}:EOF", ts.pos);
                 break;
             }
             Token::Err => {
