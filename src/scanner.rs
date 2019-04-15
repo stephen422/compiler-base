@@ -9,8 +9,8 @@ pub struct Name {
 }
 
 #[derive(Clone)]
-pub enum Token {
-    Ident(Name),
+pub enum Token<'a> {
+    Ident(&'a Name),
     Number,
     String,
     Comment,
@@ -42,8 +42,9 @@ pub enum Token {
     Err,
 }
 
-pub struct TokenAndPos {
-    pub tok: Token,
+#[derive(Clone)]
+pub struct TokenAndPos<'a> {
+    pub tok: Token<'a>,
     pub pos: usize,
 }
 
@@ -53,7 +54,7 @@ pub struct Scanner<'a> {
     start: usize, // start of the currently scanned token
     line_offs: Vec<usize>,
     iter: Peekable<CharIndices<'a>>,
-    name_table: HashMap<&'a str, Name>,
+    name_table: HashMap<String, Name>,
 }
 
 // NOTE: Longer strings should come first, as this map is subject to front-to-rear linear search.
@@ -144,14 +145,41 @@ impl<'a> Scanner<'a> {
 
     fn scan_ident(&mut self) -> TokenAndPos {
         // First try to match with a keyword.
-        match self.scan_symbol() {
-            Some(tp) => return tp,
-            None => (),
+
+        for (str, tok) in TOKEN_STR_MAP {
+            let excerpt = self.iter.clone().map(|(_, ch)| ch).take(str.len());
+
+            if str.chars().eq(excerpt) {
+                for _ in 0..str.len() {
+                    self.bump();
+                }
+
+                return TokenAndPos {
+                    tok: tok.clone(),
+                    pos: self.start,
+                };
+            }
         }
 
+        // if self.scan_symbol().is_some() {
+        //     return match self.scan_symbol() {
+        //         Some(tp) => return tp,
+        //         None => TokenAndPos {
+        //             tok: Token::Err,
+        //             pos: 0,
+        //         }
+        //     };
+        // }
+
+        // TODO Big hack!
         let s = self.take_while(&|ch: char| ch.is_alphanumeric() || ch == '_');
+        let key = s.clone();
+        let key2 = key.clone();
+        let name = Name { str: s };
+        self.name_table.insert(key, name);
+        let n = self.name_table.get(&key2).unwrap();
         TokenAndPos {
-            tok: Token::Ident(Name { str: s }),
+            tok: Token::Ident(n),
             pos: self.start,
         }
     }
@@ -240,6 +268,8 @@ impl<'a> Scanner<'a> {
             };
         }
 
+        let start = self.start;
+
         match self.ch {
             '"' => self.scan_string(),
             '/' => self.scan_comment_or_slash(),
@@ -253,7 +283,10 @@ impl<'a> Scanner<'a> {
                         Some(tp) => tp,
                         None => TokenAndPos {
                             tok: Token::Err,
-                            pos: self.start,
+                            // Returning self.start here triggers borrow checker error, due to the
+                            // current limitation of the Rust NLL.  Instead, we save self.start to
+                            // a local variable beforehand and return it.
+                            pos: start,
                         },
                     }
                 }
