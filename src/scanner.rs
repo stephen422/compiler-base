@@ -1,16 +1,17 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::iter::Peekable;
 use std::str::CharIndices;
 
 // TODO
 #[derive(Clone)]
-pub struct Name {
-    pub str: String,
+pub struct Name<'a> {
+    pub str: &'a str,
 }
 
 #[derive(Clone)]
 pub enum Token<'a> {
-    Ident(&'a Name),
+    Ident(Name<'a>),
     Number,
     String,
     Comment,
@@ -54,7 +55,8 @@ pub struct Scanner<'a> {
     start: usize, // start of the currently scanned token
     line_offs: Vec<usize>,
     iter: Peekable<CharIndices<'a>>,
-    name_table: HashMap<String, Name>,
+    name_table: HashMap<String, Name<'a>>,
+    name_set: HashSet<String>,
 }
 
 // NOTE: Longer strings should come first, as this map is subject to front-to-rear linear search.
@@ -95,6 +97,7 @@ impl<'a> Scanner<'a> {
             line_offs: Vec::new(),
             iter: src.char_indices().peekable(),
             name_table: HashMap::new(),
+            name_set: HashSet::new(),
         };
         l.sync_cache();
         l
@@ -145,6 +148,20 @@ impl<'a> Scanner<'a> {
 
     fn scan_ident(&mut self) -> TokenAndPos {
         // First try to match with a keyword.
+        //
+        // This code have been much simpler if we reused scan_symbol():
+        //
+        // match self.scan_symbol() {
+        //     Some(tp) => tp,
+        //     None => { ...identifier... },
+        // }
+        //
+        // However, issues in the Rust compiler's borrow checker currently prevents this code from
+        // compiling (see
+        // https://rust-lang.github.io/rfcs/2094-nll.html#problem-case-3-conditional-control-flow-across-functions,
+        // http://smallcultfollowing.com/babysteps/blog/2018/06/15/mir-based-borrow-check-nll-status-update/#polonius
+        // and  https://github.com/rust-lang/rust/issues/21906).
+        // We fall back to just copy-pasting the code in scan_symbol().
 
         for (str, tok) in TOKEN_STR_MAP {
             let excerpt = self.iter.clone().map(|(_, ch)| ch).take(str.len());
@@ -161,25 +178,16 @@ impl<'a> Scanner<'a> {
             }
         }
 
-        // if self.scan_symbol().is_some() {
-        //     return match self.scan_symbol() {
-        //         Some(tp) => return tp,
-        //         None => TokenAndPos {
-        //             tok: Token::Err,
-        //             pos: 0,
-        //         }
-        //     };
-        // }
-
         // TODO Big hack!
         let s = self.take_while(&|ch: char| ch.is_alphanumeric() || ch == '_');
-        let key = s.clone();
-        let key2 = key.clone();
-        let name = Name { str: s };
-        self.name_table.insert(key, name);
-        let n = self.name_table.get(&key2).unwrap();
+        self.name_set.insert(s.clone());
+        let sref = self.name_set.get(&s).unwrap();
+        let name = Name { str: sref };
+        println!("{:?}", self.name_set);
+        // self.name_table.insert(s, name);
+        // let n = self.name_table.get(&key).unwrap();
         TokenAndPos {
-            tok: Token::Ident(n),
+            tok: Token::Ident(name),
             pos: self.start,
         }
     }
