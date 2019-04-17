@@ -37,7 +37,7 @@ public:
 
     // Successful result
     template <typename U>
-    ParserResult(AstNode::P<U> ptr) : result(std::move(ptr)) {}
+    ParserResult(P<U> ptr) : result(std::move(ptr)) {}
 
     // Erroneous result
     ParserResult(const ParserError &error) : result(error) {}
@@ -59,20 +59,22 @@ public:
 
     // Returns 'res', provided there were no errors; if there were, report them
     // and cause the compiler to exit.
-    AstNode::P<T> unwrap();
+    P<T> unwrap();
 
     // Get the stored node pointer, handing over the ownership.
-    AstNode::P<T> get_ptr() { return std::move(std::get<AstNode::P<T>>(result)); }
+    P<T> get_ptr() { return std::move(std::get<P<T>>(result)); }
 
     // Get the stored ParserError object.
     ParserError &get_error() { return std::get<ParserError>(result); }
 
     // Is this result successful?
-    bool success() { return std::holds_alternative<AstNode::P<T>>(result); }
+    bool success() { return std::holds_alternative<P<T>>(result); }
 
 private:
-    std::variant<AstNode::P<T>, ParserError> result;
+    std::variant<P<T>, ParserError> result;
 };
+
+using StmtResult = ParserResult<Stmt>;
 
 class Parser {
 public:
@@ -88,16 +90,16 @@ private:
     ParserResult<AstNode> parse_toplevel();
 
     // Statement parsers
-    ParserResult<Stmt> parse_stmt();
-    ParserResult<ExprStmt> parse_expr_stmt();
-    ParserResult<AssignStmt> parse_assign_stmt();
-    ParserResult<ReturnStmt> parse_return_stmt();
-    ParserResult<CompoundStmt> parse_compound_stmt();
+    StmtResult parse_stmt();
+    StmtResult parse_expr_stmt();
+    StmtResult parse_assign_stmt();
+    StmtResult parse_return_stmt();
+    StmtResult parse_compound_stmt();
 
     // Declaration parsers
     ParserResult<Decl> parse_decl();
     ParserResult<ParamDecl> parse_param_decl();
-    std::vector<AstNode::P<ParamDecl>> parse_param_decl_list();
+    std::vector<P<ParamDecl>> parse_param_decl_list();
     ParserResult<VarDecl> parse_var_decl();
     ParserResult<FuncDecl> parse_func_decl();
 
@@ -153,7 +155,7 @@ private:
 
     // Construct a successful ParserResult, annotating it with the start
     // position.
-    template <typename T> auto make_result(AstNode::P<T> ptr) {
+    template <typename T> auto make_result(P<T> ptr) {
         return ParserResult<T>{std::move(ptr)};
     }
 

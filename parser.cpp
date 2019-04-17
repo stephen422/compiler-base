@@ -3,9 +3,16 @@
 #include <sstream>
 #include <cassert>
 
-namespace cmp {
+// Notes on error handling
+//
+// Encapsulating errors in a ParserResult may not be worth it, because this
+// mechanism requires manually aggregating errors from different ParserResults,
+// and heap-allocates a lot of vectors for each ParserResult.  Instead,
+// ParserResult only encapsulates the node and the successfulness, and errors
+// are added to a central error list object owned by Parser.  This is similar
+// to the way Clang handles diagnostics.
 
-template <typename T> using P = AstNode::P<T>;
+namespace cmp {
 
 void ParserError::report() const {
     std::cerr << location.filename << ":" << location.line << ":" << location.col << ": ";
@@ -64,13 +71,30 @@ static bool is_end_of_stmt(Token tok) {
     return tok.kind == TokenKind::newline || tok.kind == TokenKind::comment;
 }
 
+// Assignment statements start with an expression, so we cannot easily
+// predetermine whether a statement is just an expression or an assignment
+// until we see the '='.  We therefore first parse the expression (LHS) and
+// then call this to transform that node into an assignment if needed.
+/*
+static Node *Parser::parse_assignstmt_or_exprstmt(Parser *p, Node *expr)
+{
+	if (look(p).type == TOK_EQUALS) {
+		next(p);
+		Node *rhs = parse_expr(p);
+		return make_assignstmt(p, expr, rhs);
+	} else {
+		return make_exprstmt(p, expr);
+	}
+}
+*/
+
 // Parse a statement.
 //
 // Stmt:
 //     Decl ;
 //     Expr ;
 //     ;
-ParserResult<Stmt> Parser::parse_stmt() {
+StmtResult Parser::parse_stmt() {
     skip_newlines();
 
     // Try all possible productions and use the first successful one.
@@ -79,9 +103,8 @@ ParserResult<Stmt> Parser::parse_stmt() {
     // https://en.wikipedia.org/wiki/Recursive_descent_parser)
     if (look().kind == TokenKind::kw_return) {
         ParserResult<Stmt> result{parse_return_stmt()};
-        if (!is_end_of_stmt(look())) {
+        if (!is_end_of_stmt(look()))
             return make_error("unexpected token at end of statement");
-        }
         return result;
     }
 
@@ -95,19 +118,17 @@ ParserResult<Stmt> Parser::parse_stmt() {
     }
 
     auto save = get_position();
-    if (auto stmt = parse_assign_stmt(); stmt.success()) {
+    if (auto stmt = parse_assign_stmt(); stmt.success())
         return stmt;
-    }
     restore_position(save);
 
-    if (auto stmt = parse_expr_stmt(); stmt.success()) {
+    if (auto stmt = parse_expr_stmt(); stmt.success())
         return stmt;
-    }
 
     return make_error("expected a statement");
 }
 
-ParserResult<ExprStmt> Parser::parse_expr_stmt() {
+StmtResult Parser::parse_expr_stmt() {
     auto r = parse_expr();
     // Only if the lookahead token points to a newline is the whole expression
     // successfully parsed.
@@ -119,7 +140,7 @@ ParserResult<ExprStmt> Parser::parse_expr_stmt() {
     }
 }
 
-ParserResult<AssignStmt> Parser::parse_assign_stmt() {
+StmtResult Parser::parse_assign_stmt() {
     auto start_pos = look().pos;
 
     auto lhs_res = parse_expr();
@@ -136,7 +157,7 @@ ParserResult<AssignStmt> Parser::parse_assign_stmt() {
     return make_node_with_pos<AssignStmt>(start_pos, look().pos, lhs_res.unwrap(), std::move(rhs));
 }
 
-ParserResult<ReturnStmt> Parser::parse_return_stmt() {
+StmtResult Parser::parse_return_stmt() {
     expect(TokenKind::kw_return);
     ExprPtr expr = parse_expr().unwrap();
     return make_node<ReturnStmt>(std::move(expr));
@@ -148,7 +169,7 @@ ParserResult<ReturnStmt> Parser::parse_return_stmt() {
 //
 // CompoundStmt:
 //     { Stmt* }
-ParserResult<CompoundStmt> Parser::parse_compound_stmt() {
+StmtResult Parser::parse_compound_stmt() {
     expect(TokenKind::lbrace);
     auto compound = make_node<CompoundStmt>();
     ParserResult<Stmt> stmt_res;
@@ -272,7 +293,7 @@ ParserResult<FuncDecl> Parser::parse_func_decl() {
     func->return_type_expr = parse_type_expr().unwrap();
 
     // Function body
-    func->body = parse_compound_stmt().unwrap();
+    func->body = node_cast<CompoundStmt>(parse_compound_stmt().unwrap());
     func->end_pos = look().pos;
 
     return std::move(func);

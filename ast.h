@@ -52,6 +52,9 @@ using DeclPtr = std::unique_ptr<Decl>;
 template <typename T>
 using NodePtr = std::unique_ptr<T>;
 
+template <typename T>
+using P = std::unique_ptr<T>;
+
 template<typename T, typename... Args>
 NodePtr<T> make_node(Args&&... args) {
     return std::make_unique<T>(std::forward<Args>(args)...);
@@ -65,8 +68,10 @@ NodePtr<T> make_node_with_pos(size_t start_pos, size_t end_pos, Args&&... args) 
     return node;
 }
 
-template <typename T, typename U> constexpr T *node_cast(NodePtr<U> &ptr) {
-    return static_cast<T *>(ptr.get());
+template <typename T, typename U>
+constexpr NodePtr<T> node_cast(NodePtr<U> &&ptr) {
+    auto p = static_cast<T *>(ptr.release());
+    return NodePtr<T>{p};
 }
 
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
@@ -75,9 +80,6 @@ std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
 // analysis of an AST: namely, the root node and the name table.
 class Ast {
 public:
-    template <typename T>
-    using P = std::unique_ptr<T>;
-
     Ast(P<AstNode> r, NameTable &nt) : root(std::move(r)), name_table(nt) {}
     P<AstNode> root;
     NameTable &name_table;
@@ -85,9 +87,6 @@ public:
 
 class AstNode {
 public:
-    template <typename T>
-    using P = std::unique_ptr<T>;
-
     AstNode() {}
     AstNode(AstKind kind) : kind(kind) {}
     virtual ~AstNode() = default;
@@ -202,9 +201,9 @@ public:
     std::vector<StmtPtr> stmts;
 };
 
-// ===============
-//   Expressions
-// ===============
+// ==============
+//   Expression
+// ==============
 
 class Type;
 
