@@ -6,11 +6,11 @@
 // Notes on error handling
 //
 // Encapsulating errors in a ParserResult may not be worth it, because this
-// mechanism requires manually aggregating errors from different ParserResults,
-// and heap-allocates a lot of vectors for each ParserResult.  Instead,
-// ParserResult only encapsulates the node and the successfulness, and errors
-// are added to a central error list object owned by Parser.  This is similar
-// to the way Clang handles diagnostics.
+// mechanism requires the callers to manually aggregate errors from different
+// ParserResults into a vector, which otherwise could be done inside callee and
+// have the caller not worry about it.  Instead, ParserResult only encapsulates
+// the node and the successfulness, and errors are added to a central vector
+// owned by Parser.  This is similar to the way Clang handles diagnostics.
 //
 // ParserResult<T> types are usually not used in its template form; instead,
 // they are streamlined into three main cases: StmtResult, DeclResult and
@@ -67,7 +67,7 @@ bool Parser::expect(TokenKind kind, const std::string &msg = "") {
         } else {
             ss << msg;
         }
-        // error(ss.str());
+        errors.push_back(ss.str());
         return true;
     }
     next();
@@ -110,8 +110,10 @@ StmtResult Parser::parse_stmt() {
     // https://en.wikipedia.org/wiki/Recursive_descent_parser)
     if (look().kind == TokenKind::kw_return) {
         ParserResult<Stmt> result{parse_return_stmt()};
-        if (!is_end_of_stmt(look()))
-            return make_error("unexpected token at end of statement");
+        if (!is_end_of_stmt(look())) {
+            errors.push_back("unexpected token at end of statement");
+            return ParserError{};
+        }
         return result;
     }
 
@@ -119,7 +121,8 @@ StmtResult Parser::parse_stmt() {
 
     if (auto decl = parse_decl(); decl.success()) {
         if (!is_end_of_stmt(look())) {
-            return make_error("unexpected token at end of declaration");
+            errors.push_back("unexpected token at end of declaration");
+            return ParserError{};
         }
         return make_node<DeclStmt>(decl.unwrap());
     }
@@ -132,7 +135,8 @@ StmtResult Parser::parse_stmt() {
     if (auto stmt = parse_expr_stmt(); stmt.success())
         return stmt;
 
-    return make_error("expected a statement");
+    errors.push_back("expected a statement");
+    return ParserError{};
 }
 
 StmtResult Parser::parse_expr_stmt() {
@@ -143,7 +147,8 @@ StmtResult Parser::parse_expr_stmt() {
         next();
         return make_node<ExprStmt>(r.unwrap());
     } else {
-        return make_error("unexpected token after expression statement");
+        errors.push_back("unexpected token after expression statement");
+        return ParserError{};
     }
 }
 
@@ -155,7 +160,7 @@ StmtResult Parser::parse_assign_stmt() {
         return {lhs_res.get_error()};
 
     if (expect(TokenKind::equals))
-        return make_error("expected '=' after LHS of assignment");
+        return ParserError{};
 
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
@@ -186,18 +191,23 @@ StmtResult Parser::parse_compound_stmt() {
     // did parse_stmt() fail at the end properly?
     if (look().kind != TokenKind::rbrace) {
         // report the last statement failure
-        stmt_res.unwrap();
+        for (auto s : errors)
+            std::cerr << s << std::endl;
+        std::cerr << "Parse errors, terminating.\n";
+        exit(EXIT_FAILURE);
     }
     if (expect(TokenKind::rbrace))
-        return make_error("unterminated compound statement");
+        return ParserError{};
     return {std::move(compound)};
 }
 
 // ParamDecls are not trivially lookaheadable with a single token ('a' in 'a:
 // int' does not guarantee anything), so this needs to be easily revertable.
 DeclResult Parser::parse_param_decl() {
-    if (look().kind != TokenKind::ident)
-        return make_error("expected an identifier");
+    if (look().kind != TokenKind::ident) {
+        errors.push_back("expected an identifier");
+        return ParserError{};
+    }
 
     auto start_pos = look().pos;
     // Insert into the name table
@@ -206,7 +216,8 @@ DeclResult Parser::parse_param_decl() {
 
     if (look().kind != TokenKind::colon) {
         // This is a greedy error, wherever it happens.
-        return make_error("expected ':' after name of the variable");
+        errors.push_back("expected ':' after name of the variable");
+        return ParserError{};
     }
     next();
 
@@ -270,9 +281,9 @@ DeclResult Parser::parse_var_decl() {
 
         // Assignment expression should be provided if kind is not
         // specified.
-        if (expect(TokenKind::equals))
-            return make_error(mut ? "type or initial value required"
-                                  : "initial value required");
+        if (expect(TokenKind::equals, mut ? "type or initial value required"
+                                          : "initial value required"))
+            return ParserError{};
 
         auto rhs = parse_expr().unwrap();
         return make_node_with_pos<VarDecl>(start_pos, rhs->end_pos, name,
@@ -290,17 +301,19 @@ DeclResult Parser::parse_func_decl() {
 
     // Argument list
     if (expect(TokenKind::lparen))
-        return make_error("expected '(' after function name");
+        return ParserError{};
     func->param_decl_list = parse_param_decl_list();
     if (expect(TokenKind::rparen))
-        return make_error("unterminated parameter list");
+        return ParserError{};
 
     // Return type (-> ...)
     if (expect(TokenKind::arrow))
-        return make_error("expected '->' after parameter list");
+        return ParserError{};
+
     auto ter = parse_type_expr();
     if (!ter.success())
-        return make_error("unknown type");
+        return ParserError{};
+
     func->return_type_expr = node_cast<TypeExpr>(ter.unwrap());
 
     // Function body
@@ -316,7 +329,8 @@ DeclResult Parser::parse_decl() {
     case TokenKind::kw_var:
         return parse_var_decl();
     default:
-        return make_error("not a start of a declaration");
+        errors.push_back("not a start of a declaration");
+        return ParserError{};
     }
 }
 
@@ -376,7 +390,8 @@ ExprResult Parser::parse_type_expr() {
         text = look().text;
         next();
     } else {
-        return make_error("expected type name");
+        errors.push_back("expected type name");
+        return ParserError{};
     }
 
     type_expr->name = name_table.find_or_insert(text);
@@ -408,7 +423,7 @@ ExprResult Parser::parse_unary_expr() {
         expect(TokenKind::lparen);
         auto expr = parse_expr();
         if (expect(TokenKind::rparen))
-            return make_error("unterminated parenthesized expression");
+            return ParserError{};
         // TODO: check unwrap
         return make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Paren, expr.unwrap());
     }
@@ -416,7 +431,8 @@ ExprResult Parser::parse_unary_expr() {
         // Because all expressions start with a unary expression, failing here
         // means no other expression could be matched either, so just do a
         // really generic report.
-        return make_error("expected an expression");
+        errors.push_back("expected an expression");
+        return ParserError{};
     }
 }
 
@@ -434,6 +450,12 @@ int Parser::get_precedence(const Token &op) const {
     }
 }
 
+// Extend a unary expression into binary if possible, by parsing any attached
+// RHS.  Returns result that owns the node of the newly constructed binary
+// expression.
+//
+// After the call, 'lhs' is invalidated by being moved away.  Subsequent code
+// should use the wrapped node in the return value instead.
 ParserResult<Expr> Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
     ExprPtr root = std::move(lhs);
 
@@ -514,13 +536,15 @@ ParserResult<AstNode> Parser::parse_toplevel() {
     switch (look().kind) {
     case TokenKind::eos:
         // TODO how to handle this?
-        return make_error("end of file");
+        errors.push_back("end of file");
+        return ParserError{};
     case TokenKind::kw_fn:
         return parse_func_decl().unwrap();
     default:
         error("unrecognized toplevel statement");
     }
-    return make_error("unreachable");
+    error("unreachable");
+    return ParserError{};
 }
 
 ParserResult<File> Parser::parse_file() {

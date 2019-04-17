@@ -9,6 +9,7 @@ namespace cmp {
 
 class ParserError {
 public:
+    ParserError() {}
     ParserError(SourceLoc loc, const std::string &msg): location(loc), message(msg) {}
     // Report this error to stderr.
     void report() const;
@@ -91,33 +92,27 @@ private:
     // Parse a toplevel statement.
     ParserResult<AstNode> parse_toplevel();
 
-    // Statement parsers
+    // Statement parsers.
     StmtResult parse_stmt();
     StmtResult parse_expr_stmt();
     StmtResult parse_assign_stmt();
     StmtResult parse_return_stmt();
     StmtResult parse_compound_stmt();
 
-    // Declaration parsers
+    // Declaration parsers.
     DeclResult parse_decl();
     DeclResult parse_param_decl();
     std::vector<P<ParamDecl>> parse_param_decl_list();
     DeclResult parse_var_decl();
     DeclResult parse_func_decl();
 
-    // Expression parsers
+    // Expression parsers.
     ExprResult parse_expr();
     ExprResult parse_literal_expr();
     ExprResult parse_integer_literal();
     ExprResult parse_declref_expr();
     ExprResult parse_type_expr();
     ExprResult parse_unary_expr();
-    // Extend a unary expression into binary if possible, by parsing any
-    // attached RHS.  Returns the owning pointer to the newly constructed binary
-    // expression.
-    //
-    // After the call, 'lhs' is invalidated by being moved away.  Subsequent
-    // code should use the returned pointer instead.
     ExprResult parse_binary_expr_rhs(ExprPtr lhs, int precedence = 0);
 
     // Get the next token from the lexer.
@@ -180,6 +175,7 @@ private:
     std::vector<Token> tokens;              // lexed tokens
     std::vector<Token> lookahead_cache;     // lookahead tokens cache
     size_t lookahead_pos = 0;               // lookahead position in the cache
+    std::vector<std::string> errors;
 };
 
 } // namespace cmp
