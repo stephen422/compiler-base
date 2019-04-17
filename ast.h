@@ -43,7 +43,6 @@ class Decl;
 class FuncDecl;
 
 // Owning pointers to each AST node.
-using AstNodePtr = std::unique_ptr<AstNode>;
 using FilePtr = std::unique_ptr<File>;
 using ToplevelPtr = std::unique_ptr<Toplevel>;
 using StmtPtr = std::unique_ptr<Stmt>;
@@ -76,13 +75,19 @@ std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
 // analysis of an AST: namely, the root node and the name table.
 class Ast {
 public:
-    Ast(AstNodePtr r, NameTable &nt) : root(std::move(r)), name_table(nt) {}
-    AstNodePtr root;
+    template <typename T>
+    using P = std::unique_ptr<T>;
+
+    Ast(P<AstNode> r, NameTable &nt) : root(std::move(r)), name_table(nt) {}
+    P<AstNode> root;
     NameTable &name_table;
 };
 
 class AstNode {
 public:
+    template <typename T>
+    using P = std::unique_ptr<T>;
+
     AstNode() {}
     AstNode(AstKind kind) : kind(kind) {}
     virtual ~AstNode() = default;
@@ -134,7 +139,7 @@ public:
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    std::vector<AstNodePtr> toplevels;
+    std::vector<P<AstNode>> toplevels;
 };
 
 // =============
@@ -263,7 +268,7 @@ public:
 
     Name *name = nullptr;                // name of the type
     bool ref = false;                    // is this a reference type?
-    NodePtr<TypeExpr> subexpr = nullptr; // 'T' part of '&T'
+    P<TypeExpr> subexpr = nullptr; // 'T' part of '&T'
 };
 
 class BinaryExpr : public Expr {
@@ -295,21 +300,21 @@ public:
 
 class ParamDecl : public Decl {
 public:
-    ParamDecl(Name *n, NodePtr<TypeExpr> t, bool m)
+    ParamDecl(Name *n, P<TypeExpr> t, bool m)
         : Decl(AstKind::param_decl), name(n), type_expr(std::move(t)), mut(m) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    Name *name = nullptr;                  // name of the variable
-    NodePtr<TypeExpr> type_expr = nullptr; // type node of the variable.
-                                           // If null, it will be inferred later
-    bool mut = false;                      // "var" or "let"?
+    Name *name = nullptr;            // name of the variable
+    P<TypeExpr> type_expr = nullptr; // type node of the variable.
+                                     // If null, it will be inferred later
+    bool mut = false;                // "var" or "let"?
 };
 
 // Variable declaration.
 class VarDecl : public Decl {
 public:
-    VarDecl(Name *n, NodePtr<TypeExpr> t, ExprPtr expr, bool mut)
+    VarDecl(Name *n, P<TypeExpr> t, ExprPtr expr, bool mut)
         : Decl(AstKind::var_decl), name(n), type_expr(std::move(t)), assign_expr(std::move(expr)), mut(mut) {}
     void print() const override;
     void traverse(Semantics &sema) override;
@@ -317,7 +322,7 @@ public:
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
     Name *name = nullptr;                  // name of the variable
-    NodePtr<TypeExpr> type_expr = nullptr; // type node of the variable.
+    P<TypeExpr> type_expr = nullptr; // type node of the variable.
                                            // If null, it will be inferred later
     ExprPtr assign_expr = nullptr;         // initial assignment value
     bool mut = false;                      // "var" or "let"?
@@ -331,10 +336,10 @@ public:
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    Name *name = nullptr;                            // name of the function
-    std::vector<NodePtr<ParamDecl>> param_decl_list; // list of parameters
-    NodePtr<CompoundStmt> body = nullptr;            // body statements
-    NodePtr<TypeExpr> return_type_expr = nullptr;    // return type expression
+    Name *name = nullptr;                      // name of the function
+    std::vector<P<ParamDecl>> param_decl_list; // list of parameters
+    P<CompoundStmt> body = nullptr;            // body statements
+    P<TypeExpr> return_type_expr = nullptr;    // return type expression
 };
 
 void test(Semantics &sema);

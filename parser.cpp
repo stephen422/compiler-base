@@ -5,15 +5,17 @@
 
 namespace cmp {
 
+template <typename T> using P = AstNode::P<T>;
+
 void ParserError::report() const {
     std::cerr << location.filename << ":" << location.line << ":" << location.col << ": ";
     std::cerr << "parse error: " << message << std::endl;
 }
 
 template <typename T>
-NodePtr<T> ParserResult<T>::unwrap() {
+P<T> ParserResult<T>::unwrap() {
     if (success()) {
-        return std::move(std::get<NodePtr<T>>(result));
+        return std::move(std::get<P<T>>(result));
     }
     std::get<ParserError>(result).report();
     exit(EXIT_FAILURE);
@@ -166,9 +168,8 @@ ParserResult<CompoundStmt> Parser::parse_compound_stmt() {
 // ParamDecls are not trivially lookaheadable with a single token ('a' in 'a:
 // int' does not guarantee anything), so this needs to be easily revertable.
 ParserResult<ParamDecl> Parser::parse_param_decl() {
-    if (look().kind != TokenKind::ident) {
+    if (look().kind != TokenKind::ident)
         return make_error("expected an identifier");
-    }
 
     auto start_pos = look().pos;
     // Insert into the name table
@@ -189,8 +190,8 @@ ParserResult<ParamDecl> Parser::parse_param_decl() {
     return make_result(std::move(node));
 }
 
-std::vector<NodePtr<ParamDecl>> Parser::parse_param_decl_list() {
-    std::vector<NodePtr<ParamDecl>> decl_list;
+std::vector<P<ParamDecl>> Parser::parse_param_decl_list() {
+    std::vector<P<ParamDecl>> decl_list;
     auto before_param = get_position();
 
     ParserResult<ParamDecl> res;
@@ -288,7 +289,7 @@ ParserResult<Decl> Parser::parse_decl() {
 }
 
 ParserResult<UnaryExpr> Parser::parse_literal_expr() {
-    NodePtr<UnaryExpr> expr = nullptr;
+    P<UnaryExpr> expr = nullptr;
     // TODO Literals other than integers?
     switch (look().kind) {
     case TokenKind::number: {

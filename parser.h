@@ -37,7 +37,7 @@ public:
 
     // Successful result
     template <typename U>
-    ParserResult(NodePtr<U> ptr) : result(std::move(ptr)) {}
+    ParserResult(AstNode::P<U> ptr) : result(std::move(ptr)) {}
 
     // Erroneous result
     ParserResult(const ParserError &error) : result(error) {}
@@ -59,19 +59,19 @@ public:
 
     // Returns 'res', provided there were no errors; if there were, report them
     // and cause the compiler to exit.
-    NodePtr<T> unwrap();
+    AstNode::P<T> unwrap();
 
     // Get the stored node pointer, handing over the ownership.
-    NodePtr<T> get_ptr() { return std::move(std::get<NodePtr<T>>(result)); }
+    AstNode::P<T> get_ptr() { return std::move(std::get<AstNode::P<T>>(result)); }
 
     // Get the stored ParserError object.
     ParserError &get_error() { return std::get<ParserError>(result); }
 
     // Is this result successful?
-    bool success() { return std::holds_alternative<NodePtr<T>>(result); }
+    bool success() { return std::holds_alternative<AstNode::P<T>>(result); }
 
 private:
-    std::variant<NodePtr<T>, ParserError> result;
+    std::variant<AstNode::P<T>, ParserError> result;
 };
 
 class Parser {
@@ -97,7 +97,7 @@ private:
     // Declaration parsers
     ParserResult<Decl> parse_decl();
     ParserResult<ParamDecl> parse_param_decl();
-    std::vector<NodePtr<ParamDecl>> parse_param_decl_list();
+    std::vector<AstNode::P<ParamDecl>> parse_param_decl_list();
     ParserResult<VarDecl> parse_var_decl();
     ParserResult<FuncDecl> parse_func_decl();
 
@@ -153,7 +153,7 @@ private:
 
     // Construct a successful ParserResult, annotating it with the start
     // position.
-    template <typename T> auto make_result(NodePtr<T> ptr) {
+    template <typename T> auto make_result(AstNode::P<T> ptr) {
         return ParserResult<T>{std::move(ptr)};
     }
 
