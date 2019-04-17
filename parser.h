@@ -75,6 +75,8 @@ private:
 };
 
 using StmtResult = ParserResult<Stmt>;
+using DeclResult = ParserResult<Decl>;
+using ExprResult = ParserResult<Expr>;
 
 class Parser {
 public:
@@ -97,26 +99,26 @@ private:
     StmtResult parse_compound_stmt();
 
     // Declaration parsers
-    ParserResult<Decl> parse_decl();
-    ParserResult<ParamDecl> parse_param_decl();
+    DeclResult parse_decl();
+    DeclResult parse_param_decl();
     std::vector<P<ParamDecl>> parse_param_decl_list();
-    ParserResult<VarDecl> parse_var_decl();
-    ParserResult<FuncDecl> parse_func_decl();
+    DeclResult parse_var_decl();
+    DeclResult parse_func_decl();
 
     // Expression parsers
-    ParserResult<Expr> parse_expr();
-    ParserResult<UnaryExpr> parse_literal_expr();
-    ParserResult<IntegerLiteral> parse_integer_literal();
-    ParserResult<DeclRefExpr> parse_declref_expr();
-    ParserResult<TypeExpr> parse_type_expr();
-    ParserResult<UnaryExpr> parse_unary_expr();
+    ExprResult parse_expr();
+    ExprResult parse_literal_expr();
+    ExprResult parse_integer_literal();
+    ExprResult parse_declref_expr();
+    ExprResult parse_type_expr();
+    ExprResult parse_unary_expr();
     // Extend a unary expression into binary if possible, by parsing any
     // attached RHS.  Returns the owning pointer to the newly constructed binary
     // expression.
     //
     // After the call, 'lhs' is invalidated by being moved away.  Subsequent
     // code should use the returned pointer instead.
-    ParserResult<Expr> parse_binary_expr_rhs(ExprPtr lhs, int precedence = 0);
+    ExprResult parse_binary_expr_rhs(ExprPtr lhs, int precedence = 0);
 
     // Get the next token from the lexer.
     void next();

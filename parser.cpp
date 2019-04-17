@@ -11,6 +11,13 @@
 // ParserResult only encapsulates the node and the successfulness, and errors
 // are added to a central error list object owned by Parser.  This is similar
 // to the way Clang handles diagnostics.
+//
+// ParserResult<T> types are usually not used in its template form; instead,
+// they are streamlined into three main cases: StmtResult, DeclResult and
+// ExprResult.  This is sufficient because most nodes only specify the type of
+// their children at this granularity. It also gives a benefit in that the
+// parser functions do not have to manually specify T when returning erroneous
+// ParserResult<T>s.
 
 namespace cmp {
 
@@ -188,7 +195,7 @@ StmtResult Parser::parse_compound_stmt() {
 
 // ParamDecls are not trivially lookaheadable with a single token ('a' in 'a:
 // int' does not guarantee anything), so this needs to be easily revertable.
-ParserResult<ParamDecl> Parser::parse_param_decl() {
+DeclResult Parser::parse_param_decl() {
     if (look().kind != TokenKind::ident)
         return make_error("expected an identifier");
 
@@ -203,7 +210,7 @@ ParserResult<ParamDecl> Parser::parse_param_decl() {
     }
     next();
 
-    auto type_expr = parse_type_expr().unwrap();
+    auto type_expr = node_cast<TypeExpr>(parse_type_expr().unwrap());
 
     // TODO: mut?
     auto node = make_node_with_pos<ParamDecl>(start_pos, look().pos, name,
@@ -215,12 +222,13 @@ std::vector<P<ParamDecl>> Parser::parse_param_decl_list() {
     std::vector<P<ParamDecl>> decl_list;
     auto before_param = get_position();
 
-    ParserResult<ParamDecl> res;
+    DeclResult res;
     while ((res = parse_param_decl()).success()) {
-        decl_list.push_back(res.unwrap());
-        if (look().kind != TokenKind::comma) {
+        decl_list.push_back(node_cast<ParamDecl>(res.unwrap()));
+
+        // No more ',' after 'var: type' means the list is over.
+        if (look().kind != TokenKind::comma)
             break;
-        }
         next();
     }
 
@@ -231,7 +239,7 @@ std::vector<P<ParamDecl>> Parser::parse_param_decl_list() {
     return decl_list;
 }
 
-ParserResult<VarDecl> Parser::parse_var_decl() {
+DeclResult Parser::parse_var_decl() {
     auto start_pos = look().pos;
 
     // 'let' or 'var'
@@ -246,7 +254,7 @@ ParserResult<VarDecl> Parser::parse_var_decl() {
         if (!mut) {
             error("initial value required");
         }
-        auto param_decl = param_res.unwrap();
+        auto param_decl = node_cast<ParamDecl>(param_res.unwrap());
         // TODO: if param_decl->mut unmatches mut?
         return make_node_with_pos<VarDecl>(
             start_pos, param_decl->end_pos, param_decl->name,
@@ -272,7 +280,7 @@ ParserResult<VarDecl> Parser::parse_var_decl() {
     }
 }
 
-ParserResult<FuncDecl> Parser::parse_func_decl() {
+DeclResult Parser::parse_func_decl() {
     expect(TokenKind::kw_fn);
 
     Name *name = name_table.find_or_insert(look().text);
@@ -290,7 +298,10 @@ ParserResult<FuncDecl> Parser::parse_func_decl() {
     // Return type (-> ...)
     if (expect(TokenKind::arrow))
         return make_error("expected '->' after parameter list");
-    func->return_type_expr = parse_type_expr().unwrap();
+    auto ter = parse_type_expr();
+    if (!ter.success())
+        return make_error("unknown type");
+    func->return_type_expr = node_cast<TypeExpr>(ter.unwrap());
 
     // Function body
     func->body = node_cast<CompoundStmt>(parse_compound_stmt().unwrap());
@@ -299,7 +310,7 @@ ParserResult<FuncDecl> Parser::parse_func_decl() {
     return std::move(func);
 }
 
-ParserResult<Decl> Parser::parse_decl() {
+DeclResult Parser::parse_decl() {
     switch (look().kind) {
     case TokenKind::kw_let:
     case TokenKind::kw_var:
@@ -309,7 +320,7 @@ ParserResult<Decl> Parser::parse_decl() {
     }
 }
 
-ParserResult<UnaryExpr> Parser::parse_literal_expr() {
+ExprResult Parser::parse_literal_expr() {
     P<UnaryExpr> expr = nullptr;
     // TODO Literals other than integers?
     switch (look().kind) {
@@ -331,7 +342,7 @@ ParserResult<UnaryExpr> Parser::parse_literal_expr() {
     return {std::move(expr)};
 }
 
-ParserResult<DeclRefExpr> Parser::parse_declref_expr() {
+ExprResult Parser::parse_declref_expr() {
     auto ref_expr = make_node<DeclRefExpr>();
 
     ref_expr->start_pos = look().pos;
@@ -345,7 +356,7 @@ ParserResult<DeclRefExpr> Parser::parse_declref_expr() {
     return {std::move(ref_expr)};
 }
 
-ParserResult<TypeExpr> Parser::parse_type_expr() {
+ExprResult Parser::parse_type_expr() {
     auto type_expr = make_node<TypeExpr>();
 
     type_expr->start_pos = look().pos;
@@ -356,7 +367,7 @@ ParserResult<TypeExpr> Parser::parse_type_expr() {
     if (look().kind == TokenKind::ampersand) {
         next();
         type_expr->ref = true;
-        type_expr->subexpr = parse_type_expr().unwrap();
+        type_expr->subexpr = node_cast<TypeExpr>(parse_type_expr().unwrap());
         text = "&" + type_expr->subexpr->name->text;
     }
     else if (look().is_identifier_or_keyword()) {
@@ -374,7 +385,7 @@ ParserResult<TypeExpr> Parser::parse_type_expr() {
     return {std::move(type_expr)};
 }
 
-ParserResult<UnaryExpr> Parser::parse_unary_expr() {
+ExprResult Parser::parse_unary_expr() {
     auto start_pos = look().pos;
 
     switch (look().kind) {
