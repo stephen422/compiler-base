@@ -40,7 +40,9 @@ const Token Parser::look() const {
     return tokens[lookahead_pos];
 }
 
-void Parser::expect(TokenKind kind, const std::string &msg = "") {
+/// Return false if the lookahead token matches the expected one, true
+/// otherwise.
+bool Parser::expect(TokenKind kind, const std::string &msg = "") {
     if (look().kind != kind) {
         std::stringstream ss;
         if (msg.empty()) {
@@ -49,9 +51,11 @@ void Parser::expect(TokenKind kind, const std::string &msg = "") {
         } else {
             ss << msg;
         }
-        error(ss.str());
+        // error(ss.str());
+        return true;
     }
     next();
+    return false;
 }
 
 static bool is_end_of_stmt(Token tok) {
@@ -117,17 +121,14 @@ ParserResult<AssignStmt> Parser::parse_assign_stmt() {
     auto start_pos = look().pos;
 
     auto lhs_res = parse_expr();
-    if (!lhs_res.success()) {
+    if (!lhs_res.success())
         return {lhs_res.get_error()};
-    }
 
-    if (look().kind != TokenKind::equals) {
+    if (expect(TokenKind::equals))
         return make_error("expected '=' after LHS of assignment");
-    }
-    expect(TokenKind::equals);
 
     // At this point, it becomes certain that this is an assignment statement,
-    // so we can safely unwrap for RHS.
+    // and so we can safely unwrap for RHS.
     auto rhs = parse_expr().unwrap();
 
     return make_node_with_pos<AssignStmt>(start_pos, look().pos, lhs_res.unwrap(), std::move(rhs));
@@ -157,7 +158,8 @@ ParserResult<CompoundStmt> Parser::parse_compound_stmt() {
         // report the last statement failure
         stmt_res.unwrap();
     }
-    expect(TokenKind::rbrace);
+    if (expect(TokenKind::rbrace))
+        return make_error("unterminated compound statement");
     return {std::move(compound)};
 }
 
@@ -236,9 +238,12 @@ ParserResult<VarDecl> Parser::parse_var_decl() {
         Name *name = name_table.find_or_insert(look().text);
         next();
 
-        // Assignment expression should be provided if kind is not specified.
-        expect(TokenKind::equals, mut ? "type or initial value required"
-                                      : "initial value required");
+        // Assignment expression should be provided if kind is not
+        // specified.
+        if (expect(TokenKind::equals))
+            return make_error(mut ? "type or initial value required"
+                                  : "initial value required");
+
         auto rhs = parse_expr().unwrap();
         return make_node_with_pos<VarDecl>(start_pos, rhs->end_pos, name,
                                            nullptr, std::move(rhs), mut);
@@ -254,12 +259,15 @@ ParserResult<FuncDecl> Parser::parse_func_decl() {
     next();
 
     // Argument list
-    expect(TokenKind::lparen);
+    if (expect(TokenKind::lparen))
+        return make_error("expected '(' after function name");
     func->param_decl_list = parse_param_decl_list();
-    expect(TokenKind::rparen);
+    if (expect(TokenKind::rparen))
+        return make_error("unterminated parameter list");
 
     // Return type (-> ...)
-    expect(TokenKind::arrow);
+    if (expect(TokenKind::arrow))
+        return make_error("expected '->' after parameter list");
     func->return_type_expr = parse_type_expr().unwrap();
 
     // Function body
@@ -366,7 +374,8 @@ ParserResult<UnaryExpr> Parser::parse_unary_expr() {
     case TokenKind::lparen: {
         expect(TokenKind::lparen);
         auto expr = parse_expr();
-        expect(TokenKind::rparen);
+        if (expect(TokenKind::rparen))
+            return make_error("unterminated parenthesized expression");
         // TODO: check unwrap
         return make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Paren, expr.unwrap());
     }
