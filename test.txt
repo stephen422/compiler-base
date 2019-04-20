@@ -1,7 +1,7 @@
 fn swap (a: &int, b: &int) -> int {
     let t = *a // [error: whatever]
     *a = *b // there
-    *b = t
+    * = t
 }
 
 fn main() -> int {

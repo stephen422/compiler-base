@@ -58,8 +58,8 @@ public:
 
     ParserResult &operator=(ParserResult &&res) = default;
 
-    // Returns 'res', provided there were no errors; if there were, report them
-    // and cause the compiler to exit.
+    /// Returns 'res', provided there were no errors; if there were, report them
+    /// and cause the compiler to exit.
     P<T> unwrap();
 
     // Get the stored node pointer, handing over the ownership.

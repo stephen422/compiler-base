@@ -30,9 +30,9 @@ template <typename T>
 P<T> ParserResult<T>::unwrap() {
     if (success()) {
         return std::move(std::get<P<T>>(result));
+    } else {
+        assert(false && "tried to unwrap a failed result.");
     }
-    std::get<ParserError>(result).report();
-    exit(EXIT_FAILURE);
 }
 
 static void insert_keywords_in_name_table(NameTable &name_table) {
@@ -185,9 +185,16 @@ StmtResult Parser::parse_compound_stmt() {
     expect(TokenKind::lbrace);
     auto compound = make_node<CompoundStmt>();
     ParserResult<Stmt> stmt_res;
-    while ((stmt_res = parse_stmt()).success()) {
-        compound->stmts.push_back(stmt_res.unwrap());
+
+    try {
+        while ((stmt_res = parse_stmt()).success()) {
+            compound->stmts.push_back(stmt_res.unwrap());
+        }
+    } catch (std::string &s) {
+        std::cout << "parse exception: " << s << std::endl;
+        exit(EXIT_FAILURE);
     }
+
     // did parse_stmt() fail at the end properly?
     if (look().kind != TokenKind::rbrace) {
         // report the last statement failure
@@ -432,6 +439,7 @@ ExprResult Parser::parse_unary_expr() {
         // means no other expression could be matched either, so just do a
         // really generic report.
         errors.push_back("expected an expression");
+        throw std::string{"expected an expression"};
         return ParserError{};
     }
 }
