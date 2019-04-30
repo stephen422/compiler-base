@@ -31,7 +31,8 @@ P<T> ParserResult<T>::unwrap() {
     if (success()) {
         return std::move(std::get<P<T>>(result));
     } else {
-        assert(false && "tried to unwrap a failed result.");
+        std::cerr << "unwrap(): tried to unwrap a failed ParserResult.\n";
+        abort();
     }
 }
 
@@ -269,9 +270,9 @@ DeclResult Parser::parse_var_decl() {
     auto param_res = parse_param_decl();
     if (param_res.success()) {
         // 'let' cannot be used with explicit type specfication
-        if (!mut) {
+        if (!mut)
             error("initial value required");
-        }
+
         auto param_decl = node_cast<ParamDecl>(param_res.unwrap());
         // TODO: if param_decl->mut unmatches mut?
         return make_node_with_pos<VarDecl>(
@@ -464,7 +465,7 @@ int Parser::get_precedence(const Token &op) const {
 //
 // After the call, 'lhs' is invalidated by being moved away.  Subsequent code
 // should use the wrapped node in the return value instead.
-ParserResult<Expr> Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
+ExprResult Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
     ExprPtr root = std::move(lhs);
 
     while (true) {
@@ -505,9 +506,9 @@ ParserResult<Expr> Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
 
 ParserResult<Expr> Parser::parse_expr() {
     auto unary_r = parse_unary_expr();
-    if (!unary_r.success()) {
+    if (!unary_r.success())
         return unary_r;
-    }
+
     // TODO don't unwrap here.
     return parse_binary_expr_rhs(unary_r.unwrap());
 }
