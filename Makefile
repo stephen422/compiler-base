@@ -1,20 +1,21 @@
 #CFLAGS += -g -std=c11 -fsanitize=address,leak,undefined -Wall -Wextra
 CFLAGS += -g -std=c11 -Wall -Wextra -Wno-unused-function
-PROG := cmp
-OBJ := main.o sema.o parser.o lexer.o
+PROG := qc
+SRCS := main.c sema.c parser.c lexer.c
+OBJS := $(SRCS:.c=.o)
+DEPS := $(SRCS:.c=.d)
 
-$(PROG): $(OBJ)
-	$(CC) $(CFLAGS) -o $(PROG) $(OBJ)
+all: $(PROG)
+
+$(PROG): $(OBJS)
+	$(CC) $(CFLAGS) -o $(PROG) $(OBJS)
 
 .SUFFIXES: .c .o
 .c.o:
-	$(CC) $(CFLAGS) -c -o $@ $<
-
-main.o: sema.h parser.h ast.h lexer.h sema.h
-sema.o: sema.h ast.h lexer.h sema.h
-parser.o: parser.h ast.h lexer.h sema.h
-lexer.o: lexer.h
+	$(CC) $(CFLAGS) -MMD -MP -c -o $@ $<
 
 .PHONY: clean
 clean:
-	rm -f *.o $(PROG)
+	rm -f $(OBJS) $(DEPS) $(PROG)
+
+-include $(DEPS)
