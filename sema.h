@@ -1,3 +1,4 @@
+/* vim: set ft=c: */
 #ifndef SEMA_H
 #define SEMA_H
 
@@ -87,8 +88,6 @@ typedef struct Map {
 
 typedef struct Node Node;
 
-// Walk the AST starting from 'node' as the root node.
-void walk(Node *node);
 void sema(ASTContext sema);
 
 #endif

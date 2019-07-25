@@ -1,3 +1,4 @@
+/* vim: set ft=c: */
 #ifndef AST_H
 #define AST_H
 
@@ -8,21 +9,22 @@ typedef struct NameTable NameTable;
 typedef struct Type Type;
 
 typedef enum NodeKind {
-	ND_TOKEN,
-	ND_TYPEEXPR,
-	ND_REFEXPR,
-	ND_LITEXPR,
-	ND_DEREFEXPR,
-	ND_BINEXPR,
-	ND_EXPRSTMT,
-	ND_PARAMDECL,
-	ND_VARDECL,
-	ND_DECLSTMT,
-	ND_ASSIGNSTMT,
-	ND_RETURNSTMT,
-	ND_COMPOUNDSTMT,
-	ND_FUNCDECL,
-	ND_FILE,
+    ND_NONE,
+    ND_TOKEN,
+    ND_TYPEEXPR,
+    ND_REFEXPR,
+    ND_LITEXPR,
+    ND_DEREFEXPR,
+    ND_BINEXPR,
+    ND_EXPRSTMT,
+    ND_PARAMDECL,
+    ND_VARDECL,
+    ND_DECLSTMT,
+    ND_ASSIGNSTMT,
+    ND_RETURNSTMT,
+    ND_COMPOUNDSTMT,
+    ND_FUNCDECL,
+    ND_FILE,
 } NodeKind;
 
 typedef struct Node Node;
