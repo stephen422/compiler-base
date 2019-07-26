@@ -10,7 +10,24 @@ static Token look(Parser *p);
 static Node *parse_expr(Parser *p);
 static int is_decl_start(Parser *p);
 static Node *parse_decl(Parser *p);
-static Name *register_name(Parser *p, Token tok);
+
+static Name *push_refname(Parser *p, const Name *name)
+{
+    int len = strlen(name->text);
+    char *s = calloc(len + 2, 1);
+
+    s[0] = '&';
+    strncpy(s + 1, name->text, len);
+    Name *n = push_name(&p->nametable, s, strlen(s));
+    free(s);
+
+    return n;
+}
+
+static Name *push_name_from_token(Parser *p, Token tok)
+{
+	return push_name(&p->nametable, p->lexer.src + tok.range.start, tok.range.end - tok.range.start);
+}
 
 static Node *make_node(Parser *p, NodeKind k, Token tok)
 {
@@ -92,9 +109,9 @@ static Node *make_typeexpr(Parser *p, Name *name, int ref, Node *canon)
 	return node;
 }
 
-static Node *make_refexpr(Parser *p, Name *name)
+static Node *make_idexpr(Parser *p, Name *name)
 {
-	Node *node = make_node(p, ND_REFEXPR, look(p));
+	Node *node = make_node(p, ND_IDEXPR, look(p));
 	node->name = name;
 	return node;
 }
@@ -186,8 +203,8 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
 		}
 		indent -= 2;
 		break;
-	case ND_REFEXPR:
-		printf("[RefExpr] '%s'\n", node->name->text);
+	case ND_IDEXPR:
+		printf("[IdExpr] '%s'\n", node->name->text);
 		break;
 	case ND_LITEXPR:
 		printf("[LiteralExpr] ");
@@ -203,6 +220,12 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
 			break;
 		}
 		break;
+        case ND_REFEXPR:
+		printf("[RefExpr]\n");
+		indent += 2;
+		print_ast_indent(p, node->expr, indent);
+		indent -= 2;
+                break;
 	case ND_DEREFEXPR:
 		printf("[DerefExpr]\n");
 		indent += 2;
@@ -306,7 +329,7 @@ static void next(Parser *p)
 
 	// Push keywords that we come by into the name table.
 	if (is_keyword(look(p)))
-		register_name(p, look(p));
+		push_name_from_token(p, look(p));
 }
 
 static void add_error(Parser *p, SrcLoc loc, const char *msg)
@@ -480,66 +503,69 @@ static int is_typename(Token tok)
 	}
 }
 
-static Node *parse_typeexpr(Parser *p)
-{
-	Node *canon;
-	Name *name;
-	int ref;
+static Node *parse_typeexpr(Parser *p) {
+    Node *subexpr;
+    Name *name;
+    int ref;
 
-	if (look(p).type == TOK_AMPERSAND) {
-		next(p);
-		ref = 1;
-		canon = parse_typeexpr(p);
-		name = NULL;
-	} else {
-		ref = 0;
-		canon = NULL;
+    if (look(p).type == TOK_AMPERSAND) {
+        next(p);
+        ref = 1;
+        subexpr = parse_typeexpr(p);
+        name = push_refname(p, subexpr->name);
+    } else {
+        ref = 0;
+        subexpr = NULL;
 
-		if (!is_typename(look(p))) {
-			error(p, "invalid type name '%s'", token_names[look(p).type]);
-			return NULL;
-		}
+        if (!is_typename(look(p))) {
+            error(p, "invalid type name '%s'", token_names[look(p).type]);
+            return NULL;
+        }
 
-		name = register_name(p, look(p));
-		next(p);
-	}
+        name = push_name_from_token(p, look(p));
+        next(p);
+    }
 
-	return make_typeexpr(p, name, ref, canon);
+    return make_typeexpr(p, name, ref, subexpr);
 }
 
-static Node *parse_refexpr(Parser *p)
+static Node *parse_idexpr(Parser *p)
 {
-	Name *name = register_name(p, look(p));
+	Name *name = push_name_from_token(p, look(p));
 	next(p);
-	return make_refexpr(p, name);
+	return make_idexpr(p, name);
 }
 
-static Node *parse_unaryexpr(Parser *p)
-{
-	Node *expr = NULL;
+static Node *parse_unaryexpr(Parser *p) {
+    Node *expr = NULL;
 
-	switch (look(p).type) {
-	case TOK_IDENT:
-		expr = parse_refexpr(p);
-		break;
-	case TOK_NUM:
-		expr = parse_litexpr(p);
-		break;
-	case TOK_STAR:
-		next(p);
-		expr = parse_unaryexpr(p);
-		expr = make_unaryexpr(p, ND_DEREFEXPR, expr);
-		break;
-	case TOK_LPAREN:
-		expect(p, TOK_LPAREN);
-		expr = parse_expr(p);
-		expect(p, TOK_RPAREN);
-		break;
-	default:
-		error(p, "expected an expression");
-		break;
-	}
-	return expr;
+    switch (look(p).type) {
+    case TOK_IDENT:
+        expr = parse_idexpr(p);
+        break;
+    case TOK_NUM:
+        expr = parse_litexpr(p);
+        break;
+    case TOK_AMPERSAND:
+        next(p);
+        expr = parse_unaryexpr(p);
+        expr = make_unaryexpr(p, ND_REFEXPR, expr);
+        break;
+    case TOK_STAR:
+        next(p);
+        expr = parse_unaryexpr(p);
+        expr = make_unaryexpr(p, ND_DEREFEXPR, expr);
+        break;
+    case TOK_LPAREN:
+        expect(p, TOK_LPAREN);
+        expr = parse_expr(p);
+        expect(p, TOK_RPAREN);
+        break;
+    default:
+        error(p, "expected an expression");
+        break;
+    }
+    return expr;
 }
 
 static int get_precedence(const Token op)
@@ -627,7 +653,7 @@ static int is_paramdecl_start(Parser *p)
 static Node *parse_paramdecl(Parser *p)
 {
 	Token tok = expect(p, TOK_IDENT);
-	Name *name = register_name(p, tok);
+	Name *name = push_name_from_token(p, tok);
 
 	if (look(p).type != TOK_COLON) {
 		error_expected(p, TOK_COLON);
@@ -665,7 +691,7 @@ static Node *parse_vardecl(Parser *p)
 	next(p);
 
 	Token tok = expect(p, TOK_IDENT);
-	Name *name = register_name(p, tok);
+	Name *name = push_name_from_token(p, tok);
 
 	if (look(p).type == TOK_COLON) {
 		next(p);
@@ -724,7 +750,7 @@ static Node *parse_funcdecl(Parser *p)
 	}
 	next(p);
 
-	Name *name = register_name(p, look(p));
+	Name *name = push_name_from_token(p, look(p));
 	Node *func = make_funcdecl(p, name);
 	next(p);
 
@@ -760,9 +786,4 @@ ASTContext parse(Parser *p)
 	ast.nametable = &p->nametable;
 
 	return ast;
-}
-
-static Name *register_name(Parser *p, Token tok)
-{
-	return push_name(&p->nametable, p->lexer.src + tok.range.start, tok.range.end - tok.range.start);
 }

@@ -12,9 +12,10 @@ typedef enum NodeKind {
     ND_NONE,
     ND_TOKEN,
     ND_TYPEEXPR,
-    ND_REFEXPR,
-    ND_LITEXPR,
-    ND_DEREFEXPR,
+    ND_LITEXPR,   // 3
+    ND_IDEXPR,    // a
+    ND_REFEXPR,   // &a
+    ND_DEREFEXPR, // *a
     ND_BINEXPR,
     ND_EXPRSTMT,
     ND_PARAMDECL,
@@ -29,29 +30,29 @@ typedef enum NodeKind {
 
 typedef struct Node Node;
 typedef struct Node {
-	NodeKind kind;
-	Token token;
+    NodeKind kind;
+    Token token;
 
-	Name *name;
-	Type *type;
-	Node *lhs;
-	Node *op;
-	Node *rhs;
-	Node **nodes; // compoundstmt, file
+    Name *name;
+    Type *type;
+    Node *lhs;
+    Node *op;
+    Node *rhs;
+    Node **nodes; // compoundstmt, file
 
-	// decl
-	Node *typeexpr; // var type
-	Node *expr;
-	int ref;
-	int mutable;
+    // decl
+    Node *typeexpr; // var type
+    Node *expr;
+    int ref;
+    int mutable;
 
-	Node *stmt_expr; // exprstmt
-	Node *decl;	 // declstmt
+    Node *stmt_expr; // exprstmt
+    Node *decl;      // declstmt
 
-	// funcdecl
-	Node *body;
-	Node **paramdecls;
-	Node *rettypeexpr;
+    // funcdecl
+    Node *body;
+    Node **paramdecls;
+    Node *rettypeexpr;
 } Node;
 
 /* ASTContext wraps the root node of AST with metadata such as the name table.

@@ -89,10 +89,11 @@ Name *get_name(NameTable *nt, char *s, size_t len)
     return NULL;
 }
 
-static Type *make_type(Name *name, Type *canon_type)
+static Type *make_type(Name *name, enum TypeKind kind, Type *canon_type)
 {
     Type *type = calloc(1, sizeof(Type));
 
+    type->kind = kind;
     type->name = name;
     type->canon_type = canon_type;
 
@@ -160,6 +161,8 @@ static void map_destroy(Map *m)
 }
 
 static Symbol *map_find(Map *m, Name *name) {
+    assert(name);
+
     int i = ptrhash(name) % HASHTABLE_SIZE;
 
     for (Symbol *s = m->buckets[i]; s; s = s->next)
@@ -266,6 +269,21 @@ static int is_redefinition(Map *m, Name *name)
     return s && (s->scope == m->n_scope - 1);
 }
 
+// A 'subtype' is a variant of a value type, e.g. &i32.  Returns 1 on success.
+// If the canonical type of this typeexpr is not defined, it returns 0.
+static int gen_subtype(Node *typeexpr) {
+    Symbol *s = map_find(&typemap, typeexpr->typeexpr->name);
+    if (!s) {
+        return 0;
+    }
+
+    Type *canon = (Type *)s->value;
+    Type *type = make_type(typeexpr->name, T_REF, canon);
+    map_push(&typemap, typeexpr->name, type);
+
+    return 1;
+}
+
 // Walk the AST starting from 'node' as the root node.
 static void walk(Node *node)
 {
@@ -273,42 +291,67 @@ static void walk(Node *node)
     Type *type;
     Symbol *s;
 
+    if (!node) {
+        return;
+    }
+
     switch (node->kind) {
     case ND_FILE:
-        for (int i = 0; i < sb_count(node->nodes); i++)
+        for (int i = 0; i < sb_count(node->nodes); i++) {
             walk(node->nodes[i]);
+        }
         break;
     case ND_FUNCDECL:
         push_scope();
-        for (int i = 0; i < sb_count(node->paramdecls); i++)
+        for (int i = 0; i < sb_count(node->paramdecls); i++) {
             walk(node->paramdecls[i]);
+        }
         walk(node->body);
         pop_scope();
         break;
     case ND_TYPEEXPR:
+        walk(node->typeexpr);
+
         s = map_find(&typemap, node->name);
-        if (s)
-            node->type = s->value;
+        if (!s) {
+            int rc = gen_subtype(node);
+            if (!rc) {
+                error("Reference of an unknown type %s\n", node->typeexpr->name);
+            }
+            s = map_find(&typemap, node->name);
+        }
+        node->type = (Type *)s->value;
         break;
-    case ND_REFEXPR:
+    case ND_IDEXPR:
         s = map_find(&declmap, node->name);
-        if (!s)
+        if (!s) {
             error("'%s' is not declared", node->name->text);
-        decl = s->value;
+        }
+        decl = (Decl *)s->value;
         node->type = decl->type;
         break;
     case ND_LITEXPR:
-        // TODO: proper type inferrence
+        // for now, only supports i32 literals
         node->type = i32_type;
         break;
-    case ND_DEREFEXPR:
+    case ND_REFEXPR:
         walk(node->expr);
+        // TODO
         break;
+    case ND_DEREFEXPR: {
+        walk(node->expr);
+
+        Type *operand_type = node->expr->type;
+        if (operand_type->kind != T_REF) {
+            error("dereference of a non-reference type %s\n", operand_type->name->text);
+        }
+        node->type = operand_type->canon_type;
+        break;
+    }
     case ND_BINEXPR:
         walk(node->lhs);
         walk(node->rhs);
 
-        // TODO: infer type in ND_REFEXPR
         assert(node->lhs->type);
         assert(node->rhs->type);
 
@@ -322,10 +365,13 @@ static void walk(Node *node)
         walk(node->expr);
         break;
     case ND_PARAMDECL:
-        if (is_redefinition(&declmap, node->name))
-            error("redefinition of '%s'", node->name->text);
+        walk(node->typeexpr);
 
-        decl = make_decl(node->name, NULL);
+        if (is_redefinition(&declmap, node->name)) {
+            error("redefinition of '%s'", node->name->text);
+        }
+
+        decl = make_decl(node->name, node->typeexpr->type);
         map_push(&declmap, node->name, decl);
         break;
     case ND_VARDECL:
@@ -345,9 +391,10 @@ static void walk(Node *node)
             assert(0 && "unreachable");
         }
 
-        if (!type)
+        if (!type) {
             // inferrence failure
             error("cannot infer type of '%s'", node->name->text);
+        }
 
         decl = make_decl(node->name, type);
         map_push(&declmap, node->name, decl);
@@ -379,7 +426,7 @@ static void walk(Node *node)
 static Type *setup_type_from_str(NameTable *nt, char *s)
 {
     Name *n = push_name(nt, s, strlen(s));
-    Type *t = make_type(n, NULL);
+    Type *t = make_type(n, T_CANON, NULL);
     return map_push(&typemap, n, t)->value;
 }
 
