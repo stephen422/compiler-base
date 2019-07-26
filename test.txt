@@ -1,4 +1,4 @@
-fn main() -> int {
+fn main() {
     let a = 4
     var b: i32
     a * b + 2
@@ -7,14 +7,13 @@ fn main() -> int {
     // This is a line comment.
     let c = 3
     var d = 4.3 / 3.1415926535
-    // return a
-    return 3
 }
 
-fn swap(a: &i32, b: &i32) -> int {
+fn swap(a: &i32, b: &i32) -> i32 {
     let t = *a
     *a = *b
     *b = t
+    return 3
 }
 
 // fn parser_free(&self) -> own *T {

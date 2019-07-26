@@ -314,10 +314,35 @@ static void walk(Node *node)
         break;
     case ND_FUNCDECL:
         push_scope();
+
         for (int i = 0; i < sb_count(node->paramdecls); i++) {
             walk(node->paramdecls[i]);
         }
+        walk(node->rettypeexpr);
         walk(node->body);
+
+        int has_return = 0;
+        for (int i = 0; i < sb_count(node->body->nodes); i++) {
+            Node *child = node->body->nodes[i];
+            if (child->kind != ND_RETURNSTMT) {
+                continue;
+            }
+
+            has_return = 1;
+            if (!node->rettypeexpr) {
+                error("function does not return value\n");
+            }
+            if (child->expr->type != node->rettypeexpr->type) {
+                error("wrong return type %s, expected %s\n",
+                      child->expr->type->name->text,
+                      node->rettypeexpr->type->name->text);
+            }
+        }
+
+        if (node->rettypeexpr && !has_return) {
+            error("function should return a value\n");
+        }
+
         pop_scope();
         break;
     case ND_TYPEEXPR:
@@ -408,7 +433,7 @@ static void walk(Node *node)
         }
 
         if (!type) {
-            // inferrence failure
+            // inference failure
             error("cannot infer type of '%s'", node->name->text);
         }
 
@@ -423,15 +448,15 @@ static void walk(Node *node)
         walk(node->rhs);
         walk(node->lhs);
         break;
-    case ND_RETURNSTMT:
-        walk(node->expr);
-        break;
     case ND_COMPOUNDSTMT:
         push_scope();
         for (int i = 0; i < sb_count(node->nodes); i++) {
             walk(node->nodes[i]);
         }
         pop_scope();
+        break;
+    case ND_RETURNSTMT:
+        walk(node->expr);
         break;
     default:
         fprintf(stderr, "%s: don't know how to walk node kind %d\n",
@@ -461,6 +486,11 @@ void sema(ASTContext ast)
     setup_builtin_types(ast.nametable);
 
     walk(ast.root);
+
+    printf("==== declmap ====\n");
+    map_print(&declmap);
+    printf("==== typemap ====\n");
+    map_print(&typemap);
 
     map_destroy(&declmap);
     map_destroy(&typemap);

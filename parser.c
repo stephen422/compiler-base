@@ -423,36 +423,37 @@ static void skip_invisibles(Parser *p)
 
 static Node *parse_stmt(Parser *p)
 {
-	Node *stmt;
+    Node *stmt;
 
-	skip_invisibles(p);
+    skip_invisibles(p);
 
-	// try all possible productions and use the first successful one
-	switch (look(p).type) {
-	case TOK_EOF:
-	case TOK_RBRACE: // compoundstmt end
-		return NULL;
-	case TOK_RETURN:
-		stmt = parse_returnstmt(p);
-		return stmt;
-	default:
-		break;
-	}
+    // try all possible productions and use the first successful one
+    switch (look(p).type) {
+    case TOK_EOF:
+    case TOK_RBRACE: // compoundstmt end
+        return NULL;
+    case TOK_RETURN:
+        stmt = parse_returnstmt(p);
+        return stmt;
+    default:
+        break;
+    }
 
-	if (is_decl_start(p)) {
-		Node *decl = parse_decl(p);
-		stmt = make_decl_stmt(p, decl);
-		expect(p, TOK_NEWLINE);
-		return stmt;
-	}
+    if (is_decl_start(p)) {
+        Node *decl = parse_decl(p);
+        stmt = make_decl_stmt(p, decl);
+        expect(p, TOK_NEWLINE);
+        return stmt;
+    }
 
-	// all productions from now on start with an expression
-	Node *expr = parse_expr(p);
-	if (expr)
-		return parse_assignstmt_or_exprstmt(p, expr);
+    // all productions from now on start with an expression
+    Node *expr = parse_expr(p);
+    if (expr) {
+        return parse_assignstmt_or_exprstmt(p, expr);
+    }
 
-	// no production has succeeded
-	return NULL;
+    // no production has succeeded
+    return NULL;
 }
 
 static Node *parse_compoundstmt(Parser *p)
@@ -748,8 +749,12 @@ static Node *parse_funcdecl(Parser *p)
 	expect(p, TOK_RPAREN);
 
 	// return type
-	expect(p, TOK_ARROW);
-	func->rettypeexpr = parse_typeexpr(p);
+        if (look(p).type == TOK_ARROW) {
+            expect(p, TOK_ARROW);
+            func->rettypeexpr = parse_typeexpr(p);
+        } else {
+            func->rettypeexpr = NULL;
+        }
 
 	func->body = parse_compoundstmt(p);
 
