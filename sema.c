@@ -184,12 +184,13 @@ static Symbol *map_find(Map *m, Name *name) {
     return NULL;
 }
 
-static Symbol *map_push(Map *m, Name *name, void *value) {
+static Symbol *map_push_at_scope(Map *m, Name *name, void *value, int scope)
+{
     Symbol *found, *s, **p;
     int i;
 
     found = map_find(m, name);
-    if (found && found->scope == m->n_scope - 1) {
+    if (found && found->scope == scope) {
         /* same one in current scope */
         return found;
     }
@@ -203,11 +204,16 @@ static Symbol *map_push(Map *m, Name *name, void *value) {
     *p = s;
 
     /* swap scope head */
-    p = &m->scopes[m->n_scope-1];
+    p = &m->scopes[scope];
     s->cross = *p;
     *p = s;
 
     return s;
+}
+
+static Symbol *map_push(Map *m, Name *name, void *value)
+{
+    return map_push_at_scope(m, name, value, m->n_scope - 1);
 }
 
 static void free_bucket(Symbol *s)
@@ -283,8 +289,13 @@ static int is_redefinition(Map *m, Name *name)
     return s && (s->scope == m->n_scope - 1);
 }
 
-// A 'subtype' is a variant of a value type, e.g. &i32.
+// A 'subtype' is a variant of a value type, e.g. &i32.  Subtypes are declared
+// at the same scope as their canonical types.
 static Type *reftype(NameTable *nt, Type *type) {
+    Symbol *s = map_find(&typemap, type->name);
+    assert(s);
+    int scope = s->scope;
+
     Name *refname = push_refname(nt, type->name);
     Symbol *try = map_find(&typemap, refname);
     if (try) {
@@ -292,7 +303,7 @@ static Type *reftype(NameTable *nt, Type *type) {
     }
 
     Type *reftype = make_type(refname, T_REF, type);
-    return map_push(&typemap, refname, reftype)->value;
+    return map_push_at_scope(&typemap, refname, reftype, scope)->value;
 }
 
 // Walk the AST starting from 'node' as the root node.
@@ -322,6 +333,7 @@ static void walk(Node *node)
         walk(node->body);
 
         int has_return = 0;
+
         for (int i = 0; i < sb_count(node->body->nodes); i++) {
             Node *child = node->body->nodes[i];
             if (child->kind != ND_RETURNSTMT) {
