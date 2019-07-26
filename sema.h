@@ -29,6 +29,7 @@ typedef struct NameTable {
 } NameTable;
 
 Name *push_name(NameTable *nt, char *s, size_t len);
+Name *push_refname(NameTable *nt, const Name *name);
 Name *get_name(NameTable *nt, char *s, size_t len);
 
 typedef struct Func {

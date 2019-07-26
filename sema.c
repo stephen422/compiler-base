@@ -78,6 +78,19 @@ Name *push_name(NameTable *nt, char *s, size_t len)
     return *p;
 }
 
+Name *push_refname(NameTable *nt, const Name *name)
+{
+    int len = strlen(name->text);
+    char *s = calloc(len + 2, 1);
+
+    s[0] = '&';
+    strncpy(s + 1, name->text, len);
+    Name *n = push_name(nt, s, strlen(s));
+    free(s);
+
+    return n;
+}
+
 Name *get_name(NameTable *nt, char *s, size_t len)
 {
     int index = strhash(s, len) % NAMETABLE_SIZE;
@@ -176,9 +189,10 @@ static Symbol *map_push(Map *m, Name *name, void *value) {
     int i;
 
     found = map_find(m, name);
-    if (found && found->scope == m->n_scope - 1)
+    if (found && found->scope == m->n_scope - 1) {
         /* same one in current scope */
         return found;
+    }
 
     i = ptrhash(name) % HASHTABLE_SIZE;
     s = make_symbol(m, name, value);
@@ -269,19 +283,16 @@ static int is_redefinition(Map *m, Name *name)
     return s && (s->scope == m->n_scope - 1);
 }
 
-// A 'subtype' is a variant of a value type, e.g. &i32.  Returns 1 on success.
-// If the canonical type of this typeexpr is not defined, it returns 0.
-static int gen_subtype(Node *typeexpr) {
-    Symbol *s = map_find(&typemap, typeexpr->typeexpr->name);
-    if (!s) {
-        return 0;
+// A 'subtype' is a variant of a value type, e.g. &i32.
+static Type *reftype(NameTable *nt, Type *type) {
+    Name *refname = push_refname(nt, type->name);
+    Symbol *try = map_find(&typemap, refname);
+    if (try) {
+        return try->value;
     }
 
-    Type *canon = (Type *)s->value;
-    Type *type = make_type(typeexpr->name, T_REF, canon);
-    map_push(&typemap, typeexpr->name, type);
-
-    return 1;
+    Type *reftype = make_type(refname, T_REF, type);
+    return map_push(&typemap, refname, reftype)->value;
 }
 
 // Walk the AST starting from 'node' as the root node.
@@ -310,17 +321,21 @@ static void walk(Node *node)
         pop_scope();
         break;
     case ND_TYPEEXPR:
-        walk(node->typeexpr);
-
-        s = map_find(&typemap, node->name);
-        if (!s) {
-            int rc = gen_subtype(node);
-            if (!rc) {
-                error("Reference of an unknown type %s\n", node->typeexpr->name);
+        if (node->typeexpr) {
+            walk(node->typeexpr);
+            if (node->ref) {
+                node->type = reftype(node->nt, node->typeexpr->type);
+            } else {
+                error("don't know what to do with this subtype: %s\n", node->name);
             }
+        } else {
+            // canonical type
             s = map_find(&typemap, node->name);
+            if (!s) {
+                error("undeclared type %s\n", node->name);
+            }
+            node->type = (Type *)s->value;
         }
-        node->type = (Type *)s->value;
         break;
     case ND_IDEXPR:
         s = map_find(&declmap, node->name);
@@ -336,7 +351,8 @@ static void walk(Node *node)
         break;
     case ND_REFEXPR:
         walk(node->expr);
-        // TODO
+
+        node->type = reftype(node->nt, node->expr->type);
         break;
     case ND_DEREFEXPR: {
         walk(node->expr);
@@ -412,8 +428,9 @@ static void walk(Node *node)
         break;
     case ND_COMPOUNDSTMT:
         push_scope();
-        for (int i = 0; i < sb_count(node->nodes); i++)
+        for (int i = 0; i < sb_count(node->nodes); i++) {
             walk(node->nodes[i]);
+        }
         pop_scope();
         break;
     default:

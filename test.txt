@@ -11,7 +11,7 @@ fn main() -> int {
     return 3
 }
 
-fn swap(a: &i32, b: i32) -> int {
+fn swap(a: &i32, b: &i32) -> int {
     let t = *a
     *a = *b
     *b = t

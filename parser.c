@@ -11,19 +11,6 @@ static Node *parse_expr(Parser *p);
 static int is_decl_start(Parser *p);
 static Node *parse_decl(Parser *p);
 
-static Name *push_refname(Parser *p, const Name *name)
-{
-    int len = strlen(name->text);
-    char *s = calloc(len + 2, 1);
-
-    s[0] = '&';
-    strncpy(s + 1, name->text, len);
-    Name *n = push_name(&p->nametable, s, strlen(s));
-    free(s);
-
-    return n;
-}
-
 static Name *push_name_from_token(Parser *p, Token tok)
 {
 	return push_name(&p->nametable, p->lexer.src + tok.range.start, tok.range.end - tok.range.start);
@@ -31,17 +18,18 @@ static Name *push_name_from_token(Parser *p, Token tok)
 
 static Node *make_node(Parser *p, NodeKind k, Token tok)
 {
-	// TODO: maybe store all nodes in a contiguous buffer for better locality?
-	// Should be careful about node pointers going stale though
-	Node *node = calloc(1, sizeof(Node));
-	if (!node) {
-		fprintf(stderr, "alloc error\n");
-		exit(1);
-	}
-	node->kind = k;
-	node->token = tok;
-	sb_push(p->nodep_buf, node);
-	return node;
+    // TODO: maybe store all nodes in a contiguous buffer for better locality?
+    // Should be careful about node pointers going stale though
+    Node *node = calloc(1, sizeof(Node));
+    if (!node) {
+        fprintf(stderr, "alloc error\n");
+        exit(1);
+    }
+    node->nt = &p->nametable;
+    node->kind = k;
+    node->token = tok;
+    sb_push(p->nodep_buf, node);
+    return node;
 }
 
 static Node *make_file(Parser *p, Node **nodes)
@@ -512,7 +500,7 @@ static Node *parse_typeexpr(Parser *p) {
         next(p);
         ref = 1;
         subexpr = parse_typeexpr(p);
-        name = push_refname(p, subexpr->name);
+        name = push_refname(&p->nametable, subexpr->name);
     } else {
         ref = 0;
         subexpr = NULL;
