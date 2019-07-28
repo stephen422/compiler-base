@@ -142,14 +142,15 @@ static uint64_t ptrhash(const void *p) {
     return x;
 }
 
-static Symbol *make_symbol(Map *m, Name *name, void *value) {
+static Symbol *make_symbol(Name *name, int scope, void *value) {
     Symbol *s;
 
     s = calloc(1, sizeof(Symbol));
-    if (!s)
+    if (!s) {
         fatal("out of memory");
+    }
     s->name = name;
-    s->scope = m->n_scope - 1;
+    s->scope = scope;
     s->value = value;
 
     return s;
@@ -196,7 +197,7 @@ static Symbol *map_push_at_scope(Map *m, Name *name, void *value, int scope)
     }
 
     i = ptrhash(name) % HASHTABLE_SIZE;
-    s = make_symbol(m, name, value);
+    s = make_symbol(name, scope, value);
 
     /* insert into the bucket */
     p = &m->buckets[i];
@@ -289,8 +290,8 @@ static int is_redefinition(Map *m, Name *name)
     return s && (s->scope == m->n_scope - 1);
 }
 
-// A 'subtype' is a variant of a value type, e.g. &i32.  Subtypes are declared
-// at the same scope as their canonical types.
+// Declare or find the reference type of an existent type.  Reference types are
+// declared at the same scope as their dereferenced types.
 static Type *reftype(NameTable *nt, Type *type) {
     Symbol *s = map_find(&typemap, type->name);
     assert(s);
@@ -323,7 +324,7 @@ static void walk(Node *node)
             walk(node->nodes[i]);
         }
         break;
-    case ND_FUNCDECL:
+    case ND_FUNCDECL: {
         push_scope();
 
         for (int i = 0; i < sb_count(node->paramdecls); i++) {
@@ -357,6 +358,7 @@ static void walk(Node *node)
 
         pop_scope();
         break;
+    }
     case ND_TYPEEXPR:
         if (node->typeexpr) {
             walk(node->typeexpr);
