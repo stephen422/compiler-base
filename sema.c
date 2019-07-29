@@ -308,7 +308,7 @@ static Type *reftype(NameTable *nt, Type *type) {
 }
 
 // Walk the AST starting from 'node' as the root node.
-static void walk(Node *node)
+static void walk(NameTable *nt, Node *node)
 {
     Decl *decl;
     Type *type;
@@ -321,17 +321,17 @@ static void walk(Node *node)
     switch (node->kind) {
     case ND_FILE:
         for (int i = 0; i < sb_count(node->nodes); i++) {
-            walk(node->nodes[i]);
+            walk(nt, node->nodes[i]);
         }
         break;
     case ND_FUNCDECL: {
         push_scope();
 
         for (int i = 0; i < sb_count(node->paramdecls); i++) {
-            walk(node->paramdecls[i]);
+            walk(nt, node->paramdecls[i]);
         }
-        walk(node->rettypeexpr);
-        walk(node->body);
+        walk(nt, node->rettypeexpr);
+        walk(nt, node->body);
 
         int has_return = 0;
 
@@ -361,9 +361,9 @@ static void walk(Node *node)
     }
     case ND_TYPEEXPR:
         if (node->typeexpr) {
-            walk(node->typeexpr);
+            walk(nt, node->typeexpr);
             if (node->ref) {
-                node->type = reftype(node->nt, node->typeexpr->type);
+                node->type = reftype(nt, node->typeexpr->type);
             } else {
                 error("don't know what to do with this subtype: %s\n", node->name);
             }
@@ -389,12 +389,12 @@ static void walk(Node *node)
         node->type = i32_type;
         break;
     case ND_REFEXPR:
-        walk(node->expr);
+        walk(nt, node->expr);
 
-        node->type = reftype(node->nt, node->expr->type);
+        node->type = reftype(nt, node->expr->type);
         break;
     case ND_DEREFEXPR: {
-        walk(node->expr);
+        walk(nt, node->expr);
 
         Type *operand_type = node->expr->type;
         if (operand_type->kind != T_REF) {
@@ -404,8 +404,8 @@ static void walk(Node *node)
         break;
     }
     case ND_BINEXPR:
-        walk(node->lhs);
-        walk(node->rhs);
+        walk(nt, node->lhs);
+        walk(nt, node->rhs);
 
         assert(node->lhs->type);
         assert(node->rhs->type);
@@ -417,10 +417,10 @@ static void walk(Node *node)
         node->type = node->lhs->type;
         break;
     case ND_EXPRSTMT:
-        walk(node->expr);
+        walk(nt, node->expr);
         break;
     case ND_PARAMDECL:
-        walk(node->typeexpr);
+        walk(nt, node->typeexpr);
 
         if (is_redefinition(&declmap, node->name)) {
             error("redefinition of '%s'", node->name->text);
@@ -435,12 +435,12 @@ static void walk(Node *node)
 
         // infer type from expression
         if (node->expr) {
-            walk(node->expr);
+            walk(nt, node->expr);
             type = node->expr->type;
         }
         // else, try explicit type spec
         else if (node->typeexpr) {
-            walk(node->typeexpr);
+            walk(nt, node->typeexpr);
             type = node->typeexpr->type;
         } else {
             assert(0 && "unreachable");
@@ -455,22 +455,22 @@ static void walk(Node *node)
         map_push(&declmap, node->name, decl);
         break;
     case ND_DECLSTMT:
-        walk(node->decl);
+        walk(nt, node->decl);
         break;
     case ND_ASSIGNSTMT:
         /* RHS first */
-        walk(node->rhs);
-        walk(node->lhs);
+        walk(nt, node->rhs);
+        walk(nt, node->lhs);
         break;
     case ND_COMPOUNDSTMT:
         push_scope();
         for (int i = 0; i < sb_count(node->nodes); i++) {
-            walk(node->nodes[i]);
+            walk(nt, node->nodes[i]);
         }
         pop_scope();
         break;
     case ND_RETURNSTMT:
-        walk(node->expr);
+        walk(nt, node->expr);
         break;
     default:
         fprintf(stderr, "%s: don't know how to walk node kind %d\n",
@@ -499,7 +499,7 @@ void sema(ASTContext ast)
 
     setup_builtin_types(ast.nametable);
 
-    walk(ast.root);
+    walk(ast.nametable, ast.root);
 
     printf("==== declmap ====\n");
     map_print(&declmap);

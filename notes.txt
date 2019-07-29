@@ -1,8 +1,6 @@
 TODO
 ====
 
-* VarDecl sema
-* Memory leak in symbol table
 * Sema error location report
 * Tests
 

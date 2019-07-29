@@ -25,7 +25,6 @@ static Node *make_node(Parser *p, NodeKind k, Token tok)
         fprintf(stderr, "alloc error\n");
         exit(1);
     }
-    node->nt = &p->nametable;
     node->kind = k;
     node->token = tok;
     sb_push(p->nodep_buf, node);

@@ -30,7 +30,6 @@ typedef enum NodeKind {
 
 typedef struct Node Node;
 typedef struct Node {
-    NameTable *nt;
     NodeKind kind;
     Token token;
 
