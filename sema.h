@@ -28,9 +28,9 @@ typedef struct NameTable {
 	Name *name_buf; // memory buffer that stores Names
 } NameTable;
 
-Name *push_name(NameTable *nt, char *s, size_t len);
+Name *push_name(NameTable *nt, const char *s, size_t len);
 Name *push_refname(NameTable *nt, const Name *name);
-Name *get_name(NameTable *nt, char *s, size_t len);
+Name *get_name(NameTable *nt, const char *s, size_t len);
 
 typedef struct Func {
 } Func;
@@ -41,7 +41,7 @@ typedef struct Var {
 
 enum TypeKind {
     T_REF,
-    T_PTR,
+    T_ALIAS,
     T_CANON,
 };
 
@@ -68,6 +68,8 @@ typedef struct Decl {
 	Type *type;
 } Decl;
 
+// A Symbol owns its value, i.e. it should always be safe to do free(value) for
+// each symbol.
 typedef struct Symbol {
 	Name *name;
 	int scope;
@@ -76,17 +78,24 @@ typedef struct Symbol {
 	struct Symbol *cross; // cross link to symbol in the same scope
 } Symbol;
 
-/* Map is a generic scoped hash table data structure used for all kinds of
- * symbols in the program, such as declarations or types.
- */
+// Map is a generic scoped hash table data structure used for all kinds of
+// symbols in the program, such as declarations or types.
 typedef struct Map {
 	Symbol *buckets[HASHTABLE_SIZE];
 	Symbol **scopes;
 	int n_scope; /* innermost scope level */
 } Map;
 
+typedef struct Context {
+    NameTable *nt;
+    Map declmap;
+    Map typemap;
+    Type *i32_type;
+    Type *i64_type;
+} Context;
+
 typedef struct Node Node;
 
-void sema(ASTContext sema);
+void sema(NameTable *nt, Node *root);
 
 #endif

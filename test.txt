@@ -13,9 +13,7 @@ fn swap(a: &i32, b: &i32) -> i32 {
     let t = *a
     *a = *b
     *b = t
-    {
-        return &3
-    }
+    return 3
 }
 
 // fn parser_free(&self) -> own *T {

@@ -29,9 +29,9 @@ int main(int argc, char **argv)
 
     Parser p;
     parser_init(&p, argv[1]);
-    ASTContext ast = parse(&p);
-    print_ast(&p, ast.root);
-    sema(ast);
+    Node *root = parse(&p);
+    print_ast(&p, root);
+    sema(&p.nametable, root);
     parser_cleanup(&p);
     return 0;
 }

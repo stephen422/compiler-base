@@ -760,11 +760,10 @@ static Node *parse_funcdecl(Parser *p)
 	return func;
 }
 
-ASTContext parse(Parser *p)
+Node *parse(Parser *p)
 {
 	Node **nodes = NULL;
 	Node *func;
-	ASTContext ast = {0};
 
 	skip_invisibles(p);
 
@@ -774,8 +773,5 @@ ASTContext parse(Parser *p)
 		skip_invisibles(p);
 	}
 
-	ast.root = make_file(p, nodes);
-	ast.nametable = &p->nametable;
-
-	return ast;
+	return make_file(p, nodes);
 }
