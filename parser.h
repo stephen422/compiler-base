@@ -7,6 +7,11 @@
 
 namespace cmp {
 
+class ParseError : public std::runtime_error {
+public:
+    ParseError(const std::string &msg) : std::runtime_error(msg) {}
+};
+
 class ParserError {
 public:
     ParserError() {}

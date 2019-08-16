@@ -185,14 +185,18 @@ StmtResult Parser::parse_return_stmt() {
 StmtResult Parser::parse_compound_stmt() {
     expect(TokenKind::lbrace);
     auto compound = make_node<CompoundStmt>();
-    ParserResult<Stmt> stmt_res;
 
     try {
-        while ((stmt_res = parse_stmt()).success()) {
+        while (true) {
+            skip_newlines();
+            if (look().kind == TokenKind::rbrace)
+                break;
+
+            ParserResult<Stmt> stmt_res = parse_stmt();
             compound->stmts.push_back(stmt_res.unwrap());
         }
-    } catch (std::string &s) {
-        std::cout << "parse exception: " << s << std::endl;
+    } catch (const ParseError &e) {
+        std::cerr << "parse exception: " << e.what() << ", looking at " << look() << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -439,9 +443,7 @@ ExprResult Parser::parse_unary_expr() {
         // Because all expressions start with a unary expression, failing here
         // means no other expression could be matched either, so just do a
         // really generic report.
-        errors.push_back("expected an expression");
-        throw std::string{"expected an expression"};
-        return ParserError{};
+        throw ParseError{std::to_string(start_pos) + ": expected an expression"};
     }
 }
 
