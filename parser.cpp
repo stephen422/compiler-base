@@ -280,7 +280,7 @@ P<VarDecl> Parser::parse_var_decl() {
     }
 }
 
-DeclResult Parser::parse_func_decl() {
+P<FuncDecl> Parser::parse_func_decl() {
     expect(TokenKind::kw_fn);
 
     Name *name = name_table.find_or_insert(look().text);
@@ -302,7 +302,7 @@ DeclResult Parser::parse_func_decl() {
     func->body = node_cast<CompoundStmt>(parse_compound_stmt());
     func->end_pos = look().pos;
 
-    return std::move(func);
+    return func;
 }
 
 bool Parser::is_start_of_decl() const {
@@ -512,35 +512,36 @@ void Parser::skip_newlines() {
     }
 }
 
-ParserResult<AstNode> Parser::parse_toplevel() {
+P<AstNode> Parser::parse_toplevel() {
     skip_newlines();
 
     switch (look().kind) {
     case TokenKind::eos:
         // TODO how to handle this?
-        errors.push_back("end of file");
-        return ParserError{};
+        throw ParseError{"end of file"};
     case TokenKind::kw_fn:
-        return parse_func_decl().unwrap();
+        return parse_func_decl();
     default:
         error("unrecognized toplevel statement");
     }
-    error("unreachable");
-    return ParserError{};
+
+    throw ParseError{"unreachable"};
 }
 
-ParserResult<File> Parser::parse_file() {
+P<File> Parser::parse_file() {
     auto file = make_node<File>();
-    ParserResult<AstNode> top_r;
-    while ((top_r = parse_toplevel()).success()) {
-        file->toplevels.push_back(top_r.unwrap());
+    // FIXME
+    skip_newlines();
+    while (look().kind != TokenKind::eos) {
+        auto toplevel = parse_toplevel();
+        file->toplevels.push_back(std::move(toplevel));
+        skip_newlines();
     }
-    // TODO no need to unwrap top_r here?
-    return {std::move(file)};
+    return file;
 }
 
 Ast Parser::parse() {
-    return Ast{parse_file().unwrap(), name_table};
+    return Ast{parse_file(), name_table};
 }
 
 } // namespace cmp

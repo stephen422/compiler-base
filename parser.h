@@ -92,10 +92,10 @@ public:
 
 private:
     // Parse a whole file.
-    ParserResult<File> parse_file();
+    P<File> parse_file();
 
     // Parse a toplevel statement.
-    ParserResult<AstNode> parse_toplevel();
+    P<AstNode> parse_toplevel();
 
     // Statement parsers.
     P<Stmt> parse_stmt();
@@ -110,7 +110,7 @@ private:
     DeclResult parse_param_decl();
     std::vector<P<ParamDecl>> parse_param_decl_list();
     P<VarDecl> parse_var_decl();
-    DeclResult parse_func_decl();
+    P<FuncDecl> parse_func_decl();
     bool is_start_of_decl() const;
 
     // Expression parsers.
