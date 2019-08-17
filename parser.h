@@ -98,17 +98,20 @@ private:
     ParserResult<AstNode> parse_toplevel();
 
     // Statement parsers.
-    StmtResult parse_stmt();
-    StmtResult parse_expr_or_assign_stmt();
-    StmtResult parse_return_stmt();
-    StmtResult parse_compound_stmt();
+    P<Stmt> parse_stmt();
+    P<Stmt> parse_expr_or_assign_stmt();
+    P<ReturnStmt> parse_return_stmt();
+    P<DeclStmt> parse_decl_stmt();
+    P<CompoundStmt> parse_compound_stmt();
+    bool is_end_of_stmt() const;
 
     // Declaration parsers.
-    DeclResult parse_decl();
+    P<Decl> parse_decl();
     DeclResult parse_param_decl();
     std::vector<P<ParamDecl>> parse_param_decl_list();
-    DeclResult parse_var_decl();
+    P<VarDecl> parse_var_decl();
     DeclResult parse_func_decl();
+    bool is_start_of_decl() const;
 
     // Expression parsers.
     P<Expr> parse_expr();
@@ -149,6 +152,7 @@ private:
     int get_precedence(const Token &op) const;
 
     void expect(TokenKind kind, const std::string &msg);
+    void expect_end_of_stmt();
 
     // Report an error and terminate.
     void error(const std::string &msg);

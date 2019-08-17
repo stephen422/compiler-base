@@ -12,10 +12,10 @@ fn main() -> int {
     1 * 2 + 3 + 4 * 5
     3 + (a - (b + a * 3)) * 2
 
-    // var c: &int
-    // c = &b
+    var c: &int
+    c = &b
 
-    // return a
+    return a
 }
 
 // impl Car {

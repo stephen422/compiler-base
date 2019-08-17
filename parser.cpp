@@ -57,8 +57,6 @@ const Token Parser::look() const {
     return tokens[lookahead_pos];
 }
 
-/// Return false if the lookahead token matches the expected one, true
-/// otherwise.
 void Parser::expect(TokenKind kind, const std::string &msg = "") {
     if (look().kind != kind) {
         std::stringstream ss;
@@ -72,8 +70,15 @@ void Parser::expect(TokenKind kind, const std::string &msg = "") {
     next();
 }
 
-static bool is_end_of_stmt(Token tok) {
-    return tok.kind == TokenKind::newline || tok.kind == TokenKind::comment;
+void Parser::expect_end_of_stmt() {
+    if (!is_end_of_stmt())
+        throw ParseError{"expected end of statement"};
+    skip_newlines();
+}
+
+bool Parser::is_end_of_stmt() const {
+    return look().kind == TokenKind::newline ||
+           look().kind == TokenKind::comment;
 }
 
 // Assignment statements start with an expression, so we cannot easily
@@ -99,44 +104,30 @@ static Node *Parser::parse_assignstmt_or_exprstmt(Parser *p, Node *expr)
 //     Decl ;
 //     Expr ;
 //     ;
-StmtResult Parser::parse_stmt() {
+P<Stmt> Parser::parse_stmt() {
     skip_newlines();
 
     // Try all possible productions and use the first successful one.
     // We use lookahead (LL(k)) to revert state if a production fails.
     // (See "recursive descent with backtracking":
     // https://en.wikipedia.org/wiki/Recursive_descent_parser)
-    if (look().kind == TokenKind::kw_return) {
-        ParserResult<Stmt> result{parse_return_stmt()};
-        if (!is_end_of_stmt(look())) {
-            errors.push_back("unexpected token at end of statement");
-            return ParserError{};
-        }
-        return result;
-    }
 
-    // @Cleanup: confusing control flow. Maybe use a loop? RAII?
+    if (look().kind == TokenKind::kw_return)
+        return parse_return_stmt();
 
-    if (auto decl = parse_decl(); decl.success()) {
-        if (!is_end_of_stmt(look())) {
-            errors.push_back("unexpected token at end of declaration");
-            return ParserError{};
-        }
-        return make_node<DeclStmt>(decl.unwrap());
-    }
+    if (is_start_of_decl())
+        return parse_decl_stmt();
 
-    if (auto stmt = parse_expr_or_assign_stmt(); stmt.success())
-        return stmt;
-
-    throw ParseError{"expected a statement"};
+    // Only possible production left
+    return parse_expr_or_assign_stmt();
 }
 
-StmtResult Parser::parse_expr_or_assign_stmt() {
+P<Stmt> Parser::parse_expr_or_assign_stmt() {
     auto start_pos = look().pos;
 
     auto lhs = parse_expr();
     // ExprStmt: expression ends with a newline
-    if (is_end_of_stmt(look())) {
+    if (is_end_of_stmt()) {
         expect(TokenKind::newline);
         return make_node<ExprStmt>(std::move(lhs));
     }
@@ -151,10 +142,17 @@ StmtResult Parser::parse_expr_or_assign_stmt() {
     return make_node_with_pos<AssignStmt>(start_pos, look().pos, std::move(lhs), std::move(rhs));
 }
 
-StmtResult Parser::parse_return_stmt() {
+P<ReturnStmt> Parser::parse_return_stmt() {
     expect(TokenKind::kw_return);
     auto expr = parse_expr();
+    expect_end_of_stmt();
     return make_node<ReturnStmt>(std::move(expr));
+}
+
+P<DeclStmt> Parser::parse_decl_stmt() {
+    auto decl = parse_decl();
+    expect_end_of_stmt();
+    return make_node<DeclStmt>(std::move(decl));
 }
 
 // Compound statement is a scoped block that consists of multiple statements.
@@ -163,7 +161,7 @@ StmtResult Parser::parse_return_stmt() {
 //
 // CompoundStmt:
 //     { Stmt* }
-StmtResult Parser::parse_compound_stmt() {
+P<CompoundStmt> Parser::parse_compound_stmt() {
     expect(TokenKind::lbrace);
     auto compound = make_node<CompoundStmt>();
 
@@ -190,7 +188,7 @@ StmtResult Parser::parse_compound_stmt() {
         exit(EXIT_FAILURE);
     }
     expect(TokenKind::rbrace);
-    return {std::move(compound)};
+    return compound;
 }
 
 // ParamDecls are not trivially lookaheadable with a single token ('a' in 'a:
@@ -242,7 +240,7 @@ std::vector<P<ParamDecl>> Parser::parse_param_decl_list() {
     return decl_list;
 }
 
-DeclResult Parser::parse_var_decl() {
+P<VarDecl> Parser::parse_var_decl() {
     auto start_pos = look().pos;
 
     // 'let' or 'var'
@@ -301,20 +299,29 @@ DeclResult Parser::parse_func_decl() {
     func->return_type_expr = parse_type_expr();
 
     // Function body
-    func->body = node_cast<CompoundStmt>(parse_compound_stmt().unwrap());
+    func->body = node_cast<CompoundStmt>(parse_compound_stmt());
     func->end_pos = look().pos;
 
     return std::move(func);
 }
 
-DeclResult Parser::parse_decl() {
+bool Parser::is_start_of_decl() const {
+    switch (look().kind) {
+    case TokenKind::kw_let:
+    case TokenKind::kw_var:
+        return true;
+    default:
+        return false;
+    }
+}
+
+P<Decl> Parser::parse_decl() {
     switch (look().kind) {
     case TokenKind::kw_let:
     case TokenKind::kw_var:
         return parse_var_decl();
     default:
-        errors.push_back("not a start of a declaration");
-        return ParserError{};
+        throw ParseError{"not a start of a declaration"};
     }
 }
 
