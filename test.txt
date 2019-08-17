@@ -1,8 +1,8 @@
-// fn swap(a: &int, b: &int) -> int {
-//     let t = *a // [error: whatever]
-//     *a = *b // there
-//     // * = t
-// }
+fn swap(a: &int, b: &int) -> int {
+    let t = *a // [error: whatever]
+    *a = *b // there
+    //* = t
+}
 
 fn main() -> int {
     var a = 3 + 4

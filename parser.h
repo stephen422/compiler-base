@@ -99,8 +99,7 @@ private:
 
     // Statement parsers.
     StmtResult parse_stmt();
-    StmtResult parse_expr_stmt();
-    StmtResult parse_assign_stmt();
+    StmtResult parse_expr_or_assign_stmt();
     StmtResult parse_return_stmt();
     StmtResult parse_compound_stmt();
 
@@ -112,13 +111,12 @@ private:
     DeclResult parse_func_decl();
 
     // Expression parsers.
-    ExprResult parse_expr();
-    ExprResult parse_literal_expr();
-    ExprResult parse_integer_literal();
-    ExprResult parse_declref_expr();
-    ExprResult parse_type_expr();
-    ExprResult parse_unary_expr();
-    ExprResult parse_binary_expr_rhs(ExprPtr lhs, int precedence = 0);
+    P<Expr> parse_expr();
+    P<UnaryExpr> parse_literal_expr();
+    P<DeclRefExpr> parse_declref_expr();
+    P<TypeExpr> parse_type_expr();
+    P<Expr> parse_unary_expr();
+    P<Expr> parse_binary_expr_rhs(ExprPtr lhs, int precedence = 0);
 
     // Get the next token from the lexer.
     void next();
@@ -150,7 +148,7 @@ private:
     // Get the precedence of an operator.
     int get_precedence(const Token &op) const;
 
-    bool expect(TokenKind kind, const std::string &msg);
+    void expect(TokenKind kind, const std::string &msg);
 
     // Report an error and terminate.
     void error(const std::string &msg);
