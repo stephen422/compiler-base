@@ -36,14 +36,11 @@ P<T> ParserResult<T>::unwrap() {
     }
 }
 
-static void insert_keywords_in_name_table(NameTable &name_table) {
+Parser::Parser(Lexer &lexer) : lexer{lexer}, tok{} {
+    // Insert keywords in name table
     for (auto m : keyword_map) {
         name_table.find_or_insert(m.first);
     }
-}
-
-Parser::Parser(Lexer &lexer) : lexer(lexer), tok() {
-    insert_keywords_in_name_table(name_table);
     tokens = lexer.lex_all();
 }
 
@@ -81,22 +78,10 @@ bool Parser::is_end_of_stmt() const {
            look().kind == TokenKind::comment;
 }
 
-// Assignment statements start with an expression, so we cannot easily
-// predetermine whether a statement is just an expression or an assignment
-// until we see the '='.  We therefore first parse the expression (LHS) and
-// then call this to transform that node into an assignment if needed.
-/*
-static Node *Parser::parse_assignstmt_or_exprstmt(Parser *p, Node *expr)
-{
-	if (look(p).type == TOK_EQUALS) {
-		next(p);
-		Node *rhs = parse_expr(p);
-		return make_assignstmt(p, expr, rhs);
-	} else {
-		return make_exprstmt(p, expr);
-	}
+bool Parser::is_eos() {
+    skip_newlines();
+    return look().kind == TokenKind::eos;
 }
-*/
 
 // Parse a statement.
 //
@@ -170,23 +155,14 @@ P<CompoundStmt> Parser::parse_compound_stmt() {
             skip_newlines();
             if (look().kind == TokenKind::rbrace)
                 break;
-
-            ParserResult<Stmt> stmt_res = parse_stmt();
-            compound->stmts.push_back(stmt_res.unwrap());
+            auto stmt = parse_stmt();
+            compound->stmts.push_back(std::move(stmt));
         }
     } catch (const ParseError &e) {
         std::cerr << "parse exception: " << e.what() << ", looking at " << look() << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    // did parse_stmt() fail at the end properly?
-    if (look().kind != TokenKind::rbrace) {
-        // report the last statement failure
-        for (auto s : errors)
-            std::cerr << s << std::endl;
-        std::cerr << "Parse errors, terminating.\n";
-        exit(EXIT_FAILURE);
-    }
     expect(TokenKind::rbrace);
     return compound;
 }
@@ -253,7 +229,7 @@ P<VarDecl> Parser::parse_var_decl() {
     if (param_res.success()) {
         // 'let' cannot be used with explicit type specfication
         if (!mut)
-            error("initial value required");
+            throw ParseError{"initial value required"};
 
         auto param_decl = node_cast<ParamDecl>(param_res.unwrap());
         // TODO: if param_decl->mut unmatches mut?
@@ -336,8 +312,7 @@ P<UnaryExpr> Parser::parse_literal_expr() {
         break;
     }
     default:
-        error("non-integer literals not implemented");
-        break;
+        throw ParseError{"non-integer literals not implemented"};
     }
     expr->start_pos = look().pos;
     expr->end_pos = look().pos + look().text.length();
@@ -486,18 +461,6 @@ P<Expr> Parser::parse_expr() {
     return parse_binary_expr_rhs(std::move(unary));
 }
 
-void Parser::error(const std::string &msg) {
-    auto loc = locate();
-    std::cerr << loc.filename << ":" << loc.line << ":" << loc.col << ": ";
-    std::cerr << "parse error: " << msg << std::endl;
-    exit(1);
-}
-
-static std::string error_beacon_extract_msg(StringView text) {
-    std::string s{text};
-    return s;
-}
-
 // The language is newline-aware, but newlines are mostly meaningless unless
 // they are at the end of a statement or a declaration.  In those cases we use
 // this to skip over them.
@@ -505,9 +468,6 @@ static std::string error_beacon_extract_msg(StringView text) {
 void Parser::skip_newlines() {
     while (look().kind == TokenKind::newline ||
            look().kind == TokenKind::comment) {
-        if (look().kind == TokenKind::comment) {
-            std::string msg = error_beacon_extract_msg(look().text);
-        }
         next();
     }
 }
@@ -516,26 +476,19 @@ P<AstNode> Parser::parse_toplevel() {
     skip_newlines();
 
     switch (look().kind) {
-    case TokenKind::eos:
-        // TODO how to handle this?
-        throw ParseError{"end of file"};
     case TokenKind::kw_fn:
         return parse_func_decl();
     default:
-        error("unrecognized toplevel statement");
+        throw ParseError{"unreachable"};
     }
-
-    throw ParseError{"unreachable"};
 }
 
 P<File> Parser::parse_file() {
     auto file = make_node<File>();
     // FIXME
-    skip_newlines();
-    while (look().kind != TokenKind::eos) {
+    while (!is_eos()) {
         auto toplevel = parse_toplevel();
         file->toplevels.push_back(std::move(toplevel));
-        skip_newlines();
     }
     return file;
 }

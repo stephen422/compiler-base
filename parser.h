@@ -104,6 +104,7 @@ private:
     P<DeclStmt> parse_decl_stmt();
     P<CompoundStmt> parse_compound_stmt();
     bool is_end_of_stmt() const;
+    bool is_eos();
 
     // Declaration parsers.
     P<Decl> parse_decl();
@@ -153,9 +154,6 @@ private:
 
     void expect(TokenKind kind, const std::string &msg);
     void expect_end_of_stmt();
-
-    // Report an error and terminate.
-    void error(const std::string &msg);
 
     // Construct a successful ParserResult, annotating it with the start
     // position.
