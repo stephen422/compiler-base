@@ -197,7 +197,7 @@ DeclResult Parser::parse_param_decl() {
 
 std::vector<P<ParamDecl>> Parser::parse_param_decl_list() {
     std::vector<P<ParamDecl>> decl_list;
-    auto before_param = get_position();
+    auto before_param = getProgress();
 
     DeclResult res;
     while ((res = parse_param_decl()).success()) {
@@ -210,7 +210,7 @@ std::vector<P<ParamDecl>> Parser::parse_param_decl_list() {
     }
 
     // If the parse position moved, but the parse failed, it should be reported.
-    if (get_position() != before_param) {
+    if (getProgress() != before_param) {
         res.unwrap();
     }
     return decl_list;
@@ -219,40 +219,26 @@ std::vector<P<ParamDecl>> Parser::parse_param_decl_list() {
 P<VarDecl> Parser::parse_var_decl() {
     auto start_pos = look().pos;
 
-    // 'let' or 'var'
-    bool mut = look().kind == TokenKind::kw_var;
+    auto mut = (look().kind == TokenKind::kw_var);
     next();
 
-    // Try parse_param_decl() first
-    auto before_param = get_position();
-    auto param_res = parse_param_decl();
-    if (param_res.success()) {
+    Name *name = name_table.find_or_insert(look().text);
+    next();
+
+    if (look().kind == TokenKind::colon) {
+        next();
         // 'let' cannot be used with explicit type specfication
         if (!mut)
-            throw ParseError{"initial value required"};
-
-        auto param_decl = node_cast<ParamDecl>(param_res.unwrap());
-        // TODO: if param_decl->mut unmatches mut?
-        return make_node_with_pos<VarDecl>(
-            start_pos, param_decl->end_pos, param_decl->name,
-            std::move(param_decl->type_expr), nullptr, param_decl->mut);
-    }
-    // If there's no explicit type specification, assignment expression is
-    // required for both 'let' and 'var'.  Parse them here by hand.
-    else {
-        restore_position(before_param);
-
-        Name *name = name_table.find_or_insert(look().text);
-        next();
-
-        // Assignment expression should be provided if kind is not
-        // specified.
+            throw ParseError{"initial value required for a 'let' decl"};
+        auto typeexpr = parse_type_expr();
+        return make_node_with_pos<VarDecl>(start_pos, typeexpr->end_pos, name,
+                                           std::move(typeexpr), nullptr, mut);
+    } else {
         expect(TokenKind::equals, mut ? "type or initial value required"
                                       : "initial value required");
-
-        auto rhs = parse_expr();
-        return make_node_with_pos<VarDecl>(start_pos, rhs->end_pos, name,
-                                           nullptr, std::move(rhs), mut);
+        auto assignexpr = parse_expr();
+        return make_node_with_pos<VarDecl>(start_pos, assignexpr->end_pos, name,
+                                           nullptr, std::move(assignexpr), mut);
     }
 }
 

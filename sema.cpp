@@ -77,9 +77,8 @@ void ReturnStmt::traverse(Semantics &sema) {
 }
 
 void CompoundStmt::traverse(Semantics &sema) {
-    for (auto &stmt : stmts) {
+    for (auto &stmt : stmts)
         stmt->traverse(sema);
-    }
 }
 
 void ParamDecl::traverse(Semantics &sema) {
@@ -124,9 +123,8 @@ void VarDecl::traverse(Semantics &sema) {
 
 void FuncDecl::traverse(Semantics &sema) {
     sema.decl_table.open_scope();
-    for (auto &param_decl : param_decl_list) {
+    for (auto &param_decl : param_decl_list)
         param_decl->traverse(sema);
-    }
     body->traverse(sema);
     sema.decl_table.close_scope();
 }

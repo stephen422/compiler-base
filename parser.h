@@ -129,25 +129,12 @@ private:
     const Token look() const;
 
     // Get the current parsing position.
-    auto get_position() const { return lookahead_pos; }
+    auto getProgress() const { return lookahead_pos; }
+
     // Restore the parsing position back to the given one.
-    void restore_position(size_t pos) {
+    void restoreProgress(size_t pos) {
         lookahead_pos = pos;
     }
-
-    // RAII object that when deleted restores the parser position back to the
-    // point of its creation.
-    class ParserPositionRAII {
-    public:
-        ParserPositionRAII(Parser &p) : p(p) {
-            pos = p.get_position();
-        }
-        ~ParserPositionRAII() {
-            p.restore_position(pos);
-        }
-        Parser &p;
-        size_t pos;
-    };
 
     // Get the precedence of an operator.
     int get_precedence(const Token &op) const;
