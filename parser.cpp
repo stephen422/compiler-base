@@ -8,23 +8,23 @@ namespace cmp {
 Parser::Parser(Lexer &lexer) : lexer{lexer}, tok{} {
     // Insert keywords in name table
     for (auto m : keyword_map) {
-        name_table.find_or_insert(m.first);
+        names.getOrAdd(m.first);
     }
-    tokens = lexer.lex_all();
+    tokens = lexer.lexAll();
 }
 
 void Parser::next() {
-    if (tokens[lookahead_pos].kind != TokenKind::eos) {
-        lookahead_pos++;
+    if (!tokens[lookIndex].is(TokenKind::eos)) {
+        lookIndex++;
     }
 }
 
 const Token Parser::look() const {
-    return tokens[lookahead_pos];
+    return tokens[lookIndex];
 }
 
 void Parser::expect(TokenKind kind, const std::string &msg = "") {
-    if (look().kind != kind) {
+    if (!look().is(kind)) {
         std::stringstream ss;
         if (msg.empty())
             ss << "(" << look().pos << ") expected '" << tokentype_to_string(kind) << "', got '"
@@ -36,20 +36,19 @@ void Parser::expect(TokenKind kind, const std::string &msg = "") {
     next();
 }
 
-void Parser::expect_end_of_stmt() {
-    if (!is_end_of_stmt())
+void Parser::expectEndOfStmt() {
+    if (!isEndOfStmt())
         throw ParseError{"expected end of statement"};
-    skip_newlines();
+    skipNewlines();
 }
 
-bool Parser::is_end_of_stmt() const {
-    return look().kind == TokenKind::newline ||
-           look().kind == TokenKind::comment;
+bool Parser::isEndOfStmt() const {
+    return look().is(TokenKind::newline) || look().is(TokenKind::comment);
 }
 
-bool Parser::is_eos() {
-    skip_newlines();
-    return look().kind == TokenKind::eos;
+bool Parser::isEos() {
+    skipNewlines();
+    return look().is(TokenKind::eos);
 }
 
 // Parse a statement.
@@ -58,30 +57,36 @@ bool Parser::is_eos() {
 //     Decl ;
 //     Expr ;
 //     ;
-P<Stmt> Parser::parse_stmt() {
-    skip_newlines();
+P<Stmt> Parser::parseStmt() {
+    skipNewlines();
 
-    // Try all possible productions and use the first successful one.
-    // We use lookahead (LL(k)) to revert state if a production fails.
-    // (See "recursive descent with backtracking":
-    // https://en.wikipedia.org/wiki/Recursive_descent_parser)
-
-    if (look().kind == TokenKind::kw_return)
-        return parse_return_stmt();
-
-    if (is_start_of_decl())
-        return parse_decl_stmt();
-
-    // Only possible production left
-    return parse_expr_or_assign_stmt();
+    if (look().is(TokenKind::kw_return))
+        return parseReturnStmt();
+    else if (isStartOfDecl())
+        return parseDeclStmt();
+    else
+        return parseExprOrAssignStmt();
 }
 
-P<Stmt> Parser::parse_expr_or_assign_stmt() {
-    auto start_pos = look().pos;
+P<ReturnStmt> Parser::parseReturnStmt() {
+    expect(TokenKind::kw_return);
+    auto expr = parseExpr();
+    expectEndOfStmt();
+    return make_node<ReturnStmt>(std::move(expr));
+}
 
-    auto lhs = parse_expr();
+P<DeclStmt> Parser::parseDeclStmt() {
+    auto decl = parseDecl();
+    expectEndOfStmt();
+    return make_node<DeclStmt>(std::move(decl));
+}
+
+P<Stmt> Parser::parseExprOrAssignStmt() {
+    auto startPos = look().pos;
+
+    auto lhs = parseExpr();
     // ExprStmt: expression ends with a newline
-    if (is_end_of_stmt()) {
+    if (isEndOfStmt()) {
         expect(TokenKind::newline);
         return make_node<ExprStmt>(std::move(lhs));
     }
@@ -92,21 +97,8 @@ P<Stmt> Parser::parse_expr_or_assign_stmt() {
 
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
-    auto rhs = parse_expr();
-    return make_node_with_pos<AssignStmt>(start_pos, look().pos, std::move(lhs), std::move(rhs));
-}
-
-P<ReturnStmt> Parser::parse_return_stmt() {
-    expect(TokenKind::kw_return);
-    auto expr = parse_expr();
-    expect_end_of_stmt();
-    return make_node<ReturnStmt>(std::move(expr));
-}
-
-P<DeclStmt> Parser::parse_decl_stmt() {
-    auto decl = parse_decl();
-    expect_end_of_stmt();
-    return make_node<DeclStmt>(std::move(decl));
+    auto rhs = parseExpr();
+    return make_node_with_pos<AssignStmt>(startPos, look().pos, std::move(lhs), std::move(rhs));
 }
 
 // Compound statement is a scoped block that consists of multiple statements.
@@ -115,16 +107,16 @@ P<DeclStmt> Parser::parse_decl_stmt() {
 //
 // CompoundStmt:
 //     { Stmt* }
-P<CompoundStmt> Parser::parse_compound_stmt() {
+P<CompoundStmt> Parser::parseCompoundStmt() {
     expect(TokenKind::lbrace);
     auto compound = make_node<CompoundStmt>();
 
     try {
         while (true) {
-            skip_newlines();
-            if (look().kind == TokenKind::rbrace)
+            skipNewlines();
+            if (look().is(TokenKind::rbrace))
                 break;
-            auto stmt = parse_stmt();
+            auto stmt = parseStmt();
             compound->stmts.push_back(std::move(stmt));
         }
     } catch (const ParseError &e) {
@@ -138,28 +130,28 @@ P<CompoundStmt> Parser::parse_compound_stmt() {
 
 // ParamDecls are not trivially lookaheadable with a single token ('a' in 'a:
 // int' does not guarantee anything), so this needs to be easily revertable.
-P<ParamDecl> Parser::parse_param_decl() {
-    auto start_pos = look().pos;
+P<ParamDecl> Parser::parseParamDecl() {
+    auto startPos = look().pos;
 
-    Name *name = name_table.find_or_insert(look().text);
+    Name *name = names.getOrAdd(look().text);
     next();
 
     expect(TokenKind::colon);
 
-    auto typeexpr = parse_type_expr();
+    auto typeexpr = parseTypeExpr();
 
-    return make_node_with_pos<ParamDecl>(start_pos, look().pos, name,
+    return make_node_with_pos<ParamDecl>(startPos, look().pos, name,
                                               std::move(typeexpr), false);
 }
 
 // This doesn't include the enclosing parentheses.
-std::vector<P<ParamDecl>> Parser::parse_param_decl_list() {
+std::vector<P<ParamDecl>> Parser::parseParamDeclList() {
     std::vector<P<ParamDecl>> decl_list;
 
-    while (look().kind != TokenKind::rparen) {
-        decl_list.push_back(parse_param_decl());
+    while (!look().is(TokenKind::rparen)) {
+        decl_list.push_back(parseParamDecl());
 
-        if (look().kind != TokenKind::comma)
+        if (!look().is(TokenKind::comma))
             break;
         next();
     }
@@ -167,58 +159,58 @@ std::vector<P<ParamDecl>> Parser::parse_param_decl_list() {
     return decl_list;
 }
 
-P<VarDecl> Parser::parse_var_decl() {
-    auto start_pos = look().pos;
+P<VarDecl> Parser::parseVarDecl() {
+    auto startPos = look().pos;
 
-    auto mut = (look().kind == TokenKind::kw_var);
+    auto mut = (look().is(TokenKind::kw_var));
     next();
 
-    Name *name = name_table.find_or_insert(look().text);
+    Name *name = names.getOrAdd(look().text);
     next();
 
-    if (look().kind == TokenKind::colon) {
+    if (look().is(TokenKind::colon)) {
         next();
         // 'let' cannot be used with explicit type specfication
         if (!mut)
             throw ParseError{"initial value required for a 'let' decl"};
-        auto typeexpr = parse_type_expr();
-        return make_node_with_pos<VarDecl>(start_pos, typeexpr->end_pos, name,
+        auto typeexpr = parseTypeExpr();
+        return make_node_with_pos<VarDecl>(startPos, typeexpr->endPos, name,
                                            std::move(typeexpr), nullptr, mut);
     } else {
         expect(TokenKind::equals, mut ? "type or initial value required"
                                       : "initial value required");
-        auto assignexpr = parse_expr();
-        return make_node_with_pos<VarDecl>(start_pos, assignexpr->end_pos, name,
+        auto assignexpr = parseExpr();
+        return make_node_with_pos<VarDecl>(startPos, assignexpr->endPos, name,
                                            nullptr, std::move(assignexpr), mut);
     }
 }
 
-P<FuncDecl> Parser::parse_func_decl() {
+P<FuncDecl> Parser::parseFuncDecl() {
     expect(TokenKind::kw_fn);
 
-    Name *name = name_table.find_or_insert(look().text);
+    Name *name = names.getOrAdd(look().text);
     auto func = make_node<FuncDecl>(name);
-    func->start_pos = look().pos;
+    func->startPos = look().pos;
     next();
 
     // Argument list
     expect(TokenKind::lparen);
-    func->param_decl_list = parse_param_decl_list();
+    func->paramDeclList = parseParamDeclList();
     expect(TokenKind::rparen);
 
     // Return type (-> ...)
     expect(TokenKind::arrow);
 
-    func->return_type_expr = parse_type_expr();
+    func->retTypeExpr = parseTypeExpr();
 
     // Function body
-    func->body = node_cast<CompoundStmt>(parse_compound_stmt());
-    func->end_pos = look().pos;
+    func->body = node_cast<CompoundStmt>(parseCompoundStmt());
+    func->endPos = look().pos;
 
     return func;
 }
 
-bool Parser::is_start_of_decl() const {
+bool Parser::isStartOfDecl() const {
     switch (look().kind) {
     case TokenKind::kw_let:
     case TokenKind::kw_var:
@@ -228,17 +220,17 @@ bool Parser::is_start_of_decl() const {
     }
 }
 
-P<Decl> Parser::parse_decl() {
+P<Decl> Parser::parseDecl() {
     switch (look().kind) {
     case TokenKind::kw_let:
     case TokenKind::kw_var:
-        return parse_var_decl();
+        return parseVarDecl();
     default:
         throw ParseError{"not a start of a declaration"};
     }
 }
 
-P<UnaryExpr> Parser::parse_literal_expr() {
+P<UnaryExpr> Parser::parseLiteralExpr() {
     P<UnaryExpr> expr = nullptr;
     // TODO Literals other than integers?
     switch (look().kind) {
@@ -251,40 +243,40 @@ P<UnaryExpr> Parser::parse_literal_expr() {
     default:
         throw ParseError{"non-integer literals not implemented"};
     }
-    expr->start_pos = look().pos;
-    expr->end_pos = look().pos + look().text.length();
+    expr->startPos = look().pos;
+    expr->endPos = look().pos + look().text.length();
 
     next();
 
     return expr;
 }
 
-P<DeclRefExpr> Parser::parse_declref_expr() {
+P<DeclRefExpr> Parser::parseDeclRefExpr() {
     auto ref_expr = make_node<DeclRefExpr>();
 
-    ref_expr->start_pos = look().pos;
-    ref_expr->end_pos = look().pos + look().text.length();
+    ref_expr->startPos = look().pos;
+    ref_expr->endPos = look().pos + look().text.length();
 
     std::string text = look().text;
-    ref_expr->name = name_table.find_or_insert(text);
+    ref_expr->name = names.getOrAdd(text);
 
     next();
 
     return ref_expr;
 }
 
-P<TypeExpr> Parser::parse_type_expr() {
+P<TypeExpr> Parser::parseTypeExpr() {
     auto type_expr = make_node<TypeExpr>();
 
-    type_expr->start_pos = look().pos;
+    type_expr->startPos = look().pos;
 
     // We encode each type into a unique Name, so that they are easy to find in
     // the type table in the semantic analysis phase.
     std::string text;
-    if (look().kind == TokenKind::ampersand) {
+    if (look().is(TokenKind::ampersand)) {
         next();
         type_expr->ref = true;
-        type_expr->subexpr = node_cast<TypeExpr>(parse_type_expr());
+        type_expr->subexpr = node_cast<TypeExpr>(parseTypeExpr());
         text = "&" + type_expr->subexpr->name->text;
     }
     else if (look().is_identifier_or_keyword()) {
@@ -296,47 +288,47 @@ P<TypeExpr> Parser::parse_type_expr() {
         throw ParseError{"expected type name"};
     }
 
-    type_expr->name = name_table.find_or_insert(text);
-    type_expr->end_pos = look().pos;
+    type_expr->name = names.getOrAdd(text);
+    type_expr->endPos = look().pos;
 
     return type_expr;
 }
 
-P<Expr> Parser::parse_unary_expr() {
-    auto start_pos = look().pos;
+P<Expr> Parser::parseUnaryExpr() {
+    auto startPos = look().pos;
 
     switch (look().kind) {
     case TokenKind::number:
     case TokenKind::string:
-        return parse_literal_expr();
+        return parseLiteralExpr();
     case TokenKind::ident:
-        return parse_declref_expr();
+        return parseDeclRefExpr();
     case TokenKind::star: {
         next();
-        auto expr = parse_unary_expr();
-        return make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Deref, std::move(expr));
+        auto expr = parseUnaryExpr();
+        return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Deref, std::move(expr));
     }
     case TokenKind::ampersand: {
         next();
-        auto expr = parse_unary_expr();
-        return make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Address, std::move(expr));
+        auto expr = parseUnaryExpr();
+        return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Address, std::move(expr));
     }
     case TokenKind::lparen: {
         expect(TokenKind::lparen);
-        auto expr = parse_expr();
+        auto expr = parseExpr();
         expect(TokenKind::rparen);
         // TODO: check unwrap
-        return make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Paren, std::move(expr));
+        return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Paren, std::move(expr));
     }
     default:
         // Because all expressions start with a unary expression, failing here
         // means no other expression could be matched either, so just do a
         // really generic report.
-        throw ParseError{std::to_string(start_pos) + ": expected an expression"};
+        throw ParseError{std::to_string(startPos) + ": expected an expression"};
     }
 }
 
-int Parser::get_precedence(const Token &op) const {
+int Parser::getPrecedence(const Token &op) const {
     switch (op.kind) {
     case TokenKind::star:
     case TokenKind::slash:
@@ -356,11 +348,11 @@ int Parser::get_precedence(const Token &op) const {
 //
 // After the call, 'lhs' is invalidated by being moved away.  Subsequent code
 // should use the wrapped node in the return value instead.
-P<Expr> Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
+P<Expr> Parser::parseBinaryExprRhs(ExprPtr lhs, int precedence) {
     ExprPtr root = std::move(lhs);
 
     while (true) {
-        int this_prec = get_precedence(look());
+        int this_prec = getPrecedence(look());
 
         // If the upcoming op has lower precedence, finish this subexpression.
         // It will be treated as a single term when this function is re-called
@@ -372,18 +364,18 @@ P<Expr> Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
         next();
 
         // Parse the second term.
-        ExprPtr rhs = parse_unary_expr();
+        ExprPtr rhs = parseUnaryExpr();
         // We do not know if this term should associate to left or right;
         // e.g. "(a * b) + c" or "a + (b * c)".  We should look ahead for the
         // next operator that follows this term.
-        int next_prec = get_precedence(look());
+        int next_prec = getPrecedence(look());
 
         // If the next operator is indeed higher-level ("a + (b * c)"),
         // evaluate the RHS as a single subexpression with elevated minimum
         // precedence. Else ("(a * b) + c"), just treat it as a unary
         // expression.
         if (this_prec < next_prec)
-            rhs = parse_binary_expr_rhs(std::move(rhs), precedence + 1);
+            rhs = parseBinaryExprRhs(std::move(rhs), precedence + 1);
 
         // Create a new root with the old root as its LHS, and the recursion
         // result as RHS.  This implements left associativity.
@@ -393,45 +385,51 @@ P<Expr> Parser::parse_binary_expr_rhs(ExprPtr lhs, int precedence) {
     return root;
 }
 
-P<Expr> Parser::parse_expr() {
-    auto unary = parse_unary_expr();
-    return parse_binary_expr_rhs(std::move(unary));
+P<Expr> Parser::parseExpr() {
+    auto unary = parseUnaryExpr();
+    return parseBinaryExprRhs(std::move(unary));
 }
 
 // The language is newline-aware, but newlines are mostly meaningless unless
 // they are at the end of a statement or a declaration.  In those cases we use
 // this to skip over them.
 // @Cleanup: what about comments?
-void Parser::skip_newlines() {
-    while (look().kind == TokenKind::newline ||
-           look().kind == TokenKind::comment) {
+void Parser::skipNewlines() {
+    while (look().is(TokenKind::newline) || look().is(TokenKind::comment)) {
         next();
     }
 }
 
-P<AstNode> Parser::parse_toplevel() {
-    skip_newlines();
+P<AstNode> Parser::parseToplevel() {
+    skipNewlines();
 
     switch (look().kind) {
     case TokenKind::kw_fn:
-        return parse_func_decl();
+        return parseFuncDecl();
     default:
         throw ParseError{"unreachable"};
     }
 }
 
-P<File> Parser::parse_file() {
+P<File> Parser::parseFile() {
     auto file = make_node<File>();
     // FIXME
-    while (!is_eos()) {
-        auto toplevel = parse_toplevel();
+    while (!isEos()) {
+        auto toplevel = parseToplevel();
         file->toplevels.push_back(std::move(toplevel));
     }
     return file;
 }
 
 Ast Parser::parse() {
-    return Ast{parse_file(), name_table};
+    P<File> file;
+    try {
+        file = parseFile();
+    } catch (const ParseError &e) {
+        std::cerr << "parse exception: " << e.what() << ", looking at " << look() << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    return Ast{std::move(file), names};
 }
 
 } // namespace cmp

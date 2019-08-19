@@ -163,7 +163,7 @@ Token Lexer::lex() {
     return tok;
 }
 
-std::vector<Token> Lexer::lex_all() {
+std::vector<Token> Lexer::lexAll() {
     std::vector<Token> v;
     Token tok;
     while ((tok = lex()).kind != TokenKind::eos) {

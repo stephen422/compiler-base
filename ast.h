@@ -61,10 +61,10 @@ NodePtr<T> make_node(Args&&... args) {
 }
 
 template<typename T, typename... Args>
-NodePtr<T> make_node_with_pos(size_t start_pos, size_t end_pos, Args&&... args) {
+NodePtr<T> make_node_with_pos(size_t startPos, size_t endPos, Args&&... args) {
     auto node = std::make_unique<T>(std::forward<Args>(args)...);
-    node->start_pos = start_pos;
-    node->end_pos = end_pos;
+    node->startPos = startPos;
+    node->endPos = endPos;
     return node;
 }
 
@@ -120,8 +120,8 @@ public:
     };
 
     AstKind kind = AstKind::none; // node kind
-    size_t start_pos = 0;         // start pos of this AST in the source text
-    size_t end_pos = 0;           // end pos of this AST in the source text
+    size_t startPos = 0;          // start pos of this AST in the source text
+    size_t endPos = 0;            // end pos of this AST in the source text
     // Indentation of the current node when dumping AST.
     // static because all nodes share this.
     static int depth;
@@ -276,8 +276,8 @@ public:
         : Expr(AstKind::binary_expr), lhs(std::move(lhs_)), op(op_),
           rhs(std::move(rhs_)) {
         auto pair = get_ast_range({lhs.get(), rhs.get()});
-        start_pos = pair.first;
-        end_pos = pair.second;
+        startPos = pair.first;
+        endPos = pair.second;
     }
     void print() const override;
     void traverse(Semantics &sema) override;
@@ -336,9 +336,9 @@ public:
     void traverse(Semantics &sema) override;
 
     Name *name = nullptr;                      // name of the function
-    std::vector<P<ParamDecl>> param_decl_list; // list of parameters
+    std::vector<P<ParamDecl>> paramDeclList;   // list of parameters
     P<CompoundStmt> body = nullptr;            // body statements
-    P<TypeExpr> return_type_expr = nullptr;    // return type expression
+    P<TypeExpr> retTypeExpr = nullptr;         // return type expression
 };
 
 void test(Semantics &sema);

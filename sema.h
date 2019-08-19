@@ -25,15 +25,15 @@ public:
 // analysis.
 class NameTable {
 public:
-    Name *find_or_insert(const std::string &s) {
-        Name *found = find(s);
+    Name *getOrAdd(const std::string &s) {
+        Name *found = get(s);
         if (found) {
             return found;
         }
         auto pair = map.insert({s, {s}});
         return &pair.first->second;
     }
-    Name *find(const std::string &s) {
+    Name *get(const std::string &s) {
         auto found = map.find(s);
         if (found == map.end()) {
             return nullptr;
@@ -122,7 +122,7 @@ public:
     Type *get_i64_type() { return i64_type; }
 
     Source &src;                         // source text
-    NameTable &name_table;               // name table
+    NameTable &names;                    // name table
     SymbolTable<Declaration> decl_table; // declaration table
     SymbolTable<Type> type_table;        // type table
 

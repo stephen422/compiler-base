@@ -123,6 +123,7 @@ public:
     Token(TokenKind kind, size_t pos) : kind(kind), pos(pos), text() {}
     Token(TokenKind kind, size_t pos, StringView text)
         : kind(kind), pos(pos), text(text) {}
+    bool is(TokenKind k) const { return kind == k; }
     void print();
     bool is_identifier_or_keyword() const;
 };
@@ -142,10 +143,10 @@ public:
     /// Lex the current token and advance to the next one.
     Token lex();
     /// Lex all of the source text and return the array of tokens.
-    std::vector<Token> lex_all();
+    std::vector<Token> lexAll();
     /// Peek the next token without consuming it.
     Token peek();
-    Source &get_source() { return src; }
+    Source &getSource() { return src; }
 
 private:
     Token lex_ident();

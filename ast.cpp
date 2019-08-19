@@ -14,11 +14,11 @@ std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes) 
         if (!node) {
             continue;
         }
-        if (node->start_pos < min) {
-            min = node->start_pos;
+        if (node->startPos < min) {
+            min = node->startPos;
         }
-        if (node->end_pos > max) {
-            max = node->end_pos;
+        if (node->endPos > max) {
+            max = node->endPos;
         }
     }
     return {min, max};
@@ -94,10 +94,10 @@ void VarDecl::print() const {
 void FuncDecl::print() const {
     out() << "[FuncDecl] " << name->text << "\n";
     PrintScope start;
-    for (auto &param_decl : param_decl_list) {
-        param_decl->print();
+    for (auto &param : paramDeclList) {
+        param->print();
     }
-    return_type_expr->print();
+    retTypeExpr->print();
     body->print();
 }
 
