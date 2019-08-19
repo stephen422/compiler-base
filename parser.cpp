@@ -3,38 +3,7 @@
 #include <sstream>
 #include <cassert>
 
-// Notes on error handling
-//
-// Encapsulating errors in a ParserResult may not be worth it, because this
-// mechanism requires the callers to manually aggregate errors from different
-// ParserResults into a vector, which otherwise could be done inside callee and
-// have the caller not worry about it.  Instead, ParserResult only encapsulates
-// the node and the successfulness, and errors are added to a central vector
-// owned by Parser.  This is similar to the way Clang handles diagnostics.
-//
-// ParserResult<T> types are usually not used in its template form; instead,
-// they are streamlined into three main cases: StmtResult, DeclResult and
-// ExprResult.  This is sufficient because most nodes only specify the type of
-// their children at this granularity. It also gives a benefit in that the
-// parser functions do not have to manually specify T when returning erroneous
-// ParserResult<T>s.
-
 namespace cmp {
-
-void ParserError::report() const {
-    std::cerr << location.filename << ":" << location.line << ":" << location.col << ": ";
-    std::cerr << "parse error: " << message << std::endl;
-}
-
-template <typename T>
-P<T> ParserResult<T>::unwrap() {
-    if (success()) {
-        return std::move(std::get<P<T>>(result));
-    } else {
-        std::cerr << "unwrap(): tried to unwrap a failed ParserResult.\n";
-        abort();
-    }
-}
 
 Parser::Parser(Lexer &lexer) : lexer{lexer}, tok{} {
     // Insert keywords in name table
@@ -169,50 +138,32 @@ P<CompoundStmt> Parser::parse_compound_stmt() {
 
 // ParamDecls are not trivially lookaheadable with a single token ('a' in 'a:
 // int' does not guarantee anything), so this needs to be easily revertable.
-DeclResult Parser::parse_param_decl() {
-    if (look().kind != TokenKind::ident) {
-        errors.push_back("expected an identifier");
-        return ParserError{};
-    }
-
+P<ParamDecl> Parser::parse_param_decl() {
     auto start_pos = look().pos;
-    // Insert into the name table
+
     Name *name = name_table.find_or_insert(look().text);
     next();
 
-    if (look().kind != TokenKind::colon) {
-        // This is a greedy error, wherever it happens.
-        errors.push_back("expected ':' after name of the variable");
-        return ParserError{};
-    }
-    next();
+    expect(TokenKind::colon);
 
-    auto type_expr = node_cast<TypeExpr>(parse_type_expr());
+    auto typeexpr = parse_type_expr();
 
-    // TODO: mut?
-    auto node = make_node_with_pos<ParamDecl>(start_pos, look().pos, name,
-                                              std::move(type_expr), false);
-    return make_result(std::move(node));
+    return make_node_with_pos<ParamDecl>(start_pos, look().pos, name,
+                                              std::move(typeexpr), false);
 }
 
+// This doesn't include the enclosing parentheses.
 std::vector<P<ParamDecl>> Parser::parse_param_decl_list() {
     std::vector<P<ParamDecl>> decl_list;
-    auto before_param = getProgress();
 
-    DeclResult res;
-    while ((res = parse_param_decl()).success()) {
-        decl_list.push_back(node_cast<ParamDecl>(res.unwrap()));
+    while (look().kind != TokenKind::rparen) {
+        decl_list.push_back(parse_param_decl());
 
-        // No more ',' after 'var: type' means the list is over.
         if (look().kind != TokenKind::comma)
             break;
         next();
     }
 
-    // If the parse position moved, but the parse failed, it should be reported.
-    if (getProgress() != before_param) {
-        res.unwrap();
-    }
     return decl_list;
 }
 
