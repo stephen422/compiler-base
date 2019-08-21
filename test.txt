@@ -20,7 +20,7 @@ fn main() {
 struct Car {
     a: i64,
     b: int,
-    c: int
+    c: int,
 }
 
 // impl Car {

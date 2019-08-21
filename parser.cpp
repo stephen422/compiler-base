@@ -147,12 +147,12 @@ P<VarDecl> Parser::parseVarDecl() {
         next();
         auto typeexpr = parseTypeExpr();
         return make_node_with_pos<VarDecl>(startPos, typeexpr->endPos, name,
-                                           move(typeexpr), nullptr, false);
+                                           move(typeexpr), nullptr);
     } else {
         expect(TokenKind::equals);
         auto assignexpr = parseExpr();
         return make_node_with_pos<VarDecl>(startPos, assignexpr->endPos, name,
-                                           nullptr, move(assignexpr), false);
+                                           nullptr, move(assignexpr));
     }
 }
 
@@ -272,32 +272,38 @@ P<DeclRefExpr> Parser::parseDeclRefExpr() {
 }
 
 P<TypeExpr> Parser::parseTypeExpr() {
-    auto type_expr = make_node<TypeExpr>();
+    auto typeExpr = make_node<TypeExpr>();
 
-    type_expr->startPos = look().pos;
+    typeExpr->startPos = look().pos;
+
+    // Mutable type?
+    if (look().is(TokenKind::quote)) {
+        typeExpr->mut = true;
+        next();
+    }
 
     // We encode each type into a unique Name, so that they are easy to find in
     // the type table in the semantic analysis phase.
     std::string text;
     if (look().is(TokenKind::ampersand)) {
         next();
-        type_expr->ref = true;
-        type_expr->subexpr = parseTypeExpr();
-        text = "&" + type_expr->subexpr->name->text;
+        typeExpr->ref = true;
+        typeExpr->subexpr = parseTypeExpr();
+        text = "&" + typeExpr->subexpr->name->text;
     }
     else if (look().is_identifier_or_keyword()) {
-        type_expr->ref = false;
-        type_expr->subexpr = nullptr;
+        typeExpr->ref = false;
+        typeExpr->subexpr = nullptr;
         text = look().text;
         next();
     } else {
         throw ParseError{"expected type name"};
     }
 
-    type_expr->name = names.getOrAdd(text);
-    type_expr->endPos = look().pos;
+    typeExpr->name = names.getOrAdd(text);
+    typeExpr->endPos = look().pos;
 
-    return type_expr;
+    return typeExpr;
 }
 
 P<Expr> Parser::parseUnaryExpr() {

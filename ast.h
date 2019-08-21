@@ -263,8 +263,9 @@ public:
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    Name *name = nullptr;                // name of the type
-    bool ref = false;                    // is this a reference type?
+    Name *name = nullptr;          // name of the type
+    bool mut = false;              // mutable?
+    bool ref = false;              // is this a reference type?
     P<TypeExpr> subexpr = nullptr; // 'T' part of '&T'
 };
 
@@ -298,8 +299,8 @@ public:
 // Variable declaration.
 class VarDecl : public Decl {
 public:
-    VarDecl(Name *n, P<TypeExpr> t, ExprPtr expr, bool mut)
-        : Decl(AstKind::var_decl), name(n), typeExpr(std::move(t)), assignExpr(std::move(expr)), mut(mut) {}
+    VarDecl(Name *n, P<TypeExpr> t, ExprPtr expr)
+        : Decl(AstKind::var_decl), name(n), typeExpr(std::move(t)), assignExpr(std::move(expr)) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
@@ -309,7 +310,6 @@ public:
     P<TypeExpr> typeExpr = nullptr;  // type node of the variable.
                                      // If null, it will be inferred later
     ExprPtr assignExpr = nullptr;    // initial assignment value
-    bool mut = false;                // "var" or "let"?
 };
 
 // Struct declaration.

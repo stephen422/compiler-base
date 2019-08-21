@@ -71,7 +71,7 @@ void CompoundStmt::print() const {
 }
 
 void VarDecl::print() const {
-    out() << "[VarDecl] " << name->text << (mut ? " (mut)" : " ") << "\n";
+    out() << "[VarDecl] " << name->text << "\n";
     PrintScope start;
     if (typeExpr) {
         typeExpr->print();
