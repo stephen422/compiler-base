@@ -118,19 +118,12 @@ P<CompoundStmt> Parser::parseCompoundStmt() {
     expect(TokenKind::lbrace);
     auto compound = make_node<CompoundStmt>();
 
-    try {
-        while (true) {
-            skipNewlines();
-            if (look().is(TokenKind::rbrace))
-                break;
-            auto stmt = parseStmt();
-            compound->stmts.push_back(move(stmt));
-        }
-    } catch (const ParseError &e) {
-        auto loc = locate();
-        std::cerr << loc.filename << ":" << loc.line << ":" << loc.col << ": ";
-        std::cerr << "parse error: " << e.what() << std::endl;
-        exit(EXIT_FAILURE);
+    while (true) {
+        skipNewlines();
+        if (look().is(TokenKind::rbrace))
+            break;
+        auto stmt = parseStmt();
+        compound->stmts.push_back(move(stmt));
     }
 
     expect(TokenKind::rbrace);
@@ -282,7 +275,7 @@ P<TypeExpr> Parser::parseTypeExpr() {
         next();
     }
 
-    // We encode each type into a unique Name, so that they are easy to find in
+    // Encode each type into a unique Name, so that they are easy to find in
     // the type table in the semantic analysis phase.
     std::string text;
     if (look().is(TokenKind::ampersand)) {
