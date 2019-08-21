@@ -137,21 +137,6 @@ P<CompoundStmt> Parser::parseCompoundStmt() {
     return compound;
 }
 
-// This doesn't include the enclosing parentheses.
-std::vector<P<VarDecl>> Parser::parseVarDeclList() {
-    std::vector<P<VarDecl>> decls;
-
-    while (!look().is(TokenKind::rparen)) {
-        decls.push_back(parseVarDecl());
-
-        if (!look().is(TokenKind::comma))
-            break;
-        next();
-    }
-
-    return decls;
-}
-
 P<VarDecl> Parser::parseVarDecl() {
     auto startPos = look().pos;
 
@@ -171,6 +156,26 @@ P<VarDecl> Parser::parseVarDecl() {
     }
 }
 
+// This doesn't include the enclosing parentheses or braces.
+std::vector<P<VarDecl>> Parser::parseVarDeclList() {
+    std::vector<P<VarDecl>> decls;
+
+    while (true) {
+        skipNewlines();
+
+        if (!look().is(TokenKind::ident))
+            break;
+
+        decls.push_back(parseVarDecl());
+
+        if (!look().is(TokenKind::comma))
+            break;
+        next();
+    }
+
+    return decls;
+}
+
 P<StructDecl> Parser::parseStructDecl() {
     expect(TokenKind::kw_struct);
 
@@ -178,9 +183,10 @@ P<StructDecl> Parser::parseStructDecl() {
     next();
 
     expect(TokenKind::lbrace);
+    auto members = parseVarDeclList();
     expect(TokenKind::rbrace);
 
-    return make_node<StructDecl>(name);
+    return make_node<StructDecl>(name, std::move(members));
 }
 
 P<FuncDecl> Parser::parseFuncDecl() {
@@ -193,7 +199,7 @@ P<FuncDecl> Parser::parseFuncDecl() {
 
     // Argument list
     expect(TokenKind::lparen);
-    func->paramDeclList = parseVarDeclList();
+    func->params = parseVarDeclList();
     expect(TokenKind::rparen);
 
     // Return type (-> ...)

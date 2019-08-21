@@ -315,11 +315,13 @@ public:
 // Struct declaration.
 class StructDecl : public Decl {
 public:
-    StructDecl(Name *n) : Decl(AstKind::struct_decl), name(n) {}
+    StructDecl(Name *n, std::vector<P<VarDecl>> m)
+        : Decl(AstKind::struct_decl), name(n), members(std::move(m)) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    Name *name = nullptr; // name of the struct
+    Name *name = nullptr;            // name of the struct
+    std::vector<P<VarDecl>> members; // member variables
 };
 
 // Function declaration.  There is no separate function definition: functions
@@ -330,10 +332,10 @@ public:
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    Name *name = nullptr;                      // name of the function
-    std::vector<P<VarDecl>> paramDeclList;     // list of parameters
-    P<CompoundStmt> body = nullptr;            // body statements
-    P<TypeExpr> retTypeExpr = nullptr;         // return type expression
+    Name *name = nullptr;              // name of the function
+    std::vector<P<VarDecl>> params;    // list of parameters
+    P<CompoundStmt> body = nullptr;    // body statements
+    P<TypeExpr> retTypeExpr = nullptr; // return type expression
 };
 
 void test(Semantics &sema);

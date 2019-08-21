@@ -86,14 +86,17 @@ void VarDecl::print() const {
 
 void StructDecl::print() const {
     out() << "[StructDecl] " << name->text << "\n";
+    PrintScope start;
+    for (auto &m : members) {
+        m->print();
+    }
 }
 
 void FuncDecl::print() const {
     out() << "[FuncDecl] " << name->text << "\n";
     PrintScope start;
-    for (auto &param : paramDeclList) {
-        param->print();
-    }
+    for (auto &p : params)
+        p->print();
     if (retTypeExpr)
         retTypeExpr->print();
     body->print();

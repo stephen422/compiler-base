@@ -123,6 +123,8 @@ void VarDecl::traverse(Semantics &sema) {
 }
 
 void StructDecl::traverse(Semantics &sema) {
+    for (auto &m : members)
+        m->traverse(sema);
 }
 
 void FuncDecl::traverse(Semantics &sema) {
@@ -134,8 +136,8 @@ void FuncDecl::traverse(Semantics &sema) {
         sema.getContext().retType = retTypeExpr->type;
     }
 
-    for (auto &param : paramDeclList)
-        param ->traverse(sema);
+    for (auto &p : params)
+        p->traverse(sema);
 
     body->traverse(sema);
 

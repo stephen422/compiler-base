@@ -18,8 +18,8 @@ fn main() {
 }
 
 struct Car {
-    a: int,
-    b: int,
+    a: i64,
+    b: &&int,
     c: int,
 }
 
