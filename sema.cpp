@@ -69,7 +69,18 @@ void AssignStmt::traverse(Semantics &sema) {
 }
 
 void ReturnStmt::traverse(Semantics &sema) {
-    expr->traverse(sema);
+    if (expr) {
+        expr->traverse(sema);
+        if (!sema.getContext().retType)
+            sema.error(expr->startPos, "function does not return a value");
+        else if (sema.getContext().retType != expr->type)
+            sema.error(expr->startPos, "return type mismatch");
+    } else {
+        if (sema.getContext().retType)
+            sema.error(startPos, "a return a value should be specified for this function");
+    }
+
+    sema.getContext().seenReturn = true;
 }
 
 void CompoundStmt::traverse(Semantics &sema) {
@@ -117,16 +128,24 @@ void VarDecl::traverse(Semantics &sema) {
 }
 
 void FuncDecl::traverse(Semantics &sema) {
-    sema.declTable.open_scope();
+    sema.scopeOpen();
 
-    retTypeExpr->traverse(sema);
+    if (retTypeExpr) {
+        retTypeExpr->traverse(sema);
+        assert(retTypeExpr->type);
+        sema.getContext().retType = retTypeExpr->type;
+    }
 
     for (auto &param : paramDeclList)
         param ->traverse(sema);
 
     body->traverse(sema);
 
-    sema.declTable.close_scope();
+    if (retTypeExpr && !sema.getContext().seenReturn) {
+        sema.error(startPos, "no return statement found for function");
+    }
+
+    sema.scopeClose();
 }
 
 void UnaryExpr::traverse(Semantics &sema) {

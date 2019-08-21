@@ -71,10 +71,14 @@ P<Stmt> Parser::parseStmt() {
 }
 
 P<ReturnStmt> Parser::parseReturnStmt() {
+    auto startPos = look().pos;
+
     expect(TokenKind::kw_return);
-    auto expr = parseExpr();
+    P<Expr> expr = nullptr;
+    if (!isEndOfStmt())
+        expr = parseExpr();
     expectEndOfStmt();
-    return make_node<ReturnStmt>(move(expr));
+    return make_node_with_pos<ReturnStmt>(startPos, look().pos, move(expr));
 }
 
 P<DeclStmt> Parser::parseDeclStmt() {
@@ -202,8 +206,10 @@ P<FuncDecl> Parser::parseFuncDecl() {
     expect(TokenKind::rparen);
 
     // Return type (-> ...)
-    expect(TokenKind::arrow);
-    func->retTypeExpr = parseTypeExpr();
+    if (look().is(TokenKind::arrow)) {
+        next();
+        func->retTypeExpr = parseTypeExpr();
+    }
 
     // Function body
     func->body = parseCompoundStmt();

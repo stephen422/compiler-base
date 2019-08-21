@@ -12,7 +12,7 @@ ScopedTable<T>::ScopedTable() {
     for (int i = 0; i < symbol_table_key_size; i++) {
         keys[i] = nullptr;
     }
-    open_scope();
+    scopeOpen();
 }
 
 template <typename T>
@@ -61,13 +61,13 @@ T *ScopedTable<T>::find(Name *name) const {
 }
 
 template <typename T>
-void ScopedTable<T>::open_scope() {
+void ScopedTable<T>::scopeOpen() {
     scope_stack.push_back(nullptr);
     scope_level++;
 }
 
 template <typename T>
-void ScopedTable<T>::close_scope() {
+void ScopedTable<T>::scopeClose() {
     Symbol *p = scope_stack.back();
     while (p) {
         int index = hash(p->name) % symbol_table_key_size;

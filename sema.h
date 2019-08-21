@@ -71,6 +71,14 @@ public:
     int scope_level = 0;        // scope that this was declared
 };
 
+class Context {
+public:
+    // Return type of this function
+    Type *retType = nullptr;
+    // Seen one or more return statement in this function
+    bool seenReturn = false;
+};
+
 constexpr int symbol_table_key_size = 512;
 
 template<typename T>
@@ -83,9 +91,9 @@ public:
     void print() const;
 
     // Start a new scope.
-    void open_scope();
+    void scopeOpen();
     // Close current cope.
-    void close_scope();
+    void scopeClose();
     // Get current scope level.
     int get_scope_level() { return scope_level; }
 
@@ -121,10 +129,25 @@ public:
     Type *get_int_type() { return int_type; }
     Type *get_i64_type() { return i64_type; }
 
+    void scopeOpen() {
+        declTable.scopeOpen();
+        typeTable.scopeOpen();
+        contextTable.push_back(Context{});
+    }
+
+    void scopeClose() {
+        declTable.scopeClose();
+        typeTable.scopeClose();
+        contextTable.pop_back();
+    }
+
+    Context &getContext() { return contextTable.back(); }
+
     Source &src;                        // source text
     NameTable &names;                   // name table
     ScopedTable<Declaration> declTable; // declaration table
     ScopedTable<Type> typeTable;        // type table
+    std::vector<Context> contextTable;  // semantic analysis context table
 
 private:
     Type *int_type = nullptr;

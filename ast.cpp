@@ -58,7 +58,8 @@ void AssignStmt::print() const {
 void ReturnStmt::print() const {
     out() << "[ReturnStmt]\n";
     PrintScope start;
-    expr->print();
+    if (expr)
+        expr->print();
 }
 
 void CompoundStmt::print() const {
@@ -97,7 +98,8 @@ void FuncDecl::print() const {
     for (auto &param : paramDeclList) {
         param->print();
     }
-    retTypeExpr->print();
+    if (retTypeExpr)
+        retTypeExpr->print();
     body->print();
 }
 

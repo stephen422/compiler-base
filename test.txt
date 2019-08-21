@@ -2,9 +2,10 @@ fn swap(a: &int, b: &int) -> int {
     let t = *a // [error: whatever]
     *a = *b // there
     //* = t
+    return *a
 }
 
-fn main() -> int {
+fn main() {
     var a = 3 + 4
     var b: int
     b = a
@@ -14,8 +15,6 @@ fn main() -> int {
 
     var c: &int
     c = &b
-
-    return c
 }
 
 // impl Car {
