@@ -89,12 +89,6 @@ void CompoundStmt::traverse(Semantics &sema) {
         stmt->traverse(sema);
 }
 
-void ParamDecl::traverse(Semantics &sema) {
-    typeExpr->traverse(sema);
-    Declaration decl{name, *typeExpr->type};
-    sema.declTable.insert({name, decl});
-}
-
 void VarDecl::traverse(Semantics &sema) {
     Type *type = nullptr;
 

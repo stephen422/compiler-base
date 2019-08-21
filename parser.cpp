@@ -137,60 +137,37 @@ P<CompoundStmt> Parser::parseCompoundStmt() {
     return compound;
 }
 
-// ParamDecls are not trivially lookaheadable with a single token ('a' in 'a:
-// int' does not guarantee anything), so this needs to be easily revertable.
-P<ParamDecl> Parser::parseParamDecl() {
-    auto startPos = look().pos;
-
-    Name *name = names.getOrAdd(look().text);
-    next();
-
-    expect(TokenKind::colon);
-
-    auto typeexpr = parseTypeExpr();
-
-    return make_node_with_pos<ParamDecl>(startPos, look().pos, name,
-                                              move(typeexpr), false);
-}
-
 // This doesn't include the enclosing parentheses.
-std::vector<P<ParamDecl>> Parser::parseParamDeclList() {
-    std::vector<P<ParamDecl>> decl_list;
+std::vector<P<VarDecl>> Parser::parseVarDeclList() {
+    std::vector<P<VarDecl>> decls;
 
     while (!look().is(TokenKind::rparen)) {
-        decl_list.push_back(parseParamDecl());
+        decls.push_back(parseVarDecl());
 
         if (!look().is(TokenKind::comma))
             break;
         next();
     }
 
-    return decl_list;
+    return decls;
 }
 
 P<VarDecl> Parser::parseVarDecl() {
     auto startPos = look().pos;
-
-    auto mut = (look().is(TokenKind::kw_var));
-    next();
 
     Name *name = names.getOrAdd(look().text);
     next();
 
     if (look().is(TokenKind::colon)) {
         next();
-        // 'let' cannot be used with explicit type specfication
-        if (!mut)
-            throw ParseError{"initial value required for a 'let' decl"};
         auto typeexpr = parseTypeExpr();
         return make_node_with_pos<VarDecl>(startPos, typeexpr->endPos, name,
-                                           move(typeexpr), nullptr, mut);
+                                           move(typeexpr), nullptr, false);
     } else {
-        expect(TokenKind::equals, mut ? "type or initial value required"
-                                      : "initial value required");
+        expect(TokenKind::equals);
         auto assignexpr = parseExpr();
         return make_node_with_pos<VarDecl>(startPos, assignexpr->endPos, name,
-                                           nullptr, move(assignexpr), mut);
+                                           nullptr, move(assignexpr), false);
     }
 }
 
@@ -216,7 +193,7 @@ P<FuncDecl> Parser::parseFuncDecl() {
 
     // Argument list
     expect(TokenKind::lparen);
-    func->paramDeclList = parseParamDeclList();
+    func->paramDeclList = parseVarDeclList();
     expect(TokenKind::rparen);
 
     // Return type (-> ...)
@@ -244,9 +221,10 @@ bool Parser::isStartOfDecl() const {
 
 P<Decl> Parser::parseDecl() {
     switch (look().kind) {
-    case TokenKind::kw_let:
-    case TokenKind::kw_var:
+    case TokenKind::kw_let: {
+        next();
         return parseVarDecl();
+    }
     default:
         throw ParseError{"not a start of a declaration"};
     }

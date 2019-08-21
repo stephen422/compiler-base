@@ -295,19 +295,6 @@ public:
     Decl(AstKind kind) : AstNode(kind) {}
 };
 
-class ParamDecl : public Decl {
-public:
-    ParamDecl(Name *n, P<TypeExpr> t, bool m)
-        : Decl(AstKind::param_decl), name(n), typeExpr(std::move(t)), mut(m) {}
-    void print() const override;
-    void traverse(Semantics &sema) override;
-
-    Name *name = nullptr;            // name of the variable
-    P<TypeExpr> typeExpr = nullptr;  // type node of the variable.
-                                     // If null, it will be inferred later
-    bool mut = false;                // "var" or "let"?
-};
-
 // Variable declaration.
 class VarDecl : public Decl {
 public:
@@ -344,7 +331,7 @@ public:
     void traverse(Semantics &sema) override;
 
     Name *name = nullptr;                      // name of the function
-    std::vector<P<ParamDecl>> paramDeclList;   // list of parameters
+    std::vector<P<VarDecl>> paramDeclList;     // list of parameters
     P<CompoundStmt> body = nullptr;            // body statements
     P<TypeExpr> retTypeExpr = nullptr;         // return type expression
 };

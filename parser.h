@@ -36,8 +36,7 @@ private:
 
     // Declaration parsers.
     P<Decl> parseDecl();
-    P<ParamDecl> parseParamDecl();
-    std::vector<P<ParamDecl>> parseParamDeclList();
+    std::vector<P<VarDecl>> parseVarDeclList();
     P<VarDecl> parseVarDecl();
     P<StructDecl> parseStructDecl();
     P<FuncDecl> parseFuncDecl();

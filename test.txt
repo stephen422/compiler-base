@@ -6,14 +6,14 @@ fn swap(a: &int, b: &int) -> int {
 }
 
 fn main() {
-    var a = 3 + 4
-    var b: int
+    let a = 3 + 4
+    let b: int
     b = a
 
     1 * 2 + 3 + 4 * 5
     3 + (a - (b + a * 3)) * 2
 
-    var c: &int
+    let c: &int
     c = &b
 }
 
