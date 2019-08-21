@@ -74,10 +74,10 @@ public:
 constexpr int symbol_table_key_size = 512;
 
 template<typename T>
-class SymbolTable {
+class ScopedTable {
 public:
-    SymbolTable();
-    ~SymbolTable();
+    ScopedTable();
+    ~ScopedTable();
     T *insert(std::pair<Name *, const T &> pair);
     T *find(Name *name) const;
     void print() const;
@@ -107,7 +107,7 @@ private:
     int scope_level = 0;
 };
 
-#include "symbol_table.cpp"
+#include "scoped_table.h"
 
 // Stores all of the semantic information necessary for semantic analysis
 // phase.
@@ -121,10 +121,10 @@ public:
     Type *get_int_type() { return int_type; }
     Type *get_i64_type() { return i64_type; }
 
-    Source &src;                         // source text
-    NameTable &names;                    // name table
-    SymbolTable<Declaration> decl_table; // declaration table
-    SymbolTable<Type> type_table;        // type table
+    Source &src;                        // source text
+    NameTable &names;                   // name table
+    ScopedTable<Declaration> declTable; // declaration table
+    ScopedTable<Type> typeTable;        // type table
 
 private:
     Type *int_type = nullptr;

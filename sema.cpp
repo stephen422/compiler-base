@@ -16,28 +16,24 @@ std::string Declaration::to_string() const {
 
 void Semantics::error(size_t pos, const std::string &msg) {
     auto loc = src.locate(pos);
+    std::cout << "==== Declaration table ====\n";
+    declTable.print();
+    std::cout << "==== Type table ====\n";
+    typeTable.print();
+    std::cout << std::endl;
     std::cerr << loc.filename << ":" << loc.line << ":" << loc.col << ": ";
     std::cerr << "error: " << msg << std::endl;
-    std::cout << "==== Declaration table ====\n";
-    decl_table.print();
-    std::cout << "==== Type table ====\n";
-    type_table.print();
     exit(1);
-}
-
-static Type make_type_from_text(Semantics &sema, const std::string &text) {
-    Name *name = sema.names.getOrAdd(text);
-    return Type{name};
 }
 
 // @Future: inefficient string operations?
 Type *get_reference_type(Semantics &sema, Type *type) {
     Name *name = sema.names.getOrAdd("&" + type->name->text);
     Type ref_type {name, type, true};
-    if (auto found = sema.type_table.find(name)) {
+    if (auto found = sema.typeTable.find(name)) {
         return found;
     }
-    return sema.type_table.insert({name, ref_type});
+    return sema.typeTable.insert({name, ref_type});
 }
 
 //
@@ -62,13 +58,13 @@ void AssignStmt::traverse(Semantics &sema) {
     lhs->traverse(sema);
     rhs->traverse(sema);
     // Type match.  For now, type of LHS and RHS should match exactly.
-    assert(lhs->inferred_type);
-    assert(rhs->inferred_type);
-    if (lhs->inferred_type != rhs->inferred_type) {
-        sema.type_table.print();
-        std::cout << "LHS: " << lhs->inferred_type->to_string() << std::endl;
-        std::cout << "RHS: " << rhs->inferred_type->to_string() << std::endl;
-        sema.error(startPos, "type mismatch in assignment");
+    assert(lhs->type);
+    assert(rhs->type);
+    if (lhs->type != rhs->type) {
+        sema.typeTable.print();
+        std::cout << "LHS: " << lhs->type->to_string() << std::endl;
+        std::cout << "RHS: " << rhs->type->to_string() << std::endl;
+        sema.error(rhs->startPos, "type mismatch: ");
     }
 }
 
@@ -82,51 +78,55 @@ void CompoundStmt::traverse(Semantics &sema) {
 }
 
 void ParamDecl::traverse(Semantics &sema) {
-    type_expr->traverse(sema);
-    Declaration decl{name, *type_expr->inferred_type};
-    sema.decl_table.insert({name, decl});
+    typeExpr->traverse(sema);
+    Declaration decl{name, *typeExpr->type};
+    sema.declTable.insert({name, decl});
 }
 
 void VarDecl::traverse(Semantics &sema) {
-    Type *inferred_type = nullptr;
+    Type *type = nullptr;
 
     // Check for redefinition
-    auto found = sema.decl_table.find(name);
-    if (found && found->scope_level == sema.decl_table.get_scope_level()) { // TODO: check scope
+    auto found = sema.declTable.find(name);
+    if (found && found->scope_level == sema.declTable.get_scope_level()) { // TODO: check scope
         sema.error(startPos, "redefinition");
     }
 
     // Infer type from the assignment expression.
-    if (assign_expr) {
-        assign_expr->traverse(sema);
-        inferred_type = assign_expr->inferred_type;
+    if (assignExpr) {
+        assignExpr->traverse(sema);
+        type = assignExpr->type;
     }
     // If none, try explicit type expression.
-    // Assumes assign_expr and type_expr do not coexist.
-    else if (type_expr) {
-        type_expr->traverse(sema);
-        // FIXME: This is kinda hack; inferred_type depicts the type of the
+    // Assumes assignExpr and typeExpr do not coexist.
+    else if (typeExpr) {
+        typeExpr->traverse(sema);
+        // FIXME: This is kinda hack; type depicts the type of the
         // _value_ of a Expr, but TypeExpr does not have any value.
-        inferred_type = type_expr->inferred_type;
+        type = typeExpr->type;
     } else {
         assert(!"unreachable");
     }
 
     // Inferrence failure!
-    if (!inferred_type) {
+    if (!type)
         sema.error(startPos, "cannot infer type of variable declaration");
-    }
 
-    Declaration decl{name, *inferred_type};
-    sema.decl_table.insert({name, decl});
+    Declaration decl{name, *type};
+    sema.declTable.insert({name, decl});
 }
 
 void FuncDecl::traverse(Semantics &sema) {
-    sema.decl_table.open_scope();
+    sema.declTable.open_scope();
+
+    retTypeExpr->traverse(sema);
+
     for (auto &param : paramDeclList)
         param ->traverse(sema);
+
     body->traverse(sema);
-    sema.decl_table.close_scope();
+
+    sema.declTable.close_scope();
 }
 
 void UnaryExpr::traverse(Semantics &sema) {
@@ -135,22 +135,23 @@ void UnaryExpr::traverse(Semantics &sema) {
     switch (unary_kind) {
     case Paren:
         operand->traverse(sema);
-        inferred_type = operand->inferred_type;
+        type = operand->type;
         break;
     case Deref:
         operand->traverse(sema);
-        if (!operand->inferred_type->ref) {
+        if (!operand->type->ref) {
             sema.error(startPos, "cannot dereference a non-reference");
         }
-        inferred_type = operand->inferred_type->value_type;
+        type = operand->type->value_type;
         break;
     case Address:
         operand->traverse(sema);
-        if (static_cast<UnaryExpr *>(operand.get())->unary_kind != DeclRef) {
+        assert(operand->kind == AstKind::unary_expr);
+        if (node_cast<UnaryExpr>(operand)->unary_kind != DeclRef) {
             // TODO: LValue & RValue
             sema.error(startPos, "cannot take address of a non-variable (TODO: rvalue)");
         }
-        inferred_type = get_reference_type(sema, operand->inferred_type);
+        type = get_reference_type(sema, operand->type);
         break;
     default:
         assert(!"unreachable");
@@ -158,27 +159,25 @@ void UnaryExpr::traverse(Semantics &sema) {
 }
 
 void IntegerLiteral::traverse(Semantics &sema) {
-    inferred_type = sema.get_int_type();
+    type = sema.get_int_type();
 }
 
 void DeclRefExpr::traverse(Semantics &sema) {
-    Declaration *decl = sema.decl_table.find(name);
+    Declaration *decl = sema.declTable.find(name);
     if (decl == nullptr) {
         sema.error(startPos, "undeclared identifier");
     }
     // Type inferrence
-    inferred_type = &decl->type;
+    type = &decl->type;
 }
 
 void TypeExpr::traverse(Semantics &sema) {
-    if (subexpr) {
+    if (subexpr)
         subexpr->traverse(sema);
-    }
 
-    Type *type = sema.type_table.find(name);
+    Type *type = sema.typeTable.find(name);
     if (type == nullptr) {
-        // If this is a value type (canonical type in Clang?), we should check use
-        // before declaration.
+        // If this is a value type, we should check use before declaration.
         if (!ref) {
             sema.error(startPos, "reference of undeclared type");
         }
@@ -186,34 +185,34 @@ void TypeExpr::traverse(Semantics &sema) {
         // put into the table.
         else {
             assert(subexpr);
-            Type ref_type {name, subexpr->inferred_type, true};
-            type = sema.type_table.insert({name, ref_type});
+            Type ref_type{name, subexpr->type, true};
+            type = sema.typeTable.insert({name, ref_type});
         }
     }
+
     assert(type);
-    inferred_type = type;
+    this->type = type;
 }
 
 void BinaryExpr::traverse(Semantics &sema) {
     lhs->traverse(sema);
     rhs->traverse(sema);
 
-    // Type inferrence
-    if (lhs->inferred_type && rhs->inferred_type &&
-        lhs->inferred_type != rhs->inferred_type) {
+    if (lhs->type && rhs->type &&
+        lhs->type != rhs->type)
         sema.error(startPos, "type mismatch in binary expression");
-    }
-    // Propagate type of LHS
-    inferred_type = lhs->inferred_type;
+
+    // Propagate from left to right
+    type = lhs->type;
 }
 
-Semantics::Semantics(Source &src_, NameTable &nt) : src(src_), names(nt) {
+Semantics::Semantics(Source &s, NameTable &n) : src(s), names(n) {
     Name *int_name = names.getOrAdd("int");
     Type int_type{int_name};
-    this->int_type = type_table.insert({int_name, int_type});
+    this->int_type = typeTable.insert({int_name, int_type});
     Name *i64_name = names.getOrAdd("i64");
     Type i64_type{i64_name};
-    this->i64_type = type_table.insert({i64_name, i64_type});
+    this->i64_type = typeTable.insert({i64_name, i64_type});
 }
 
 void semantic_analyze(Semantics &sema, Ast &ast) { ast.root->traverse(sema); }

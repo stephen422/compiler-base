@@ -38,9 +38,9 @@ int main(int argc, char **argv) {
     ast.root->print();
     semantic_analyze(sema, ast);
     std::cout << "==== Declaration table ====\n";
-    sema.decl_table.print();
+    sema.declTable.print();
     std::cout << "==== Type table ====\n";
-    sema.type_table.print();
+    sema.typeTable.print();
 #endif
     return 0;
 }

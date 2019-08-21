@@ -50,28 +50,24 @@ using ExprPtr = std::unique_ptr<Expr>;
 using DeclPtr = std::unique_ptr<Decl>;
 
 template <typename T>
-using NodePtr = std::unique_ptr<T>;
-
-template <typename T>
 using P = std::unique_ptr<T>;
 
 template<typename T, typename... Args>
-NodePtr<T> make_node(Args&&... args) {
+P<T> make_node(Args&&... args) {
     return std::make_unique<T>(std::forward<Args>(args)...);
 }
 
 template<typename T, typename... Args>
-NodePtr<T> make_node_with_pos(size_t startPos, size_t endPos, Args&&... args) {
-    auto node = std::make_unique<T>(std::forward<Args>(args)...);
+P<T> make_node_with_pos(size_t startPos, size_t endPos, Args&&... args) {
+    auto node = make_node<T>(std::forward<Args>(args)...);
     node->startPos = startPos;
     node->endPos = endPos;
     return node;
 }
 
 template <typename T, typename U>
-constexpr NodePtr<T> node_cast(NodePtr<U> &&ptr) {
-    auto p = static_cast<T *>(ptr.release());
-    return NodePtr<T>{p};
+constexpr T *node_cast(const P<U> &ptr) {
+    return static_cast<T *>(ptr.get());
 }
 
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
@@ -102,6 +98,7 @@ public:
     template <typename T> constexpr T *as() {
         return static_cast<T *>(this);
     }
+
     // Convenience ostream for AST printing.
     // Handles indentation, tree drawing, etc.
     std::ostream &out() const {
@@ -213,7 +210,7 @@ public:
 
     // This value will be propagated by post-order tree traversal, starting
     // from DeclRefExpr or literal expressions.
-    Type *inferred_type = nullptr;
+    Type *type = nullptr;
 };
 
 class UnaryExpr : public Expr {
@@ -300,12 +297,12 @@ public:
 class ParamDecl : public Decl {
 public:
     ParamDecl(Name *n, P<TypeExpr> t, bool m)
-        : Decl(AstKind::param_decl), name(n), type_expr(std::move(t)), mut(m) {}
+        : Decl(AstKind::param_decl), name(n), typeExpr(std::move(t)), mut(m) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
     Name *name = nullptr;            // name of the variable
-    P<TypeExpr> type_expr = nullptr; // type node of the variable.
+    P<TypeExpr> typeExpr = nullptr;  // type node of the variable.
                                      // If null, it will be inferred later
     bool mut = false;                // "var" or "let"?
 };
@@ -314,17 +311,17 @@ public:
 class VarDecl : public Decl {
 public:
     VarDecl(Name *n, P<TypeExpr> t, ExprPtr expr, bool mut)
-        : Decl(AstKind::var_decl), name(n), type_expr(std::move(t)), assign_expr(std::move(expr)), mut(mut) {}
+        : Decl(AstKind::var_decl), name(n), typeExpr(std::move(t)), assignExpr(std::move(expr)), mut(mut) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
-    Name *name = nullptr;                  // name of the variable
-    P<TypeExpr> type_expr = nullptr; // type node of the variable.
-                                           // If null, it will be inferred later
-    ExprPtr assign_expr = nullptr;         // initial assignment value
-    bool mut = false;                      // "var" or "let"?
+    Name *name = nullptr;            // name of the variable
+    P<TypeExpr> typeExpr = nullptr;  // type node of the variable.
+                                     // If null, it will be inferred later
+    ExprPtr assignExpr = nullptr;    // initial assignment value
+    bool mut = false;                // "var" or "let"?
 };
 
 // Function declaration.  There is no separate function definition: functions

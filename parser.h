@@ -19,7 +19,7 @@ public:
     Ast parse();
 
 private:
-    // Parse a whole file.
+    // Parse the whole file.
     P<File> parseFile();
 
     // Parse a toplevel statement.
@@ -50,19 +50,15 @@ private:
     P<Expr> parseUnaryExpr();
     P<Expr> parseBinaryExprRhs(ExprPtr lhs, int precedence = 0);
 
-    // Get the next token from the lexer.
+    // Advance the lookahead token.
     void next();
 
     // Get the current lookahead token.
     const Token look() const;
 
-    // Get the current parsing position.
+    // Get and restore the current parsing position.
     auto getProgress() const { return lookIndex; }
-
-    // Restore the parsing position back to the given one.
-    void restoreProgress(size_t pos) {
-        lookIndex = pos;
-    }
+    void restoreProgress(size_t pos) { lookIndex = pos; }
 
     // Get the precedence of an operator.
     int getPrecedence(const Token &op) const;
@@ -73,15 +69,12 @@ private:
     void skipNewlines();
 
     // Figure out the current location (line, col) in the source.
-    SourceLoc locate() const {
-        return lexer.getSource().locate(look().pos);
-    }
+    SourceLoc locate() const { return lexer.getSource().locate(look().pos); }
 
     Lexer &lexer;                       // associated lexer
     Token tok;                          // lookahead token
     NameTable names;                    // name table (TODO: document)
     std::vector<Token> tokens;          // lexed tokens
-    std::vector<Token> lookahead_cache; // lookahead tokens cache
     size_t lookIndex = 0;               // lookahead position in the cache
     std::vector<std::string> errors;
 };

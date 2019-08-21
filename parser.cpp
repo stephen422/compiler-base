@@ -5,6 +5,8 @@
 
 namespace cmp {
 
+using std::move;
+
 Parser::Parser(Lexer &lexer) : lexer{lexer}, tok{} {
     // Insert keywords in name table
     for (auto m : keyword_map) {
@@ -72,13 +74,13 @@ P<ReturnStmt> Parser::parseReturnStmt() {
     expect(TokenKind::kw_return);
     auto expr = parseExpr();
     expectEndOfStmt();
-    return make_node<ReturnStmt>(std::move(expr));
+    return make_node<ReturnStmt>(move(expr));
 }
 
 P<DeclStmt> Parser::parseDeclStmt() {
     auto decl = parseDecl();
     expectEndOfStmt();
-    return make_node<DeclStmt>(std::move(decl));
+    return make_node<DeclStmt>(move(decl));
 }
 
 P<Stmt> Parser::parseExprOrAssignStmt() {
@@ -88,7 +90,7 @@ P<Stmt> Parser::parseExprOrAssignStmt() {
     // ExprStmt: expression ends with a newline
     if (isEndOfStmt()) {
         expect(TokenKind::newline);
-        return make_node<ExprStmt>(std::move(lhs));
+        return make_node<ExprStmt>(move(lhs));
     }
 
     // AssignStmt: expression is followed by equals
@@ -98,7 +100,8 @@ P<Stmt> Parser::parseExprOrAssignStmt() {
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
     auto rhs = parseExpr();
-    return make_node_with_pos<AssignStmt>(startPos, look().pos, std::move(lhs), std::move(rhs));
+    return make_node_with_pos<AssignStmt>(startPos, look().pos, move(lhs),
+                                          move(rhs));
 }
 
 // Compound statement is a scoped block that consists of multiple statements.
@@ -117,7 +120,7 @@ P<CompoundStmt> Parser::parseCompoundStmt() {
             if (look().is(TokenKind::rbrace))
                 break;
             auto stmt = parseStmt();
-            compound->stmts.push_back(std::move(stmt));
+            compound->stmts.push_back(move(stmt));
         }
     } catch (const ParseError &e) {
         std::cerr << "parse exception: " << e.what() << ", looking at " << look() << std::endl;
@@ -141,7 +144,7 @@ P<ParamDecl> Parser::parseParamDecl() {
     auto typeexpr = parseTypeExpr();
 
     return make_node_with_pos<ParamDecl>(startPos, look().pos, name,
-                                              std::move(typeexpr), false);
+                                              move(typeexpr), false);
 }
 
 // This doesn't include the enclosing parentheses.
@@ -175,13 +178,13 @@ P<VarDecl> Parser::parseVarDecl() {
             throw ParseError{"initial value required for a 'let' decl"};
         auto typeexpr = parseTypeExpr();
         return make_node_with_pos<VarDecl>(startPos, typeexpr->endPos, name,
-                                           std::move(typeexpr), nullptr, mut);
+                                           move(typeexpr), nullptr, mut);
     } else {
         expect(TokenKind::equals, mut ? "type or initial value required"
                                       : "initial value required");
         auto assignexpr = parseExpr();
         return make_node_with_pos<VarDecl>(startPos, assignexpr->endPos, name,
-                                           nullptr, std::move(assignexpr), mut);
+                                           nullptr, move(assignexpr), mut);
     }
 }
 
@@ -200,11 +203,10 @@ P<FuncDecl> Parser::parseFuncDecl() {
 
     // Return type (-> ...)
     expect(TokenKind::arrow);
-
     func->retTypeExpr = parseTypeExpr();
 
     // Function body
-    func->body = node_cast<CompoundStmt>(parseCompoundStmt());
+    func->body = parseCompoundStmt();
     func->endPos = look().pos;
 
     return func;
@@ -276,7 +278,7 @@ P<TypeExpr> Parser::parseTypeExpr() {
     if (look().is(TokenKind::ampersand)) {
         next();
         type_expr->ref = true;
-        type_expr->subexpr = node_cast<TypeExpr>(parseTypeExpr());
+        type_expr->subexpr = parseTypeExpr();
         text = "&" + type_expr->subexpr->name->text;
     }
     else if (look().is_identifier_or_keyword()) {
@@ -306,19 +308,19 @@ P<Expr> Parser::parseUnaryExpr() {
     case TokenKind::star: {
         next();
         auto expr = parseUnaryExpr();
-        return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Deref, std::move(expr));
+        return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Deref, move(expr));
     }
     case TokenKind::ampersand: {
         next();
         auto expr = parseUnaryExpr();
-        return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Address, std::move(expr));
+        return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Address, move(expr));
     }
     case TokenKind::lparen: {
         expect(TokenKind::lparen);
         auto expr = parseExpr();
         expect(TokenKind::rparen);
         // TODO: check unwrap
-        return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Paren, std::move(expr));
+        return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Paren, move(expr));
     }
     default:
         // Because all expressions start with a unary expression, failing here
@@ -349,7 +351,7 @@ int Parser::getPrecedence(const Token &op) const {
 // After the call, 'lhs' is invalidated by being moved away.  Subsequent code
 // should use the wrapped node in the return value instead.
 P<Expr> Parser::parseBinaryExprRhs(ExprPtr lhs, int precedence) {
-    ExprPtr root = std::move(lhs);
+    ExprPtr root = move(lhs);
 
     while (true) {
         int this_prec = getPrecedence(look());
@@ -375,11 +377,11 @@ P<Expr> Parser::parseBinaryExprRhs(ExprPtr lhs, int precedence) {
         // precedence. Else ("(a * b) + c"), just treat it as a unary
         // expression.
         if (this_prec < next_prec)
-            rhs = parseBinaryExprRhs(std::move(rhs), precedence + 1);
+            rhs = parseBinaryExprRhs(move(rhs), precedence + 1);
 
         // Create a new root with the old root as its LHS, and the recursion
         // result as RHS.  This implements left associativity.
-        root = make_node<BinaryExpr>(std::move(root), op, std::move(rhs));
+        root = make_node<BinaryExpr>(move(root), op, move(rhs));
     }
 
     return root;
@@ -387,7 +389,7 @@ P<Expr> Parser::parseBinaryExprRhs(ExprPtr lhs, int precedence) {
 
 P<Expr> Parser::parseExpr() {
     auto unary = parseUnaryExpr();
-    return parseBinaryExprRhs(std::move(unary));
+    return parseBinaryExprRhs(move(unary));
 }
 
 // The language is newline-aware, but newlines are mostly meaningless unless
@@ -416,7 +418,7 @@ P<File> Parser::parseFile() {
     // FIXME
     while (!isEos()) {
         auto toplevel = parseToplevel();
-        file->toplevels.push_back(std::move(toplevel));
+        file->toplevels.push_back(move(toplevel));
     }
     return file;
 }
@@ -429,7 +431,7 @@ Ast Parser::parse() {
         std::cerr << "parse exception: " << e.what() << ", looking at " << look() << std::endl;
         exit(EXIT_FAILURE);
     }
-    return Ast{std::move(file), names};
+    return Ast{move(file), names};
 }
 
 } // namespace cmp

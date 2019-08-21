@@ -8,7 +8,7 @@ static inline uint64_t hash(const void *p) {
 }
 
 template <typename T>
-SymbolTable<T>::SymbolTable() {
+ScopedTable<T>::ScopedTable() {
     for (int i = 0; i < symbol_table_key_size; i++) {
         keys[i] = nullptr;
     }
@@ -16,7 +16,7 @@ SymbolTable<T>::SymbolTable() {
 }
 
 template <typename T>
-SymbolTable<T>::~SymbolTable() {
+ScopedTable<T>::~ScopedTable() {
     for (int i = 0; i < symbol_table_key_size; i++) {
         Symbol *p = keys[i];
         if (!p) {
@@ -31,7 +31,7 @@ SymbolTable<T>::~SymbolTable() {
 }
 
 template <typename T>
-T *SymbolTable<T>::insert(std::pair<Name *, const T &> pair) {
+T *ScopedTable<T>::insert(std::pair<Name *, const T &> pair) {
     // Memory for T is stored inside the symbol
     // FIXME: bad allocator
     Symbol *head = new Symbol(pair.first, pair.second);
@@ -50,7 +50,7 @@ T *SymbolTable<T>::insert(std::pair<Name *, const T &> pair) {
 }
 
 template <typename T>
-T *SymbolTable<T>::find(Name *name) const {
+T *ScopedTable<T>::find(Name *name) const {
     int index = hash(name) % symbol_table_key_size;
     for (Symbol *s = keys[index]; s; s = s->next) {
         if (s->name == name) {
@@ -61,13 +61,13 @@ T *SymbolTable<T>::find(Name *name) const {
 }
 
 template <typename T>
-void SymbolTable<T>::open_scope() {
+void ScopedTable<T>::open_scope() {
     scope_stack.push_back(nullptr);
     scope_level++;
 }
 
 template <typename T>
-void SymbolTable<T>::close_scope() {
+void ScopedTable<T>::close_scope() {
     Symbol *p = scope_stack.back();
     while (p) {
         int index = hash(p->name) % symbol_table_key_size;
@@ -81,7 +81,7 @@ void SymbolTable<T>::close_scope() {
 }
 
 template <typename T>
-void SymbolTable<T>::print() const {
+void ScopedTable<T>::print() const {
     for (int i = 0; i < symbol_table_key_size; i++) {
         auto *p = keys[i];
         if (!p) {

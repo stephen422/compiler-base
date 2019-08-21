@@ -72,22 +72,22 @@ void CompoundStmt::print() const {
 void ParamDecl::print() const {
     out() << "[ParamDecl] " << name->text << (mut ? " (mut)" : " ") << "\n";
     PrintScope start;
-    if (type_expr) {
-        type_expr->print();
+    if (typeExpr) {
+        typeExpr->print();
     }
 }
 
 void VarDecl::print() const {
     out() << "[VarDecl] " << name->text << (mut ? " (mut)" : " ") << "\n";
     PrintScope start;
-    if (type_expr) {
-        type_expr->print();
+    if (typeExpr) {
+        typeExpr->print();
     }
 
-    if (assign_expr) {
+    if (assignExpr) {
         out() << "[AssignExpr]\n";
         PrintScope start;
-        assign_expr->print();
+        assignExpr->print();
     }
 }
 
@@ -146,8 +146,8 @@ void DeclRefExpr::print() const {
     out() << "[DeclRefExpr] " << "((Name *)";
     printf("0x..%04x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(name)));
     std::cout << ") "<< name->text;
-    if (inferred_type) {
-        std::cout << " '" << inferred_type->name->text << "'";
+    if (type) {
+        std::cout << " '" << type->name->text << "'";
     }
     std::cout << std::endl;
 }

@@ -15,7 +15,7 @@ fn main() -> int {
     var c: &int
     c = &b
 
-    return a
+    return c
 }
 
 // impl Car {
