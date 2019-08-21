@@ -57,7 +57,8 @@ void ExprStmt::traverse(Semantics &sema) {
 void AssignStmt::traverse(Semantics &sema) {
     lhs->traverse(sema);
     rhs->traverse(sema);
-    // Type match.  For now, type of LHS and RHS should match exactly.
+
+    // Type check.  For now, type of LHS and RHS should match exactly.
     assert(lhs->type);
     assert(rhs->type);
     if (lhs->type != rhs->type) {

@@ -17,6 +17,9 @@ fn main() {
     c = &b
 }
 
+struct Car {
+}
+
 // impl Car {
 //     fn print() {
 //     }

@@ -29,7 +29,7 @@ void Parser::expect(TokenKind kind, const std::string &msg = "") {
     if (!look().is(kind)) {
         std::stringstream ss;
         if (msg.empty())
-            ss << "(" << look().pos << ") expected '" << tokentype_to_string(kind) << "', got '"
+            ss << "expected '" << tokentype_to_string(kind) << "', got '"
                << tokentype_to_string(look().kind) << "'";
         else
             ss << msg;
@@ -127,7 +127,9 @@ P<CompoundStmt> Parser::parseCompoundStmt() {
             compound->stmts.push_back(move(stmt));
         }
     } catch (const ParseError &e) {
-        std::cerr << "parse exception: " << e.what() << ", looking at " << look() << std::endl;
+        auto loc = locate();
+        std::cerr << loc.filename << ":" << loc.line << ":" << loc.col << ": ";
+        std::cerr << "parse error: " << e.what() << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -414,6 +416,8 @@ P<AstNode> Parser::parseToplevel() {
     switch (look().kind) {
     case TokenKind::kw_fn:
         return parseFuncDecl();
+    case TokenKind::kw_struct:
+        return parseFuncDecl();
     default:
         throw ParseError{"unreachable"};
     }
@@ -434,7 +438,9 @@ Ast Parser::parse() {
     try {
         file = parseFile();
     } catch (const ParseError &e) {
-        std::cerr << "parse exception: " << e.what() << ", looking at " << look() << std::endl;
+        auto loc = locate();
+        std::cerr << loc.filename << ":" << loc.line << ":" << loc.col << ": ";
+        std::cerr << "parse error: " << e.what() << std::endl;
         exit(EXIT_FAILURE);
     }
     return Ast{move(file), names};
