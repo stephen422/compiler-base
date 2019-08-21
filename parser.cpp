@@ -162,7 +162,6 @@ std::vector<P<VarDecl>> Parser::parseVarDeclList() {
 
     while (true) {
         skipNewlines();
-
         if (!look().is(TokenKind::ident))
             break;
 
@@ -172,6 +171,7 @@ std::vector<P<VarDecl>> Parser::parseVarDeclList() {
             break;
         next();
     }
+    skipNewlines();
 
     return decls;
 }
