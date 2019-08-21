@@ -128,6 +128,9 @@ void VarDecl::traverse(Semantics &sema) {
     sema.declTable.insert({name, decl});
 }
 
+void StructDecl::traverse(Semantics &sema) {
+}
+
 void FuncDecl::traverse(Semantics &sema) {
     sema.scopeOpen();
 

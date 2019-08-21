@@ -194,6 +194,18 @@ P<VarDecl> Parser::parseVarDecl() {
     }
 }
 
+P<StructDecl> Parser::parseStructDecl() {
+    expect(TokenKind::kw_struct);
+
+    Name *name = names.getOrAdd(look().text);
+    next();
+
+    expect(TokenKind::lbrace);
+    expect(TokenKind::rbrace);
+
+    return make_node<StructDecl>(name);
+}
+
 P<FuncDecl> Parser::parseFuncDecl() {
     expect(TokenKind::kw_fn);
 
@@ -417,7 +429,7 @@ P<AstNode> Parser::parseToplevel() {
     case TokenKind::kw_fn:
         return parseFuncDecl();
     case TokenKind::kw_struct:
-        return parseFuncDecl();
+        return parseStructDecl();
     default:
         throw ParseError{"unreachable"};
     }

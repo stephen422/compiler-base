@@ -18,6 +18,9 @@ fn main() {
 }
 
 struct Car {
+    a: int,
+    b: int,
+    c: int,
 }
 
 // impl Car {

@@ -92,6 +92,10 @@ void VarDecl::print() const {
     }
 }
 
+void StructDecl::print() const {
+    out() << "[StructDecl] " << name->text << "\n";
+}
+
 void FuncDecl::print() const {
     out() << "[FuncDecl] " << name->text << "\n";
     PrintScope start;

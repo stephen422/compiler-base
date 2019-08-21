@@ -25,6 +25,7 @@ enum class AstKind {
     compound_stmt,
     var_decl,
     param_decl,
+    struct_decl,
     func_decl,
     literal_expr,
     integer_literal,
@@ -322,6 +323,16 @@ public:
                                      // If null, it will be inferred later
     ExprPtr assignExpr = nullptr;    // initial assignment value
     bool mut = false;                // "var" or "let"?
+};
+
+// Struct declaration.
+class StructDecl : public Decl {
+public:
+    StructDecl(Name *n) : Decl(AstKind::struct_decl), name(n) {}
+    void print() const override;
+    void traverse(Semantics &sema) override;
+
+    Name *name = nullptr; // name of the struct
 };
 
 // Function declaration.  There is no separate function definition: functions

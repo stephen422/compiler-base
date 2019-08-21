@@ -39,6 +39,7 @@ private:
     P<ParamDecl> parseParamDecl();
     std::vector<P<ParamDecl>> parseParamDeclList();
     P<VarDecl> parseVarDecl();
+    P<StructDecl> parseStructDecl();
     P<FuncDecl> parseFuncDecl();
     bool isStartOfDecl() const;
 
