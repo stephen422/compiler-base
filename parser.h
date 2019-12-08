@@ -50,6 +50,11 @@ private:
     P<Expr> parseUnaryExpr();
     P<Expr> parseBinaryExprRhs(ExprPtr lhs, int precedence = 0);
 
+    // Error nodes.
+    P<BadStmt> stmt_error(const std::string &msg);
+    P<BadDecl> decl_error(const std::string &msg);
+    P<BadExpr> expr_error(const std::string &msg);
+
     // Advance the lookahead token.
     void next();
 
@@ -57,14 +62,14 @@ private:
     const Token look() const;
 
     // Get and restore the current parsing position.
-    auto getProgress() const { return lookIndex; }
-    void restoreProgress(size_t pos) { lookIndex = pos; }
+    auto getProgress() const { return look_index; }
+    void restoreProgress(size_t pos) { look_index = pos; }
 
     // Get the precedence of an operator.
     int getPrecedence(const Token &op) const;
 
-    void expect(TokenKind kind, const std::string &msg);
-    void expectEndOfStmt();
+    bool expect(TokenKind kind, const std::string &msg);
+    bool expectEndOfStmt();
 
     void skipNewlines();
 
@@ -75,7 +80,7 @@ private:
     Token tok;                          // lookahead token
     NameTable names;                    // name table (TODO: document)
     std::vector<Token> tokens;          // lexed tokens
-    size_t lookIndex = 0;               // lookahead position in the cache
+    size_t look_index = 0;               // lookahead position in the cache
     std::vector<std::string> errors;
 };
 

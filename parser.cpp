@@ -16,32 +16,37 @@ Parser::Parser(Lexer &lexer) : lexer{lexer}, tok{} {
 }
 
 void Parser::next() {
-    if (!tokens[lookIndex].is(TokenKind::eos)) {
-        lookIndex++;
+    if (!tokens[look_index].is(TokenKind::eos)) {
+        look_index++;
     }
 }
 
 const Token Parser::look() const {
-    return tokens[lookIndex];
+    return tokens[look_index];
 }
 
-void Parser::expect(TokenKind kind, const std::string &msg = "") {
+bool Parser::expect(TokenKind kind, const std::string &msg = "") {
     if (!look().is(kind)) {
         std::stringstream ss;
-        if (msg.empty())
+        if (msg.empty()) {
             ss << "expected '" << tokentype_to_string(kind) << "', got '"
                << tokentype_to_string(look().kind) << "'";
-        else
+        } else {
             ss << msg;
-        throw ParseError{ss.str()};
+        }
+        return false;
     }
     next();
+    return true;
 }
 
-void Parser::expectEndOfStmt() {
-    if (!isEndOfStmt())
-        throw ParseError{"expected end of statement"};
+bool Parser::expectEndOfStmt() {
+
+    if (!isEndOfStmt()) {
+        return false;
+    }
     skipNewlines();
+    return true;
 }
 
 bool Parser::isEndOfStmt() const {
@@ -62,12 +67,13 @@ bool Parser::isEos() {
 P<Stmt> Parser::parseStmt() {
     skipNewlines();
 
-    if (look().is(TokenKind::kw_return))
+    if (look().is(TokenKind::kw_return)) {
         return parseReturnStmt();
-    else if (isStartOfDecl())
+    } else if (isStartOfDecl()) {
         return parseDeclStmt();
-    else
+    } else {
         return parseExprOrAssignStmt();
+    }
 }
 
 P<ReturnStmt> Parser::parseReturnStmt() {
@@ -75,15 +81,21 @@ P<ReturnStmt> Parser::parseReturnStmt() {
 
     expect(TokenKind::kw_return);
     P<Expr> expr = nullptr;
-    if (!isEndOfStmt())
+    if (!isEndOfStmt()) {
         expr = parseExpr();
-    expectEndOfStmt();
+    }
+    if (!expectEndOfStmt()) {
+        assert(false);
+    }
     return make_node_with_pos<ReturnStmt>(startPos, look().pos, move(expr));
 }
 
+// let a = ...
 P<DeclStmt> Parser::parseDeclStmt() {
     auto decl = parseDecl();
-    expectEndOfStmt();
+    if (!expectEndOfStmt()) {
+        assert(false);
+    }
     return make_node<DeclStmt>(move(decl));
 }
 
@@ -99,7 +111,9 @@ P<Stmt> Parser::parseExprOrAssignStmt() {
 
     // AssignStmt: expression is followed by equals
     // (anything else is treated as an error)
-    expect(TokenKind::equals);
+    if (!expect(TokenKind::equals)) {
+        return stmt_error("expected equals");
+    }
 
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
@@ -123,6 +137,7 @@ P<CompoundStmt> Parser::parseCompoundStmt() {
         if (look().is(TokenKind::rbrace))
             break;
         auto stmt = parseStmt();
+        // TODO: per-stmt error check
         compound->stmts.push_back(move(stmt));
     }
 
@@ -208,6 +223,18 @@ P<FuncDecl> Parser::parseFuncDecl() {
     return func;
 }
 
+P<BadStmt> Parser::stmt_error(const std::string &msg) {
+    return make_node<BadStmt>(msg);
+}
+
+P<BadDecl> Parser::decl_error(const std::string &msg) {
+    return make_node<BadDecl>(msg);
+}
+
+P<BadExpr> Parser::expr_error(const std::string &msg) {
+    return make_node<BadExpr>(msg);
+}
+
 bool Parser::isStartOfDecl() const {
     switch (look().kind) {
     case TokenKind::kw_let:
@@ -225,7 +252,7 @@ P<Decl> Parser::parseDecl() {
         return parseVarDecl();
     }
     default:
-        throw ParseError{"not a start of a declaration"};
+        return decl_error("not a start of a declaration");
     }
 }
 
@@ -240,7 +267,7 @@ P<UnaryExpr> Parser::parseLiteralExpr() {
         break;
     }
     default:
-        throw ParseError{"non-integer literals not implemented"};
+        assert(false && "non-integer literals not implemented");
     }
     expr->startPos = look().pos;
     expr->endPos = look().pos + look().text.length();
@@ -290,7 +317,7 @@ P<TypeExpr> Parser::parseTypeExpr() {
         text = look().text;
         next();
     } else {
-        throw ParseError{"expected type name"};
+        assert(false && "expected type name");
     }
 
     typeExpr->name = names.getOrAdd(text);
@@ -329,7 +356,7 @@ P<Expr> Parser::parseUnaryExpr() {
         // Because all expressions start with a unary expression, failing here
         // means no other expression could be matched either, so just do a
         // really generic report.
-        throw ParseError{std::to_string(startPos) + ": expected an expression"};
+        return expr_error(std::to_string(startPos) + ": expected an expression");
     }
 }
 
@@ -414,7 +441,7 @@ P<AstNode> Parser::parseToplevel() {
     case TokenKind::kw_struct:
         return parseStructDecl();
     default:
-        throw ParseError{"unreachable"};
+        assert(false && "unreachable");
     }
 }
 
@@ -429,15 +456,7 @@ P<File> Parser::parseFile() {
 }
 
 Ast Parser::parse() {
-    P<File> file;
-    try {
-        file = parseFile();
-    } catch (const ParseError &e) {
-        auto loc = locate();
-        std::cerr << loc.filename << ":" << loc.line << ":" << loc.col << ": ";
-        std::cerr << "parse error: " << e.what() << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    P<File> file = parseFile();
     return Ast{move(file), names};
 }
 

@@ -225,6 +225,10 @@ void BinaryExpr::traverse(Semantics &sema) {
     type = lhs->type;
 }
 
+void BadStmt::traverse(Semantics &sema) {}
+void BadDecl::traverse(Semantics &sema) {}
+void BadExpr::traverse(Semantics &sema) {}
+
 Semantics::Semantics(Source &s, NameTable &n) : src(s), names(n) {
     Name *int_name = names.getOrAdd("int");
     Type int_type{int_name};

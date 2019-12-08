@@ -42,5 +42,10 @@ int main(int argc, char **argv) {
     std::cout << "==== Type table ====\n";
     sema.typeTable.print();
 #endif
+
+    std::cout << sizeof(AstNode) << std::endl;
+    std::cout << sizeof(Expr) << std::endl;
+    std::cout << sizeof(UnaryExpr) << std::endl;
+    std::cout << sizeof(IntegerLiteral) << std::endl;
     return 0;
 }

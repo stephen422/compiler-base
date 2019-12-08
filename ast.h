@@ -23,16 +23,19 @@ enum class AstKind {
     assign_stmt,
     return_stmt,
     compound_stmt,
+    bad_stmt,
     var_decl,
     param_decl,
     struct_decl,
     func_decl,
+    bad_decl,
     literal_expr,
     integer_literal,
     ref_expr,
     type_expr,
     unary_expr,
     binary_expr,
+    bad_expr,
 };
 
 class AstNode;
@@ -199,6 +202,16 @@ public:
     std::vector<StmtPtr> stmts;
 };
 
+class BadStmt : public Stmt {
+public:
+    BadStmt(const std::string &msg) : Stmt(AstKind::bad_stmt), msg(msg) {}
+    void print() const override;
+    void traverse(Semantics &sema) override;
+
+    std::string msg;
+};
+
+
 // ==============
 //   Expression
 // ==============
@@ -286,9 +299,31 @@ public:
     ExprPtr rhs;
 };
 
+class BadExpr : public Expr {
+public:
+    BadExpr(const std::string &msg) : Expr(AstKind::bad_expr), msg(msg) {}
+    void print() const override;
+    void traverse(Semantics &sema) override;
+
+    std::string msg;
+};
+
 // ================
 //   Declarations
 // ================
+
+class VarDecl;
+class StructDecl;
+class FuncDecl;
+class ErrorDecl;
+
+// class Visitor {
+// public:
+//     virtual void visit(VarDecl &fd) = 0;
+//     virtual void visit(StructDecl &fd) = 0;
+//     virtual void visit(FuncDecl &fd) = 0;
+//     virtual void visit(ErrorDecl &fd) = 0;
+// };
 
 // A declaration.
 class Decl : public AstNode {
@@ -336,6 +371,15 @@ public:
     std::vector<P<VarDecl>> params;    // list of parameters
     P<CompoundStmt> body = nullptr;    // body statements
     P<TypeExpr> retTypeExpr = nullptr; // return type expression
+};
+
+class BadDecl : public Decl {
+public:
+    BadDecl(const std::string &msg) : Decl(AstKind::bad_decl), msg(msg) {}
+    void print() const override;
+    void traverse(Semantics &sema) override;
+
+    std::string msg;
 };
 
 void test(Semantics &sema);
