@@ -1,7 +1,8 @@
 #include "parser.h"
-#include <utility>
-#include <sstream>
+#include "fmt/core.h"
 #include <cassert>
+#include <sstream>
+#include <utility>
 
 namespace cmp {
 
@@ -27,12 +28,11 @@ const Token Parser::look() const {
 
 bool Parser::expect(TokenKind kind, const std::string &msg = "") {
     if (!look().is(kind)) {
-        std::stringstream ss;
+        std::string s = "";
         if (msg.empty()) {
-            ss << "expected '" << tokentype_to_string(kind) << "', got '"
-               << tokentype_to_string(look().kind) << "'";
-        } else {
-            ss << msg;
+            s = fmt::format("expected '{}', got '{}'",
+                            tokentype_to_string(kind),
+                            tokentype_to_string(look().kind));
         }
         return false;
     }
@@ -40,21 +40,20 @@ bool Parser::expect(TokenKind kind, const std::string &msg = "") {
     return true;
 }
 
-bool Parser::expectEndOfStmt() {
-
-    if (!isEndOfStmt()) {
+bool Parser::expect_end_of_stmt() {
+    if (!is_end_of_stmt()) {
         return false;
     }
-    skipNewlines();
+    skip_newlines();
     return true;
 }
 
-bool Parser::isEndOfStmt() const {
+bool Parser::is_end_of_stmt() const {
     return look().is(TokenKind::newline) || look().is(TokenKind::comment);
 }
 
-bool Parser::isEos() {
-    skipNewlines();
+bool Parser::is_eos() {
+    skip_newlines();
     return look().is(TokenKind::eos);
 }
 
@@ -64,47 +63,47 @@ bool Parser::isEos() {
 //     Decl ;
 //     Expr ;
 //     ;
-P<Stmt> Parser::parseStmt() {
-    skipNewlines();
+P<Stmt> Parser::parse_stmt() {
+    skip_newlines();
 
     if (look().is(TokenKind::kw_return)) {
-        return parseReturnStmt();
+        return parse_return_stmt();
     } else if (isStartOfDecl()) {
-        return parseDeclStmt();
+        return parse_decl_stmt();
     } else {
-        return parseExprOrAssignStmt();
+        return parse_expr_or_assign_stmt();
     }
 }
 
-P<ReturnStmt> Parser::parseReturnStmt() {
+P<ReturnStmt> Parser::parse_return_stmt() {
     auto startPos = look().pos;
 
     expect(TokenKind::kw_return);
     P<Expr> expr = nullptr;
-    if (!isEndOfStmt()) {
+    if (!is_end_of_stmt()) {
         expr = parseExpr();
     }
-    if (!expectEndOfStmt()) {
+    if (!expect_end_of_stmt()) {
         assert(false);
     }
     return make_node_with_pos<ReturnStmt>(startPos, look().pos, move(expr));
 }
 
 // let a = ...
-P<DeclStmt> Parser::parseDeclStmt() {
+P<DeclStmt> Parser::parse_decl_stmt() {
     auto decl = parseDecl();
-    if (!expectEndOfStmt()) {
+    if (!expect_end_of_stmt()) {
         assert(false);
     }
     return make_node<DeclStmt>(move(decl));
 }
 
-P<Stmt> Parser::parseExprOrAssignStmt() {
+P<Stmt> Parser::parse_expr_or_assign_stmt() {
     auto startPos = look().pos;
 
     auto lhs = parseExpr();
     // ExprStmt: expression ends with a newline
-    if (isEndOfStmt()) {
+    if (is_end_of_stmt()) {
         expect(TokenKind::newline);
         return make_node<ExprStmt>(move(lhs));
     }
@@ -128,15 +127,15 @@ P<Stmt> Parser::parseExprOrAssignStmt() {
 //
 // CompoundStmt:
 //     { Stmt* }
-P<CompoundStmt> Parser::parseCompoundStmt() {
+P<CompoundStmt> Parser::parse_compound_stmt() {
     expect(TokenKind::lbrace);
     auto compound = make_node<CompoundStmt>();
 
     while (true) {
-        skipNewlines();
+        skip_newlines();
         if (look().is(TokenKind::rbrace))
             break;
-        auto stmt = parseStmt();
+        auto stmt = parse_stmt();
         // TODO: per-stmt error check
         compound->stmts.push_back(move(stmt));
     }
@@ -169,7 +168,7 @@ std::vector<P<VarDecl>> Parser::parseVarDeclList() {
     std::vector<P<VarDecl>> decls;
 
     while (true) {
-        skipNewlines();
+        skip_newlines();
         if (!look().is(TokenKind::ident))
             break;
 
@@ -179,7 +178,7 @@ std::vector<P<VarDecl>> Parser::parseVarDeclList() {
             break;
         next();
     }
-    skipNewlines();
+    skip_newlines();
 
     return decls;
 }
@@ -217,7 +216,7 @@ P<FuncDecl> Parser::parseFuncDecl() {
     }
 
     // Function body
-    func->body = parseCompoundStmt();
+    func->body = parse_compound_stmt();
     func->endPos = look().pos;
 
     return func;
@@ -426,14 +425,14 @@ P<Expr> Parser::parseExpr() {
 // they are at the end of a statement or a declaration.  In those cases we use
 // this to skip over them.
 // @Cleanup: what about comments?
-void Parser::skipNewlines() {
+void Parser::skip_newlines() {
     while (look().is(TokenKind::newline) || look().is(TokenKind::comment)) {
         next();
     }
 }
 
 P<AstNode> Parser::parseToplevel() {
-    skipNewlines();
+    skip_newlines();
 
     switch (look().kind) {
     case TokenKind::kw_fn:
@@ -448,7 +447,7 @@ P<AstNode> Parser::parseToplevel() {
 P<File> Parser::parseFile() {
     auto file = make_node<File>();
     // FIXME
-    while (!isEos()) {
+    while (!is_eos()) {
         auto toplevel = parseToplevel();
         file->toplevels.push_back(move(toplevel));
     }

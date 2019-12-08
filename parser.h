@@ -26,13 +26,13 @@ private:
     P<AstNode> parseToplevel();
 
     // Statement parsers.
-    P<Stmt> parseStmt();
-    P<Stmt> parseExprOrAssignStmt();
-    P<ReturnStmt> parseReturnStmt();
-    P<DeclStmt> parseDeclStmt();
-    P<CompoundStmt> parseCompoundStmt();
-    bool isEndOfStmt() const;
-    bool isEos();
+    P<Stmt> parse_stmt();
+    P<Stmt> parse_expr_or_assign_stmt();
+    P<ReturnStmt> parse_return_stmt();
+    P<DeclStmt> parse_decl_stmt();
+    P<CompoundStmt> parse_compound_stmt();
+    bool is_end_of_stmt() const;
+    bool is_eos();
 
     // Declaration parsers.
     P<Decl> parseDecl();
@@ -69,9 +69,9 @@ private:
     int getPrecedence(const Token &op) const;
 
     bool expect(TokenKind kind, const std::string &msg);
-    bool expectEndOfStmt();
+    bool expect_end_of_stmt();
 
-    void skipNewlines();
+    void skip_newlines();
 
     // Figure out the current location (line, col) in the source.
     SourceLoc locate() const { return lexer.getSource().locate(look().pos); }

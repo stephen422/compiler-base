@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include "fmt/core.h"
 #include <cctype>
 
 namespace cmp {
@@ -134,7 +135,7 @@ Token Lexer::lex() {
     switch (*curr) {
     case 0:
         // TODO emit a warning
-        std::cerr << "unexpected null in source\n";
+        fmt::print(stderr, "unexpected null in source\n");
         break;
     case '"':
         tok = lex_string();

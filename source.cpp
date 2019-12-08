@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include "fmt/core.h"
 
 namespace cmp {
 
@@ -10,7 +11,7 @@ Source::Source(const Path &p) : filename(p.path)
 {
     std::ifstream in{filename, std::ios::binary};
     if (!in) {
-        std::cerr << filename << ": " << strerror(errno) << std::endl;
+        fmt::print(stderr, "error: {}: {}\n", filename, strerror(errno));
         exit(EXIT_FAILURE);
     }
     init(in);

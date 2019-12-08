@@ -1,7 +1,7 @@
 #include "sema.h"
-#include "source.h"
 #include "ast.h"
-#include <iostream>
+#include "fmt/core.h"
+#include "source.h"
 #include <cassert>
 
 namespace cmp {
@@ -21,8 +21,8 @@ void Semantics::error(size_t pos, const std::string &msg) {
     std::cout << "==== Type table ====\n";
     typeTable.print();
     std::cout << std::endl;
-    std::cerr << loc.filename << ":" << loc.line << ":" << loc.col << ": ";
-    std::cerr << "error: " << msg << std::endl;
+    fmt::print(stderr, "{}:{}:{}: error: {}\n", loc.filename, loc.line, loc.col,
+               msg);
     exit(1);
 }
 
