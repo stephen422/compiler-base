@@ -104,10 +104,10 @@ void FuncDecl::print() const {
 
 void BinaryExpr::print() const {
     out() << "[BinaryExpr]\n";
-    PrintScope start;
 
+    PrintScope start;
     lhs->print();
-    out() << "[Op] '" << op.text << "'\n";
+    fmt::print("[Op] '{}'\n", op.text);
     rhs->print();
 }
 

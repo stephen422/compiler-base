@@ -18,11 +18,6 @@ std::string tokentype_to_string(TokenKind kind) {
     return "";
 }
 
-std::ostream &operator<<(std::ostream &os, const Token &token) {
-    os << token.text;
-    return os;
-}
-
 bool Token::is_identifier_or_keyword() const {
     return kind == TokenKind::ident || (kind > TokenKind::KWSTART && kind < TokenKind::KWEND);
 }

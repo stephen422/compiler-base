@@ -4,6 +4,8 @@
 
 #include "source.h"
 #include "string_view.h"
+#include "fmt/core.h"
+#include "fmt/format.h"
 #include <algorithm>
 #include <map>
 #include <string>
@@ -115,8 +117,7 @@ std::string tokentype_to_string(TokenKind kind);
 
 // Token contains the kind, a view of the text data, and the source position of
 // a token.
-class Token {
-public:
+struct Token {
     TokenKind kind;
     size_t pos;
     StringView text;
@@ -129,8 +130,6 @@ public:
     void print();
     bool is_identifier_or_keyword() const;
 };
-
-std::ostream& operator<<(std::ostream& os, const Token& token);
 
 /// Represents a lexer state machine.
 /// Assumes that the associated Source outlives it.
@@ -183,5 +182,12 @@ private:
 };
 
 } // namespace cmp
+
+template <> struct fmt::formatter<cmp::Token>: formatter<StringView> {
+    template <typename FormatContext>
+    auto format(const cmp::Token &tok, FormatContext &ctx) {
+        return formatter<StringView>::format(tok.text, ctx);
+    }
+};
 
 #endif

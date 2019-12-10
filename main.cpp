@@ -12,10 +12,10 @@ void test_lexer(Lexer &lexer) {
 
     while ((token = lexer.lex()).kind != TokenKind::eos) {
         if (token.kind == TokenKind::none) {
-            std::cerr << "lex error: [" << token.text << "]: Unrecognized token kind\n";
+            fmt::print(stderr, "lex error: [{}]: Unrecognized token kind\n", token);
             break;
         }
-        std::cout << token << std::endl;
+        fmt::print("[{}], token");
     }
 }
 
