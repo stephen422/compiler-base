@@ -15,45 +15,46 @@ public:
 class Parser {
 public:
     Parser(Lexer &lexer);
+    ~Parser();
 
     Ast parse();
 
 private:
     // Parse the whole file.
-    P<File> parseFile();
+    File *parseFile();
 
     // Parse a toplevel statement.
-    P<AstNode> parseToplevel();
+    AstNode *parseToplevel();
 
     // Statement parsers.
-    P<Stmt> parse_stmt();
-    P<Stmt> parse_expr_or_assign_stmt();
-    P<ReturnStmt> parse_return_stmt();
-    P<DeclStmt> parse_decl_stmt();
-    P<CompoundStmt> parse_compound_stmt();
+    Stmt *parse_stmt();
+    Stmt *parse_expr_or_assign_stmt();
+    ReturnStmt *parse_return_stmt();
+    DeclStmt *parse_decl_stmt();
+    CompoundStmt *parse_compound_stmt();
     bool is_end_of_stmt() const;
     bool is_eos();
 
     // Declaration parsers.
-    P<Decl> parseDecl();
-    std::vector<P<VarDecl>> parseVarDeclList();
-    P<VarDecl> parseVarDecl();
-    P<StructDecl> parseStructDecl();
-    P<FuncDecl> parseFuncDecl();
-    bool isStartOfDecl() const;
+    Decl *parse_decl();
+    std::vector<VarDecl *> parse_var_decl_list();
+    VarDecl *parse_var_decl();
+    StructDecl *parse_struct_decl();
+    FuncDecl *parse_func_decl();
+    bool is_start_of_decl() const;
 
     // Expression parsers.
-    P<Expr> parseExpr();
-    P<UnaryExpr> parseLiteralExpr();
-    P<DeclRefExpr> parseDeclRefExpr();
-    P<TypeExpr> parseTypeExpr();
-    P<Expr> parseUnaryExpr();
-    P<Expr> parseBinaryExprRhs(ExprPtr lhs, int precedence = 0);
+    Expr *parseExpr();
+    UnaryExpr *parseLiteralExpr();
+    DeclRefExpr *parseDeclRefExpr();
+    TypeExpr *parseTypeExpr();
+    Expr *parseUnaryExpr();
+    Expr *parseBinaryExprRhs(Expr *lhs, int precedence = 0);
 
     // Error nodes.
-    P<BadStmt> stmt_error(const std::string &msg);
-    P<BadDecl> decl_error(const std::string &msg);
-    P<BadExpr> expr_error(const std::string &msg);
+    BadStmt *stmt_error(const std::string &msg);
+    BadDecl *decl_error(const std::string &msg);
+    BadExpr *expr_error(const std::string &msg);
 
     // Advance the lookahead token.
     void next();
@@ -73,15 +74,31 @@ private:
 
     void skip_newlines();
 
+    template <typename T, typename... Args> T *make_node(Args &&... args)
+    {
+        T *ptr = new T{std::forward<Args>(args)...};
+        nodes.push_back(ptr);
+        return ptr;
+    }
+
+    template <typename T, typename... Args>
+    T *make_node_with_pos(size_t startPos, size_t endPos, Args &&... args)
+    {
+        auto node = make_node<T>(std::forward<Args>(args)...);
+        node->startPos = startPos;
+        node->endPos = endPos;
+        return node;
+    }
+
     // Figure out the current location (line, col) in the source.
     SourceLoc locate() const { return lexer.getSource().locate(look().pos); }
 
-    Lexer &lexer;                       // associated lexer
-    Token tok;                          // lookahead token
-    NameTable names;                    // name table (TODO: document)
-    std::vector<Token> tokens;          // lexed tokens
-    size_t look_index = 0;               // lookahead position in the cache
-    std::vector<std::string> errors;
+    Lexer &lexer;                 // associated lexer
+    Token tok;                    // lookahead token
+    std::vector<AstNode *> nodes; // node pointer pool
+    NameTable names;              // name table (TODO: document)
+    std::vector<Token> tokens;    // lexed tokens
+    size_t look_index = 0;        // lookahead position in the cache
 };
 
 } // namespace cmp

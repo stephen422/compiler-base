@@ -46,42 +46,14 @@ class Expr;
 class Decl;
 class FuncDecl;
 
-// Owning pointers to each AST node.
-using FilePtr = std::unique_ptr<File>;
-using ToplevelPtr = std::unique_ptr<Toplevel>;
-using StmtPtr = std::unique_ptr<Stmt>;
-using ExprPtr = std::unique_ptr<Expr>;
-using DeclPtr = std::unique_ptr<Decl>;
-
-template <typename T>
-using P = std::unique_ptr<T>;
-
-template<typename T, typename... Args>
-P<T> make_node(Args&&... args) {
-    return std::make_unique<T>(std::forward<Args>(args)...);
-}
-
-template<typename T, typename... Args>
-P<T> make_node_with_pos(size_t startPos, size_t endPos, Args&&... args) {
-    auto node = make_node<T>(std::forward<Args>(args)...);
-    node->startPos = startPos;
-    node->endPos = endPos;
-    return node;
-}
-
-template <typename T, typename U>
-constexpr T *node_cast(const P<U> &ptr) {
-    return static_cast<T *>(ptr.get());
-}
-
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
 
 // Ast is aggregate type that contains all information necessary for semantic
 // analysis of an AST: namely, the root node and the name table.
 class Ast {
 public:
-    Ast(P<AstNode> r, NameTable &nt) : root(std::move(r)), name_table(nt) {}
-    P<AstNode> root;
+    Ast(AstNode *r, NameTable &nt) : root(r), name_table(nt) {}
+    AstNode *root;
     NameTable &name_table;
 };
 
@@ -139,7 +111,7 @@ public:
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    std::vector<P<AstNode>> toplevels;
+    std::vector<AstNode *> toplevels;
 };
 
 // =============
@@ -153,20 +125,20 @@ public:
 
 class DeclStmt : public Stmt {
 public:
-    DeclStmt(DeclPtr decl) : Stmt(AstKind::decl_stmt), decl(std::move(decl)) {}
+    DeclStmt(Decl *decl) : Stmt(AstKind::decl_stmt), decl(std::move(decl)) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    DeclPtr decl;
+    Decl *decl;
 };
 
 class ExprStmt : public Stmt {
 public:
-    ExprStmt(ExprPtr expr) : Stmt(AstKind::expr_stmt), expr(std::move(expr)) {}
+    ExprStmt(Expr *expr) : Stmt(AstKind::expr_stmt), expr(std::move(expr)) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    ExprPtr expr;
+    Expr *expr;
 };
 
 // Assignment statement, e.g. a[0] = func().
@@ -176,21 +148,21 @@ public:
 // stage.
 class AssignStmt : public Stmt {
 public:
-    AssignStmt(ExprPtr lhs, ExprPtr rhs) : Stmt(AstKind::assign_stmt), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+    AssignStmt(Expr *lhs, Expr *rhs) : Stmt(AstKind::assign_stmt), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    ExprPtr lhs;
-    ExprPtr rhs;
+    Expr *lhs;
+    Expr *rhs;
 };
 
 class ReturnStmt : public Stmt {
 public:
-    ReturnStmt(ExprPtr expr) : Stmt(AstKind::return_stmt), expr(std::move(expr)) {}
+    ReturnStmt(Expr *expr) : Stmt(AstKind::return_stmt), expr(std::move(expr)) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    ExprPtr expr;
+    Expr *expr;
 };
 
 class CompoundStmt : public Stmt {
@@ -199,7 +171,7 @@ public:
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    std::vector<StmtPtr> stmts;
+    std::vector<Stmt *> stmts;
 };
 
 class BadStmt : public Stmt {
@@ -240,13 +212,13 @@ public:
         Minus,
     };
 
-    UnaryExpr(UnaryKind k, ExprPtr oper)
+    UnaryExpr(UnaryKind k, Expr *oper)
         : Expr(AstKind::unary_expr), unary_kind(k), operand(std::move(oper)) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
     UnaryKind unary_kind;
-    ExprPtr operand;
+    Expr *operand;
 };
 
 class IntegerLiteral : public UnaryExpr {
@@ -279,24 +251,24 @@ public:
     Name *name = nullptr;          // name of the type
     bool mut = false;              // mutable?
     bool ref = false;              // is this a reference type?
-    P<TypeExpr> subexpr = nullptr; // 'T' part of '&T'
+    TypeExpr *subexpr = nullptr; // 'T' part of '&T'
 };
 
 class BinaryExpr : public Expr {
 public:
-    BinaryExpr(ExprPtr lhs_, Token op_, ExprPtr rhs_)
+    BinaryExpr(Expr *lhs_, Token op_, Expr *rhs_)
         : Expr(AstKind::binary_expr), lhs(std::move(lhs_)), op(op_),
           rhs(std::move(rhs_)) {
-        auto pair = get_ast_range({lhs.get(), rhs.get()});
+        auto pair = get_ast_range({lhs, rhs});
         startPos = pair.first;
         endPos = pair.second;
     }
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    ExprPtr lhs;
+    Expr *lhs;
     Token op;
-    ExprPtr rhs;
+    Expr *rhs;
 };
 
 class BadExpr : public Expr {
@@ -334,7 +306,7 @@ public:
 // Variable declaration.
 class VarDecl : public Decl {
 public:
-    VarDecl(Name *n, P<TypeExpr> t, ExprPtr expr)
+    VarDecl(Name *n, TypeExpr *t, Expr *expr)
         : Decl(AstKind::var_decl), name(n), typeExpr(std::move(t)), assignExpr(std::move(expr)) {}
     void print() const override;
     void traverse(Semantics &sema) override;
@@ -342,21 +314,21 @@ public:
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
     Name *name = nullptr;            // name of the variable
-    P<TypeExpr> typeExpr = nullptr;  // type node of the variable.
+    TypeExpr *typeExpr = nullptr;  // type node of the variable.
                                      // If null, it will be inferred later
-    ExprPtr assignExpr = nullptr;    // initial assignment value
+    Expr *assignExpr = nullptr;    // initial assignment value
 };
 
 // Struct declaration.
 class StructDecl : public Decl {
 public:
-    StructDecl(Name *n, std::vector<P<VarDecl>> m)
+    StructDecl(Name *n, std::vector<VarDecl *> m)
         : Decl(AstKind::struct_decl), name(n), members(std::move(m)) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
     Name *name = nullptr;            // name of the struct
-    std::vector<P<VarDecl>> members; // member variables
+    std::vector<VarDecl *> members; // member variables
 };
 
 // Function declaration.  There is no separate function definition: functions
@@ -368,9 +340,9 @@ public:
     void traverse(Semantics &sema) override;
 
     Name *name = nullptr;              // name of the function
-    std::vector<P<VarDecl>> params;    // list of parameters
-    P<CompoundStmt> body = nullptr;    // body statements
-    P<TypeExpr> retTypeExpr = nullptr; // return type expression
+    std::vector<VarDecl *> params;    // list of parameters
+    CompoundStmt *body = nullptr;    // body statements
+    TypeExpr *retTypeExpr = nullptr; // return type expression
 };
 
 class BadDecl : public Decl {

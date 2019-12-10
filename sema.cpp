@@ -166,7 +166,7 @@ void UnaryExpr::traverse(Semantics &sema) {
     case Address:
         operand->traverse(sema);
         assert(operand->kind == AstKind::unary_expr);
-        if (node_cast<UnaryExpr>(operand)->unary_kind != DeclRef) {
+        if (static_cast<UnaryExpr *>(operand)->unary_kind != DeclRef) {
             // TODO: LValue & RValue
             sema.error(startPos, "cannot take address of a non-variable (TODO: rvalue)");
         }
