@@ -17,7 +17,6 @@ public:
     ParserError() {}
     ParserError(SourceLoc loc, const std::string &msg): loc(loc), message(msg) {}
 
-    // Report this error to stderr.
     void report() const;
 
     SourceLoc loc;
@@ -54,7 +53,7 @@ public:
     template <typename U>
     ParserResult(ParserResult<U> &&res) {
         if (res.success()) {
-            result = res.ptr();
+            result = static_cast<T *>(res.ptr());
         } else {
             result = res.error();
         }
@@ -99,7 +98,7 @@ private:
 
     // Statement parsers.
     StmtResult parse_stmt();
-    Stmt *parse_expr_or_assign_stmt();
+    StmtResult parse_expr_or_assign_stmt();
     ReturnStmt *parse_return_stmt();
     DeclStmt *parse_decl_stmt();
     CompoundStmt *parse_compound_stmt();
@@ -135,7 +134,7 @@ private:
     const Token look() const;
 
     // Expect and consume functions.
-    bool expect(TokenKind kind, const std::string &msg);
+    Res<AstNode> expect(TokenKind kind, const std::string &msg);
     bool expect_end_of_stmt();
 
     void skip_newlines();

@@ -8,6 +8,7 @@ namespace cmp {
 
 template <typename T> using Res = ParserResult<T>;
 
+// Report this error to stderr.
 void ParserError::report() const {
     fmt::print(stderr, "{}:{}:{}: parse error: {}\n", loc.filename, loc.line,
                loc.col, message);
@@ -44,18 +45,18 @@ void Parser::next() {
 
 const Token Parser::look() const { return tokens[look_index]; }
 
-bool Parser::expect(TokenKind kind, const std::string &msg = "") {
+Res<AstNode> Parser::expect(TokenKind kind, const std::string &msg = "") {
     if (!look().is(kind)) {
-        std::string s = "";
+        std::string s = msg;
         if (msg.empty()) {
             s = fmt::format("expected '{}', got '{}'",
                             tokentype_to_string(kind),
                             tokentype_to_string(look().kind));
         }
-        return false;
+        return error(s);
     }
     next();
-    return true;
+    return {static_cast<AstNode *>(nullptr)};
 }
 
 bool Parser::expect_end_of_stmt() {
@@ -116,7 +117,7 @@ DeclStmt *Parser::parse_decl_stmt() {
     return make_node<DeclStmt>(decl);
 }
 
-Stmt *Parser::parse_expr_or_assign_stmt() {
+StmtResult Parser::parse_expr_or_assign_stmt() {
     auto startPos = look().pos;
 
     auto lhs = parse_expr();
@@ -128,8 +129,8 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
 
     // AssignStmt: expression is followed by equals
     // (anything else is treated as an error)
-    if (!expect(TokenKind::equals)) {
-        return stmt_error("expected equals");
+    if (auto e = expect(TokenKind::equals); !e.success()) {
+        return e;
     }
 
     // At this point, it becomes certain that this is an assignment statement,
@@ -210,11 +211,17 @@ Res<StructDecl> Parser::parse_struct_decl() {
     Name *name = names.get_or_add(look().text);
     next();
 
-    if (!expect(TokenKind::lbrace))
-        return error("expected lbrace");
+    if (auto e = expect(TokenKind::lbrace); !e.success()) {
+        return e;
+    }
+
     auto members = parse_var_decl_list();
-    if (!expect(TokenKind::rbrace))
-        return error("expected rbrace");
+
+    if (auto e =
+            expect(TokenKind::rbrace, "unterminated struct member declaration");
+        !e.success()) {
+        return e;
+    }
 
     return make_node<StructDecl>(name, members);
 }
