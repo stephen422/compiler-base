@@ -17,9 +17,9 @@ std::string Declaration::to_string() const {
 void Semantics::error(size_t pos, const std::string &msg) {
     auto loc = src.locate(pos);
     std::cout << "==== Declaration table ====\n";
-    declTable.print();
+    decl_table.print();
     std::cout << "==== Type table ====\n";
-    typeTable.print();
+    type_table.print();
     std::cout << std::endl;
     fmt::print(stderr, "{}:{}:{}: error: {}\n", loc.filename, loc.line, loc.col,
                msg);
@@ -28,12 +28,12 @@ void Semantics::error(size_t pos, const std::string &msg) {
 
 // @Future: inefficient string operations?
 Type *get_reference_type(Semantics &sema, Type *type) {
-    Name *name = sema.names.getOrAdd("&" + type->name->text);
+    Name *name = sema.names.get_or_add("&" + type->name->text);
     Type ref_type {name, type, true};
-    if (auto found = sema.typeTable.find(name)) {
+    if (auto found = sema.type_table.find(name)) {
         return found;
     }
-    return sema.typeTable.insert({name, ref_type});
+    return sema.type_table.insert({name, ref_type});
 }
 
 //
@@ -62,7 +62,7 @@ void AssignStmt::traverse(Semantics &sema) {
     assert(lhs->type);
     assert(rhs->type);
     if (lhs->type != rhs->type) {
-        sema.typeTable.print();
+        sema.type_table.print();
         std::cout << "LHS: " << lhs->type->to_string() << std::endl;
         std::cout << "RHS: " << rhs->type->to_string() << std::endl;
         sema.error(rhs->startPos, "type mismatch: ");
@@ -93,8 +93,8 @@ void VarDecl::traverse(Semantics &sema) {
     Type *type = nullptr;
 
     // Check for redefinition
-    auto found = sema.declTable.find(name);
-    if (found && found->scope_level == sema.declTable.get_scope_level()) { // TODO: check scope
+    auto found = sema.decl_table.find(name);
+    if (found && found->scope_level == sema.decl_table.get_scope_level()) { // TODO: check scope
         sema.error(startPos, "redefinition");
     }
 
@@ -119,7 +119,7 @@ void VarDecl::traverse(Semantics &sema) {
         sema.error(startPos, "cannot infer type of variable declaration");
 
     Declaration decl{name, *type};
-    sema.declTable.insert({name, decl});
+    sema.decl_table.insert({name, decl});
 }
 
 void StructDecl::traverse(Semantics &sema) {
@@ -182,7 +182,7 @@ void IntegerLiteral::traverse(Semantics &sema) {
 }
 
 void DeclRefExpr::traverse(Semantics &sema) {
-    Declaration *decl = sema.declTable.find(name);
+    Declaration *decl = sema.decl_table.find(name);
     if (decl == nullptr) {
         sema.error(startPos, "undeclared identifier");
     }
@@ -194,7 +194,7 @@ void TypeExpr::traverse(Semantics &sema) {
     if (subexpr)
         subexpr->traverse(sema);
 
-    Type *type = sema.typeTable.find(name);
+    Type *type = sema.type_table.find(name);
     if (type == nullptr) {
         // If this is a value type, we should check use before declaration.
         if (!ref) {
@@ -205,7 +205,7 @@ void TypeExpr::traverse(Semantics &sema) {
         else {
             assert(subexpr);
             Type ref_type{name, subexpr->type, true};
-            type = sema.typeTable.insert({name, ref_type});
+            type = sema.type_table.insert({name, ref_type});
         }
     }
 
@@ -230,12 +230,12 @@ void BadDecl::traverse(Semantics &sema) {}
 void BadExpr::traverse(Semantics &sema) {}
 
 Semantics::Semantics(Source &s, NameTable &n) : src(s), names(n) {
-    Name *int_name = names.getOrAdd("int");
+    Name *int_name = names.get_or_add("int");
     Type int_type{int_name};
-    this->int_type = typeTable.insert({int_name, int_type});
-    Name *i64_name = names.getOrAdd("i64");
+    this->int_type = type_table.insert({int_name, int_type});
+    Name *i64_name = names.get_or_add("i64");
     Type i64_type{i64_name};
-    this->i64_type = typeTable.insert({i64_name, i64_type});
+    this->i64_type = type_table.insert({i64_name, i64_type});
 }
 
 void semantic_analyze(Semantics &sema, Ast &ast) { ast.root->traverse(sema); }

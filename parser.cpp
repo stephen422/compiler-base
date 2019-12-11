@@ -10,7 +10,7 @@ Parser::Parser(Lexer &lexer) : lexer{lexer}, tok{}
 {
     // Insert keywords in name table
     for (auto m : keyword_map) {
-        names.getOrAdd(m.first);
+        names.get_or_add(m.first);
     }
     tokens = lexer.lexAll();
 }
@@ -156,7 +156,7 @@ CompoundStmt *Parser::parse_compound_stmt() {
 VarDecl *Parser::parse_var_decl() {
     auto startPos = look().pos;
 
-    Name *name = names.getOrAdd(look().text);
+    Name *name = names.get_or_add(look().text);
     next();
 
     if (look().is(TokenKind::colon)) {
@@ -196,12 +196,14 @@ std::vector<VarDecl *> Parser::parse_var_decl_list()
 StructDecl *Parser::parse_struct_decl() {
     expect(TokenKind::kw_struct);
 
-    Name *name = names.getOrAdd(look().text);
+    Name *name = names.get_or_add(look().text);
     next();
 
-    expect(TokenKind::lbrace);
+    if (!expect(TokenKind::lbrace))
+        return nullptr;
     auto members = parse_var_decl_list();
-    expect(TokenKind::rbrace);
+    if (!expect(TokenKind::rbrace))
+        return nullptr;
 
     return make_node<StructDecl>(name, members);
 }
@@ -209,7 +211,7 @@ StructDecl *Parser::parse_struct_decl() {
 FuncDecl *Parser::parse_func_decl() {
     expect(TokenKind::kw_fn);
 
-    Name *name = names.getOrAdd(look().text);
+    Name *name = names.get_or_add(look().text);
     auto func = make_node<FuncDecl>(name);
     func->startPos = look().pos;
     next();
@@ -294,7 +296,7 @@ DeclRefExpr *Parser::parseDeclRefExpr() {
     ref_expr->endPos = look().pos + look().text.length();
 
     std::string text = look().text;
-    ref_expr->name = names.getOrAdd(text);
+    ref_expr->name = names.get_or_add(text);
 
     next();
 
@@ -330,7 +332,7 @@ TypeExpr *Parser::parseTypeExpr() {
         assert(false && "expected type name");
     }
 
-    typeExpr->name = names.getOrAdd(text);
+    typeExpr->name = names.get_or_add(text);
     typeExpr->endPos = look().pos;
 
     return typeExpr;
@@ -460,6 +462,9 @@ File *Parser::parseFile() {
     // FIXME
     while (!is_eos()) {
         auto toplevel = parseToplevel();
+        if (!toplevel) {
+            fmt::print(stderr, "toplevel error!\n");
+        }
         file->toplevels.push_back(toplevel);
     }
     return file;

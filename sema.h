@@ -25,7 +25,7 @@ public:
 // analysis.
 class NameTable {
 public:
-    Name *getOrAdd(const std::string &s) {
+    Name *get_or_add(const std::string &s) {
         Name *found = get(s);
         if (found) {
             return found;
@@ -130,24 +130,24 @@ public:
     Type *get_i64_type() { return i64_type; }
 
     void scopeOpen() {
-        declTable.scopeOpen();
-        typeTable.scopeOpen();
-        contextTable.push_back(Context{});
+        decl_table.scopeOpen();
+        type_table.scopeOpen();
+        context_table.push_back(Context{});
     }
 
     void scopeClose() {
-        declTable.scopeClose();
-        typeTable.scopeClose();
-        contextTable.pop_back();
+        decl_table.scopeClose();
+        type_table.scopeClose();
+        context_table.pop_back();
     }
 
-    Context &getContext() { return contextTable.back(); }
+    Context &getContext() { return context_table.back(); }
 
     Source &src;                        // source text
     NameTable &names;                   // name table
-    ScopedTable<Declaration> declTable; // declaration table
-    ScopedTable<Type> typeTable;        // type table
-    std::vector<Context> contextTable;  // semantic analysis context table
+    ScopedTable<Declaration> decl_table; // declaration table
+    ScopedTable<Type> type_table;        // type table
+    std::vector<Context> context_table;  // semantic analysis context table
 
 private:
     Type *int_type = nullptr;
