@@ -44,12 +44,12 @@ private:
     bool is_start_of_decl() const;
 
     // Expression parsers.
-    Expr *parseExpr();
-    UnaryExpr *parseLiteralExpr();
-    DeclRefExpr *parseDeclRefExpr();
-    TypeExpr *parseTypeExpr();
-    Expr *parseUnaryExpr();
-    Expr *parseBinaryExprRhs(Expr *lhs, int precedence = 0);
+    Expr *parse_expr();
+    UnaryExpr *parse_literal_expr();
+    DeclRefExpr *parse_declref_expr();
+    TypeExpr *parse_type_expr();
+    Expr *parse_unary_expr();
+    Expr *parse_binary_expr_rhs(Expr *lhs, int precedence = 0);
 
     // Error nodes.
     BadStmt *stmt_error(const std::string &msg);
@@ -62,13 +62,7 @@ private:
     // Get the current lookahead token.
     const Token look() const;
 
-    // Get and restore the current parsing position.
-    auto getProgress() const { return look_index; }
-    void restoreProgress(size_t pos) { look_index = pos; }
-
-    // Get the precedence of an operator.
-    int getPrecedence(const Token &op) const;
-
+    // Expect and consume functions.
     bool expect(TokenKind kind, const std::string &msg);
     bool expect_end_of_stmt();
 
@@ -91,7 +85,7 @@ private:
     }
 
     // Figure out the current location (line, col) in the source.
-    SourceLoc locate() const { return lexer.getSource().locate(look().pos); }
+    SourceLoc locate() const { return lexer.source().locate(look().pos); }
 
     Lexer &lexer;                 // associated lexer
     Token tok;                    // lookahead token

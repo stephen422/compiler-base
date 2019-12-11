@@ -147,7 +147,7 @@ public:
     std::vector<Token> lexAll();
     /// Peek the next token without consuming it.
     Token peek();
-    Source &getSource() { return src; }
+    Source &source() { return src; }
 
 private:
     Token lex_ident();

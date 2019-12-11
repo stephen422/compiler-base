@@ -90,7 +90,7 @@ ReturnStmt *Parser::parse_return_stmt() {
     expect(TokenKind::kw_return);
     Expr *expr = nullptr;
     if (!is_end_of_stmt()) {
-        expr = parseExpr();
+        expr = parse_expr();
     }
     if (!expect_end_of_stmt()) {
         assert(false);
@@ -110,7 +110,7 @@ DeclStmt *Parser::parse_decl_stmt() {
 Stmt *Parser::parse_expr_or_assign_stmt() {
     auto startPos = look().pos;
 
-    auto lhs = parseExpr();
+    auto lhs = parse_expr();
     // ExprStmt: expression ends with a newline
     if (is_end_of_stmt()) {
         expect(TokenKind::newline);
@@ -125,7 +125,7 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
 
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
-    auto rhs = parseExpr();
+    auto rhs = parse_expr();
     return make_node_with_pos<AssignStmt>(startPos, look().pos, lhs,
                                           rhs);
 }
@@ -161,12 +161,12 @@ VarDecl *Parser::parse_var_decl() {
 
     if (look().is(TokenKind::colon)) {
         next();
-        auto typeexpr = parseTypeExpr();
+        auto typeexpr = parse_type_expr();
         return make_node_with_pos<VarDecl>(startPos, typeexpr->endPos, name,
                                            typeexpr, nullptr);
     } else {
         expect(TokenKind::equals);
-        auto assignexpr = parseExpr();
+        auto assignexpr = parse_expr();
         return make_node_with_pos<VarDecl>(startPos, assignexpr->endPos, name,
                                            nullptr, assignexpr);
     }
@@ -224,7 +224,7 @@ FuncDecl *Parser::parse_func_decl() {
     // Return type (-> ...)
     if (look().is(TokenKind::arrow)) {
         next();
-        func->retTypeExpr = parseTypeExpr();
+        func->retTypeExpr = parse_type_expr();
     }
 
     // Function body
@@ -268,7 +268,7 @@ Decl *Parser::parse_decl() {
     }
 }
 
-UnaryExpr *Parser::parseLiteralExpr() {
+UnaryExpr *Parser::parse_literal_expr() {
     UnaryExpr *expr = nullptr;
     // TODO Literals other than integers?
     switch (look().kind) {
@@ -289,7 +289,7 @@ UnaryExpr *Parser::parseLiteralExpr() {
     return expr;
 }
 
-DeclRefExpr *Parser::parseDeclRefExpr() {
+DeclRefExpr *Parser::parse_declref_expr() {
     auto ref_expr = make_node<DeclRefExpr>();
 
     ref_expr->startPos = look().pos;
@@ -303,7 +303,7 @@ DeclRefExpr *Parser::parseDeclRefExpr() {
     return ref_expr;
 }
 
-TypeExpr *Parser::parseTypeExpr() {
+TypeExpr *Parser::parse_type_expr() {
     auto typeExpr = make_node<TypeExpr>();
 
     typeExpr->startPos = look().pos;
@@ -320,7 +320,7 @@ TypeExpr *Parser::parseTypeExpr() {
     if (look().is(TokenKind::ampersand)) {
         next();
         typeExpr->ref = true;
-        typeExpr->subexpr = parseTypeExpr();
+        typeExpr->subexpr = parse_type_expr();
         text = "&" + typeExpr->subexpr->name->text;
     }
     else if (look().is_identifier_or_keyword()) {
@@ -338,28 +338,28 @@ TypeExpr *Parser::parseTypeExpr() {
     return typeExpr;
 }
 
-Expr *Parser::parseUnaryExpr() {
+Expr *Parser::parse_unary_expr() {
     auto startPos = look().pos;
 
     switch (look().kind) {
     case TokenKind::number:
     case TokenKind::string:
-        return parseLiteralExpr();
+        return parse_literal_expr();
     case TokenKind::ident:
-        return parseDeclRefExpr();
+        return parse_declref_expr();
     case TokenKind::star: {
         next();
-        auto expr = parseUnaryExpr();
+        auto expr = parse_unary_expr();
         return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Deref, expr);
     }
     case TokenKind::ampersand: {
         next();
-        auto expr = parseUnaryExpr();
+        auto expr = parse_unary_expr();
         return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Address, expr);
     }
     case TokenKind::lparen: {
         expect(TokenKind::lparen);
-        auto expr = parseExpr();
+        auto expr = parse_expr();
         expect(TokenKind::rparen);
         // TODO: check unwrap
         return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Paren, expr);
@@ -372,7 +372,7 @@ Expr *Parser::parseUnaryExpr() {
     }
 }
 
-int Parser::getPrecedence(const Token &op) const {
+static int op_precedence(const Token &op) {
     switch (op.kind) {
     case TokenKind::star:
     case TokenKind::slash:
@@ -392,11 +392,11 @@ int Parser::getPrecedence(const Token &op) const {
 //
 // After the call, 'lhs' is invalidated by being moved away.  Subsequent code
 // should use the wrapped node in the return value instead.
-Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence) {
+Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence) {
     Expr *root = lhs;
 
     while (true) {
-        int this_prec = getPrecedence(look());
+        int this_prec = op_precedence(look());
 
         // If the upcoming op has lower precedence, finish this subexpression.
         // It will be treated as a single term when this function is re-called
@@ -408,18 +408,18 @@ Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence) {
         next();
 
         // Parse the second term.
-        Expr *rhs = parseUnaryExpr();
+        Expr *rhs = parse_unary_expr();
         // We do not know if this term should associate to left or right;
         // e.g. "(a * b) + c" or "a + (b * c)".  We should look ahead for the
         // next operator that follows this term.
-        int next_prec = getPrecedence(look());
+        int next_prec = op_precedence(look());
 
         // If the next operator is indeed higher-level ("a + (b * c)"),
         // evaluate the RHS as a single subexpression with elevated minimum
         // precedence. Else ("(a * b) + c"), just treat it as a unary
         // expression.
         if (this_prec < next_prec)
-            rhs = parseBinaryExprRhs(rhs, precedence + 1);
+            rhs = parse_binary_expr_rhs(rhs, precedence + 1);
 
         // Create a new root with the old root as its LHS, and the recursion
         // result as RHS.  This implements left associativity.
@@ -429,9 +429,9 @@ Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence) {
     return root;
 }
 
-Expr *Parser::parseExpr() {
-    auto unary = parseUnaryExpr();
-    return parseBinaryExprRhs(unary);
+Expr *Parser::parse_expr() {
+    auto unary = parse_unary_expr();
+    return parse_binary_expr_rhs(unary);
 }
 
 // The language is newline-aware, but newlines are mostly meaningless unless
