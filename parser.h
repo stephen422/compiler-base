@@ -15,12 +15,12 @@ public:
 class ParserError {
 public:
     ParserError() {}
-    ParserError(SourceLoc loc, const std::string &msg): location(loc), message(msg) {}
+    ParserError(SourceLoc loc, const std::string &msg): loc(loc), message(msg) {}
 
     // Report this error to stderr.
     void report() const;
 
-    SourceLoc location;
+    SourceLoc loc;
     std::string message;
 };
 
@@ -35,8 +35,8 @@ public:
 //   2. it enables the parser to proceed and try alternative productions
 //   without being interrupted by an error generated in the failed production;
 //
-//   3. it allows the caller to overwrite the error with a more descriptive,
-//   context-aware one.
+//   3. it allows the caller to overwrite the error message with a more
+//   descriptive, context-aware one.
 template <typename T> class ParserResult {
 public:
     // Uninitialized
@@ -60,8 +60,6 @@ public:
         }
     }
 
-    ParserResult &operator=(ParserResult &&res) = default;
-
     // Returns 'res', provided there were no errors; if there were, report them
     // and cause the compiler to exit.
     T *unwrap();
@@ -79,6 +77,10 @@ private:
     std::variant<T *, ParserError> result;
 };
 
+using StmtResult = ParserResult<Stmt>;
+using DeclResult = ParserResult<Decl>;
+using ExprResult = ParserResult<Expr>;
+
 class Parser {
 public:
     Parser(Lexer &lexer);
@@ -87,6 +89,8 @@ public:
     Ast parse();
 
 private:
+    template <typename T> using Res = ParserResult<T>;
+
     // Parse the whole file.
     File *parse_file();
 
@@ -94,7 +98,7 @@ private:
     AstNode *parse_toplevel();
 
     // Statement parsers.
-    Stmt *parse_stmt();
+    StmtResult parse_stmt();
     Stmt *parse_expr_or_assign_stmt();
     ReturnStmt *parse_return_stmt();
     DeclStmt *parse_decl_stmt();
@@ -106,7 +110,7 @@ private:
     Decl *parse_decl();
     std::vector<VarDecl *> parse_var_decl_list();
     VarDecl *parse_var_decl();
-    StructDecl *parse_struct_decl();
+    Res<StructDecl> parse_struct_decl();
     FuncDecl *parse_func_decl();
     bool is_start_of_decl() const;
 
@@ -119,6 +123,7 @@ private:
     Expr *parse_binary_expr_rhs(Expr *lhs, int precedence = 0);
 
     // Error nodes.
+    ParserError error(const std::string &msg) { return {locate(), msg}; }
     BadStmt *stmt_error(const std::string &msg);
     BadDecl *decl_error(const std::string &msg);
     BadExpr *expr_error(const std::string &msg);

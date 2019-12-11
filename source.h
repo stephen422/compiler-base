@@ -15,8 +15,7 @@ public:
 };
 
 /// SourceLoc represents a position (line, col) in the source text.
-class SourceLoc {
-public:
+struct SourceLoc {
     std::string filename;
     int line;
     int col;

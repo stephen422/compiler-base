@@ -6,6 +6,22 @@
 
 namespace cmp {
 
+template <typename T> using Res = ParserResult<T>;
+
+void ParserError::report() const {
+    fmt::print(stderr, "{}:{}:{}: parse error: {}\n", loc.filename, loc.line,
+               loc.col, message);
+}
+
+template <typename T>
+T *ParserResult<T>::unwrap() {
+    if (!success()) {
+        error().report();
+        exit(EXIT_FAILURE);
+    }
+    return ptr();
+}
+
 Parser::Parser(Lexer &lexer) : lexer{lexer}, tok{} {
     // Insert keywords in name table
     for (auto m : keyword_map) {
@@ -65,7 +81,7 @@ bool Parser::is_eos() {
 //     Decl ;
 //     Expr ;
 //     ;
-Stmt *Parser::parse_stmt() {
+StmtResult Parser::parse_stmt() {
     skip_newlines();
 
     if (look().is(TokenKind::kw_return)) {
@@ -139,7 +155,10 @@ CompoundStmt *Parser::parse_compound_stmt() {
             break;
         auto stmt = parse_stmt();
         // TODO: per-stmt error check
-        compound->stmts.push_back(stmt);
+        if (!stmt.success()) {
+            stmt.unwrap();
+        }
+        compound->stmts.push_back(stmt.unwrap());
     }
 
     expect(TokenKind::rbrace);
@@ -185,17 +204,17 @@ std::vector<VarDecl *> Parser::parse_var_decl_list() {
     return decls;
 }
 
-StructDecl *Parser::parse_struct_decl() {
+Res<StructDecl> Parser::parse_struct_decl() {
     expect(TokenKind::kw_struct);
 
     Name *name = names.get_or_add(look().text);
     next();
 
     if (!expect(TokenKind::lbrace))
-        return nullptr;
+        return error("expected lbrace");
     auto members = parse_var_decl_list();
     if (!expect(TokenKind::rbrace))
-        return nullptr;
+        return error("expected rbrace");
 
     return make_node<StructDecl>(name, members);
 }
@@ -392,8 +411,9 @@ Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence) {
         // If the upcoming op has lower precedence, finish this subexpression.
         // It will be treated as a single term when this function is re-called
         // with lower precedence.
-        if (this_prec < precedence)
+        if (this_prec < precedence) {
             return root;
+        }
 
         Token op = look();
         next();
@@ -409,8 +429,9 @@ Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence) {
         // evaluate the RHS as a single subexpression with elevated minimum
         // precedence. Else ("(a * b) + c"), just treat it as a unary
         // expression.
-        if (this_prec < next_prec)
+        if (this_prec < next_prec) {
             rhs = parse_binary_expr_rhs(rhs, precedence + 1);
+        }
 
         // Create a new root with the old root as its LHS, and the recursion
         // result as RHS.  This implements left associativity.
@@ -441,8 +462,10 @@ AstNode *Parser::parse_toplevel() {
     switch (look().kind) {
     case TokenKind::kw_fn:
         return parse_func_decl();
-    case TokenKind::kw_struct:
-        return parse_struct_decl();
+    case TokenKind::kw_struct: {
+        auto decl = parse_struct_decl();
+        return decl.unwrap();
+    }
     default:
         assert(false && "unreachable");
     }
