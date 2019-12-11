@@ -12,6 +12,73 @@ public:
     ParseError(const std::string &msg) : std::runtime_error(msg) {}
 };
 
+class ParserError {
+public:
+    ParserError() {}
+    ParserError(SourceLoc loc, const std::string &msg): location(loc), message(msg) {}
+
+    // Report this error to stderr.
+    void report() const;
+
+    SourceLoc location;
+    std::string message;
+};
+
+// ParserResult wraps the result of a single parse operation, i.e. the
+// resulting AST node in the successful case, or an error object in the failing
+// case. It also marks the position where the parse operation started (TODO).
+// With these information, it enables several helpful features:
+//
+//   1. it allows the caller to easily recover from the parse failure, using the
+//   marked position info;
+//
+//   2. it enables the parser to proceed and try alternative productions
+//   without being interrupted by an error generated in the failed production;
+//
+//   3. it allows the caller to overwrite the error with a more descriptive,
+//   context-aware one.
+template <typename T> class ParserResult {
+public:
+    // Uninitialized
+    ParserResult() {}
+
+    // Successful result
+    // U is the more-specific type.
+    template <typename U>
+    ParserResult(U *ptr) : result(ptr) {}
+
+    // Erroneous result
+    ParserResult(const ParserError &error) : result(error) {}
+
+    // Upcasting
+    template <typename U>
+    ParserResult(ParserResult<U> &&res) {
+        if (res.success()) {
+            result = res.ptr();
+        } else {
+            result = res.error();
+        }
+    }
+
+    ParserResult &operator=(ParserResult &&res) = default;
+
+    // Returns 'res', provided there were no errors; if there were, report them
+    // and cause the compiler to exit.
+    T *unwrap();
+
+    // Get the stored node pointer.
+    T *ptr() const { return std::get<T *>(result); }
+
+    // Get the stored ParserError object.
+    const ParserError &error() const { return std::get<ParserError>(result); }
+
+    // Is this result successful?
+    bool success() { return std::holds_alternative<T *>(result); }
+
+private:
+    std::variant<T *, ParserError> result;
+};
+
 class Parser {
 public:
     Parser(Lexer &lexer);
@@ -21,10 +88,10 @@ public:
 
 private:
     // Parse the whole file.
-    File *parseFile();
+    File *parse_file();
 
     // Parse a toplevel statement.
-    AstNode *parseToplevel();
+    AstNode *parse_toplevel();
 
     // Statement parsers.
     Stmt *parse_stmt();

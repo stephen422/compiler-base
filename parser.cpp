@@ -6,8 +6,7 @@
 
 namespace cmp {
 
-Parser::Parser(Lexer &lexer) : lexer{lexer}, tok{}
-{
+Parser::Parser(Lexer &lexer) : lexer{lexer}, tok{} {
     // Insert keywords in name table
     for (auto m : keyword_map) {
         names.get_or_add(m.first);
@@ -15,15 +14,13 @@ Parser::Parser(Lexer &lexer) : lexer{lexer}, tok{}
     tokens = lexer.lexAll();
 }
 
-Parser::~Parser()
-{
+Parser::~Parser() {
     for (auto ptr : nodes) {
         delete ptr;
     }
 }
 
-void Parser::next()
-{
+void Parser::next() {
     if (!tokens[look_index].is(TokenKind::eos)) {
         look_index++;
     }
@@ -31,8 +28,7 @@ void Parser::next()
 
 const Token Parser::look() const { return tokens[look_index]; }
 
-bool Parser::expect(TokenKind kind, const std::string &msg = "")
-{
+bool Parser::expect(TokenKind kind, const std::string &msg = "") {
     if (!look().is(kind)) {
         std::string s = "";
         if (msg.empty()) {
@@ -46,8 +42,7 @@ bool Parser::expect(TokenKind kind, const std::string &msg = "")
     return true;
 }
 
-bool Parser::expect_end_of_stmt()
-{
+bool Parser::expect_end_of_stmt() {
     if (!is_end_of_stmt()) {
         return false;
     }
@@ -55,8 +50,7 @@ bool Parser::expect_end_of_stmt()
     return true;
 }
 
-bool Parser::is_end_of_stmt() const
-{
+bool Parser::is_end_of_stmt() const {
     return look().is(TokenKind::newline) || look().is(TokenKind::comment);
 }
 
@@ -71,8 +65,7 @@ bool Parser::is_eos() {
 //     Decl ;
 //     Expr ;
 //     ;
-Stmt *Parser::parse_stmt()
-{
+Stmt *Parser::parse_stmt() {
     skip_newlines();
 
     if (look().is(TokenKind::kw_return)) {
@@ -173,8 +166,7 @@ VarDecl *Parser::parse_var_decl() {
 }
 
 // This doesn't include the enclosing parentheses or braces.
-std::vector<VarDecl *> Parser::parse_var_decl_list()
-{
+std::vector<VarDecl *> Parser::parse_var_decl_list() {
     std::vector<VarDecl *> decls;
 
     while (true) {
@@ -246,8 +238,7 @@ BadExpr *Parser::expr_error(const std::string &msg) {
     return make_node<BadExpr>(msg);
 }
 
-bool Parser::is_start_of_decl() const
-{
+bool Parser::is_start_of_decl() const {
     switch (look().kind) {
     case TokenKind::kw_let:
     case TokenKind::kw_var:
@@ -444,7 +435,7 @@ void Parser::skip_newlines() {
     }
 }
 
-AstNode *Parser::parseToplevel() {
+AstNode *Parser::parse_toplevel() {
     skip_newlines();
 
     switch (look().kind) {
@@ -457,11 +448,11 @@ AstNode *Parser::parseToplevel() {
     }
 }
 
-File *Parser::parseFile() {
+File *Parser::parse_file() {
     auto file = make_node<File>();
     // FIXME
     while (!is_eos()) {
-        auto toplevel = parseToplevel();
+        auto toplevel = parse_toplevel();
         if (!toplevel) {
             fmt::print(stderr, "toplevel error!\n");
         }
@@ -471,7 +462,7 @@ File *Parser::parseFile() {
 }
 
 Ast Parser::parse() {
-    File *file = parseFile();
+    File *file = parse_file();
     return Ast{file, names};
 }
 
