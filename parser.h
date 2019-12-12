@@ -106,7 +106,7 @@ private:
     bool is_eos();
 
     // Declaration parsers.
-    Decl *parse_decl();
+    DeclResult parse_decl();
     std::vector<VarDecl *> parse_var_decl_list();
     VarDecl *parse_var_decl();
     Res<StructDecl> parse_struct_decl();
@@ -114,11 +114,11 @@ private:
     bool is_start_of_decl() const;
 
     // Expression parsers.
-    Expr *parse_expr();
+    ExprResult parse_expr();
+    ExprResult parse_unary_expr();
     UnaryExpr *parse_literal_expr();
     DeclRefExpr *parse_declref_expr();
     TypeExpr *parse_type_expr();
-    Expr *parse_unary_expr();
     Expr *parse_binary_expr_rhs(Expr *lhs, int precedence = 0);
 
     // Error nodes.

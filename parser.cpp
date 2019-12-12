@@ -98,9 +98,11 @@ ReturnStmt *Parser::parse_return_stmt() {
     auto startPos = look().pos;
 
     expect(TokenKind::kw_return);
+
+    // optional
     Expr *expr = nullptr;
     if (!is_end_of_stmt()) {
-        expr = parse_expr();
+        expr = parse_expr().unwrap();
     }
     if (!expect_end_of_stmt()) {
         assert(false);
@@ -112,15 +114,15 @@ ReturnStmt *Parser::parse_return_stmt() {
 DeclStmt *Parser::parse_decl_stmt() {
     auto decl = parse_decl();
     if (!expect_end_of_stmt()) {
-        assert(false);
+        return nullptr;
     }
-    return make_node<DeclStmt>(decl);
+    return make_node<DeclStmt>(decl.unwrap());
 }
 
 StmtResult Parser::parse_expr_or_assign_stmt() {
     auto startPos = look().pos;
 
-    auto lhs = parse_expr();
+    auto lhs = parse_expr().unwrap();
     // ExprStmt: expression ends with a newline
     if (is_end_of_stmt()) {
         expect(TokenKind::newline);
@@ -135,7 +137,7 @@ StmtResult Parser::parse_expr_or_assign_stmt() {
 
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
-    auto rhs = parse_expr();
+    auto rhs = parse_expr().unwrap();
     return make_node_with_pos<AssignStmt>(startPos, look().pos, lhs,
                                           rhs);
 }
@@ -155,8 +157,8 @@ CompoundStmt *Parser::parse_compound_stmt() {
         if (look().is(TokenKind::rbrace))
             break;
         auto stmt = parse_stmt();
-        // TODO: per-stmt error check
         if (!stmt.success()) {
+            // per-stmt error check
             stmt.unwrap();
         }
         compound->stmts.push_back(stmt.unwrap());
@@ -173,13 +175,15 @@ VarDecl *Parser::parse_var_decl() {
     next();
 
     if (look().is(TokenKind::colon)) {
+        // a: type
         next();
         auto typeexpr = parse_type_expr();
         return make_node_with_pos<VarDecl>(startPos, typeexpr->endPos, name,
                                            typeexpr, nullptr);
     } else {
+        // a = expr
         expect(TokenKind::equals);
-        auto assignexpr = parse_expr();
+        auto assignexpr = parse_expr().unwrap();
         return make_node_with_pos<VarDecl>(startPos, assignexpr->endPos, name,
                                            nullptr, assignexpr);
     }
@@ -191,13 +195,13 @@ std::vector<VarDecl *> Parser::parse_var_decl_list() {
 
     while (true) {
         skip_newlines();
-        if (!look().is(TokenKind::ident))
+        if (!look().is(TokenKind::ident)) {
             break;
-
+        }
         decls.push_back(parse_var_decl());
-
-        if (!look().is(TokenKind::comma))
+        if (!look().is(TokenKind::comma)) {
             break;
+        }
         next();
     }
     skip_newlines();
@@ -274,14 +278,14 @@ bool Parser::is_start_of_decl() const {
     }
 }
 
-Decl *Parser::parse_decl() {
+DeclResult Parser::parse_decl() {
     switch (look().kind) {
     case TokenKind::kw_let: {
         next();
         return parse_var_decl();
     }
     default:
-        return decl_error("not a start of a declaration");
+        return error("not a start of a declaration");
     }
 }
 
@@ -355,7 +359,7 @@ TypeExpr *Parser::parse_type_expr() {
     return typeExpr;
 }
 
-Expr *Parser::parse_unary_expr() {
+ExprResult Parser::parse_unary_expr() {
     auto startPos = look().pos;
 
     switch (look().kind) {
@@ -366,17 +370,17 @@ Expr *Parser::parse_unary_expr() {
         return parse_declref_expr();
     case TokenKind::star: {
         next();
-        auto expr = parse_unary_expr();
+        auto expr = parse_unary_expr().unwrap();
         return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Deref, expr);
     }
     case TokenKind::ampersand: {
         next();
-        auto expr = parse_unary_expr();
+        auto expr = parse_unary_expr().unwrap();
         return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Address, expr);
     }
     case TokenKind::lparen: {
         expect(TokenKind::lparen);
-        auto expr = parse_expr();
+        auto expr = parse_expr().unwrap();
         expect(TokenKind::rparen);
         // TODO: check unwrap
         return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Paren, expr);
@@ -385,7 +389,7 @@ Expr *Parser::parse_unary_expr() {
         // Because all expressions start with a unary expression, failing here
         // means no other expression could be matched either, so just do a
         // really generic report.
-        return expr_error(std::to_string(startPos) + ": expected an expression");
+        return error(fmt::format("{}: expected an expression", startPos));
     }
 }
 
@@ -426,16 +430,16 @@ Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence) {
         next();
 
         // Parse the second term.
-        Expr *rhs = parse_unary_expr();
+        Expr *rhs = parse_unary_expr().unwrap();
+
         // We do not know if this term should associate to left or right;
         // e.g. "(a * b) + c" or "a + (b * c)".  We should look ahead for the
         // next operator that follows this term.
         int next_prec = op_precedence(look());
 
-        // If the next operator is indeed higher-level ("a + (b * c)"),
-        // evaluate the RHS as a single subexpression with elevated minimum
-        // precedence. Else ("(a * b) + c"), just treat it as a unary
-        // expression.
+        // If the next operator has higher precedence ("a + b * c"), evaluate
+        // the RHS as a single subexpression with elevated minimum precedence.
+        // Else ("a * b + c"), just treat it as a unary expression.
         if (this_prec < next_prec) {
             rhs = parse_binary_expr_rhs(rhs, precedence + 1);
         }
@@ -448,9 +452,12 @@ Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence) {
     return root;
 }
 
-Expr *Parser::parse_expr() {
+ExprResult Parser::parse_expr() {
     auto unary = parse_unary_expr();
-    return parse_binary_expr_rhs(unary);
+    if (!unary.success()) {
+        return unary;
+    }
+    return parse_binary_expr_rhs(unary.unwrap());
 }
 
 // The language is newline-aware, but newlines are mostly meaningless unless
@@ -483,9 +490,6 @@ File *Parser::parse_file() {
     // FIXME
     while (!is_eos()) {
         auto toplevel = parse_toplevel();
-        if (!toplevel) {
-            fmt::print(stderr, "toplevel error!\n");
-        }
         file->toplevels.push_back(toplevel);
     }
     return file;

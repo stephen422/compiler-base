@@ -4,11 +4,6 @@
 
 using namespace cmp;
 
-template <typename T>
-constexpr T *as(const AstNodePtr &p) {
-    return static_cast<T *>(p.get());
-}
-
 TEST_CASE("Expression parsing", "[parse_expr]") {
     SECTION("left associativity") {
         Source s{"a + b + c + d + e"};
