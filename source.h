@@ -23,6 +23,7 @@ struct SourceLoc {
 
 /// Source content handler for file reading, position reporting and so
 /// on.
+/// TODO: construct from string_view
 class Source {
 public:
     // Create from a filepath.

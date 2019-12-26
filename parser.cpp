@@ -462,6 +462,31 @@ ExprResult Parser::parse_expr() {
     return parse_binary_expr_rhs(unary.unwrap());
 }
 
+std::vector<ParserError> Parser::parse_error_beacon() {
+    expect(TokenKind::lbracket);
+    expect(TokenKind::kw_error);
+    expect(TokenKind::colon);
+
+    std::vector<ParserError> v;
+    while (!look().is(TokenKind::rbracket)) {
+        for (auto &p : error_map) {
+            auto text = p.first;
+            auto kind = p.second;
+            if (look().text == text) {
+                v.push_back({locate(), kind});
+                break;
+            }
+        }
+        next();
+    }
+
+    if (auto e = expect(TokenKind::rbracket); !e.success()) {
+        // This was not a beacon; return an empty list
+        return {};
+    }
+    return v;
+}
+
 // The language is newline-aware, but newlines are mostly meaningless unless
 // they are at the end of a statement or a declaration.  In those cases we use
 // this to skip over them.
@@ -469,7 +494,20 @@ ExprResult Parser::parse_expr() {
 void Parser::skip_newlines() {
     while (look().is(TokenKind::newline) || look().is(TokenKind::comment)) {
         if (look().is(TokenKind::comment)) {
-            fmt::print("I saw a comment: {}\n", look().text);
+            std::string_view beacon{"[error:"};
+            auto found = look().text.find(beacon);
+            if (found != std::string_view::npos) {
+                auto bracket = look().text.substr(found);
+                Source s{std::string{bracket}};
+                Lexer l{s};
+                Parser p{l};
+                auto v = p.parse_error_beacon();
+                // This is from a new parser, need to override location
+                for (auto &e : v) {
+                    e.loc = locate();
+                    errors.push_back(e);
+                }
+            }
         }
         next();
     }

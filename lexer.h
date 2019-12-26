@@ -60,13 +60,14 @@ enum class TokenKind {
     kw_i64,
     kw_float,
     kw_return,
+    kw_error,
     KWEND,
     none // not found
 };
 
 // This is under linear search, so it is better to place more frequently used
 // symbols at the top.
-static const std::pair<std::string_view, TokenKind> symbol_map[] {
+const std::pair<std::string_view, TokenKind> symbol_map[] {
     {"\"", TokenKind::doublequote},
     {"\n", TokenKind::newline},
     {"->", TokenKind::arrow},
@@ -100,7 +101,7 @@ static const std::pair<std::string_view, TokenKind> symbol_map[] {
     {"comment", TokenKind::comment},
 };
 
-static const std::pair<std::string_view, TokenKind> keyword_map[] {
+const std::pair<std::string_view, TokenKind> keyword_map[] {
     {"fn", TokenKind::kw_fn},
     {"struct", TokenKind::kw_struct},
     {"let", TokenKind::kw_let},
@@ -110,6 +111,7 @@ static const std::pair<std::string_view, TokenKind> keyword_map[] {
     {"int", TokenKind::kw_int},
     {"i64", TokenKind::kw_i64},
     {"return", TokenKind::kw_return},
+    {"error", TokenKind::kw_error},
 };
 
 std::string tokentype_to_string(TokenKind kind);

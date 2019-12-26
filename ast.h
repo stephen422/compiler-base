@@ -36,6 +36,7 @@ enum class AstKind {
     unary_expr,
     binary_expr,
     bad_expr,
+    error_beacon,
 };
 
 class AstNode;

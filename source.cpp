@@ -29,11 +29,11 @@ void Source::init(std::istream &in) {
         buf.insert(buf.cend(), line.cbegin(), line.cend());
         buf.push_back('\n');
     }
-    // Zero-terminate 'buf'.  This eases EOS handling in the lexer.
+    // Null-terminate 'buf'.  This eases EOS handling in the lexer.
     buf.push_back('\0');
 }
 
-// TODO: perf shows this as the main bottleneck.
+// TODO: perf shows this is the main bottleneck.
 SourceLoc Source::locate(size_t pos) const {
     // Search linearly for the current line.
     int line;

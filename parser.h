@@ -7,20 +7,29 @@
 
 namespace cmp {
 
+enum class ErrorKind {
+    err_expect,
+};
+
+const std::pair<std::string_view, ErrorKind> error_map[]{
+    {"expect", ErrorKind::err_expect},
+};
+
 class ParseError : public std::runtime_error {
 public:
     ParseError(const std::string &msg) : std::runtime_error(msg) {}
 };
 
-class ParserError {
-public:
+struct ParserError {
+    SourceLoc loc;
+    ErrorKind kind;
+    std::string message;
+
     ParserError() {}
+    ParserError(SourceLoc loc, ErrorKind kind) : loc(loc), kind(kind) {}
     ParserError(SourceLoc loc, const std::string &msg): loc(loc), message(msg) {}
 
     void report() const;
-
-    SourceLoc loc;
-    std::string message;
 };
 
 // ParserResult wraps the result of a single parse operation, i.e. the
@@ -120,6 +129,9 @@ private:
     DeclRefExpr *parse_declref_expr();
     TypeExpr *parse_type_expr();
     Expr *parse_binary_expr_rhs(Expr *lhs, int precedence = 0);
+
+    // For testing.
+    std::vector<ParserError> parse_error_beacon();
 
     // Error nodes.
     ParserError error(const std::string &msg) { return {locate(), msg}; }
