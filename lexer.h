@@ -3,7 +3,6 @@
 #define LEXER_H
 
 #include "source.h"
-#include "string_view.h"
 #include "fmt/core.h"
 #include "fmt/format.h"
 #include <algorithm>
@@ -67,7 +66,7 @@ enum class TokenKind {
 
 // This is under linear search, so it is better to place more frequently used
 // symbols at the top.
-static const std::pair<StringView, TokenKind> symbol_map[] {
+static const std::pair<std::string_view, TokenKind> symbol_map[] {
     {"\"", TokenKind::doublequote},
     {"\n", TokenKind::newline},
     {"->", TokenKind::arrow},
@@ -101,7 +100,7 @@ static const std::pair<StringView, TokenKind> symbol_map[] {
     {"comment", TokenKind::comment},
 };
 
-static const std::pair<StringView, TokenKind> keyword_map[] {
+static const std::pair<std::string_view, TokenKind> keyword_map[] {
     {"fn", TokenKind::kw_fn},
     {"struct", TokenKind::kw_struct},
     {"let", TokenKind::kw_let},
@@ -120,11 +119,11 @@ std::string tokentype_to_string(TokenKind kind);
 struct Token {
     TokenKind kind;
     size_t pos;
-    StringView text;
+    std::string_view text;
 
     Token() : kind(TokenKind::none), pos(0), text() {}
     Token(TokenKind kind, size_t pos) : kind(kind), pos(pos), text() {}
-    Token(TokenKind kind, size_t pos, StringView text)
+    Token(TokenKind kind, size_t pos, std::string_view text)
         : kind(kind), pos(pos), text(text) {}
     bool is(TokenKind k) const { return kind == k; }
     void print();
@@ -135,7 +134,7 @@ struct Token {
 /// Assumes that the associated Source outlives it.
 class Lexer {
 public:
-    using char_iterator = StringView::iterator;
+    using char_iterator = std::string_view::iterator;
 
     Lexer(Source &s)
         : src(s), sv(src.buf.data(), src.buf.size()), look(std::cbegin(sv)),
@@ -150,7 +149,7 @@ public:
     Source &source() { return src; }
 
 private:
-    Token lex_ident();
+    Token lex_ident_or_keyword();
     Token lex_number();
     Token lex_string();
     Token lex_comment();
@@ -173,7 +172,7 @@ private:
     // Source object associated to this lexer.
     Source &src;
 
-    StringView sv;                // view into the source buffer
+    std::string_view sv;          // view into the source buffer
     char_iterator look;           // lookahead position
     char_iterator curr;           // start of the current token
     std::vector<size_t> line_off; // offsets of each newline
@@ -183,10 +182,13 @@ private:
 
 } // namespace cmp
 
-template <> struct fmt::formatter<cmp::Token>: formatter<StringView> {
+template <> struct fmt::formatter<cmp::Token> {
+    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
+
     template <typename FormatContext>
     auto format(const cmp::Token &tok, FormatContext &ctx) {
-        return formatter<StringView>::format(tok.text, ctx);
+        return format_to(ctx.out(), "{}", tok.text);
+        // return formatter<std::string_view>::format(tok.text, ctx);
     }
 };
 

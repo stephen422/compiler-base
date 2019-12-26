@@ -26,7 +26,7 @@ T *ParserResult<T>::unwrap() {
 Parser::Parser(Lexer &lexer) : lexer{lexer}, tok{} {
     // Insert keywords in name table
     for (auto m : keyword_map) {
-        names.get_or_add(m.first);
+        names.get_or_add(std::string{m.first});
     }
     tokens = lexer.lexAll();
 }
@@ -79,19 +79,21 @@ bool Parser::is_eos() {
 // Parse a statement.
 //
 // Stmt:
-//     Decl ;
-//     Expr ;
-//     ;
+//     Decl
+//     Expr
 StmtResult Parser::parse_stmt() {
-    skip_newlines();
+    StmtResult stmt;
 
     if (look().is(TokenKind::kw_return)) {
-        return parse_return_stmt();
+        stmt = parse_return_stmt();
     } else if (is_start_of_decl()) {
-        return parse_decl_stmt();
+        stmt = parse_decl_stmt();
     } else {
-        return parse_expr_or_assign_stmt();
+        stmt = parse_expr_or_assign_stmt();
     }
+    skip_newlines();
+
+    return stmt;
 }
 
 ReturnStmt *Parser::parse_return_stmt() {
@@ -171,7 +173,7 @@ CompoundStmt *Parser::parse_compound_stmt() {
 VarDecl *Parser::parse_var_decl() {
     auto startPos = look().pos;
 
-    Name *name = names.get_or_add(look().text);
+    Name *name = names.get_or_add(std::string{look().text});
     next();
 
     if (look().is(TokenKind::colon)) {
@@ -212,7 +214,7 @@ std::vector<VarDecl *> Parser::parse_var_decl_list() {
 Res<StructDecl> Parser::parse_struct_decl() {
     expect(TokenKind::kw_struct);
 
-    Name *name = names.get_or_add(look().text);
+    Name *name = names.get_or_add(std::string{look().text});
     next();
 
     if (auto e = expect(TokenKind::lbrace); !e.success()) {
@@ -233,7 +235,7 @@ Res<StructDecl> Parser::parse_struct_decl() {
 FuncDecl *Parser::parse_func_decl() {
     expect(TokenKind::kw_fn);
 
-    Name *name = names.get_or_add(look().text);
+    Name *name = names.get_or_add(std::string{look().text});
     auto func = make_node<FuncDecl>(name);
     func->startPos = look().pos;
     next();
@@ -316,7 +318,7 @@ DeclRefExpr *Parser::parse_declref_expr() {
     ref_expr->startPos = look().pos;
     ref_expr->endPos = look().pos + look().text.length();
 
-    std::string text = look().text;
+    std::string text{look().text};
     ref_expr->name = names.get_or_add(text);
 
     next();
@@ -466,6 +468,9 @@ ExprResult Parser::parse_expr() {
 // @Cleanup: what about comments?
 void Parser::skip_newlines() {
     while (look().is(TokenKind::newline) || look().is(TokenKind::comment)) {
+        if (look().is(TokenKind::comment)) {
+            fmt::print("I saw a comment: {}\n", look().text);
+        }
         next();
     }
 }

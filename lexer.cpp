@@ -7,12 +7,12 @@ namespace cmp {
 std::string tokentype_to_string(TokenKind kind) {
     for (auto &p : symbol_map) {
         if (p.second == kind) {
-            return p.first;
+            return std::string{p.first};
         }
     }
     for (auto &p : keyword_map) {
         if (p.second == kind) {
-            return p.first;
+            return std::string{p.first};
         }
     }
     return "";
@@ -34,7 +34,7 @@ void Lexer::step() {
     }
 }
 
-Token Lexer::lex_ident() {
+Token Lexer::lex_ident_or_keyword() {
     skip_while([](char c) { return isalnum(c) || c == '_'; });
 
     // Keyword lookup
@@ -47,7 +47,7 @@ Token Lexer::lex_ident() {
             continue;
         }
 
-        StringView sv{curr, text.length()};
+        std::string_view sv{curr, text.length()};
         if (sv == text) {
             return make_token_with_literal(kind);
         }
@@ -93,7 +93,7 @@ Token Lexer::lex_symbol() {
         if (static_cast<size_t>(eos() - curr) < text.length())
             continue;
 
-        StringView sv{curr, text.length()};
+        std::string_view sv{curr, text.length()};
         if (sv == text) {
             look = curr + text.length();
             return make_token_with_literal(kind);
@@ -116,7 +116,7 @@ Token Lexer::make_token(TokenKind kind) {
 }
 
 Token Lexer::make_token_with_literal(TokenKind kind) {
-    StringView text{curr, static_cast<size_t>(look - curr)};
+    std::string_view text{curr, static_cast<size_t>(look - curr)};
     return Token{kind, pos(), text};
 }
 
@@ -144,7 +144,7 @@ Token Lexer::lex() {
         break;
     default:
         if (std::isalpha(*curr) || *curr == '_') {
-            tok = lex_ident();
+            tok = lex_ident_or_keyword();
         } else if (std::isdigit(*curr)) {
             tok = lex_number();
         } else {

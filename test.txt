@@ -19,7 +19,7 @@ fn main() {
 
 struct Car {
     a: i64,
-    b: int
+    b: int,
     c: int,
 }
 

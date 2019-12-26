@@ -158,12 +158,13 @@ private:
     // Figure out the current location (line, col) in the source.
     SourceLoc locate() const { return lexer.source().locate(look().pos); }
 
-    Lexer &lexer;                 // associated lexer
-    Token tok;                    // lookahead token
-    std::vector<AstNode *> nodes; // node pointer pool
-    NameTable names;              // name table (TODO: document)
-    std::vector<Token> tokens;    // lexed tokens
-    size_t look_index = 0;        // lookahead position in the cache
+    Lexer &lexer;                    // associated lexer
+    Token tok;                       // lookahead token
+    std::vector<AstNode *> nodes;    // node pointer pool
+    std::vector<ParserError> errors; // error list
+    NameTable names;                 // name table
+    std::vector<Token> tokens;       // lexed tokens
+    size_t look_index = 0;           // lookahead position in the cache
 };
 
 } // namespace cmp
