@@ -157,16 +157,8 @@ void TypeExpr::print() const {
     out() << "[TypeExpr] " << name->text << std::endl;
 }
 
-void BadStmt::print() const {
-    out() << "[BadStmt] " << msg << "\n";
-}
-
-void BadDecl::print() const {
-    out() << "[BadDecl] " << msg << "\n";
-}
-
-void BadExpr::print() const {
-    out() << "[BadExpr] " << msg << "\n";
-}
+void BadStmt::print() const { out() << "[BadStmt]\n"; }
+void BadDecl::print() const { out() << "[BadDecl]\n"; }
+void BadExpr::print() const { out() << "[BadExpr]\n"; }
 
 } // namespace cmp

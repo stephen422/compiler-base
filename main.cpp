@@ -30,9 +30,10 @@ int main(int argc, char **argv) {
 #else
     Parser p{lexer};
     auto ast = p.parse();
+    ast.root->print();
+    p.report();
     // Semantics sema{src, ast.name_table};
     // fmt::print("After parsing:\n");
-    // ast.root->print();
     // semantic_analyze(sema, ast);
     // fmt::print("==== Declaration table ====\n");
     // sema.decl_table.print();

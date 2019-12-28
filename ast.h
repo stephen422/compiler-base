@@ -177,11 +177,9 @@ public:
 
 class BadStmt : public Stmt {
 public:
-    BadStmt(const std::string &msg) : Stmt(AstKind::bad_stmt), msg(msg) {}
+    BadStmt() : Stmt(AstKind::bad_stmt) {}
     void print() const override;
     void traverse(Semantics &sema) override;
-
-    std::string msg;
 };
 
 
@@ -274,11 +272,9 @@ public:
 
 class BadExpr : public Expr {
 public:
-    BadExpr(const std::string &msg) : Expr(AstKind::bad_expr), msg(msg) {}
+    BadExpr() : Expr(AstKind::bad_expr) {}
     void print() const override;
     void traverse(Semantics &sema) override;
-
-    std::string msg;
 };
 
 // ================
@@ -348,11 +344,9 @@ public:
 
 class BadDecl : public Decl {
 public:
-    BadDecl(const std::string &msg) : Decl(AstKind::bad_decl), msg(msg) {}
+    BadDecl() : Decl(AstKind::bad_decl) {}
     void print() const override;
     void traverse(Semantics &sema) override;
-
-    std::string msg;
 };
 
 void test(Semantics &sema);

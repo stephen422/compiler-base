@@ -9,7 +9,7 @@ namespace cmp {
 template <typename T> using Res = ParserResult<T>;
 
 // Report this error to stderr.
-void ParserError::report() const {
+void ParserError::print() const {
     fmt::print(stderr, "{}:{}:{}: parse error: {}\n", loc.filename, loc.line,
                loc.col, message);
 }
@@ -45,7 +45,7 @@ void Parser::next() {
 
 const Token Parser::look() const { return tokens[look_index]; }
 
-Res<AstNode> Parser::expect(TokenKind kind, const std::string &msg = "") {
+void Parser::expect(TokenKind kind, const std::string &msg = "") {
     if (!look().is(kind)) {
         std::string s = msg;
         if (msg.empty()) {
@@ -53,10 +53,9 @@ Res<AstNode> Parser::expect(TokenKind kind, const std::string &msg = "") {
                             tokentype_to_string(kind),
                             tokentype_to_string(look().kind));
         }
-        return error(s);
+        errors.push_back(make_error(s));
     }
     next();
-    return {static_cast<AstNode *>(nullptr)};
 }
 
 bool Parser::expect_end_of_stmt() {
@@ -81,8 +80,8 @@ bool Parser::is_eos() {
 // Stmt:
 //     Decl
 //     Expr
-StmtResult Parser::parse_stmt() {
-    StmtResult stmt;
+Stmt *Parser::parse_stmt() {
+    Stmt *stmt = nullptr;
 
     if (look().is(TokenKind::kw_return)) {
         stmt = parse_return_stmt();
@@ -93,6 +92,8 @@ StmtResult Parser::parse_stmt() {
     }
     skip_newlines();
 
+    // TODO: BadStmt
+    assert(stmt);
     return stmt;
 }
 
@@ -104,7 +105,7 @@ ReturnStmt *Parser::parse_return_stmt() {
     // optional
     Expr *expr = nullptr;
     if (!is_end_of_stmt()) {
-        expr = parse_expr().unwrap();
+        expr = parse_expr();
     }
     if (!expect_end_of_stmt()) {
         assert(false);
@@ -116,15 +117,16 @@ ReturnStmt *Parser::parse_return_stmt() {
 DeclStmt *Parser::parse_decl_stmt() {
     auto decl = parse_decl();
     if (!expect_end_of_stmt()) {
+        assert(false);
         return nullptr;
     }
-    return make_node<DeclStmt>(decl.unwrap());
+    return make_node<DeclStmt>(decl);
 }
 
-StmtResult Parser::parse_expr_or_assign_stmt() {
+Stmt *Parser::parse_expr_or_assign_stmt() {
     auto startPos = look().pos;
 
-    auto lhs = parse_expr().unwrap();
+    auto lhs = parse_expr();
     // ExprStmt: expression ends with a newline
     if (is_end_of_stmt()) {
         expect(TokenKind::newline);
@@ -133,13 +135,12 @@ StmtResult Parser::parse_expr_or_assign_stmt() {
 
     // AssignStmt: expression is followed by equals
     // (anything else is treated as an error)
-    if (auto e = expect(TokenKind::equals); !e.success()) {
-        return e;
-    }
+    expect(TokenKind::equals);
+    // TODO
 
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
-    auto rhs = parse_expr().unwrap();
+    auto rhs = parse_expr();
     return make_node_with_pos<AssignStmt>(startPos, look().pos, lhs,
                                           rhs);
 }
@@ -159,11 +160,11 @@ CompoundStmt *Parser::parse_compound_stmt() {
         if (look().is(TokenKind::rbrace))
             break;
         auto stmt = parse_stmt();
-        if (!stmt.success()) {
+        if (!stmt) {
             // per-stmt error check
-            stmt.unwrap();
+            // TODO
         }
-        compound->stmts.push_back(stmt.unwrap());
+        compound->stmts.push_back(stmt);
     }
 
     expect(TokenKind::rbrace);
@@ -185,7 +186,7 @@ VarDecl *Parser::parse_var_decl() {
     } else {
         // a = expr
         expect(TokenKind::equals);
-        auto assignexpr = parse_expr().unwrap();
+        auto assignexpr = parse_expr();
         return make_node_with_pos<VarDecl>(startPos, assignexpr->endPos, name,
                                            nullptr, assignexpr);
     }
@@ -211,23 +212,19 @@ std::vector<VarDecl *> Parser::parse_var_decl_list() {
     return decls;
 }
 
-Res<StructDecl> Parser::parse_struct_decl() {
+StructDecl *Parser::parse_struct_decl() {
     expect(TokenKind::kw_struct);
 
     Name *name = names.get_or_add(std::string{look().text});
     next();
 
-    if (auto e = expect(TokenKind::lbrace); !e.success()) {
-        return e;
-    }
+    expect(TokenKind::lbrace);
+    // TODO: BadDecl
 
     auto members = parse_var_decl_list();
 
-    if (auto e =
-            expect(TokenKind::rbrace, "unterminated struct member declaration");
-        !e.success()) {
-        return e;
-    }
+    expect(TokenKind::rbrace, "unterminated struct member declaration");
+    // TODO: BadDecl
 
     return make_node<StructDecl>(name, members);
 }
@@ -259,15 +256,15 @@ FuncDecl *Parser::parse_func_decl() {
 }
 
 BadStmt *Parser::stmt_error(const std::string &msg) {
-    return make_node<BadStmt>(msg);
+    return make_node<BadStmt>();
 }
 
 BadDecl *Parser::decl_error(const std::string &msg) {
-    return make_node<BadDecl>(msg);
+    return make_node<BadDecl>();
 }
 
 BadExpr *Parser::expr_error(const std::string &msg) {
-    return make_node<BadExpr>(msg);
+    return make_node<BadExpr>();
 }
 
 bool Parser::is_start_of_decl() const {
@@ -280,15 +277,16 @@ bool Parser::is_start_of_decl() const {
     }
 }
 
-DeclResult Parser::parse_decl() {
+Decl *Parser::parse_decl() {
     switch (look().kind) {
     case TokenKind::kw_let: {
         next();
         return parse_var_decl();
     }
     default:
-        return error("not a start of a declaration");
+        errors.push_back(make_error("not a start of a declaration"));
     }
+    return nullptr;
 }
 
 UnaryExpr *Parser::parse_literal_expr() {
@@ -361,7 +359,7 @@ TypeExpr *Parser::parse_type_expr() {
     return typeExpr;
 }
 
-ExprResult Parser::parse_unary_expr() {
+Expr *Parser::parse_unary_expr() {
     auto startPos = look().pos;
 
     switch (look().kind) {
@@ -372,26 +370,26 @@ ExprResult Parser::parse_unary_expr() {
         return parse_declref_expr();
     case TokenKind::star: {
         next();
-        auto expr = parse_unary_expr().unwrap();
+        auto expr = parse_unary_expr();
         return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Deref, expr);
     }
     case TokenKind::ampersand: {
         next();
-        auto expr = parse_unary_expr().unwrap();
+        auto expr = parse_unary_expr();
         return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Address, expr);
     }
     case TokenKind::lparen: {
         expect(TokenKind::lparen);
-        auto expr = parse_expr().unwrap();
+        auto expr = parse_expr();
         expect(TokenKind::rparen);
-        // TODO: check unwrap
         return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Paren, expr);
     }
     default:
         // Because all expressions start with a unary expression, failing here
         // means no other expression could be matched either, so just do a
         // really generic report.
-        return error(fmt::format("{}: expected an expression", startPos));
+        errors.push_back(make_error(fmt::format("{}: expected an expression", startPos)));
+        return make_node_with_pos<BadExpr>(startPos, look().pos);
     }
 }
 
@@ -432,7 +430,7 @@ Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence) {
         next();
 
         // Parse the second term.
-        Expr *rhs = parse_unary_expr().unwrap();
+        Expr *rhs = parse_unary_expr();
 
         // We do not know if this term should associate to left or right;
         // e.g. "(a * b) + c" or "a + (b * c)".  We should look ahead for the
@@ -454,12 +452,11 @@ Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence) {
     return root;
 }
 
-ExprResult Parser::parse_expr() {
+Expr *Parser::parse_expr() {
     auto unary = parse_unary_expr();
-    if (!unary.success()) {
+    if (!unary)
         return unary;
-    }
-    return parse_binary_expr_rhs(unary.unwrap());
+    return parse_binary_expr_rhs(unary);
 }
 
 std::vector<ParserError> Parser::parse_error_beacon() {
@@ -480,17 +477,21 @@ std::vector<ParserError> Parser::parse_error_beacon() {
         next();
     }
 
-    if (auto e = expect(TokenKind::rbracket); !e.success()) {
-        // This was not a beacon; return an empty list
+    if (!look().is(TokenKind::rbracket)) {
+        // was not a beacon, don't add anything
         return {};
     }
+    expect(TokenKind::rbracket);
     return v;
 }
 
 // The language is newline-aware, but newlines are mostly meaningless unless
 // they are at the end of a statement or a declaration.  In those cases we use
 // this to skip over them.
-// @Cleanup: what about comments?
+//
+// In the course of this, if an error beacon is found in the comment, add the
+// error to the parser error list so that it can be compared to the actual
+// errors later in the testing phase.
 void Parser::skip_newlines() {
     while (look().is(TokenKind::newline) || look().is(TokenKind::comment)) {
         if (look().is(TokenKind::comment)) {
@@ -505,7 +506,7 @@ void Parser::skip_newlines() {
                 // This is from a new parser, need to override location
                 for (auto &e : v) {
                     e.loc = locate();
-                    errors.push_back(e);
+                    beacons.push_back(e);
                 }
             }
         }
@@ -520,8 +521,7 @@ AstNode *Parser::parse_toplevel() {
     case TokenKind::kw_fn:
         return parse_func_decl();
     case TokenKind::kw_struct: {
-        auto decl = parse_struct_decl();
-        return decl.unwrap();
+        return parse_struct_decl();
     }
     default:
         assert(false && "unreachable");
@@ -541,6 +541,12 @@ File *Parser::parse_file() {
 Ast Parser::parse() {
     File *file = parse_file();
     return Ast{file, names};
+}
+
+void Parser::report() const {
+    for (auto e : errors) {
+        e.print();
+    }
 }
 
 } // namespace cmp

@@ -29,7 +29,7 @@ struct ParserError {
     ParserError(SourceLoc loc, ErrorKind kind) : loc(loc), kind(kind) {}
     ParserError(SourceLoc loc, const std::string &msg): loc(loc), message(msg) {}
 
-    void report() const;
+    void print() const;
 };
 
 // ParserResult wraps the result of a single parse operation, i.e. the
@@ -90,15 +90,25 @@ using DeclResult = ParserResult<Decl>;
 using ExprResult = ParserResult<Expr>;
 
 class Parser {
+    Lexer &lexer;                     // associated lexer
+    Token tok;                        // lookahead token
+    std::vector<AstNode *> nodes;     // node pointer pool
+    std::vector<ParserError> errors;  // error list
+    std::vector<ParserError> beacons; // error beacon list
+    NameTable names;                  // name table
+    std::vector<Token> tokens;        // lexed tokens
+    size_t look_index = 0;            // lookahead position in the cache
+
 public:
     Parser(Lexer &lexer);
     ~Parser();
 
     Ast parse();
 
-private:
-    template <typename T> using Res = ParserResult<T>;
+    // Report errors.
+    void report() const;
 
+private:
     // Parse the whole file.
     File *parse_file();
 
@@ -106,8 +116,8 @@ private:
     AstNode *parse_toplevel();
 
     // Statement parsers.
-    StmtResult parse_stmt();
-    StmtResult parse_expr_or_assign_stmt();
+    Stmt *parse_stmt();
+    Stmt *parse_expr_or_assign_stmt();
     ReturnStmt *parse_return_stmt();
     DeclStmt *parse_decl_stmt();
     CompoundStmt *parse_compound_stmt();
@@ -115,16 +125,16 @@ private:
     bool is_eos();
 
     // Declaration parsers.
-    DeclResult parse_decl();
+    Decl *parse_decl();
     std::vector<VarDecl *> parse_var_decl_list();
     VarDecl *parse_var_decl();
-    Res<StructDecl> parse_struct_decl();
+    StructDecl *parse_struct_decl();
     FuncDecl *parse_func_decl();
     bool is_start_of_decl() const;
 
     // Expression parsers.
-    ExprResult parse_expr();
-    ExprResult parse_unary_expr();
+    Expr *parse_expr();
+    Expr *parse_unary_expr();
     UnaryExpr *parse_literal_expr();
     DeclRefExpr *parse_declref_expr();
     TypeExpr *parse_type_expr();
@@ -134,7 +144,7 @@ private:
     std::vector<ParserError> parse_error_beacon();
 
     // Error nodes.
-    ParserError error(const std::string &msg) { return {locate(), msg}; }
+    ParserError make_error(const std::string &msg) { return {locate(), msg}; }
     BadStmt *stmt_error(const std::string &msg);
     BadDecl *decl_error(const std::string &msg);
     BadExpr *expr_error(const std::string &msg);
@@ -146,7 +156,7 @@ private:
     const Token look() const;
 
     // Expect and consume functions.
-    Res<AstNode> expect(TokenKind kind, const std::string &msg);
+    void expect(TokenKind kind, const std::string &msg);
     bool expect_end_of_stmt();
 
     void skip_newlines();
@@ -169,14 +179,6 @@ private:
 
     // Figure out the current location (line, col) in the source.
     SourceLoc locate() const { return lexer.source().locate(look().pos); }
-
-    Lexer &lexer;                    // associated lexer
-    Token tok;                       // lookahead token
-    std::vector<AstNode *> nodes;    // node pointer pool
-    std::vector<ParserError> errors; // error list
-    NameTable names;                 // name table
-    std::vector<Token> tokens;       // lexed tokens
-    size_t look_index = 0;           // lookahead position in the cache
 };
 
 } // namespace cmp
