@@ -103,6 +103,9 @@ public:
     // Report errors.
     void report() const;
 
+    // Compare errors against beacons for testing.
+    void compare_errors() const;
+
 private:
     // Parse the whole file.
     File *parse_file();
@@ -174,5 +177,15 @@ private:
 };
 
 } // namespace cmp
+
+template <> struct fmt::formatter<cmp::ParseError> {
+    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
+
+    template <typename FormatContext>
+    auto format(const cmp::ParseError &e, FormatContext &ctx) {
+        return format_to(ctx.out(), "{}:{}:{}: parse error: {}", e.loc.filename,
+                         e.loc.line, e.loc.col, e.message);
+    }
+};
 
 #endif

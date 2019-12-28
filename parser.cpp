@@ -1,8 +1,7 @@
 #include "parser.h"
 #include "fmt/core.h"
 #include <cassert>
-#include <sstream>
-#include <utility>
+#include <regex>
 
 namespace cmp {
 
@@ -452,24 +451,44 @@ std::vector<ParseError> Parser::parse_error_beacon() {
     expect(TokenKind::colon);
 
     std::vector<ParseError> v;
-    while (!look().is(TokenKind::rbracket)) {
-        for (auto &p : error_map) {
-            auto text = p.first;
-            auto kind = p.second;
-            if (look().text == text) {
-                v.push_back({locate(), kind});
-                break;
-            }
-        }
-        next();
-    }
+    v.push_back({locate(), std::string{look().text}});
+    next();
 
-    if (!look().is(TokenKind::rbracket)) {
-        // was not a beacon, don't add anything
-        return {};
-    }
     expect(TokenKind::rbracket);
     return v;
+}
+
+void Parser::compare_errors() const {
+    bool success = true;
+
+    fmt::print("TEST:\n");
+
+    size_t i = 0;
+    for (; i < errors.size() && i < beacons.size(); i++) {
+        std::string stripped{std::cbegin(beacons[i].message) + 1,
+                             std::cend(beacons[i].message) - 1};
+        std::regex regex{stripped};
+        if (!std::regex_search(errors[i].message, regex)) {
+            success = false;
+            fmt::print("MISMATCH:\n");
+            fmt::print("< {}\n> {}\n", errors[i], beacons[i]);
+        }
+    }
+    if (errors.size() != beacons.size()) {
+        success = false;
+        bool left = errors.size() > beacons.size();
+        size_t max = left ? errors.size() : beacons.size();
+        char arrow = left ? '<' : '>';
+        for (; i < max; i++) {
+            fmt::print("MISMATCH:\n");
+            fmt::print("{} {}\n", arrow, left ? errors[i] : beacons[i]);
+        }
+    }
+
+    if (success)
+        fmt::print("SUCCESS\n");
+    else
+        fmt::print("FAIL\n");
 }
 
 // The language is newline-aware, but newlines are mostly meaningless unless
@@ -532,10 +551,6 @@ Ast Parser::parse() {
 
 void Parser::report() const {
     for (auto e : errors) {
-        e.print();
-    }
-    fmt::print("Beacons:\n");
-    for (auto e : beacons) {
         e.print();
     }
 }
