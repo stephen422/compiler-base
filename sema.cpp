@@ -65,7 +65,7 @@ void AssignStmt::traverse(Semantics &sema) {
         sema.type_table.print();
         std::cout << "LHS: " << lhs->type->to_string() << std::endl;
         std::cout << "RHS: " << rhs->type->to_string() << std::endl;
-        sema.error(rhs->startPos, "type mismatch: ");
+        sema.error(rhs->start_pos, "type mismatch: ");
     }
 }
 
@@ -73,12 +73,12 @@ void ReturnStmt::traverse(Semantics &sema) {
     if (expr) {
         expr->traverse(sema);
         if (!sema.getContext().retType)
-            sema.error(expr->startPos, "function does not return a value");
+            sema.error(expr->start_pos, "function does not return a value");
         else if (sema.getContext().retType != expr->type)
-            sema.error(expr->startPos, "return type mismatch");
+            sema.error(expr->start_pos, "return type mismatch");
     } else {
         if (sema.getContext().retType)
-            sema.error(startPos, "a return a value should be specified for this function");
+            sema.error(start_pos, "a return a value should be specified for this function");
     }
 
     sema.getContext().seenReturn = true;
@@ -95,7 +95,7 @@ void VarDecl::traverse(Semantics &sema) {
     // Check for redefinition
     auto found = sema.decl_table.find(name);
     if (found && found->scope_level == sema.decl_table.get_scope_level()) { // TODO: check scope
-        sema.error(startPos, "redefinition");
+        sema.error(start_pos, "redefinition");
     }
 
     // Infer type from the assignment expression.
@@ -116,7 +116,7 @@ void VarDecl::traverse(Semantics &sema) {
 
     // Inferrence failure!
     if (!type)
-        sema.error(startPos, "cannot infer type of variable declaration");
+        sema.error(start_pos, "cannot infer type of variable declaration");
 
     Declaration decl{name, *type};
     sema.decl_table.insert({name, decl});
@@ -142,7 +142,7 @@ void FuncDecl::traverse(Semantics &sema) {
     body->traverse(sema);
 
     if (retTypeExpr && !sema.getContext().seenReturn) {
-        sema.error(startPos, "no return statement found for function");
+        sema.error(start_pos, "no return statement found for function");
     }
 
     sema.scopeClose();
@@ -159,7 +159,7 @@ void UnaryExpr::traverse(Semantics &sema) {
     case Deref:
         operand->traverse(sema);
         if (!operand->type->ref) {
-            sema.error(startPos, "cannot dereference a non-reference");
+            sema.error(start_pos, "cannot dereference a non-reference");
         }
         type = operand->type->value_type;
         break;
@@ -168,7 +168,7 @@ void UnaryExpr::traverse(Semantics &sema) {
         assert(operand->kind == AstKind::unary_expr);
         if (static_cast<UnaryExpr *>(operand)->unary_kind != DeclRef) {
             // TODO: LValue & RValue
-            sema.error(startPos, "cannot take address of a non-variable (TODO: rvalue)");
+            sema.error(start_pos, "cannot take address of a non-variable (TODO: rvalue)");
         }
         type = get_reference_type(sema, operand->type);
         break;
@@ -184,7 +184,7 @@ void IntegerLiteral::traverse(Semantics &sema) {
 void DeclRefExpr::traverse(Semantics &sema) {
     Declaration *decl = sema.decl_table.find(name);
     if (decl == nullptr) {
-        sema.error(startPos, "undeclared identifier");
+        sema.error(start_pos, "undeclared identifier");
     }
     // Type inferrence
     type = &decl->type;
@@ -198,7 +198,7 @@ void TypeExpr::traverse(Semantics &sema) {
     if (type == nullptr) {
         // If this is a value type, we should check use before declaration.
         if (!ref) {
-            sema.error(startPos, "reference of undeclared type");
+            sema.error(start_pos, "reference of undeclared type");
         }
         // If not, this is an instantiation of a derivative type, and should be
         // put into the table.
@@ -219,7 +219,7 @@ void BinaryExpr::traverse(Semantics &sema) {
 
     if (lhs->type && rhs->type &&
         lhs->type != rhs->type)
-        sema.error(startPos, "type mismatch in binary expression");
+        sema.error(start_pos, "type mismatch in binary expression");
 
     // Propagate from left to right
     type = lhs->type;

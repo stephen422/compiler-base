@@ -94,8 +94,8 @@ public:
     };
 
     AstKind kind = AstKind::none; // node kind
-    size_t startPos = 0;          // start pos of this AST in the source text
-    size_t endPos = 0;            // end pos of this AST in the source text
+    size_t start_pos = 0;          // start pos of this AST in the source text
+    size_t end_pos = 0;            // end pos of this AST in the source text
     // Indentation of the current node when dumping AST.
     // static because all nodes share this.
     static int depth;
@@ -235,12 +235,12 @@ public:
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    // The value of this pointer serves as a unique integer ID to be used for
+    // The integer value of this pointer serves as a unique ID to be used for
     // indexing the symbol table.
     Name *name = nullptr;
 };
 
-// FIXME: should I call this an expression?
+// XXX: can I call this an expression?
 class TypeExpr : public Expr {
 public:
     TypeExpr() : Expr(AstKind::type_expr) {}
@@ -250,7 +250,8 @@ public:
     Name *name = nullptr;          // name of the type
     bool mut = false;              // mutable?
     bool ref = false;              // is this a reference type?
-    TypeExpr *subexpr = nullptr; // 'T' part of '&T'
+    Expr *subexpr = nullptr;       // 'T' part of '&T'
+    // This is Expr mainly so that BadExpr can be stored here.
 };
 
 class BinaryExpr : public Expr {
@@ -259,8 +260,8 @@ public:
         : Expr(AstKind::binary_expr), lhs(std::move(lhs_)), op(op_),
           rhs(std::move(rhs_)) {
         auto pair = get_ast_range({lhs, rhs});
-        startPos = pair.first;
-        endPos = pair.second;
+        start_pos = pair.first;
+        end_pos = pair.second;
     }
     void print() const override;
     void traverse(Semantics &sema) override;
@@ -303,17 +304,18 @@ public:
 // Variable declaration.
 class VarDecl : public Decl {
 public:
-    VarDecl(Name *n, TypeExpr *t, Expr *expr)
-        : Decl(AstKind::var_decl), name(n), typeExpr(std::move(t)), assignExpr(std::move(expr)) {}
+    VarDecl(Name *n, Expr *t, Expr *expr)
+        : Decl(AstKind::var_decl), name(n), typeExpr(std::move(t)),
+          assignExpr(std::move(expr)) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
-    Name *name = nullptr;            // name of the variable
-    TypeExpr *typeExpr = nullptr;  // type node of the variable.
-                                     // If null, it will be inferred later
-    Expr *assignExpr = nullptr;    // initial assignment value
+    Name *name = nullptr;       // name of the variable
+    Expr *typeExpr = nullptr;   // type node of the variable.
+                                // If null, it will be inferred later
+    Expr *assignExpr = nullptr; // initial assignment value
 };
 
 // Struct declaration.
@@ -336,10 +338,10 @@ public:
     void print() const override;
     void traverse(Semantics &sema) override;
 
-    Name *name = nullptr;              // name of the function
-    std::vector<VarDecl *> params;    // list of parameters
-    CompoundStmt *body = nullptr;    // body statements
-    TypeExpr *retTypeExpr = nullptr; // return type expression
+    Name *name = nullptr;          // name of the function
+    std::vector<VarDecl *> params; // list of parameters
+    CompoundStmt *body = nullptr;  // body statements
+    Expr *retTypeExpr = nullptr;   // return type expression
 };
 
 class BadDecl : public Decl {

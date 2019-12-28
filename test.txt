@@ -1,6 +1,6 @@
 fn swap(a: &int, b: &int) -> int {
     let t = * // [error: "expected.*expression"]
-    *a = *b // [error: "there"]
+    *a = *b
     //* = t
     return *a
 }

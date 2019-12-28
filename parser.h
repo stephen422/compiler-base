@@ -135,7 +135,7 @@ private:
     Expr *parse_unary_expr();
     UnaryExpr *parse_literal_expr();
     DeclRefExpr *parse_declref_expr();
-    TypeExpr *parse_type_expr();
+    Expr *parse_type_expr();
     Expr *parse_binary_expr_rhs(Expr *lhs, int precedence = 0);
 
     // For testing.
@@ -164,11 +164,11 @@ private:
     }
 
     template <typename T, typename... Args>
-    T *make_node_with_pos(size_t startPos, size_t endPos, Args &&... args)
+    T *make_node_with_pos(size_t start_pos, size_t end_pos, Args &&... args)
     {
         auto node = make_node<T>(std::forward<Args>(args)...);
-        node->startPos = startPos;
-        node->endPos = endPos;
+        node->start_pos = start_pos;
+        node->end_pos = end_pos;
         return node;
     }
 

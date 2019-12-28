@@ -45,8 +45,8 @@ public:
 };
 
 // Represents a type, whether it be built-in, user-defined, or a reference to
-// another type.  Types are usually stored and passed by value, so their size
-// should be small.
+// another type.  This exists separately from the AST node TypeExpr so that
+// type comparisons can be made by simply comparing raw Type pointers.
 class Type {
 public:
     Type() {}

@@ -97,7 +97,7 @@ Stmt *Parser::parse_stmt() {
 }
 
 ReturnStmt *Parser::parse_return_stmt() {
-    auto startPos = look().pos;
+    auto start_pos = look().pos;
 
     expect(TokenKind::kw_return);
 
@@ -109,7 +109,7 @@ ReturnStmt *Parser::parse_return_stmt() {
     if (!expect_end_of_stmt()) {
         assert(false);
     }
-    return make_node_with_pos<ReturnStmt>(startPos, look().pos, expr);
+    return make_node_with_pos<ReturnStmt>(start_pos, look().pos, expr);
 }
 
 // let a = ...
@@ -123,7 +123,7 @@ DeclStmt *Parser::parse_decl_stmt() {
 }
 
 Stmt *Parser::parse_expr_or_assign_stmt() {
-    auto startPos = look().pos;
+    auto start_pos = look().pos;
 
     auto lhs = parse_expr();
     // ExprStmt: expression ends with a newline
@@ -140,7 +140,7 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
     auto rhs = parse_expr();
-    return make_node_with_pos<AssignStmt>(startPos, look().pos, lhs,
+    return make_node_with_pos<AssignStmt>(start_pos, look().pos, lhs,
                                           rhs);
 }
 
@@ -171,23 +171,23 @@ CompoundStmt *Parser::parse_compound_stmt() {
 }
 
 VarDecl *Parser::parse_var_decl() {
-    auto startPos = look().pos;
+    auto start_pos = look().pos;
 
     Name *name = names.get_or_add(std::string{look().text});
     next();
 
-    if (look().is(TokenKind::colon)) {
-        // a: type
-        next();
-        auto typeexpr = parse_type_expr();
-        return make_node_with_pos<VarDecl>(startPos, typeexpr->endPos, name,
-                                           typeexpr, nullptr);
-    } else {
+    if (look().is(TokenKind::equals)) {
         // a = expr
         expect(TokenKind::equals);
         auto assignexpr = parse_expr();
-        return make_node_with_pos<VarDecl>(startPos, assignexpr->endPos, name,
+        return make_node_with_pos<VarDecl>(start_pos, assignexpr->end_pos, name,
                                            nullptr, assignexpr);
+    } else {
+        // TODO: is_possible_typename
+        // a type
+        auto typeexpr = parse_type_expr();
+        return make_node_with_pos<VarDecl>(start_pos, typeexpr->end_pos, name,
+                                           typeexpr, nullptr);
     }
 }
 
@@ -233,7 +233,7 @@ FuncDecl *Parser::parse_func_decl() {
 
     Name *name = names.get_or_add(std::string{look().text});
     auto func = make_node<FuncDecl>(name);
-    func->startPos = look().pos;
+    func->start_pos = look().pos;
     next();
 
     // Argument list
@@ -249,7 +249,7 @@ FuncDecl *Parser::parse_func_decl() {
 
     // Function body
     func->body = parse_compound_stmt();
-    func->endPos = look().pos;
+    func->end_pos = look().pos;
 
     return func;
 }
@@ -288,8 +288,8 @@ UnaryExpr *Parser::parse_literal_expr() {
     default:
         assert(false && "non-integer literals not implemented");
     }
-    expr->startPos = look().pos;
-    expr->endPos = look().pos + look().text.length();
+    expr->start_pos = look().pos;
+    expr->end_pos = look().pos + look().text.length();
 
     next();
 
@@ -299,8 +299,8 @@ UnaryExpr *Parser::parse_literal_expr() {
 DeclRefExpr *Parser::parse_declref_expr() {
     auto ref_expr = make_node<DeclRefExpr>();
 
-    ref_expr->startPos = look().pos;
-    ref_expr->endPos = look().pos + look().text.length();
+    ref_expr->start_pos = look().pos;
+    ref_expr->end_pos = look().pos + look().text.length();
 
     std::string text{look().text};
     ref_expr->name = names.get_or_add(text);
@@ -310,10 +310,10 @@ DeclRefExpr *Parser::parse_declref_expr() {
     return ref_expr;
 }
 
-TypeExpr *Parser::parse_type_expr() {
+Expr *Parser::parse_type_expr() {
     auto typeExpr = make_node<TypeExpr>();
 
-    typeExpr->startPos = look().pos;
+    typeExpr->start_pos = look().pos;
 
     // Mutable type?
     if (look().is(TokenKind::quote)) {
@@ -328,7 +328,7 @@ TypeExpr *Parser::parse_type_expr() {
         next();
         typeExpr->ref = true;
         typeExpr->subexpr = parse_type_expr();
-        text = "&" + typeExpr->subexpr->name->text;
+        text = "&" + static_cast<TypeExpr *>(typeExpr->subexpr)->name->text;
     }
     else if (look().is_identifier_or_keyword()) {
         typeExpr->ref = false;
@@ -336,17 +336,18 @@ TypeExpr *Parser::parse_type_expr() {
         text = look().text;
         next();
     } else {
-        assert(false && "expected type name");
+        errors.push_back(make_error("expected type name"));
+        return make_node_with_pos<BadExpr>(typeExpr->start_pos, look().pos);
     }
 
     typeExpr->name = names.get_or_add(text);
-    typeExpr->endPos = look().pos;
+    typeExpr->end_pos = look().pos;
 
     return typeExpr;
 }
 
 Expr *Parser::parse_unary_expr() {
-    auto startPos = look().pos;
+    auto start_pos = look().pos;
 
     switch (look().kind) {
     case TokenKind::number:
@@ -357,25 +358,25 @@ Expr *Parser::parse_unary_expr() {
     case TokenKind::star: {
         next();
         auto expr = parse_unary_expr();
-        return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Deref, expr);
+        return make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Deref, expr);
     }
     case TokenKind::ampersand: {
         next();
         auto expr = parse_unary_expr();
-        return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Address, expr);
+        return make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Address, expr);
     }
     case TokenKind::lparen: {
         expect(TokenKind::lparen);
         auto expr = parse_expr();
         expect(TokenKind::rparen);
-        return make_node_with_pos<UnaryExpr>(startPos, look().pos, UnaryExpr::Paren, expr);
+        return make_node_with_pos<UnaryExpr>(start_pos, look().pos, UnaryExpr::Paren, expr);
     }
     default:
         // Because all expressions start with a unary expression, failing here
         // means no other expression could be matched either, so just do a
         // really generic report.
-        errors.push_back(make_error(fmt::format("{}: expected an expression", startPos)));
-        return make_node_with_pos<BadExpr>(startPos, look().pos);
+        errors.push_back(make_error("expected an expression"));
+        return make_node_with_pos<BadExpr>(start_pos, look().pos);
     }
 }
 
@@ -461,7 +462,7 @@ std::vector<ParseError> Parser::parse_error_beacon() {
 void Parser::compare_errors() const {
     bool success = true;
 
-    fmt::print("TEST:\n");
+    fmt::print("TEST {}:\n", lexer.source().filename);
 
     size_t i = 0;
     for (; i < errors.size() && i < beacons.size(); i++) {
@@ -470,7 +471,6 @@ void Parser::compare_errors() const {
         std::regex regex{stripped};
         if (!std::regex_search(errors[i].message, regex)) {
             success = false;
-            fmt::print("MISMATCH:\n");
             fmt::print("< {}\n> {}\n", errors[i], beacons[i]);
         }
     }
@@ -480,15 +480,14 @@ void Parser::compare_errors() const {
         size_t max = left ? errors.size() : beacons.size();
         char arrow = left ? '<' : '>';
         for (; i < max; i++) {
-            fmt::print("MISMATCH:\n");
             fmt::print("{} {}\n", arrow, left ? errors[i] : beacons[i]);
         }
     }
 
     if (success)
-        fmt::print("SUCCESS\n");
+        fmt::print("SUCCESS {}\n", lexer.source().filename);
     else
-        fmt::print("FAIL\n");
+        fmt::print("FAIL {}\n", lexer.source().filename);
 }
 
 // The language is newline-aware, but newlines are mostly meaningless unless
