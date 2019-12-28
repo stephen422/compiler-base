@@ -9,7 +9,7 @@ namespace cmp {
 template <typename T> using Res = ParserResult<T>;
 
 // Report this error to stderr.
-void ParserError::print() const {
+void ParseError::print() const {
     fmt::print(stderr, "{}:{}:{}: parse error: {}\n", loc.filename, loc.line,
                loc.col, message);
 }
@@ -255,18 +255,6 @@ FuncDecl *Parser::parse_func_decl() {
     return func;
 }
 
-BadStmt *Parser::stmt_error(const std::string &msg) {
-    return make_node<BadStmt>();
-}
-
-BadDecl *Parser::decl_error(const std::string &msg) {
-    return make_node<BadDecl>();
-}
-
-BadExpr *Parser::expr_error(const std::string &msg) {
-    return make_node<BadExpr>();
-}
-
 bool Parser::is_start_of_decl() const {
     switch (look().kind) {
     case TokenKind::kw_let:
@@ -279,10 +267,9 @@ bool Parser::is_start_of_decl() const {
 
 Decl *Parser::parse_decl() {
     switch (look().kind) {
-    case TokenKind::kw_let: {
+    case TokenKind::kw_let:
         next();
         return parse_var_decl();
-    }
     default:
         errors.push_back(make_error("not a start of a declaration"));
     }
@@ -459,12 +446,12 @@ Expr *Parser::parse_expr() {
     return parse_binary_expr_rhs(unary);
 }
 
-std::vector<ParserError> Parser::parse_error_beacon() {
+std::vector<ParseError> Parser::parse_error_beacon() {
     expect(TokenKind::lbracket);
     expect(TokenKind::kw_error);
     expect(TokenKind::colon);
 
-    std::vector<ParserError> v;
+    std::vector<ParseError> v;
     while (!look().is(TokenKind::rbracket)) {
         for (auto &p : error_map) {
             auto text = p.first;
@@ -545,6 +532,10 @@ Ast Parser::parse() {
 
 void Parser::report() const {
     for (auto e : errors) {
+        e.print();
+    }
+    fmt::print("Beacons:\n");
+    for (auto e : beacons) {
         e.print();
     }
 }

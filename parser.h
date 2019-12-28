@@ -15,19 +15,14 @@ const std::pair<std::string_view, ErrorKind> error_map[]{
     {"expect", ErrorKind::err_expect},
 };
 
-class ParseError : public std::runtime_error {
-public:
-    ParseError(const std::string &msg) : std::runtime_error(msg) {}
-};
-
-struct ParserError {
+struct ParseError {
     SourceLoc loc;
     ErrorKind kind;
     std::string message;
 
-    ParserError() {}
-    ParserError(SourceLoc loc, ErrorKind kind) : loc(loc), kind(kind) {}
-    ParserError(SourceLoc loc, const std::string &msg): loc(loc), message(msg) {}
+    ParseError() {}
+    ParseError(SourceLoc loc, ErrorKind kind) : loc(loc), kind(kind) {}
+    ParseError(SourceLoc loc, const std::string &msg): loc(loc), message(msg) {}
 
     void print() const;
 };
@@ -56,7 +51,7 @@ public:
     ParserResult(U *ptr) : result(ptr) {}
 
     // Erroneous result
-    ParserResult(const ParserError &error) : result(error) {}
+    ParserResult(const ParseError &error) : result(error) {}
 
     // Upcasting
     template <typename U>
@@ -75,14 +70,14 @@ public:
     // Get the stored node pointer.
     T *ptr() const { return std::get<T *>(result); }
 
-    // Get the stored ParserError object.
-    const ParserError &error() const { return std::get<ParserError>(result); }
+    // Get the stored ParseError object.
+    const ParseError &error() const { return std::get<ParseError>(result); }
 
     // Is this result successful?
     bool success() { return std::holds_alternative<T *>(result); }
 
 private:
-    std::variant<T *, ParserError> result;
+    std::variant<T *, ParseError> result;
 };
 
 using StmtResult = ParserResult<Stmt>;
@@ -93,8 +88,8 @@ class Parser {
     Lexer &lexer;                     // associated lexer
     Token tok;                        // lookahead token
     std::vector<AstNode *> nodes;     // node pointer pool
-    std::vector<ParserError> errors;  // error list
-    std::vector<ParserError> beacons; // error beacon list
+    std::vector<ParseError> errors;  // error list
+    std::vector<ParseError> beacons; // error beacon list
     NameTable names;                  // name table
     std::vector<Token> tokens;        // lexed tokens
     size_t look_index = 0;            // lookahead position in the cache
@@ -141,13 +136,10 @@ private:
     Expr *parse_binary_expr_rhs(Expr *lhs, int precedence = 0);
 
     // For testing.
-    std::vector<ParserError> parse_error_beacon();
+    std::vector<ParseError> parse_error_beacon();
 
     // Error nodes.
-    ParserError make_error(const std::string &msg) { return {locate(), msg}; }
-    BadStmt *stmt_error(const std::string &msg);
-    BadDecl *decl_error(const std::string &msg);
-    BadExpr *expr_error(const std::string &msg);
+    ParseError make_error(const std::string &msg) { return {locate(), msg}; }
 
     // Advance the lookahead token.
     void next();
