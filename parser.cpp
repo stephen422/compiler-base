@@ -67,7 +67,7 @@ bool Parser::expect(TokenKind kind, const std::string &msg = "") {
     if (!look().is(kind)) {
         std::string s = msg;
         if (msg.empty()) {
-            s = fmt::format("expected '{}', got '{}'",
+            s = fmt::format("expected '{}', found '{}'",
                             tokentype_to_string(kind),
                             tokentype_to_string(look().kind));
         }
@@ -112,8 +112,6 @@ Stmt *Parser::parse_stmt() {
     }
     skip_newlines();
 
-    // TODO: BadStmt
-    assert(stmt);
     return stmt;
 }
 
@@ -137,8 +135,13 @@ ReturnStmt *Parser::parse_return_stmt() {
 DeclStmt *Parser::parse_decl_stmt() {
     auto decl = parse_decl();
     if (!expect_end_of_stmt()) {
-        // parse_decl() failed somewhere, try to recover
-        skip_until_end_of_line();
+        if (decl->kind == AstKind::bad_decl) {
+            // try to recover
+            skip_until_end_of_line();
+        } else {
+            // TODO: errorExpected for 'found '''
+            errors.push_back(make_error("expected end of declaration"));
+        }
     }
     return make_node<DeclStmt>(decl);
 }
@@ -257,8 +260,7 @@ StructDecl *Parser::parse_struct_decl() {
 
     auto fields = parse_var_decl_list();
 
-    expect(TokenKind::rbrace, "unterminated struct member declaration");
-    // TODO: BadDecl
+    expect(TokenKind::rbrace, "unterminated struct declaration");
 
     return make_node<StructDecl>(name, fields);
 }
@@ -305,8 +307,9 @@ Decl *Parser::parse_decl() {
         next();
         return parse_var_decl();
     default:
-        errors.push_back(make_error("not a start of a declaration"));
+        assert(false && "not a start of a declaration");
     }
+    // unreachable
     return nullptr;
 }
 
@@ -500,28 +503,37 @@ std::vector<ParseError> Parser::parse_error_beacon() {
     return v;
 }
 
-void Parser::compare_errors() const {
+void Parser::compareErrors() const {
     bool success = true;
 
     fmt::print("TEST {}:\n", lexer.source().filename);
 
-    size_t i = 0;
-    for (; i < errors.size() && i < beacons.size(); i++) {
-        std::string stripped{std::cbegin(beacons[i].message) + 1,
-                             std::cend(beacons[i].message) - 1};
-        std::regex regex{stripped};
-        if (!std::regex_search(errors[i].message, regex)) {
+    size_t i = 0, j = 0;
+    while (i < errors.size() && j < beacons.size()) {
+        auto &error = errors[i];
+        auto &beacon = beacons[j];
+        if (error.loc.line == beacon.loc.line) {
+            std::string stripped{std::cbegin(beacon.message) + 1,
+                                 std::cend(beacon.message) - 1};
+            std::regex regex{stripped};
+            if (!std::regex_search(error.message, regex)) {
+                success = false;
+                fmt::print("< {}\n> {}\n", error, beacon);
+            }
+            if (i < errors.size())
+                i++;
+            if (j < beacons.size())
+                j++;
+        } else if (error.loc.line < beacon.loc.line) {
             success = false;
-            fmt::print("< {}\n> {}\n", errors[i], beacons[i]);
-        }
-    }
-    if (errors.size() != beacons.size()) {
-        success = false;
-        bool left = errors.size() > beacons.size();
-        size_t max = left ? errors.size() : beacons.size();
-        char arrow = left ? '<' : '>';
-        for (; i < max; i++) {
-            fmt::print("{} {}\n", arrow, left ? errors[i] : beacons[i]);
+            fmt::print("< {}\n", error);
+            if (i < errors.size())
+                i++;
+        } else {
+            success = false;
+            fmt::print("> {}\n", beacon);
+            if (j < beacons.size())
+                j++;
         }
     }
 

@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
     auto ast = p.parse();
     ast.root->print();
     p.report();
-    p.compare_errors();
+    p.compareErrors();
     // Semantics sema{src, ast.name_table};
     // fmt::print("After parsing:\n");
     // semantic_analyze(sema, ast);

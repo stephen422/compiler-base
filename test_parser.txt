@@ -2,6 +2,7 @@ fn main() {
     let a = 3 + 4
     let b int
     let c: &int // [error: "expected.*type"]
+    let c int blah
 
     b a // [error: "expected.*="]
     b = a

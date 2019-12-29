@@ -104,7 +104,7 @@ public:
     void report() const;
 
     // Compare errors against beacons for testing.
-    void compare_errors() const;
+    void compareErrors() const;
 
 private:
     // Parse the whole file.
