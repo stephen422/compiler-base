@@ -70,10 +70,8 @@ public:
     // TODO: AST is traversed at least twice, i.e. once for semantic analysis
     // and once for IR generation.  So there should be a generic way to
     // traverse it; maybe pass in a lambda that does work for a single node?
-    virtual void traverse(Semantics &sema) = 0;
-    // Convenience method for downcasting.
-    template <typename T> constexpr T *as() {
-        return static_cast<T *>(this);
+    virtual void traverse(Semantics &sema) {
+        (void)sema; // squelch unused warning
     }
 
     // Convenience ostream for AST printing.
@@ -179,7 +177,6 @@ class BadStmt : public Stmt {
 public:
     BadStmt() : Stmt(AstKind::bad_stmt) {}
     void print() const override;
-    void traverse(Semantics &sema) override;
 };
 
 
@@ -275,7 +272,6 @@ class BadExpr : public Expr {
 public:
     BadExpr() : Expr(AstKind::bad_expr) {}
     void print() const override;
-    void traverse(Semantics &sema) override;
 };
 
 // ================
@@ -348,7 +344,6 @@ class BadDecl : public Decl {
 public:
     BadDecl() : Decl(AstKind::bad_decl) {}
     void print() const override;
-    void traverse(Semantics &sema) override;
 };
 
 void test(Semantics &sema);
