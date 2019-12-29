@@ -36,8 +36,27 @@ Parser::~Parser() {
     }
 }
 
+// In the course of this, if an error beacon is found in the comment, add the
+// error to the parser error list so that it can be compared to the actual
+// errors later in the testing phase.
 void Parser::next() {
     if (!tokens[look_index].is(TokenKind::eos)) {
+        if (look().is(TokenKind::comment)) {
+            std::string_view beacon{"[error:"};
+            auto found = look().text.find(beacon);
+            if (found != std::string_view::npos) {
+                auto bracket = look().text.substr(found);
+                Source s{std::string{bracket}};
+                Lexer l{s};
+                Parser p{l};
+                auto v = p.parse_error_beacon();
+                // This is from a new parser, need to override location
+                for (auto &e : v) {
+                    e.loc = locate();
+                    beacons.push_back(e);
+                }
+            }
+        }
         look_index++;
     }
 }
@@ -116,8 +135,8 @@ ReturnStmt *Parser::parse_return_stmt() {
 DeclStmt *Parser::parse_decl_stmt() {
     auto decl = parse_decl();
     if (!expect_end_of_stmt()) {
-        assert(false);
-        return nullptr;
+        // parse_decl() failed somewhere, try to recover
+        skip_until_end_of_stmt();
     }
     return make_node<DeclStmt>(decl);
 }
@@ -170,7 +189,7 @@ CompoundStmt *Parser::parse_compound_stmt() {
     return compound;
 }
 
-VarDecl *Parser::parse_var_decl() {
+Decl *Parser::parse_var_decl() {
     auto start_pos = look().pos;
 
     Name *name = names.get_or_add(std::string{look().text});
@@ -182,18 +201,23 @@ VarDecl *Parser::parse_var_decl() {
         auto assignexpr = parse_expr();
         return make_node_with_pos<VarDecl>(start_pos, assignexpr->end_pos, name,
                                            nullptr, assignexpr);
-    } else {
-        // TODO: is_possible_typename
-        // a type
+    } else if (is_start_of_typeexpr()) {
+        // Instead of checking for is_start_of_typeexpr here, we can leave
+        // everything to parse_type_expr, but then things like "a:" would be
+        // considered a valid VarDecl (albeit with a bad TypeExpr) which is
+        // iffy at best.
         auto typeexpr = parse_type_expr();
         return make_node_with_pos<VarDecl>(start_pos, typeexpr->end_pos, name,
                                            typeexpr, nullptr);
+    } else {
+        errors.push_back(make_error("expected type name"));
+        return make_node_with_pos<BadDecl>(start_pos, look().pos);
     }
 }
 
 // This doesn't include the enclosing parentheses or braces.
-std::vector<VarDecl *> Parser::parse_var_decl_list() {
-    std::vector<VarDecl *> decls;
+std::vector<Decl *> Parser::parse_var_decl_list() {
+    std::vector<Decl *> decls;
 
     while (true) {
         skip_newlines();
@@ -310,9 +334,15 @@ DeclRefExpr *Parser::parse_declref_expr() {
     return ref_expr;
 }
 
+bool Parser::is_start_of_typeexpr() const {
+    return look().is(TokenKind::quote) || look().is(TokenKind::ampersand) ||
+           look().is_identifier_or_keyword();
+}
+
 Expr *Parser::parse_type_expr() {
     auto typeExpr = make_node<TypeExpr>();
 
+    assert(is_start_of_typeexpr());
     typeExpr->start_pos = look().pos;
 
     // Mutable type?
@@ -490,33 +520,22 @@ void Parser::compare_errors() const {
         fmt::print("FAIL {}\n", lexer.source().filename);
 }
 
+void Parser::skip_until(TokenKind kind) {
+    while (!look().is(kind))
+        next();
+}
+
+void Parser::skip_until_end_of_stmt() {
+    while (!is_end_of_stmt())
+        next();
+}
+
 // The language is newline-aware, but newlines are mostly meaningless unless
 // they are at the end of a statement or a declaration.  In those cases we use
 // this to skip over them.
-//
-// In the course of this, if an error beacon is found in the comment, add the
-// error to the parser error list so that it can be compared to the actual
-// errors later in the testing phase.
 void Parser::skip_newlines() {
-    while (look().is(TokenKind::newline) || look().is(TokenKind::comment)) {
-        if (look().is(TokenKind::comment)) {
-            std::string_view beacon{"[error:"};
-            auto found = look().text.find(beacon);
-            if (found != std::string_view::npos) {
-                auto bracket = look().text.substr(found);
-                Source s{std::string{bracket}};
-                Lexer l{s};
-                Parser p{l};
-                auto v = p.parse_error_beacon();
-                // This is from a new parser, need to override location
-                for (auto &e : v) {
-                    e.loc = locate();
-                    beacons.push_back(e);
-                }
-            }
-        }
+    while (look().is(TokenKind::newline) || look().is(TokenKind::comment))
         next();
-    }
 }
 
 AstNode *Parser::parse_toplevel() {

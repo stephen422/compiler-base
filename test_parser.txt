@@ -1,11 +1,11 @@
 fn main() {
     let a = 3 + 4
-    let b int // [error: "expected.*:"]
+    let b int
+    let c: &int // [error: expected.*type]
     b = a
 
     1 * 2 + 3 + 4 * 5
     3 + (a - (b + a * 3)) * 2
 
-    let c: &int
     c = &b
 }

@@ -124,8 +124,8 @@ private:
 
     // Declaration parsers.
     Decl *parse_decl();
-    std::vector<VarDecl *> parse_var_decl_list();
-    VarDecl *parse_var_decl();
+    std::vector<Decl *> parse_var_decl_list();
+    Decl *parse_var_decl();
     StructDecl *parse_struct_decl();
     FuncDecl *parse_func_decl();
     bool is_start_of_decl() const;
@@ -137,6 +137,7 @@ private:
     DeclRefExpr *parse_declref_expr();
     Expr *parse_type_expr();
     Expr *parse_binary_expr_rhs(Expr *lhs, int precedence = 0);
+    bool is_start_of_typeexpr() const;
 
     // For testing.
     std::vector<ParseError> parse_error_beacon();
@@ -154,6 +155,9 @@ private:
     void expect(TokenKind kind, const std::string &msg);
     bool expect_end_of_stmt();
 
+    // Skip until a specific token(s) show up.
+    void skip_until(TokenKind kind);
+    void skip_until_end_of_stmt();
     void skip_newlines();
 
     template <typename T, typename... Args> T *make_node(Args &&... args)
