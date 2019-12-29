@@ -1,11 +1,20 @@
 fn main() {
     let a = 3 + 4
     let b int
-    let c: &int // [error: expected.*type]
+    let c: &int // [error: "expected.*type"]
+
+    b a // [error: "expected.*="]
     b = a
 
     1 * 2 + 3 + 4 * 5
     3 + (a - (b + a * 3)) * 2
 
     c = &b
+
 }
+
+struct Car // [error: "expected.*\{"]
+    a: i64, // [error: "expected.*type"]
+    b int
+    c int, // comma is permitted
+// [error: "unterminated struct"]

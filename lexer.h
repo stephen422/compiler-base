@@ -3,8 +3,6 @@
 #define LEXER_H
 
 #include "source.h"
-#include "fmt/core.h"
-#include "fmt/format.h"
 #include <algorithm>
 #include <map>
 #include <string>

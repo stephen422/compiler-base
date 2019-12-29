@@ -152,12 +152,13 @@ private:
     const Token look() const;
 
     // Expect and consume functions.
-    void expect(TokenKind kind, const std::string &msg);
+    bool expect(TokenKind kind, const std::string &msg);
     bool expect_end_of_stmt();
 
     // Skip until a specific token(s) show up.
     void skip_until(TokenKind kind);
-    void skip_until_end_of_stmt();
+    void skip_until(const std::vector<TokenKind> &kinds);
+    void skip_until_end_of_line();
     void skip_newlines();
 
     template <typename T, typename... Args> T *make_node(Args &&... args)
@@ -187,8 +188,7 @@ template <> struct fmt::formatter<cmp::ParseError> {
 
     template <typename FormatContext>
     auto format(const cmp::ParseError &e, FormatContext &ctx) {
-        return format_to(ctx.out(), "{}:{}:{}: parse error: {}", e.loc.filename,
-                         e.loc.line, e.loc.col, e.message);
+        return format_to(ctx.out(), "{}: parse error: {}", e.loc, e.message);
     }
 };
 

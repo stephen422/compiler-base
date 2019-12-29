@@ -63,7 +63,7 @@ void Parser::next() {
 
 const Token Parser::look() const { return tokens[look_index]; }
 
-void Parser::expect(TokenKind kind, const std::string &msg = "") {
+bool Parser::expect(TokenKind kind, const std::string &msg = "") {
     if (!look().is(kind)) {
         std::string s = msg;
         if (msg.empty()) {
@@ -72,8 +72,10 @@ void Parser::expect(TokenKind kind, const std::string &msg = "") {
                             tokentype_to_string(look().kind));
         }
         errors.push_back(make_error(s));
+        return false;
     }
     next();
+    return true;
 }
 
 bool Parser::expect_end_of_stmt() {
@@ -136,7 +138,7 @@ DeclStmt *Parser::parse_decl_stmt() {
     auto decl = parse_decl();
     if (!expect_end_of_stmt()) {
         // parse_decl() failed somewhere, try to recover
-        skip_until_end_of_stmt();
+        skip_until_end_of_line();
     }
     return make_node<DeclStmt>(decl);
 }
@@ -153,8 +155,10 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
 
     // AssignStmt: expression is followed by equals
     // (anything else is treated as an error)
-    expect(TokenKind::equals);
-    // TODO
+    if (!expect(TokenKind::equals)) {
+        skip_until_end_of_line();
+        return make_node_with_pos<BadStmt>(start_pos, look().pos);
+    }
 
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
@@ -178,10 +182,6 @@ CompoundStmt *Parser::parse_compound_stmt() {
         if (look().is(TokenKind::rbrace))
             break;
         auto stmt = parse_stmt();
-        if (!stmt) {
-            // per-stmt error check
-            // TODO
-        }
         compound->stmts.push_back(stmt);
     }
 
@@ -215,20 +215,30 @@ Decl *Parser::parse_var_decl() {
     }
 }
 
-// This doesn't include the enclosing parentheses or braces.
+// This doesn't include enclosing parentheses or braces.
 std::vector<Decl *> Parser::parse_var_decl_list() {
     std::vector<Decl *> decls;
 
     while (true) {
+        Decl *decl = nullptr;
         skip_newlines();
-        if (!look().is(TokenKind::ident)) {
+        if (!look().is(TokenKind::ident))
             break;
+
+        decl = parse_var_decl();
+        decls.push_back(decl);
+
+        if (decl->kind == AstKind::bad_decl) {
+            // Determining where each decl ends is a little tricky.
+            // We could test for every tokens that are either (1) separator
+            // tokens, i.e. comma, newline, or (2) used to enclose a decl list,
+            // i.e. parentheses and braces.
+            skip_until({TokenKind::comma, TokenKind::newline, TokenKind::rparen,
+                        TokenKind::rbrace});
         }
-        decls.push_back(parse_var_decl());
-        if (!look().is(TokenKind::comma)) {
-            break;
+        if (look().is(TokenKind::comma)) {
+            next();
         }
-        next();
     }
     skip_newlines();
 
@@ -238,18 +248,19 @@ std::vector<Decl *> Parser::parse_var_decl_list() {
 StructDecl *Parser::parse_struct_decl() {
     expect(TokenKind::kw_struct);
 
+    // TODO check ident
     Name *name = names.get_or_add(std::string{look().text});
     next();
 
-    expect(TokenKind::lbrace);
-    // TODO: BadDecl
+    if (!expect(TokenKind::lbrace))
+        skip_until_end_of_line();
 
-    auto members = parse_var_decl_list();
+    auto fields = parse_var_decl_list();
 
     expect(TokenKind::rbrace, "unterminated struct member declaration");
     // TODO: BadDecl
 
-    return make_node<StructDecl>(name, members);
+    return make_node<StructDecl>(name, fields);
 }
 
 FuncDecl *Parser::parse_func_decl() {
@@ -525,7 +536,17 @@ void Parser::skip_until(TokenKind kind) {
         next();
 }
 
-void Parser::skip_until_end_of_stmt() {
+void Parser::skip_until(const std::vector<TokenKind> &kinds) {
+    while (true) {
+        for (auto kind : kinds) {
+            if (look().is(kind))
+                return;
+        }
+        next();
+    }
+}
+
+void Parser::skip_until_end_of_line() {
     while (!is_end_of_stmt())
         next();
 }
@@ -544,9 +565,8 @@ AstNode *Parser::parse_toplevel() {
     switch (look().kind) {
     case TokenKind::kw_fn:
         return parse_func_decl();
-    case TokenKind::kw_struct: {
+    case TokenKind::kw_struct:
         return parse_struct_decl();
-    }
     default:
         assert(false && "unreachable");
     }

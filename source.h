@@ -2,6 +2,8 @@
 #ifndef SOURCE_H
 #define SOURCE_H
 
+#include "fmt/core.h"
+#include "fmt/format.h"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -48,5 +50,15 @@ public:
 };
 
 } // namespace cmp
+
+template <> struct fmt::formatter<cmp::SourceLoc> {
+    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
+
+    template <typename FormatContext>
+    auto format(const cmp::SourceLoc &loc, FormatContext &ctx) {
+        return format_to(ctx.out(), "{}:{}:{}", loc.filename, loc.line,
+                         loc.col);
+    }
+};
 
 #endif
