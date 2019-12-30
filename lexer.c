@@ -80,6 +80,7 @@ struct token_map keywords[] = {
 	{"if", TOK_IF},
 	{"else", TOK_ELSE},
 	{"for", TOK_FOR},
+	{"error", TOK_ERROR},
 	{NULL, 0}
 };
 
@@ -129,11 +130,22 @@ static void step(Lexer *l)
 int lexerInit(Lexer *l, const char *filename)
 {
 	memset(l, 0, sizeof(Lexer));
-	l->filename = malloc(256);
+	l->filename = calloc(256, 1);
 	l->filename = memcpy(l->filename, filename, 255);
-	l->filename[255] = '\0';
 	l->src = readfile(filename, &l->srclen);
 	step(l);
+	return 1;
+}
+
+int lexerInitText(Lexer *l, const char *text, size_t len)
+{
+	memset(l, 0, sizeof(Lexer));
+	l->filename = calloc(256, 1);
+	l->filename = strncpy(l->filename, "(null)", 255);
+        l->srclen = len;
+        l->src = calloc(len + 1, 1);
+        strncpy(l->src, text, len);
+        step(l);
 	return 1;
 }
 
@@ -290,7 +302,7 @@ SrcLoc locate(Lexer *l, size_t pos)
 	return (SrcLoc) {line + 1, col};
 }
 
-void printToken(Lexer *lex, const Token tok)
+void tokenPrint(Lexer *lex, const Token tok)
 {
 	switch (tok.type) {
 	case TOK_IDENT:

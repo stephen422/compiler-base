@@ -56,6 +56,7 @@ typedef enum TokenType {
     TOK_IF,
     TOK_ELSE,
     TOK_FOR,
+    TOK_ERROR,
 
     TOK_ERR,
     NUM_TOKENTYPES
@@ -100,10 +101,11 @@ typedef struct Lexer {
 } Lexer;
 
 void token_free(Token *t);
-void printToken(Lexer *l, const Token t);
+void tokenPrint(Lexer *l, const Token t);
 int is_keyword(Token tok);
 SrcLoc locate(Lexer *l, size_t pos);
 int lexerInit(Lexer *l, const char *filename);
+int lexerInitText(Lexer *l, const char *text, size_t len);
 int lexerNext(Lexer *l);
 void lexerCleanup(Lexer *l);
 

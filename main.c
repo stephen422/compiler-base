@@ -11,7 +11,7 @@ void test_lexer(const char *filename)
 
     while (lexerNext(&lex) == 0) {
         printf("pos %ld/%ld: ", lex.tok.range.start, lex.srclen);
-        printToken(&lex, lex.tok);
+        tokenPrint(&lex, lex.tok);
     }
 
     printf("file size: %ld\n", lex.off);
@@ -30,8 +30,9 @@ int main(int argc, char **argv)
     Parser p;
     parserInit(&p, argv[1]);
     Node *root = parse(&p);
-    printAst(&p, root);
-    sema(&p.nametable, root);
+    parserVerify(&p);
+    // printAst(&p, root);
+    // sema(&p.nametable, root);
     parserCleanup(&p);
     return 0;
 }

@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdio.h>
+#include <assert.h>
 
 static Node *parse_expr(Parser *p);
 static int is_decl_start(Parser *p);
@@ -154,7 +155,7 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
 		}
 		break;
 	case ND_TOKEN:
-		printToken(&p->lexer, node->token);
+		tokenPrint(&p->lexer, node->token);
 		break;
 	case ND_DECLSTMT:
 		printf("[DeclStmt]\n");
@@ -196,13 +197,13 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
 		printf("[LiteralExpr] ");
 		switch (node->token.type) {
 		case TOK_IDENT:
-			printToken(&p->lexer, node->token);
+			tokenPrint(&p->lexer, node->token);
 			break;
 		case TOK_NUM:
-			printToken(&p->lexer, node->token);
+			tokenPrint(&p->lexer, node->token);
 			break;
 		default:
-			printToken(&p->lexer, node->token);
+			tokenPrint(&p->lexer, node->token);
 			break;
 		}
 		break;
@@ -257,12 +258,18 @@ void printAst(Parser *p, const Node *node)
 	print_ast_indent(p, node, 0);
 }
 
-void parserInit(Parser *p, const char *filename)
-{
-	memset(p, 0, sizeof(Parser));
-	lexerInit(&p->lexer, filename);
-	lexerNext(&p->lexer);
-        p->tok = p->lexer.tok;
+void parserInit(Parser *p, const char *filename) {
+    memset(p, 0, sizeof(Parser));
+    lexerInit(&p->lexer, filename);
+    lexerNext(&p->lexer);
+    p->tok = p->lexer.tok;
+}
+
+void parserInitText(Parser *p, const char *text, size_t len) {
+    memset(p, 0, sizeof(Parser));
+    lexerInitText(&p->lexer, text, len);
+    lexerNext(&p->lexer);
+    p->tok = p->lexer.tok;
 }
 
 static void nametable_cleanup(NameTable *nt)
@@ -298,6 +305,11 @@ void parserCleanup(Parser *p)
                 free(p->errors[i].msg);
         sb_free(p->errors);
 
+        for (int i = 0; i < sb_count(p->beacons); i++)
+            if (p->beacons[i].msg)
+                free(p->beacons[i].msg);
+        sb_free(p->beacons);
+
 	lexerCleanup(&p->lexer);
 	sb_free(p->nodep_buf);
 	nametable_cleanup(&p->nametable);
@@ -312,20 +324,20 @@ static void next(Parser *p) {
         p->tok = p->lexer.tok;
 
         if (p->tok.type == TOK_COMMENT) {
+            // TODO: strnstr?
             size_t len = p->tok.range.end - p->tok.range.start;
             char *text = calloc(len + 1, 1);
             strncpy(text, p->lexer.src + p->tok.range.start, len);
-            if (strstr(text, "[error:")) {
-            //     auto bracket = look().text.substr(found);
-            //     Source s{std::string{bracket}};
-            //     Lexer l{s};
-            //     Parser p{l};
-            //     auto v = p.parse_error_beacon();
-            //     // This is from a new parser, need to override location
-            //     for (auto &e : v) {
-            //         e.loc = locate();
-            //         beacons.push_back(e);
-            //     }
+            char *found = strstr(text, "[error:");
+            if (found) {
+                Parser p0;
+                parserInitText(&p0, found, len - (found - text));
+                Error e = parseErrorBeacon(&p0);
+                parserCleanup(&p0);
+
+                // override loc
+                e.loc = locate(&p->lexer, p->tok.range.start);
+                sb_push(p->beacons, e);
             }
             free(text);
         }
@@ -767,6 +779,29 @@ static Node *parse_funcdecl(Parser *p)
 
 // TODO
 void parserVerify(Parser *p) {
+    for (int i = 0; i < sb_count(p->beacons); i++) {
+        printf("Beacon: %s\n", p->beacons[i].msg);
+    }
+}
+
+static void printCurrentLocation(Parser *p) {
+    SrcLoc loc = locate(&p->lexer, p->tok.range.start);
+    printf("loc: %s:%d:%d\n", p->lexer.filename, loc.line, loc.col);
+}
+
+// Parse a single error beacon ([error: "regex"]).
+Error parseErrorBeacon(Parser *p) {
+    expect(p, TOK_LBRACKET);
+    expect(p, TOK_ERROR);
+    expect(p, TOK_COLON);
+
+    printf("token type=%d\n", p->tok.type);
+    tokenPrint(&p->lexer, p->tok);
+
+    return (Error){
+        .loc = {0}, // overrided
+        .msg = 0,
+    };
 }
 
 Node *parse(Parser *p)
