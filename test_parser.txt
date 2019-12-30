@@ -2,7 +2,7 @@ fn main() {
     let a = 3 + 4
     let b int
     let c: &int // [error: "expected.*type"]
-    let c int blah
+    let c int blah // [error: "expected end of decl"]
 
     b a // [error: "expected.*="]
     b = a
