@@ -5,3 +5,4 @@ build/
 qc
 .*.swp
 tags
+compile_commands.json
