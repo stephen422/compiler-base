@@ -73,6 +73,8 @@ typedef struct {
     size_t end;   // end position in the source
 } SrcRange;
 
+// Making Tokens store source ranges instead of string memory blocks makes
+// passing them around easy.
 typedef struct Token {
     TokenType type;
     SrcRange range;
@@ -98,11 +100,11 @@ typedef struct Lexer {
 } Lexer;
 
 void token_free(Token *t);
-void print_token(Lexer *l, const Token t);
+void printToken(Lexer *l, const Token t);
 int is_keyword(Token tok);
 SrcLoc locate(Lexer *l, size_t pos);
-int lexer_init(Lexer *l, const char *filename);
-int lexer_next(Lexer *l);
-void lexer_free(Lexer *l);
+int lexerInit(Lexer *l, const char *filename);
+int lexerNext(Lexer *l);
+void lexerCleanup(Lexer *l);
 
 #endif

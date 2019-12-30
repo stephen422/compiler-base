@@ -154,7 +154,7 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
 		}
 		break;
 	case ND_TOKEN:
-		print_token(&p->lexer, node->token);
+		printToken(&p->lexer, node->token);
 		break;
 	case ND_DECLSTMT:
 		printf("[DeclStmt]\n");
@@ -196,13 +196,13 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
 		printf("[LiteralExpr] ");
 		switch (node->token.type) {
 		case TOK_IDENT:
-			print_token(&p->lexer, node->token);
+			printToken(&p->lexer, node->token);
 			break;
 		case TOK_NUM:
-			print_token(&p->lexer, node->token);
+			printToken(&p->lexer, node->token);
 			break;
 		default:
-			print_token(&p->lexer, node->token);
+			printToken(&p->lexer, node->token);
 			break;
 		}
 		break;
@@ -252,16 +252,16 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
 	}
 }
 
-void print_ast(Parser *p, const Node *node)
+void printAst(Parser *p, const Node *node)
 {
 	print_ast_indent(p, node, 0);
 }
 
-void parser_init(Parser *p, const char *filename)
+void parserInit(Parser *p, const char *filename)
 {
 	memset(p, 0, sizeof(Parser));
-	lexer_init(&p->lexer, filename);
-	lexer_next(&p->lexer);
+	lexerInit(&p->lexer, filename);
+	lexerNext(&p->lexer);
         p->tok = p->lexer.tok;
 }
 
@@ -278,7 +278,7 @@ static void nametable_cleanup(NameTable *nt)
 	}
 }
 
-void parser_cleanup(Parser *p)
+void parserCleanup(Parser *p)
 {
 	// Free all nodes.
 	// Some nodes have children nodes, reap them as well.
@@ -293,8 +293,13 @@ void parser_cleanup(Parser *p)
 		}
 	}
 
+        for (int i = 0; i < sb_count(p->errors); i++)
+            if (p->errors[i].msg)
+                free(p->errors[i].msg);
+        sb_free(p->errors);
+
+	lexerCleanup(&p->lexer);
 	sb_free(p->nodep_buf);
-	lexer_free(&p->lexer);
 	nametable_cleanup(&p->nametable);
 }
 
@@ -303,14 +308,14 @@ void parser_cleanup(Parser *p)
 // in the verifying phase.
 static void next(Parser *p) {
     if (p->lexer.tok.type != TOK_EOF) {
-        lexer_next(&p->lexer);
+        lexerNext(&p->lexer);
         p->tok = p->lexer.tok;
 
         if (p->tok.type == TOK_COMMENT) {
-            printf("alright, found a comment\n");
-            // std::string_view beacon{"[error:"};
-            // auto found = look().text.find(beacon);
-            // if (found != std::string_view::npos) {
+            size_t len = p->tok.range.end - p->tok.range.start;
+            char *text = calloc(len + 1, 1);
+            strncpy(text, p->lexer.src + p->tok.range.start, len);
+            if (strstr(text, "[error:")) {
             //     auto bracket = look().text.substr(found);
             //     Source s{std::string{bracket}};
             //     Lexer l{s};
@@ -321,7 +326,8 @@ static void next(Parser *p) {
             //         e.loc = locate();
             //         beacons.push_back(e);
             //     }
-            // }
+            }
+            free(text);
         }
 
         // Push keywords that we come by into the name table.
@@ -366,15 +372,24 @@ static void error_expected(Parser *p, TokenType t)
 	error(p, "expected '%s', got '%s'", token_names[t], token_names[p->tok.type]);
 }
 
-static Token expect(Parser *p, TokenType t)
-{
-	Token tok = p->tok;
-	if (p->tok.type != t) {
-		error_expected(p, t);
-	}
-	// make progress
-	next(p);
-	return tok;
+static Token expect(Parser *p, TokenType t) {
+    Token tok = p->tok;
+    if (p->tok.type != t) {
+        error_expected(p, t);
+    }
+    // make progress
+    next(p);
+    return tok;
+}
+
+void expectEndOfLine(Parser *p) {
+    Token tok = p->tok;
+    if (p->tok.type != TOK_NEWLINE && p->tok.type != TOK_COMMENT) {
+        // FIXME error message
+        error_expected(p, TOK_NEWLINE);
+    }
+    // make progress
+    next(p);
 }
 
 static int success(Parser *p)
@@ -405,22 +420,21 @@ static Node *parse_returnstmt(Parser *p)
 	if (!expr)
 		error(p, "expected expression");
 
-	expect(p, TOK_NEWLINE);
+        expectEndOfLine(p);
 
 	return make_retstmt(p, expr);
 }
 
-static void skip_invisibles(Parser *p)
-{
-	while (p->tok.type == TOK_NEWLINE)
-		next(p);
+static void skipInvisibles(Parser *p) {
+    while (p->tok.type == TOK_NEWLINE || p->tok.type == TOK_COMMENT)
+        next(p);
 }
 
 static Node *parse_stmt(Parser *p)
 {
     Node *stmt;
 
-    skip_invisibles(p);
+    skipInvisibles(p);
 
     // try all possible productions and use the first successful one
     switch (p->tok.type) {
@@ -437,7 +451,7 @@ static Node *parse_stmt(Parser *p)
     if (is_decl_start(p)) {
         Node *decl = parse_decl(p);
         stmt = make_decl_stmt(p, decl);
-        expect(p, TOK_NEWLINE);
+        expectEndOfLine(p);
         return stmt;
     }
 
@@ -760,12 +774,12 @@ Node *parse(Parser *p)
 	Node **nodes = NULL;
 	Node *func;
 
-	skip_invisibles(p);
+	skipInvisibles(p);
 
 	// TODO: proper toplevel parsing.
 	while ((func = parse_funcdecl(p))) {
 		sb_push(nodes, func);
-		skip_invisibles(p);
+		skipInvisibles(p);
 	}
 
 	return make_file(p, nodes);

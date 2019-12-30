@@ -126,7 +126,7 @@ static void step(Lexer *l)
 	}
 }
 
-int lexer_init(Lexer *l, const char *filename)
+int lexerInit(Lexer *l, const char *filename)
 {
 	memset(l, 0, sizeof(Lexer));
 	l->filename = malloc(256);
@@ -137,7 +137,7 @@ int lexer_init(Lexer *l, const char *filename)
 	return 1;
 }
 
-void lexer_free(Lexer *l)
+void lexerCleanup(Lexer *l)
 {
 	sb_free(l->line_offs);
 	free(l->filename);
@@ -228,7 +228,7 @@ static void lexSymbol(Lexer *l) {
 
 // Lex the next token and place it into l->token.
 // Return EOF if reached source EOF.
-int lexer_next(Lexer *l) {
+int lexerNext(Lexer *l) {
     for (;;) {
         l->start = l->off;
 
@@ -290,7 +290,7 @@ SrcLoc locate(Lexer *l, size_t pos)
 	return (SrcLoc) {line + 1, col};
 }
 
-void print_token(Lexer *lex, const Token tok)
+void printToken(Lexer *lex, const Token tok)
 {
 	switch (tok.type) {
 	case TOK_IDENT:

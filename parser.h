@@ -20,10 +20,9 @@ typedef struct {
 } Parser;
 
 void parser_push_name(Parser *p, Token tok);
-Name *parser_get_name(Parser *p, Token tok);
-void parser_init(Parser *p, const char *filename);
-void parser_cleanup(Parser *p);
+void parserInit(Parser *p, const char *filename);
+void parserCleanup(Parser *p);
 Node *parse(Parser *p);
-void print_ast(Parser *p, const Node *node);
+void printAst(Parser *p, const Node *node);
 
 #endif
