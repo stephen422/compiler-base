@@ -25,13 +25,13 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    // test_lexer(argv[1]);
+    test_lexer(argv[1]);
 
-    Parser p;
-    parser_init(&p, argv[1]);
-    Node *root = parse(&p);
-    print_ast(&p, root);
-    sema(&p.nametable, root);
-    parser_cleanup(&p);
+    // Parser p;
+    // parser_init(&p, argv[1]);
+    // Node *root = parse(&p);
+    // print_ast(&p, root);
+    // sema(&p.nametable, root);
+    // parser_cleanup(&p);
     return 0;
 }

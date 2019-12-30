@@ -6,7 +6,6 @@
 #include <string.h>
 #include <stdio.h>
 
-static Token look(Parser *p);
 static Node *parse_expr(Parser *p);
 static int is_decl_start(Parser *p);
 static Node *parse_decl(Parser *p);
@@ -299,28 +298,44 @@ void parser_cleanup(Parser *p)
 	nametable_cleanup(&p->nametable);
 }
 
+// In the process, if an error beacon is found in the comment, add the error to
+// the parser error list so that it can be compared to the actual errors later
+// in the verifying phase.
 static void next(Parser *p) {
     if (p->lexer.tok.type != TOK_EOF) {
         lexer_next(&p->lexer);
         p->tok = p->lexer.tok;
-    }
 
-    // Push keywords that we come by into the name table.
-    if (is_keyword(p->tok))
-        push_name_from_token(p, p->tok);
+        if (p->tok.type == TOK_COMMENT) {
+            printf("alright, found a comment\n");
+            // std::string_view beacon{"[error:"};
+            // auto found = look().text.find(beacon);
+            // if (found != std::string_view::npos) {
+            //     auto bracket = look().text.substr(found);
+            //     Source s{std::string{bracket}};
+            //     Lexer l{s};
+            //     Parser p{l};
+            //     auto v = p.parse_error_beacon();
+            //     // This is from a new parser, need to override location
+            //     for (auto &e : v) {
+            //         e.loc = locate();
+            //         beacons.push_back(e);
+            //     }
+            // }
+        }
+
+        // Push keywords that we come by into the name table.
+        if (is_keyword(p->tok))
+            push_name_from_token(p, p->tok);
+    }
 }
 
-static void add_error(Parser *p, SrcLoc loc, const char *msg)
+static void addError(Parser *p, SrcLoc loc, const char *msg)
 {
 	Error error = {.loc = loc};
 	error.msg = calloc(strlen(msg) + 1, 1);
 	strcpy(error.msg, msg);
 	sb_push(p->errors, error);
-}
-
-static void clear_error(Parser *p)
-{
-	sb_len(p->errors) = 0;
 }
 
 static void error(Parser *p, const char *fmt, ...)
@@ -332,8 +347,8 @@ static void error(Parser *p, const char *fmt, ...)
 	vsnprintf(msg, sizeof(msg), fmt, args);
 	va_end(args);
 
-	SrcLoc loc = locate_line_col(&p->lexer, p->tok.range.start);
-	add_error(p, loc, msg);
+	SrcLoc loc = locate(&p->lexer, p->tok.range.start);
+	addError(p, loc, msg);
 }
 
 void parser_report_errors(Parser *p)
@@ -614,11 +629,6 @@ static Node *parse_expr(Parser *p)
 	return expr;
 }
 
-static int is_paramdecl_start(Parser *p)
-{
-	return p->tok.type == TOK_IDENT;
-}
-
 static Node *parse_paramdecl(Parser *p)
 {
 	Token tok = expect(p, TOK_IDENT);
@@ -739,6 +749,10 @@ static Node *parse_funcdecl(Parser *p)
 	func->body = parse_compoundstmt(p);
 
 	return func;
+}
+
+// TODO
+void parserVerify(Parser *p) {
 }
 
 Node *parse(Parser *p)
