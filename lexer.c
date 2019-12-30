@@ -206,20 +206,35 @@ static void lexIdentOrKeyword(Lexer *l)
 	makeToken(l, TOK_IDENT);
 }
 
-static void skip_numbers(Lexer *l)
-{
-	while (isdigit(l->ch))
-		step(l);
+static void skipNumbers(Lexer *l) {
+    while (isdigit(l->ch))
+        step(l);
 }
 
-static void lexNumber(Lexer *l)
-{
-	skip_numbers(l);
-	if (l->ch == '.') {
-		step(l);
-		skip_numbers(l);
-	}
-	makeToken(l, TOK_NUM);
+static void lexNumber(Lexer *l) {
+    skipNumbers(l);
+    if (l->ch == '.') {
+        step(l);
+        skipNumbers(l);
+    }
+    makeToken(l, TOK_NUM);
+}
+
+static void lexString(Lexer *l) {
+    step(l); // opening "
+    while (l->ch != '\0') {
+        while (l->ch != '\\' && l->ch != '"')
+            step(l);
+        if (l->ch == '"') {
+            step(l); // closing "
+            break;
+        } else {
+            // escaped character '\x'
+            step(l);
+            step(l);
+        }
+    }
+    makeToken(l, TOK_STRING);
 }
 
 // NOTE: taken from ponyc
@@ -245,7 +260,7 @@ int lexerNext(Lexer *l) {
         l->start = l->off;
 
         switch (l->ch) {
-        case 0: {
+        case '\0': {
             makeToken(l, TOK_EOF);
             return EOF;
         }
@@ -253,6 +268,10 @@ int lexerNext(Lexer *l) {
         case '\t': {
             step(l);
             break;
+        }
+        case '"': {
+            lexString(l);
+            return 0;
         }
         case '/': {
             step(l);
@@ -307,7 +326,8 @@ void tokenPrint(Lexer *lex, const Token tok)
 	switch (tok.type) {
 	case TOK_IDENT:
         case TOK_COMMENT:
-        case TOK_NUM :
+        case TOK_NUM:
+        case TOK_STRING:
 		printf("'%.*s'\n", (int)(tok.range.end - tok.range.start), lex->src + tok.range.start);
 		break;
 	case TOK_ERR:
