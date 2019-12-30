@@ -775,11 +775,44 @@ static Node *parse_funcdecl(Parser *p)
 	return func;
 }
 
-// TODO
 void parserVerify(Parser *p) {
-    for (int i = 0; i < sb_count(p->beacons); i++) {
-        printf("Beacon: %s\n", p->beacons[i].msg);
+    int success = 1;
+    printf("TEST %s:\n", p->lexer.filename);
+
+    int i = 0, j = 0;
+    while (i < sb_count(p->errors) && j < sb_count(p->beacons)) {
+        Error error = p->errors[i];
+        Error beacon = p->beacons[j];
+        if (error.loc.line == beacon.loc.line) {
+            // TODO regex
+            success = 0;
+            printf("< %s\n> %s\n", error.msg, beacon.msg);
+            if (i < sb_count(p->errors))
+                i++;
+            if (j < sb_count(p->beacons))
+                j++;
+        } else if (error.loc.line < beacon.loc.line) {
+            success = 0;
+            printf("< %s\n", error.msg);
+            if (i < sb_count(p->errors))
+                i++;
+        } else {
+            success = 0;
+            printf("> %s\n", beacon.msg);
+            if (j < sb_count(p->beacons))
+                j++;
+        }
     }
+    for (; i < sb_count(p->errors); i++) {
+        success = 0;
+        printf("< %s\n", p->errors[i].msg);
+    }
+    for (; j < sb_count(p->beacons); j++) {
+        success = 0;
+        printf("> %s\n", p->beacons[j].msg);
+    }
+
+    printf("%s %s\n", success ? "SUCCESS" : "FAIL", p->lexer.filename);
 }
 
 static void printCurrentLocation(Parser *p) {
