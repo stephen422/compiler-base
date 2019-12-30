@@ -321,23 +321,30 @@ SrcLoc locate(Lexer *l, size_t pos)
 	return (SrcLoc) {line + 1, col};
 }
 
-void tokenPrint(Lexer *lex, const Token tok)
-{
-	switch (tok.type) {
-	case TOK_IDENT:
-        case TOK_COMMENT:
-        case TOK_NUM:
-        case TOK_STRING:
-		printf("'%.*s'\n", (int)(tok.range.end - tok.range.start), lex->src + tok.range.start);
-		break;
-	case TOK_ERR:
-		printf("error\n");
-		break;
-	default:
-		if (tok.type >= TOK_KEYWORDS)
-			printf("'%s'\n", token_names[tok.type]);
-		else
-			printf("'%s'\n", token_names[tok.type]);
-		break;
-	}
+char *tokenString(Lexer *lex, const Token tok) {
+    size_t len = tok.range.end - tok.range.start;
+    char *text = calloc(len + 1, 1);
+    strncpy(text, lex->src + tok.range.start, len);
+    return text;
+}
+
+void tokenPrint(Lexer *lex, const Token tok) {
+    switch (tok.type) {
+    case TOK_IDENT:
+    case TOK_COMMENT:
+    case TOK_NUM:
+    case TOK_STRING:
+        printf("'%.*s'\n", (int)(tok.range.end - tok.range.start),
+               lex->src + tok.range.start);
+        break;
+    case TOK_ERR:
+        printf("error\n");
+        break;
+    default:
+        if (tok.type >= TOK_KEYWORDS)
+            printf("'%s'\n", token_names[tok.type]);
+        else
+            printf("'%s'\n", token_names[tok.type]);
+        break;
+    }
 }

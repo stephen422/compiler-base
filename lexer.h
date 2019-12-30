@@ -101,6 +101,7 @@ typedef struct Lexer {
 } Lexer;
 
 void token_free(Token *t);
+char *tokenString(Lexer *lex, const Token tok);
 void tokenPrint(Lexer *l, const Token t);
 int is_keyword(Token tok);
 SrcLoc locate(Lexer *l, size_t pos);

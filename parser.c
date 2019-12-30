@@ -325,13 +325,11 @@ static void next(Parser *p) {
 
         if (p->tok.type == TOK_COMMENT) {
             // TODO: strnstr?
-            size_t len = p->tok.range.end - p->tok.range.start;
-            char *text = calloc(len + 1, 1);
-            strncpy(text, p->lexer.src + p->tok.range.start, len);
+            char *text = tokenString(&p->lexer, p->tok);
             char *found = strstr(text, "[error:");
             if (found) {
                 Parser p0;
-                parserInitText(&p0, found, len - (found - text));
+                parserInitText(&p0, found, strlen(found));
                 Error e = parseErrorBeacon(&p0);
                 parserCleanup(&p0);
 
@@ -795,12 +793,14 @@ Error parseErrorBeacon(Parser *p) {
     expect(p, TOK_ERROR);
     expect(p, TOK_COLON);
 
-    printf("token type=%d\n", p->tok.type);
-    tokenPrint(&p->lexer, p->tok);
+    char *msg = tokenString(&p->lexer, p->tok);
+    next(p);
+
+    expect(p, TOK_RBRACKET);
 
     return (Error){
         .loc = {0}, // overrided
-        .msg = 0,
+        .msg = msg,
     };
 }
 
