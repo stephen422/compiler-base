@@ -83,7 +83,7 @@ typedef struct SrcLoc {
 } SrcLoc;
 
 typedef struct Lexer {
-    Token token;       // currently lexed token
+    Token tok;         // currently lexed token
     char ch;           // lookahead character
     long off;          // lookahead character offset
     long rd_off;       // next read character offset

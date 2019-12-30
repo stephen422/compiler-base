@@ -10,8 +10,8 @@ void test_lexer(const char *filename)
     lexer_init(&lex, filename);
 
     while (lexer_next(&lex) == 0) {
-        printf("pos %ld/%ld: ", lex.token.range.start, lex.srclen);
-        print_token(&lex, lex.token);
+        printf("pos %ld/%ld: ", lex.tok.range.start, lex.srclen);
+        print_token(&lex, lex.tok);
     }
 
     printf("file size: %ld\n", lex.off);

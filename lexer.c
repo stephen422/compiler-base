@@ -160,9 +160,9 @@ static char lookn(Lexer *l, long n)
 
 static void make_token(Lexer *l, TokenType type)
 {
-	memset(&l->token, 0, sizeof(Token));
-	l->token.type = type;
-	l->token.range = (SrcRange) {l->start, l->off};
+	memset(&l->tok, 0, sizeof(Token));
+	l->tok.type = type;
+	l->tok.range = (SrcRange) {l->start, l->off};
 }
 
 void token_free(Token *t)
