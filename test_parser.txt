@@ -1,9 +1,17 @@
+// TODO:
+// function calls
+// struct declaration
+// struct fields
+
 fn main() {
     let a = 3 + 4
     let b: int
     let c &int // [error: "expected.*':'.*found '&'"]
     let c: int blah // [error: "expected end of decl.*blah"]
+    let d: & // [error: "expected type expression"]
+    let d: &mut // [error: "expected type name"]
     let d: &mut Car
+    let d: &mut Car Sedan // [error: "expected end of decl.*Sedan"]
 
     b a // [error: "expected.*="]
     b = a

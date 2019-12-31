@@ -52,6 +52,7 @@ enum class TokenKind {
     kw_struct,
     kw_let,
     kw_var,
+    kw_mut,
     kw_if,
     kw_else,
     kw_int,
@@ -104,6 +105,7 @@ const std::pair<std::string_view, TokenKind> keyword_map[] {
     {"struct", TokenKind::kw_struct},
     {"let", TokenKind::kw_let},
     {"var", TokenKind::kw_var},
+    {"mut", TokenKind::kw_mut},
     {"if", TokenKind::kw_if},
     {"else", TokenKind::kw_else},
     {"int", TokenKind::kw_int},
@@ -181,8 +183,10 @@ template <> struct fmt::formatter<cmp::Token> {
 
     template <typename FormatContext>
     auto format(const cmp::Token &tok, FormatContext &ctx) {
+        if (tok.kind == cmp::TokenKind::newline) {
+            return format_to(ctx.out(), "\\n");
+        }
         return format_to(ctx.out(), "{}", tok.text);
-        // return formatter<std::string_view>::format(tok.text, ctx);
     }
 };
 

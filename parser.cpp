@@ -357,24 +357,20 @@ DeclRefExpr *Parser::parse_declref_expr() {
 }
 
 bool Parser::is_start_of_typeexpr() const {
-    return tok.kind == TokenKind::quote || tok.kind == TokenKind::ampersand ||
-           tok.is_identifier_or_keyword();
+    return tok.kind == TokenKind::ampersand || tok.is_identifier_or_keyword();
 }
 
 // Parse a type expression.
 // A type expression is simply every stream of tokens in the source that can
 // represent a type.
+//
+// TypeExpr:
+//     '&' TypeExpr
+//     'mut'? ident
 Expr *Parser::parse_typeexpr() {
     auto typeexpr = make_node<TypeExpr>();
 
-    assert(is_start_of_typeexpr());
     typeexpr->start_pos = tok.pos;
-
-    // Mutable type?
-    if (tok.kind == TokenKind::quote) {
-        typeexpr->mut = true;
-        next();
-    }
 
     // Encode each type into a unique Name, so that they are easy to find in
     // the type table in the semantic analysis phase.
@@ -383,14 +379,24 @@ Expr *Parser::parse_typeexpr() {
         next();
         typeexpr->ref = true;
         typeexpr->subexpr = parse_typeexpr();
-        text = "&" + static_cast<TypeExpr *>(typeexpr->subexpr)->name->text;
+        if (typeexpr->subexpr->kind == AstKind::type_expr)
+            text = "&" + static_cast<TypeExpr *>(typeexpr->subexpr)->name->text;
     } else if (tok.is_identifier_or_keyword()) {
+        if (tok.kind == TokenKind::kw_mut) {
+            expect(TokenKind::kw_mut);
+            typeexpr->mut = true;
+        }
+        if (!tok.is_identifier_or_keyword()) {
+            // FIXME: type name? expression?
+            add_error_expected("type name");
+            return make_node_with_pos<BadExpr>(typeexpr->start_pos, tok.pos);
+        }
         typeexpr->ref = false;
         typeexpr->subexpr = nullptr;
         text = tok.text;
         next();
     } else {
-        add_error_expected("type name");
+        add_error_expected("type expression");
         return make_node_with_pos<BadExpr>(typeexpr->start_pos, tok.pos);
     }
 
