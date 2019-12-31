@@ -35,6 +35,11 @@ Parser::~Parser() {
     }
 }
 
+void Parser::add_error_expected(const std::string &msg) {
+    std::string s = fmt::format("expected {}, found '{}'", msg, tok);
+    add_error(s);
+}
+
 // In the course of this, if an error beacon is found in the comment, add the
 // error to the parser error list so that it can be compared to the actual
 // errors later in the testing phase.
@@ -112,7 +117,7 @@ Stmt *Parser::parse_stmt() {
     return stmt;
 }
 
-ReturnStmt *Parser::parse_return_stmt() {
+Stmt *Parser::parse_return_stmt() {
     auto start_pos = tok.pos;
 
     expect(TokenKind::kw_return);
@@ -121,8 +126,10 @@ ReturnStmt *Parser::parse_return_stmt() {
     Expr *expr = nullptr;
     if (!is_end_of_stmt())
         expr = parse_expr();
-    if (!expect_end_of_stmt())
-        assert(false);
+    if (!expect_end_of_stmt()) {
+        skip_until_end_of_line();
+        return make_node_with_pos<BadStmt>(start_pos, tok.pos);
+    }
     return make_node_with_pos<ReturnStmt>(start_pos, tok.pos, expr);
 }
 
@@ -135,7 +142,7 @@ DeclStmt *Parser::parse_decl_stmt() {
             skip_until_end_of_line();
         } else {
             // TODO: errorExpected for 'found '''
-            add_error("expected end of declaration");
+            add_error_expected("end of declaration");
             skip_until_end_of_line();
         }
     }
@@ -207,7 +214,7 @@ Decl *Parser::parse_var_decl() {
         return make_node_with_pos<VarDecl>(start_pos, typeexpr->end_pos, name,
                                            typeexpr, nullptr);
     } else {
-        add_error("expected '=' or ':' after var name");
+        add_error_expected("'=' or ':' after var name");
         return make_node_with_pos<BadDecl>(start_pos, tok.pos);
     }
 }
@@ -280,7 +287,7 @@ FuncDecl *Parser::parse_func_decl() {
         func->retTypeExpr = parse_type_expr();
     }
     if (!tok.is(TokenKind::lbrace)) {
-        add_error("expected '->' or '{'");
+        add_error_expected("'->' or '{'");
         skip_until(TokenKind::lbrace);
     }
     // function body
@@ -380,7 +387,7 @@ Expr *Parser::parse_type_expr() {
         text = tok.text;
         next();
     } else {
-        add_error("expected type name");
+        add_error_expected("type name");
         return make_node_with_pos<BadExpr>(typeExpr->start_pos, tok.pos);
     }
 
@@ -419,7 +426,7 @@ Expr *Parser::parse_unary_expr() {
         // Because all expressions start with a unary expression, failing here
         // means no other expression could be matched either, so just do a
         // really generic report.
-        add_error("expected an expression");
+        add_error_expected("an expression");
         return make_node_with_pos<BadExpr>(start_pos, tok.pos);
     }
 }

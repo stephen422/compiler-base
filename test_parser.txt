@@ -1,8 +1,8 @@
 fn main() {
     let a = 3 + 4
     let b: int
-    let c &int // [error: "expected.*':'"]
-    let c: int blah // [error: "expected end of decl"]
+    let c &int // [error: "expected.*':'.*found '&'"]
+    let c: int blah // [error: "expected end of decl.*blah"]
 
     b a // [error: "expected.*="]
     b = a
@@ -11,13 +11,13 @@ fn main() {
     3 + (a - (b + a * 3)) * 2
 
     c = &b
-
 }
 
-fn f(a: int) int { // [error: "expected.*'->'"]
+fn f(a: int) int { // [error: "expected.*'->'.*found 'int'"]
 }
 
 fn f(a: int, b int, c: int) -> int { // [error: "expected.*':'"]
+    return * // [error: "expected.*expression"]
 }
 
 struct Car // [error: "expected.*\{"]

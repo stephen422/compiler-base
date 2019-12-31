@@ -110,7 +110,7 @@ private:
     // Statement parsers.
     Stmt *parse_stmt();
     Stmt *parse_expr_or_assign_stmt();
-    ReturnStmt *parse_return_stmt();
+    Stmt *parse_return_stmt();
     DeclStmt *parse_decl_stmt();
     CompoundStmt *parse_compound_stmt();
     bool is_end_of_stmt() const;
@@ -140,6 +140,7 @@ private:
     void add_error(const std::string &msg) {
         errors.push_back(make_error(msg));
     }
+    void add_error_expected(const std::string &msg);
 
     // Advance the lookahead token.
     void next();
