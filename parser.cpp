@@ -68,7 +68,7 @@ bool Parser::expect(TokenKind kind, const std::string &msg = "") {
                             tokentype_to_string(kind),
                             tokentype_to_string(tok.kind));
         }
-        errors.push_back(make_error(s));
+        add_error(s);
         return false;
     }
     next();
@@ -135,7 +135,7 @@ DeclStmt *Parser::parse_decl_stmt() {
             skip_until_end_of_line();
         } else {
             // TODO: errorExpected for 'found '''
-            errors.push_back(make_error("expected end of declaration"));
+            add_error("expected end of declaration");
             skip_until_end_of_line();
         }
     }
@@ -207,7 +207,7 @@ Decl *Parser::parse_var_decl() {
         return make_node_with_pos<VarDecl>(start_pos, typeexpr->end_pos, name,
                                            typeexpr, nullptr);
     } else {
-        errors.push_back(make_error("expected '=' or ':' after var name"));
+        add_error("expected '=' or ':' after var name");
         return make_node_with_pos<BadDecl>(start_pos, tok.pos);
     }
 }
@@ -280,7 +280,7 @@ FuncDecl *Parser::parse_func_decl() {
         func->retTypeExpr = parse_type_expr();
     }
     if (!tok.is(TokenKind::lbrace)) {
-        errors.push_back(make_error("expected '->' or '{'"));
+        add_error("expected '->' or '{'");
         skip_until(TokenKind::lbrace);
     }
     // function body
@@ -374,14 +374,13 @@ Expr *Parser::parse_type_expr() {
         typeExpr->ref = true;
         typeExpr->subexpr = parse_type_expr();
         text = "&" + static_cast<TypeExpr *>(typeExpr->subexpr)->name->text;
-    }
-    else if (tok.is_identifier_or_keyword()) {
+    } else if (tok.is_identifier_or_keyword()) {
         typeExpr->ref = false;
         typeExpr->subexpr = nullptr;
         text = tok.text;
         next();
     } else {
-        errors.push_back(make_error("expected type name"));
+        add_error("expected type name");
         return make_node_with_pos<BadExpr>(typeExpr->start_pos, tok.pos);
     }
 
@@ -420,7 +419,7 @@ Expr *Parser::parse_unary_expr() {
         // Because all expressions start with a unary expression, failing here
         // means no other expression could be matched either, so just do a
         // really generic report.
-        errors.push_back(make_error("expected an expression"));
+        add_error("expected an expression");
         return make_node_with_pos<BadExpr>(start_pos, tok.pos);
     }
 }

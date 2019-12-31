@@ -116,7 +116,7 @@ private:
     bool is_end_of_stmt() const;
     bool is_eos();
 
-    // Declaration parsers.
+    // Declaration parsers
     Decl *parse_decl();
     std::vector<Decl *> parse_var_decl_list();
     Decl *parse_var_decl();
@@ -124,7 +124,7 @@ private:
     FuncDecl *parse_func_decl();
     bool is_start_of_decl() const;
 
-    // Expression parsers.
+    // Expression parsers
     Expr *parse_expr();
     Expr *parse_unary_expr();
     UnaryExpr *parse_literal_expr();
@@ -133,11 +133,13 @@ private:
     Expr *parse_binary_expr_rhs(Expr *lhs, int precedence = 0);
     bool is_start_of_typeexpr() const;
 
-    // For testing.
     std::vector<ParseError> parse_error_beacon();
 
-    // Error nodes.
+    // Error handling
     ParseError make_error(const std::string &msg) { return {locate(), msg}; }
+    void add_error(const std::string &msg) {
+        errors.push_back(make_error(msg));
+    }
 
     // Advance the lookahead token.
     void next();
