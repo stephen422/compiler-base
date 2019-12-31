@@ -260,6 +260,8 @@ StructDecl *Parser::parse_struct_decl() {
 }
 
 FuncDecl *Parser::parse_func_decl() {
+    auto start_pos = tok.pos;
+
     expect(TokenKind::kw_fn);
 
     Name *name = names.get_or_add(std::string{tok.text});
@@ -267,19 +269,23 @@ FuncDecl *Parser::parse_func_decl() {
     func->start_pos = tok.pos;
     next();
 
-    // Argument list
+    // argument list
     expect(TokenKind::lparen);
     func->params = parse_var_decl_list();
     expect(TokenKind::rparen);
 
-    // Return type (-> ...)
+    // return type (-> ...)
     if (tok.is(TokenKind::arrow)) {
         next();
         func->retTypeExpr = parse_type_expr();
     }
-
-    // Function body
+    if (!tok.is(TokenKind::lbrace)) {
+        errors.push_back(make_error("expected '->' or '{'"));
+        skip_until(TokenKind::lbrace);
+    }
+    // function body
     func->body = parse_compound_stmt();
+    func->start_pos = start_pos;
     func->end_pos = tok.pos;
 
     return func;
