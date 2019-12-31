@@ -122,12 +122,10 @@ ReturnStmt *Parser::parse_return_stmt() {
 
     // optional
     Expr *expr = nullptr;
-    if (!is_end_of_stmt()) {
+    if (!is_end_of_stmt())
         expr = parse_expr();
-    }
-    if (!expect_end_of_stmt()) {
+    if (!expect_end_of_stmt())
         assert(false);
-    }
     return make_node_with_pos<ReturnStmt>(start_pos, look().pos, expr);
 }
 
@@ -152,7 +150,7 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
     auto lhs = parse_expr();
     // ExprStmt: expression ends with a newline
     if (is_end_of_stmt()) {
-        expect(TokenKind::newline);
+        skip_until_end_of_line();
         return make_node<ExprStmt>(lhs);
     }
 
@@ -510,8 +508,8 @@ void Parser::compareErrors() const {
 
     size_t i = 0, j = 0;
     while (i < errors.size() && j < beacons.size()) {
-        auto &error = errors[i];
-        auto &beacon = beacons[j];
+        auto error = errors[i];
+        auto beacon = beacons[j];
         if (error.loc.line == beacon.loc.line) {
             std::string stripped{std::cbegin(beacon.message) + 1,
                                  std::cend(beacon.message) - 1};

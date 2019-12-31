@@ -5,15 +5,15 @@
 namespace cmp {
 
 std::string tokentype_to_string(TokenKind kind) {
+    if (kind == TokenKind::newline)
+        return "\\n";
     for (auto &p : symbol_map) {
-        if (p.second == kind) {
+        if (p.second == kind)
             return std::string{p.first};
-        }
     }
     for (auto &p : keyword_map) {
-        if (p.second == kind) {
+        if (p.second == kind)
             return std::string{p.first};
-        }
     }
     return "";
 }

@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
     Parser p{lexer};
     auto ast = p.parse();
     ast.root->print();
-    p.report();
+    // p.report();
     p.compareErrors();
     // Semantics sema{src, ast.name_table};
     // fmt::print("After parsing:\n");
