@@ -1,8 +1,8 @@
 fn main() {
     let a = 3 + 4
-    let b int
-    let c: &int // [error: "expected.*type"]
-    let c int blah // [error: "expected end of decl"]
+    let b: int
+    let c &int // [error: "expected.*':'"]
+    let c: int blah // [error: "expected end of decl"]
 
     b a // [error: "expected.*="]
     b = a
@@ -15,7 +15,7 @@ fn main() {
 }
 
 struct Car // [error: "expected.*\{"]
-    a: i64, // [error: "expected.*type"]
-    b int
-    c int, // comma is permitted
+    a: i64,
+    b: int
+    c: int, // comma is permitted
 // [error: "unterminated struct"]

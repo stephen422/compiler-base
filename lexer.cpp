@@ -104,7 +104,7 @@ Token Lexer::lex_symbol() {
     return make_token(TokenKind::none);
 }
 
-Lexer::char_iterator Lexer::lookn(long n) const {
+const char *Lexer::lookn(long n) const {
     if (look + n < eos()) {
         return look + n;
     }
@@ -159,7 +159,7 @@ Token Lexer::lex() {
     return tok;
 }
 
-std::vector<Token> Lexer::lexAll() {
+std::vector<Token> Lexer::lex_all() {
     std::vector<Token> v;
     Token tok;
     while ((tok = lex()).kind != TokenKind::eos) {

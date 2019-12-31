@@ -85,14 +85,13 @@ using DeclResult = ParserResult<Decl>;
 using ExprResult = ParserResult<Expr>;
 
 class Parser {
-    Lexer &lexer;                     // associated lexer
-    Token tok;                        // lookahead token
-    std::vector<AstNode *> nodes;     // node pointer pool
+    Lexer &lexer;                    // associated lexer
+    Token tok;                       // lookahead token
+    std::vector<AstNode *> nodes;    // node pointer pool
     std::vector<ParseError> errors;  // error list
     std::vector<ParseError> beacons; // error beacon list
-    NameTable names;                  // name table
-    std::vector<Token> tokens;        // lexed tokens
-    size_t look_index = 0;            // lookahead position in the cache
+    NameTable names;                 // name table
+    std::vector<Token> tokens;       // lexed tokens
 
 public:
     Parser(Lexer &lexer);
@@ -148,9 +147,6 @@ private:
     // Advance the lookahead token.
     void next();
 
-    // Get the current lookahead token.
-    const Token look() const;
-
     // Expect and consume functions.
     bool expect(TokenKind kind, const std::string &msg);
     bool expect_end_of_stmt();
@@ -178,7 +174,7 @@ private:
     }
 
     // Figure out the current location (line, col) in the source.
-    SourceLoc locate() const { return lexer.source().locate(look().pos); }
+    SourceLoc locate() const { return lexer.source().locate(tok.pos); }
 };
 
 } // namespace cmp

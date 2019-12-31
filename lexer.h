@@ -133,9 +133,14 @@ struct Token {
 /// Represents a lexer state machine.
 /// Assumes that the associated Source outlives it.
 class Lexer {
-public:
-    using char_iterator = std::string_view::iterator;
+    Source &src;                  // source fed to this lexer
+    std::string_view sv;          // view into the source buffer
+    const char *look;             // lookahead position
+    const char *curr;             // start of the current token
+    std::vector<size_t> line_off; // offsets of each newline
+    size_t num_ident = 0;         // number of identifiers found
 
+public:
     Lexer(Source &s)
         : src(s), sv(src.buf.data(), src.buf.size()), look(std::cbegin(sv)),
           curr(std::cbegin(sv)) {}
@@ -143,7 +148,7 @@ public:
     /// Lex the current token and advance to the next one.
     Token lex();
     /// Lex all of the source text and return the array of tokens.
-    std::vector<Token> lexAll();
+    std::vector<Token> lex_all();
     /// Peek the next token without consuming it.
     Token peek();
     Source &source() { return src; }
@@ -157,8 +162,8 @@ private:
 
     // Advance lex position by one character.
     void step();
-    char_iterator lookn(long n) const;
-    char_iterator eos() const {
+    const char *lookn(long n) const;
+    const char *eos() const {
         // Account for '\0' at the end.
         return std::cend(sv) - 1;
     }
@@ -168,16 +173,6 @@ private:
     template <typename F> void skip_while(F &&lambda);
     void skip_whitespace();
     void error(const std::string &msg);
-
-    // Source object associated to this lexer.
-    Source &src;
-
-    std::string_view sv;          // view into the source buffer
-    char_iterator look;           // lookahead position
-    char_iterator curr;           // start of the current token
-    std::vector<size_t> line_off; // offsets of each newline
-    size_t num_ident = 0;         // number of identifiers found
-
 };
 
 } // namespace cmp
