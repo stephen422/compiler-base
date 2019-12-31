@@ -218,28 +218,32 @@ public:
 };
 
 class IntegerLiteral : public UnaryExpr {
+    int64_t value;
+
 public:
     IntegerLiteral(int64_t v) : UnaryExpr(Literal, nullptr), value(v) {}
     void print() const override;
     void traverse(Semantics &sema) override;
-
-    int64_t value;
 };
 
 class DeclRefExpr : public UnaryExpr {
+    // The integer value of this pointer serves as a unique ID to be used for
+    // indexing the symbol table.
+    Name *name = nullptr;
+
 public:
     DeclRefExpr(Name *name) : UnaryExpr(DeclRef, nullptr), name(name) {}
     void print() const override;
     void traverse(Semantics &sema) override;
-
-    // The integer value of this pointer serves as a unique ID to be used for
-    // indexing the symbol table.
-    Name *name = nullptr;
 };
 
 class FuncCallExpr : public UnaryExpr {
+    Name *name = nullptr;
+    std::vector<Expr *> args;
+
 public:
-    FuncCallExpr() : UnaryExpr(FuncCall, nullptr) {}
+    FuncCallExpr(Name *name, const std::vector<Expr *> &args)
+        : UnaryExpr(FuncCall, nullptr), name(name), args(args) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 };

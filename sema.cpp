@@ -186,6 +186,10 @@ void DeclRefExpr::traverse(Semantics &sema) {
     type = &decl->type;
 }
 
+void FuncCallExpr::traverse(Semantics &sema) {
+    assert(false && "not implemented");
+}
+
 void TypeExpr::traverse(Semantics &sema) {
     if (subexpr)
         subexpr->traverse(sema);

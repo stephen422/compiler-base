@@ -20,7 +20,9 @@ fn main() {
     b = a
     c = &b
 
-    f(3)
+    f(3, 4)
+    f(3, 4,)
+    f(3, 4, ,) // [error: "expected.*expression"]
 }
 
 fn f(a: int) int { // [error: "expected.*'->'.*found 'int'"]

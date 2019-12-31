@@ -340,11 +340,26 @@ UnaryExpr *Parser::parse_literal_expr() {
     return expr;
 }
 
-DeclRefExpr *Parser::parse_declref_expr() {
+Expr *Parser::parse_funccall_or_declref_expr() {
     auto start_pos = tok.pos;
+    assert(tok.kind == TokenKind::ident);
     auto name = names.get_or_add(std::string{tok.text});
     next();
-    return make_node_with_pos<DeclRefExpr>(start_pos, name);
+
+    if (tok.kind == TokenKind::lparen) {
+        expect(TokenKind::lparen);
+        std::vector<Expr *> args;
+        while (tok.kind != TokenKind::rparen) {
+            args.push_back(parse_unary_expr());
+            if (tok.kind == TokenKind::comma)
+                next();
+        }
+        // TODO: arg list
+        expect(TokenKind::rparen);
+        return make_node_with_pos<FuncCallExpr>(start_pos, name, args);
+    } else {
+        return make_node_with_pos<DeclRefExpr>(start_pos, name);
+    }
 }
 
 bool Parser::is_start_of_typeexpr() const {
@@ -405,7 +420,7 @@ Expr *Parser::parse_unary_expr() {
         return parse_literal_expr();
     case TokenKind::ident: {
         // TODO: function call expression
-        return parse_declref_expr();
+        return parse_funccall_or_declref_expr();
     }
     case TokenKind::star: {
         next();

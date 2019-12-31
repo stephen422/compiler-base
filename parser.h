@@ -128,7 +128,7 @@ private:
     Expr *parse_expr();
     Expr *parse_unary_expr();
     UnaryExpr *parse_literal_expr();
-    DeclRefExpr *parse_declref_expr();
+    Expr *parse_funccall_or_declref_expr();
     Expr *parse_typeexpr();
     Expr *parse_binary_expr_rhs(Expr *lhs, int precedence = 0);
     bool is_start_of_typeexpr() const;

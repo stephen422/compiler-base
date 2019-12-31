@@ -85,9 +85,8 @@ void VarDecl::print() const {
 void StructDecl::print() const {
     out() << "[StructDecl] " << name->text << "\n";
     PrintScope start;
-    for (auto &m : members) {
+    for (auto &m : members)
         m->print();
-    }
 }
 
 void FuncDecl::print() const {
@@ -145,10 +144,23 @@ void DeclRefExpr::print() const {
     out() << "[DeclRefExpr] " << "((Name *)";
     printf("0x..%04x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(name)));
     std::cout << ") "<< name->text;
-    if (type) {
+    if (type)
         std::cout << " '" << type->name->text << "'";
-    }
     std::cout << std::endl;
+}
+
+void FuncCallExpr::print() const {
+    out() << "[FuncCallExpr] "
+          << "((Name *)";
+    printf("0x..%04x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(name)));
+    std::cout << ") " << name->text;
+    if (type)
+        std::cout << " '" << type->name->text << "'";
+    std::cout << std::endl;
+
+    PrintScope start;
+    for (auto &arg : args)
+        arg->print();
 }
 
 void TypeExpr::print() const {
