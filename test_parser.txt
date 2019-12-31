@@ -13,13 +13,14 @@ fn main() {
     let d: &mut Car
     let d: &mut Car Sedan // [error: "expected end of decl.*Sedan"]
 
-    b a // [error: "expected.*="]
-    b = a
-
     1 * 2 + 3 + 4 * 5
     3 + (a - (b + a * 3)) * 2
 
+    b a // [error: "expected.*="]
+    b = a
     c = &b
+
+    f(3)
 }
 
 fn f(a: int) int { // [error: "expected.*'->'.*found 'int'"]

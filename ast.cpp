@@ -7,6 +7,7 @@ namespace cmp {
 
 int AstNode::depth = 0;
 
+// TODO: max is currently not being used.
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes) {
     size_t min = static_cast<size_t>(-1);
     size_t max = 0;
@@ -16,9 +17,6 @@ std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes) 
         }
         if (node->start_pos < min) {
             min = node->start_pos;
-        }
-        if (node->end_pos > max) {
-            max = node->end_pos;
         }
     }
     return {min, max};

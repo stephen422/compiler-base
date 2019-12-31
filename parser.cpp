@@ -128,9 +128,9 @@ Stmt *Parser::parse_return_stmt() {
         expr = parse_expr();
     if (!expect_end_of_stmt()) {
         skip_until_end_of_line();
-        return make_node_with_pos<BadStmt>(start_pos, tok.pos);
+        return make_node_with_pos<BadStmt>(start_pos);
     }
-    return make_node_with_pos<ReturnStmt>(start_pos, tok.pos, expr);
+    return make_node_with_pos<ReturnStmt>(start_pos, expr);
 }
 
 // let a = ...
@@ -163,13 +163,13 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
     // (anything else is treated as an error)
     if (!expect(TokenKind::equals)) {
         skip_until_end_of_line();
-        return make_node_with_pos<BadStmt>(start_pos, tok.pos);
+        return make_node_with_pos<BadStmt>(start_pos);
     }
 
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
     auto rhs = parse_expr();
-    return make_node_with_pos<AssignStmt>(start_pos, tok.pos, lhs,
+    return make_node_with_pos<AssignStmt>(start_pos, lhs,
                                           rhs);
 }
 
@@ -205,17 +205,17 @@ Decl *Parser::parse_var_decl() {
         // a = expr
         expect(TokenKind::equals);
         auto assignexpr = parse_expr();
-        return make_node_with_pos<VarDecl>(start_pos, assignexpr->end_pos, name,
+        return make_node_with_pos<VarDecl>(start_pos, name,
                                            nullptr, assignexpr);
     } else if (tok.kind == TokenKind::colon) {
         // a: type
         expect(TokenKind::colon);
         auto typeexpr = parse_typeexpr();
-        return make_node_with_pos<VarDecl>(start_pos, typeexpr->end_pos, name,
+        return make_node_with_pos<VarDecl>(start_pos, name,
                                            typeexpr, nullptr);
     } else {
         add_error_expected("'=' or ':' after var name");
-        return make_node_with_pos<BadDecl>(start_pos, tok.pos);
+        return make_node_with_pos<BadDecl>(start_pos);
     }
 }
 
@@ -293,7 +293,6 @@ FuncDecl *Parser::parse_func_decl() {
     // function body
     func->body = parse_compound_stmt();
     func->start_pos = start_pos;
-    func->end_pos = tok.pos;
 
     return func;
 }
@@ -335,7 +334,6 @@ UnaryExpr *Parser::parse_literal_expr() {
         assert(false && "non-integer literals not implemented");
     }
     expr->start_pos = tok.pos;
-    expr->end_pos = tok.pos + tok.text.length();
 
     next();
 
@@ -343,17 +341,10 @@ UnaryExpr *Parser::parse_literal_expr() {
 }
 
 DeclRefExpr *Parser::parse_declref_expr() {
-    auto ref_expr = make_node<DeclRefExpr>();
-
-    ref_expr->start_pos = tok.pos;
-    ref_expr->end_pos = tok.pos + tok.text.length();
-
-    std::string text{tok.text};
-    ref_expr->name = names.get_or_add(text);
-
+    auto start_pos = tok.pos;
+    auto name = names.get_or_add(std::string{tok.text});
     next();
-
-    return ref_expr;
+    return make_node_with_pos<DeclRefExpr>(start_pos, name);
 }
 
 bool Parser::is_start_of_typeexpr() const {
@@ -389,7 +380,7 @@ Expr *Parser::parse_typeexpr() {
         if (!tok.is_identifier_or_keyword()) {
             // FIXME: type name? expression?
             add_error_expected("type name");
-            return make_node_with_pos<BadExpr>(typeexpr->start_pos, tok.pos);
+            return make_node_with_pos<BadExpr>(typeexpr->start_pos);
         }
         typeexpr->ref = false;
         typeexpr->subexpr = nullptr;
@@ -397,11 +388,10 @@ Expr *Parser::parse_typeexpr() {
         next();
     } else {
         add_error_expected("type expression");
-        return make_node_with_pos<BadExpr>(typeexpr->start_pos, tok.pos);
+        return make_node_with_pos<BadExpr>(typeexpr->start_pos);
     }
 
     typeexpr->name = names.get_or_add(text);
-    typeexpr->end_pos = tok.pos;
 
     return typeexpr;
 }
@@ -413,30 +403,32 @@ Expr *Parser::parse_unary_expr() {
     case TokenKind::number:
     case TokenKind::string:
         return parse_literal_expr();
-    case TokenKind::ident:
+    case TokenKind::ident: {
+        // TODO: function call expression
         return parse_declref_expr();
+    }
     case TokenKind::star: {
         next();
         auto expr = parse_unary_expr();
-        return make_node_with_pos<UnaryExpr>(start_pos, tok.pos, UnaryExpr::Deref, expr);
+        return make_node_with_pos<UnaryExpr>(start_pos, UnaryExpr::Deref, expr);
     }
     case TokenKind::ampersand: {
         next();
         auto expr = parse_unary_expr();
-        return make_node_with_pos<UnaryExpr>(start_pos, tok.pos, UnaryExpr::Address, expr);
+        return make_node_with_pos<UnaryExpr>(start_pos, UnaryExpr::Address, expr);
     }
     case TokenKind::lparen: {
         expect(TokenKind::lparen);
         auto expr = parse_expr();
         expect(TokenKind::rparen);
-        return make_node_with_pos<UnaryExpr>(start_pos, tok.pos, UnaryExpr::Paren, expr);
+        return make_node_with_pos<UnaryExpr>(start_pos, UnaryExpr::Paren, expr);
     }
     default:
         // Because all expressions start with a unary expression, failing here
         // means no other expression could be matched either, so just do a
         // really generic report.
         add_error_expected("an expression");
-        return make_node_with_pos<BadExpr>(start_pos, tok.pos);
+        return make_node_with_pos<BadExpr>(start_pos);
     }
 }
 

@@ -92,8 +92,7 @@ public:
     };
 
     AstKind kind = AstKind::none; // node kind
-    size_t start_pos = 0;          // start pos of this AST in the source text
-    size_t end_pos = 0;            // end pos of this AST in the source text
+    size_t start_pos = 0;         // start pos of this AST in the source text
     // Indentation of the current node when dumping AST.
     // static because all nodes share this.
     static int depth;
@@ -198,8 +197,9 @@ public:
 class UnaryExpr : public Expr {
 public:
     enum UnaryKind {
-        DeclRef,
         Literal,
+        DeclRef,
+        FuncCall,
         Paren,
         Address,
         Deref,
@@ -228,13 +228,20 @@ public:
 
 class DeclRefExpr : public UnaryExpr {
 public:
-    DeclRefExpr() : UnaryExpr(DeclRef, nullptr) {}
+    DeclRefExpr(Name *name) : UnaryExpr(DeclRef, nullptr), name(name) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 
     // The integer value of this pointer serves as a unique ID to be used for
     // indexing the symbol table.
     Name *name = nullptr;
+};
+
+class FuncCallExpr : public UnaryExpr {
+public:
+    FuncCallExpr() : UnaryExpr(FuncCall, nullptr) {}
+    void print() const override;
+    void traverse(Semantics &sema) override;
 };
 
 // XXX: can I call this an expression?
@@ -258,7 +265,6 @@ public:
           rhs(std::move(rhs_)) {
         auto pair = get_ast_range({lhs, rhs});
         start_pos = pair.first;
-        end_pos = pair.second;
     }
     void print() const override;
     void traverse(Semantics &sema) override;
