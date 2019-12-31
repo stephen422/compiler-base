@@ -96,14 +96,9 @@ class Parser {
 public:
     Parser(Lexer &lexer);
     ~Parser();
-
     Ast parse();
-
-    // Report errors.
     void report() const;
-
-    // Compare errors against beacons for testing.
-    void compareErrors() const;
+    void verify() const;
 
 private:
     // Parse the whole file.

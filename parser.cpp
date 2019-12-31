@@ -23,12 +23,10 @@ T *ParserResult<T>::unwrap() {
 }
 
 Parser::Parser(Lexer &lexer) : lexer{lexer} {
-    // TODO: why here?
-    // Insert keywords in name table
-    for (auto m : keyword_map) {
-        names.get_or_add(std::string{m.first});
-    }
     tok = lexer.lex();
+    // insert keywords in name table
+    for (auto m : keyword_map)
+        names.get_or_add(std::string{m.first});
 }
 
 Parser::~Parser() {
@@ -500,9 +498,9 @@ std::vector<ParseError> Parser::parse_error_beacon() {
     return v;
 }
 
-void Parser::compareErrors() const {
+// Verify errors against the error beacons embedded in the source text.
+void Parser::verify() const {
     bool success = true;
-
     fmt::print("TEST {}:\n", lexer.source().filename);
 
     size_t i = 0, j = 0;
@@ -517,27 +515,29 @@ void Parser::compareErrors() const {
                 success = false;
                 fmt::print("< {}\n> {}\n", error, beacon);
             }
-            if (i < errors.size())
-                i++;
-            if (j < beacons.size())
-                j++;
+            i++;
+            j++;
         } else if (error.loc.line < beacon.loc.line) {
             success = false;
             fmt::print("< {}\n", error);
-            if (i < errors.size())
-                i++;
+            i++;
         } else {
             success = false;
             fmt::print("> {}\n", beacon);
-            if (j < beacons.size())
-                j++;
+            j++;
         }
     }
+    for (; i < errors.size(); i++) {
+        success = false;
+        fmt::print("< {}\n", errors[i]);
+    }
+    for (; j < beacons.size(); j++) {
+        success = false;
+        fmt::print("> {}\n", beacons[j]);
+    }
 
-    if (success)
-        fmt::print("SUCCESS {}\n", lexer.source().filename);
-    else
-        fmt::print("FAIL {}\n", lexer.source().filename);
+    fmt::print("{} {}\n", success ? "SUCCESS" : "FAIL",
+               lexer.source().filename);
 }
 
 void Parser::skip_until(TokenKind kind) {
@@ -596,6 +596,7 @@ Ast Parser::parse() {
     return Ast{file, names};
 }
 
+// Report errors to stdout.
 void Parser::report() const {
     for (auto e : errors) {
         e.print();
