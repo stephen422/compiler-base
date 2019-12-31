@@ -3,6 +3,7 @@ fn main() {
     let b: int
     let c &int // [error: "expected.*':'.*found '&'"]
     let c: int blah // [error: "expected end of decl.*blah"]
+    let d: &mut Car
 
     b a // [error: "expected.*="]
     b = a

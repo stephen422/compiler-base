@@ -46,13 +46,9 @@ void File::traverse(Semantics &sema) {
     }
 }
 
-void DeclStmt::traverse(Semantics &sema) {
-    decl->traverse(sema);
-}
+void DeclStmt::traverse(Semantics &sema) { decl->traverse(sema); }
 
-void ExprStmt::traverse(Semantics &sema) {
-    expr->traverse(sema);
-}
+void ExprStmt::traverse(Semantics &sema) { expr->traverse(sema); }
 
 void AssignStmt::traverse(Semantics &sema) {
     lhs->traverse(sema);
@@ -221,7 +217,7 @@ void BinaryExpr::traverse(Semantics &sema) {
         lhs->type != rhs->type)
         sema.error(start_pos, "type mismatch in binary expression");
 
-    // Propagate from left to right
+    // propagate from left to right
     type = lhs->type;
 }
 

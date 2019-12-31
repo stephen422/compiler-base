@@ -44,9 +44,9 @@ void Parser::add_error_expected(const std::string &msg) {
 // error to the parser error list so that it can be compared to the actual
 // errors later in the testing phase.
 void Parser::next() {
-    if (!tok.is(TokenKind::eos)) {
+    if (tok.kind != TokenKind::eos) {
         tok = lexer.lex();
-        if (tok.is(TokenKind::comment)) {
+        if (tok.kind == TokenKind::comment) {
             std::string_view marker{"[error:"};
             auto found = tok.text.find(marker);
             if (found != std::string_view::npos) {
@@ -66,7 +66,7 @@ void Parser::next() {
 }
 
 bool Parser::expect(TokenKind kind, const std::string &msg = "") {
-    if (!tok.is(kind)) {
+    if (tok.kind != kind) {
         std::string s = msg;
         if (msg.empty()) {
             s = fmt::format("expected '{}', found '{}'",
@@ -89,12 +89,12 @@ bool Parser::expect_end_of_stmt() {
 }
 
 bool Parser::is_end_of_stmt() const {
-    return tok.is(TokenKind::newline) || tok.is(TokenKind::comment);
+    return tok.kind == TokenKind::newline || tok.kind == TokenKind::comment;
 }
 
 bool Parser::is_eos() {
     skip_newlines();
-    return tok.is(TokenKind::eos);
+    return tok.kind == TokenKind::eos;
 }
 
 // Parse a statement.
@@ -105,7 +105,7 @@ bool Parser::is_eos() {
 Stmt *Parser::parse_stmt() {
     Stmt *stmt = nullptr;
 
-    if (tok.is(TokenKind::kw_return)) {
+    if (tok.kind == TokenKind::kw_return) {
         stmt = parse_return_stmt();
     } else if (is_start_of_decl()) {
         stmt = parse_decl_stmt();
@@ -185,7 +185,7 @@ CompoundStmt *Parser::parse_compound_stmt() {
 
     while (true) {
         skip_newlines();
-        if (tok.is(TokenKind::rbrace))
+        if (tok.kind == TokenKind::rbrace)
             break;
         auto stmt = parse_stmt();
         compound->stmts.push_back(stmt);
@@ -201,16 +201,16 @@ Decl *Parser::parse_var_decl() {
     Name *name = names.get_or_add(std::string{tok.text});
     next();
 
-    if (tok.is(TokenKind::equals)) {
+    if (tok.kind == TokenKind::equals) {
         // a = expr
         expect(TokenKind::equals);
         auto assignexpr = parse_expr();
         return make_node_with_pos<VarDecl>(start_pos, assignexpr->end_pos, name,
                                            nullptr, assignexpr);
-    } else if (tok.is(TokenKind::colon)) {
+    } else if (tok.kind == TokenKind::colon) {
         // a: type
         expect(TokenKind::colon);
-        auto typeexpr = parse_type_expr();
+        auto typeexpr = parse_typeexpr();
         return make_node_with_pos<VarDecl>(start_pos, typeexpr->end_pos, name,
                                            typeexpr, nullptr);
     } else {
@@ -226,7 +226,7 @@ std::vector<Decl *> Parser::parse_var_decl_list() {
     while (true) {
         Decl *decl = nullptr;
         skip_newlines();
-        if (!tok.is(TokenKind::ident))
+        if (tok.kind != TokenKind::ident)
             break;
 
         decl = parse_var_decl();
@@ -240,7 +240,7 @@ std::vector<Decl *> Parser::parse_var_decl_list() {
             skip_until({TokenKind::comma, TokenKind::newline, TokenKind::rparen,
                         TokenKind::rbrace});
         }
-        if (tok.is(TokenKind::comma)) {
+        if (tok.kind == TokenKind::comma) {
             next();
         }
     }
@@ -282,11 +282,11 @@ FuncDecl *Parser::parse_func_decl() {
     expect(TokenKind::rparen);
 
     // return type (-> ...)
-    if (tok.is(TokenKind::arrow)) {
+    if (tok.kind == TokenKind::arrow) {
         next();
-        func->retTypeExpr = parse_type_expr();
+        func->retTypeExpr = parse_typeexpr();
     }
-    if (!tok.is(TokenKind::lbrace)) {
+    if (tok.kind != TokenKind::lbrace) {
         add_error_expected("'->' or '{'");
         skip_until(TokenKind::lbrace);
     }
@@ -357,44 +357,47 @@ DeclRefExpr *Parser::parse_declref_expr() {
 }
 
 bool Parser::is_start_of_typeexpr() const {
-    return tok.is(TokenKind::quote) || tok.is(TokenKind::ampersand) ||
+    return tok.kind == TokenKind::quote || tok.kind == TokenKind::ampersand ||
            tok.is_identifier_or_keyword();
 }
 
-Expr *Parser::parse_type_expr() {
-    auto typeExpr = make_node<TypeExpr>();
+// Parse a type expression.
+// A type expression is simply every stream of tokens in the source that can
+// represent a type.
+Expr *Parser::parse_typeexpr() {
+    auto typeexpr = make_node<TypeExpr>();
 
     assert(is_start_of_typeexpr());
-    typeExpr->start_pos = tok.pos;
+    typeexpr->start_pos = tok.pos;
 
     // Mutable type?
-    if (tok.is(TokenKind::quote)) {
-        typeExpr->mut = true;
+    if (tok.kind == TokenKind::quote) {
+        typeexpr->mut = true;
         next();
     }
 
     // Encode each type into a unique Name, so that they are easy to find in
     // the type table in the semantic analysis phase.
     std::string text;
-    if (tok.is(TokenKind::ampersand)) {
+    if (tok.kind == TokenKind::ampersand) {
         next();
-        typeExpr->ref = true;
-        typeExpr->subexpr = parse_type_expr();
-        text = "&" + static_cast<TypeExpr *>(typeExpr->subexpr)->name->text;
+        typeexpr->ref = true;
+        typeexpr->subexpr = parse_typeexpr();
+        text = "&" + static_cast<TypeExpr *>(typeexpr->subexpr)->name->text;
     } else if (tok.is_identifier_or_keyword()) {
-        typeExpr->ref = false;
-        typeExpr->subexpr = nullptr;
+        typeexpr->ref = false;
+        typeexpr->subexpr = nullptr;
         text = tok.text;
         next();
     } else {
         add_error_expected("type name");
-        return make_node_with_pos<BadExpr>(typeExpr->start_pos, tok.pos);
+        return make_node_with_pos<BadExpr>(typeexpr->start_pos, tok.pos);
     }
 
-    typeExpr->name = names.get_or_add(text);
-    typeExpr->end_pos = tok.pos;
+    typeexpr->name = names.get_or_add(text);
+    typeexpr->end_pos = tok.pos;
 
-    return typeExpr;
+    return typeexpr;
 }
 
 Expr *Parser::parse_unary_expr() {
@@ -553,14 +556,14 @@ void Parser::verify() const {
 }
 
 void Parser::skip_until(TokenKind kind) {
-    while (!tok.is(kind))
+    while (tok.kind != kind)
         next();
 }
 
 void Parser::skip_until(const std::vector<TokenKind> &kinds) {
     while (true) {
         for (auto kind : kinds) {
-            if (tok.is(kind))
+            if (tok.kind == kind)
                 return;
         }
         next();
@@ -576,7 +579,7 @@ void Parser::skip_until_end_of_line() {
 // they are at the end of a statement or a declaration.  In those cases we use
 // this to skip over them.
 void Parser::skip_newlines() {
-    while (tok.is(TokenKind::newline) || tok.is(TokenKind::comment))
+    while (tok.kind == TokenKind::newline || tok.kind == TokenKind::comment)
         next();
 }
 
