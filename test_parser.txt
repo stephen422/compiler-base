@@ -1,5 +1,4 @@
 // TODO:
-// function calls
 // struct declaration
 // struct fields
 
@@ -23,6 +22,7 @@ fn main() {
     f(3, 4)
     f(3, 4,)
     f(3, 4, ,) // [error: "expected.*expression"]
+    f(3, 4, 2 + 5)
 }
 
 fn f(a: int) int { // [error: "expected.*'->'.*found 'int'"]

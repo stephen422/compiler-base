@@ -30,9 +30,8 @@ Parser::Parser(Lexer &lexer) : lexer{lexer} {
 }
 
 Parser::~Parser() {
-    for (auto ptr : nodes) {
+    for (auto ptr : nodes)
         delete ptr;
-    }
 }
 
 void Parser::add_error_expected(const std::string &msg) {
@@ -68,11 +67,10 @@ void Parser::next() {
 bool Parser::expect(TokenKind kind, const std::string &msg = "") {
     if (tok.kind != kind) {
         std::string s = msg;
-        if (msg.empty()) {
+        if (msg.empty())
             s = fmt::format("expected '{}', found '{}'",
                             tokentype_to_string(kind),
                             tokentype_to_string(tok.kind));
-        }
         add_error(s);
         return false;
     }
@@ -81,9 +79,8 @@ bool Parser::expect(TokenKind kind, const std::string &msg = "") {
 }
 
 bool Parser::expect_end_of_stmt() {
-    if (!is_end_of_stmt()) {
+    if (!is_end_of_stmt())
         return false;
-    }
     skip_newlines();
     return true;
 }
@@ -351,7 +348,7 @@ Expr *Parser::parse_funccall_or_declref_expr() {
         expect(TokenKind::lparen);
         std::vector<Expr *> args;
         while (tok.kind != TokenKind::rparen) {
-            args.push_back(parse_unary_expr());
+            args.push_back(parse_expr());
             if (tok.kind == TokenKind::comma)
                 next();
         }
@@ -462,9 +459,6 @@ static int op_precedence(const Token &op) {
 // Extend a unary expression into binary if possible, by parsing any attached
 // RHS.  Returns result that owns the node of the newly constructed binary
 // expression.
-//
-// After the call, 'lhs' is invalidated by being moved away.  Subsequent code
-// should use the wrapped node in the return value instead.
 Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence) {
     Expr *root = lhs;
 
