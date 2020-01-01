@@ -141,7 +141,6 @@ DeclStmt *Parser::parse_decl_stmt() {
             // try to recover
             skip_until_end_of_line();
         } else {
-            // TODO: errorExpected for 'found '''
             add_error_expected("end of declaration");
             skip_until_end_of_line();
         }
@@ -252,16 +251,16 @@ std::vector<Decl *> Parser::parse_var_decl_list() {
 StructDecl *Parser::parse_struct_decl() {
     expect(TokenKind::kw_struct);
 
-    // TODO check ident
+    if (tok.kind != TokenKind::ident)
+        add_error_expected("an identifier");
     Name *name = names.get_or_add(std::string{tok.text});
     next();
 
     if (!expect(TokenKind::lbrace))
         skip_until_end_of_line();
-
     auto fields = parse_var_decl_list();
-
     expect(TokenKind::rbrace, "unterminated struct declaration");
+    // TODO: recover
 
     return make_node<StructDecl>(name, fields);
 }
@@ -340,6 +339,8 @@ UnaryExpr *Parser::parse_literal_expr() {
     return expr;
 }
 
+// TODO: Add struct declaration here, e.g. Car {}
+// maybe name it parse_ident_start_exprs?
 Expr *Parser::parse_funccall_or_declref_expr() {
     auto start_pos = tok.pos;
     assert(tok.kind == TokenKind::ident);
@@ -354,7 +355,6 @@ Expr *Parser::parse_funccall_or_declref_expr() {
             if (tok.kind == TokenKind::comma)
                 next();
         }
-        // TODO: arg list
         expect(TokenKind::rparen);
         return make_node_with_pos<FuncCallExpr>(start_pos, name, args);
     } else {
@@ -418,10 +418,8 @@ Expr *Parser::parse_unary_expr() {
     case TokenKind::number:
     case TokenKind::string:
         return parse_literal_expr();
-    case TokenKind::ident: {
-        // TODO: function call expression
+    case TokenKind::ident:
         return parse_funccall_or_declref_expr();
-    }
     case TokenKind::star: {
         next();
         auto expr = parse_unary_expr();

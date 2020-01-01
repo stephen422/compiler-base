@@ -43,7 +43,7 @@ class AstNode;
 class File;
 class Toplevel;
 class Stmt;
-class Expr;
+struct Expr;
 class Decl;
 class FuncDecl;
 
@@ -185,8 +185,7 @@ public:
 
 class Type;
 
-class Expr : public AstNode {
-public:
+struct Expr : public AstNode {
     Expr(AstKind kind) : AstNode(kind) {}
 
     // This value will be propagated by post-order tree traversal, starting
@@ -194,8 +193,7 @@ public:
     Type *type = nullptr;
 };
 
-class UnaryExpr : public Expr {
-public:
+struct UnaryExpr : public Expr {
     enum UnaryKind {
         Literal,
         DeclRef,
@@ -206,42 +204,37 @@ public:
         // TODO:
         Plus,
         Minus,
-    };
+    } unary_kind;
+    Expr *operand;
 
     UnaryExpr(UnaryKind k, Expr *oper)
         : Expr(AstKind::unary_expr), unary_kind(k), operand(std::move(oper)) {}
     void print() const override;
     void traverse(Semantics &sema) override;
-
-    UnaryKind unary_kind;
-    Expr *operand;
 };
 
-class IntegerLiteral : public UnaryExpr {
+struct IntegerLiteral : public UnaryExpr {
     int64_t value;
 
-public:
     IntegerLiteral(int64_t v) : UnaryExpr(Literal, nullptr), value(v) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 };
 
-class DeclRefExpr : public UnaryExpr {
+struct DeclRefExpr : public UnaryExpr {
     // The integer value of this pointer serves as a unique ID to be used for
     // indexing the symbol table.
     Name *name = nullptr;
 
-public:
     DeclRefExpr(Name *name) : UnaryExpr(DeclRef, nullptr), name(name) {}
     void print() const override;
     void traverse(Semantics &sema) override;
 };
 
-class FuncCallExpr : public UnaryExpr {
+struct FuncCallExpr : public UnaryExpr {
     Name *name = nullptr;
     std::vector<Expr *> args;
 
-public:
     FuncCallExpr(Name *name, const std::vector<Expr *> &args)
         : UnaryExpr(FuncCall, nullptr), name(name), args(args) {}
     void print() const override;
@@ -249,21 +242,23 @@ public:
 };
 
 // XXX: can I call this an expression?
-class TypeExpr : public Expr {
-public:
+struct TypeExpr : public Expr {
+    Name *name = nullptr;    // name of the type
+    bool mut = false;        // mutable?
+    bool ref = false;        // is this a reference type?
+    Expr *subexpr = nullptr; // 'T' part of '&T'.  It is Expr mainly so that
+                             // BadExpr can be stored here.
+
     TypeExpr() : Expr(AstKind::type_expr) {}
     void print() const override;
     void traverse(Semantics &sema) override;
-
-    Name *name = nullptr;          // name of the type
-    bool mut = false;              // mutable?
-    bool ref = false;              // is this a reference type?
-    Expr *subexpr = nullptr;       // 'T' part of '&T'
-    // This is Expr mainly so that BadExpr can be stored here.
 };
 
-class BinaryExpr : public Expr {
-public:
+struct BinaryExpr : public Expr {
+    Expr *lhs;
+    Token op;
+    Expr *rhs;
+
     BinaryExpr(Expr *lhs_, Token op_, Expr *rhs_)
         : Expr(AstKind::binary_expr), lhs(std::move(lhs_)), op(op_),
           rhs(std::move(rhs_)) {
@@ -272,14 +267,9 @@ public:
     }
     void print() const override;
     void traverse(Semantics &sema) override;
-
-    Expr *lhs;
-    Token op;
-    Expr *rhs;
 };
 
-class BadExpr : public Expr {
-public:
+struct BadExpr : public Expr {
     BadExpr() : Expr(AstKind::bad_expr) {}
     void print() const override;
 };

@@ -104,7 +104,7 @@ void BinaryExpr::print() const {
 
     PrintScope start;
     lhs->print();
-    fmt::print("[Op] '{}'\n", op.text);
+    out() << "[Op] " << "'{}'\n";
     rhs->print();
 }
 
