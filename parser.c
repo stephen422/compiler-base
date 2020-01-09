@@ -1,11 +1,13 @@
 #include "parser.h"
 #include "stretchy_buffer.h"
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdarg.h>
-#include <string.h>
-#include <stdio.h>
 #include <assert.h>
+#include <regex.h>
+#include <stdarg.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
 
 static Node *parse_expr(Parser *p);
 static int is_decl_start(Parser *p);
@@ -135,6 +137,12 @@ static void iprintf(int indent, const char *fmt, ...) {
 	va_start(args, fmt);
 	vprintf(fmt, args);
 	va_end(args);
+}
+
+// Print current parsing position. Mainly used for debugging.
+static void printLocation(Parser *p) {
+    SrcLoc loc = locate(&p->lexer, p->tok.range.start);
+    printf("loc: %s:%d:%d\n", p->lexer.filename, loc.line, loc.col);
 }
 
 static void print_ast_indent(Parser *p, const Node *node, int indent)
@@ -348,10 +356,8 @@ static void next(Parser *p) {
 
 static void addError(Parser *p, SrcLoc loc, const char *msg)
 {
-	Error error = {.loc = loc};
-	error.msg = calloc(strlen(msg) + 1, 1);
-	strcpy(error.msg, msg);
-	sb_push(p->errors, error);
+    Error error = {.loc = loc, .msg = strdup(msg)};
+    sb_push(p->errors, error);
 }
 
 static void error(Parser *p, const char *fmt, ...)
@@ -367,7 +373,7 @@ static void error(Parser *p, const char *fmt, ...)
 	addError(p, loc, msg);
 }
 
-void parser_report_errors(Parser *p)
+void parserReportErrors(Parser *p)
 {
 	for (int i = 0; i < sb_len(p->errors); i++) {
 		SrcLoc loc = p->errors[i].loc;
@@ -393,7 +399,6 @@ static Token expect(Parser *p, TokenType t) {
 }
 
 void expectEndOfLine(Parser *p) {
-    Token tok = p->tok;
     if (p->tok.type != TOK_NEWLINE && p->tok.type != TOK_COMMENT) {
         // FIXME error message
         error_expected(p, TOK_NEWLINE);
@@ -435,7 +440,8 @@ static Node *parse_returnstmt(Parser *p)
 	return make_retstmt(p, expr);
 }
 
-static void skipInvisibles(Parser *p) {
+static void skipInvisibles(Parser *p)
+{
     while (p->tok.type == TOK_NEWLINE || p->tok.type == TOK_COMMENT)
         next(p);
 }
@@ -472,25 +478,22 @@ static Node *parse_stmt(Parser *p)
     }
 
     // no production has succeeded
+    // TODO: unreachable?
     return NULL;
 }
 
-static Node *parse_compoundstmt(Parser *p)
+static Node *parseCompoundStmt(Parser *p)
 {
-	expect(p, TOK_LBRACE);
+    expect(p, TOK_LBRACE);
 
-	Node *compound = make_compoundstmt(p);
-	Node *stmt;
-	while ((stmt = parse_stmt(p)) != NULL) {
-		if (!success(p)) {
-			parser_report_errors(p);
-		}
-		sb_push(compound->nodes, stmt);
-	}
+    Node *compound = make_compoundstmt(p);
+    Node *stmt;
+    while ((stmt = parse_stmt(p)) != NULL)
+        sb_push(compound->nodes, stmt);
 
-	expect(p, TOK_RBRACE);
+    expect(p, TOK_RBRACE);
 
-	return compound;
+    return compound;
 }
 
 static Node *parse_litexpr(Parser *p)
@@ -525,10 +528,8 @@ static Node *parseTypeExpr(Parser *p) {
         ref = 0;
         subexpr = NULL;
 
-        if (!is_typename(p->tok)) {
+        if (!is_typename(p->tok))
             error(p, "invalid type name '%s'", token_names[p->tok.type]);
-            return NULL;
-        }
 
         name = push_name_from_token(p, p->tok);
         next(p);
@@ -655,61 +656,51 @@ static Node *parse_expr(Parser *p)
 
 static Node *parse_paramdecl(Parser *p)
 {
-	Token tok = expect(p, TOK_IDENT);
-	Name *name = push_name_from_token(p, tok);
+    Token tok = expect(p, TOK_IDENT);
+    Name *name = push_name_from_token(p, tok);
 
-	if (p->tok.type != TOK_COLON) {
-		error_expected(p, TOK_COLON);
-		return NULL;
-	}
-	next(p);
-	Node *typeexpr = parseTypeExpr(p);
+    if (p->tok.type != TOK_COLON)
+        error_expected(p, TOK_COLON);
+    next(p);
+    Node *typeexpr = parseTypeExpr(p);
 
-	return make_paramdecl(p, name, typeexpr);
+    return make_paramdecl(p, name, typeexpr);
 }
 
 static Node **parse_paramdecllist(Parser *p)
 {
-	Node **list = NULL;
+    Node **list = NULL;
 
-	// assumes enclosed in parentheses
-	while (p->tok.type != TOK_RPAREN) {
-		Node *node = parse_paramdecl(p);
-		if (!success(p)) {
-			parser_report_errors(p);
-			return NULL;
-		}
-		sb_push(list, node);
-		if (p->tok.type == TOK_COMMA) {
-			next(p);
-		}
-	}
+    // assumes enclosed in parentheses
+    while (p->tok.type != TOK_RPAREN) {
+        Node *node = parse_paramdecl(p);
+        sb_push(list, node);
+        if (p->tok.type == TOK_COMMA)
+            next(p);
+    }
 
-	return list;
+    return list;
 }
 
-static Node *parse_vardecl(Parser *p)
+static Node *parseVarDecl(Parser *p)
 {
-	int mut = (p->tok.type == TOK_VAR);
-	next(p);
+    int mut = (p->tok.type == TOK_VAR);
+    next(p);
 
-	Token tok = expect(p, TOK_IDENT);
-	Name *name = push_name_from_token(p, tok);
+    Token tok = expect(p, TOK_IDENT);
+    Name *name = push_name_from_token(p, tok);
 
-	if (p->tok.type == TOK_COLON) {
-		next(p);
-		// 'let' cannot be used with explicit type specfication
-		if (!mut) {
-			error(p, "initial value required");
-		}
-		Node *typeexpr = parseTypeExpr(p);
-		return make_vardecl(p, typeexpr, mut, name, NULL);
-	} else {
-		expect(p, TOK_EQUALS);
-		Node *assign = parse_expr(p);
-		return make_vardecl(p, NULL, mut, name, assign);
-	}
-
+    if (p->tok.type == TOK_COLON) {
+        next(p);
+        if (!mut)
+            error(p, "initial value required");
+        Node *typeexpr = parseTypeExpr(p);
+        return make_vardecl(p, typeexpr, mut, name, NULL);
+    } else {
+        expect(p, TOK_EQUALS);
+        Node *assign = parse_expr(p);
+        return make_vardecl(p, NULL, mut, name, assign);
+    }
 }
 
 // Declarations have clear indicator tokens.
@@ -736,7 +727,7 @@ static Node *parse_decl(Parser *p)
 	switch (p->tok.type) {
 	case TOK_LET:
 	case TOK_VAR:
-		decl = parse_vardecl(p);
+		decl = parseVarDecl(p);
 		break;
 	default:
 		error(p, "not a start of declaration");
@@ -746,33 +737,46 @@ static Node *parse_decl(Parser *p)
 	return decl;
 }
 
-static Node *parse_funcdecl(Parser *p)
+static Node *parseFuncDecl(Parser *p)
 {
-	if (p->tok.type != TOK_FN) {
-		return NULL;
-	}
-	next(p);
+    expect(p, TOK_FN);
+    next(p);
 
-	Name *name = push_name_from_token(p, p->tok);
-	Node *func = make_funcdecl(p, name);
-	next(p);
+    Name *name = push_name_from_token(p, p->tok);
+    Node *func = make_funcdecl(p, name);
+    next(p);
 
-	// parameter list
-	expect(p, TOK_LPAREN);
-	func->paramdecls = parse_paramdecllist(p);
-	expect(p, TOK_RPAREN);
+    // parameter list
+    expect(p, TOK_LPAREN);
+    func->paramdecls = parse_paramdecllist(p);
+    expect(p, TOK_RPAREN);
 
-	// return type
-        if (p->tok.type == TOK_ARROW) {
-            expect(p, TOK_ARROW);
-            func->rettypeexpr = parseTypeExpr(p);
-        } else {
-            func->rettypeexpr = NULL;
-        }
+    // return type
+    if (p->tok.type == TOK_ARROW) {
+        expect(p, TOK_ARROW);
+        func->rettypeexpr = parseTypeExpr(p);
+    } else {
+        func->rettypeexpr = NULL;
+    }
 
-	func->body = parse_compoundstmt(p);
+    func->body = parseCompoundStmt(p);
 
-	return func;
+    return func;
+}
+
+static Node *parseTopLevel(Parser *p)
+{
+    skipInvisibles(p);
+
+    switch (p->tok.type) {
+    case TOK_FN:
+        return parseFuncDecl(p);
+    // case TokenKind::kw_struct:
+    //     return parse_struct_decl();
+    default:
+        assert(0 && "unreachable");
+        return NULL;
+    }
 }
 
 void parserVerify(Parser *p) {
@@ -784,8 +788,14 @@ void parserVerify(Parser *p) {
         Error error = p->errors[i];
         Error beacon = p->beacons[j];
         if (error.loc.line == beacon.loc.line) {
-            // TODO regex
             success = 0;
+
+            regex_t preg;
+            if (!regcomp(&preg, beacon.msg, 0))
+                fatal("invalid regex in beacon: %s", beacon.msg);
+            else
+                fatal("good!");
+
             printf("< %s\n> %s\n", error.msg, beacon.msg);
             if (i < sb_count(p->errors))
                 i++;
@@ -815,11 +825,6 @@ void parserVerify(Parser *p) {
     printf("%s %s\n", success ? "SUCCESS" : "FAIL", p->lexer.filename);
 }
 
-static void printCurrentLocation(Parser *p) {
-    SrcLoc loc = locate(&p->lexer, p->tok.range.start);
-    printf("loc: %s:%d:%d\n", p->lexer.filename, loc.line, loc.col);
-}
-
 // Parse a single error beacon ([error: "regex"]).
 Error parseErrorBeacon(Parser *p) {
     expect(p, TOK_LBRACKET);
@@ -839,16 +844,13 @@ Error parseErrorBeacon(Parser *p) {
 
 Node *parse(Parser *p)
 {
-	Node **nodes = NULL;
-	Node *func;
+    Node **nodes = NULL;
 
-	skipInvisibles(p);
+    while (p->tok.type != TOK_EOF) {
+        Node *func = parseTopLevel(p);
+        sb_push(nodes, func);
+        skipInvisibles(p);
+    }
 
-	// TODO: proper toplevel parsing.
-	while ((func = parse_funcdecl(p))) {
-		sb_push(nodes, func);
-		skipInvisibles(p);
-	}
-
-	return make_file(p, nodes);
+    return make_file(p, nodes);
 }

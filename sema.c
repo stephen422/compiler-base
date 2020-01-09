@@ -12,8 +12,15 @@ static void map_push_scope(Map *m);
 static void map_pop_scope(Map *m);
 static void map_print(const Map *m);
 
-static void fatal(const char *msg) {
-    fprintf(stderr, "%s\n", msg);
+void fatal(const char *fmt, ...) {
+    va_list args;
+
+    fprintf(stderr, "fatal: ");
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+    fprintf(stderr, "\n");
+
     exit(EXIT_FAILURE);
 }
 

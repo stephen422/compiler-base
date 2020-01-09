@@ -7,6 +7,8 @@
 
 #define HASHTABLE_SIZE 512
 
+void fatal(const char *fmt, ...);
+
 // A Name corresponds to any single unique identifier string in the source
 // text.  There may be multiple occurrences of the string in the source text,
 // but only one matching Name object is created in the course of compilation.
