@@ -6,11 +6,11 @@ fn main() {
     let a = 3 + 4
     let b: int
     let c &int // [error: "expected.*':'.*found '&'"]
-    let c: int blah // [error: "expected end of decl.*blah"]
+    let c: int blah // [error: "expected '\\n'.*'blah'"]
     let d: & // [error: "expected type expression"]
     let d: &mut // [error: "expected type name"]
     let d: &mut Car
-    let d: &mut Car Sedan // [error: "expected end of decl.*Sedan"]
+    let d: &mut Car Sedan // [error: "expected '\\n'.*'Sedan'"]
 
     1 * 2 + 3 + 4 * 5
     3 + (a - (b + a * 3)) * 2

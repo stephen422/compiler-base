@@ -69,8 +69,7 @@ bool Parser::expect(TokenKind kind, const std::string &msg = "") {
         std::string s = msg;
         if (msg.empty())
             s = fmt::format("expected '{}', found '{}'",
-                            tokentype_to_string(kind),
-                            tokentype_to_string(tok.kind));
+                            tokentype_to_string(kind), tok);
         add_error(s);
         return false;
     }
@@ -134,13 +133,10 @@ Stmt *Parser::parse_return_stmt() {
 DeclStmt *Parser::parse_decl_stmt() {
     auto decl = parse_decl();
     if (!expect_end_of_stmt()) {
-        if (decl->kind == AstKind::bad_decl) {
-            // try to recover
-            skip_until_end_of_line();
-        } else {
-            add_error_expected("end of declaration");
-            skip_until_end_of_line();
-        }
+        if (decl->kind != AstKind::bad_decl)
+            expect(TokenKind::newline);
+        // try to recover
+        skip_until_end_of_line();
     }
     return make_node<DeclStmt>(decl);
 }
