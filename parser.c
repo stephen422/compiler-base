@@ -12,7 +12,7 @@
 
 static Node *parse_expr(Parser *p);
 static int is_decl_start(Parser *p);
-static Node *parse_decl(Parser *p);
+static Node *parseDecl(Parser *p);
 
 static Name *push_name_from_token(Parser *p, Token tok)
 {
@@ -90,12 +90,18 @@ static Node *make_binexpr(Parser *p, Node *lhs, Node *op, Node *rhs)
 	return node;
 }
 
-static Node *make_typeexpr(Parser *p, Name *name, int ref, Node *canon)
+static Node *makeTypeExpr(Parser *p, Name *name, int ref, Node *canon)
 {
 	Node *node = make_node(p, ND_TYPEEXPR, p->tok);
 	node->name = name;
 	node->ref = ref;
 	node->typeexpr = canon;
+	return node;
+}
+
+static Node *makeBadTypeExpr(Parser *p)
+{
+	Node *node = make_node(p, ND_BADTYPEEXPR, p->tok);
 	return node;
 }
 
@@ -106,7 +112,7 @@ static Node *make_idexpr(Parser *p, Name *name)
 	return node;
 }
 
-static Node *make_vardecl(Parser *p, Node *typeexpr, int mutable, Name *name, Node *expr)
+static Node *makeVarDecl(Parser *p, Node *typeexpr, int mutable, Name *name, Node *expr)
 {
 	Node *node = make_node(p, ND_VARDECL, p->tok);
 	node->typeexpr = typeexpr;
@@ -398,35 +404,28 @@ static void parserReportErrors(Parser *p)
     exit(1);
 }
 
-static void errorExpected(Parser *p, TokenType t)
+// Emit general 'expected ..., got ...' message, with the 'expected' part
+// customized.
+static void errorExpected(Parser *p, const char *s)
 {
-    error(p, "expected '%s', got '%s'", token_names[t],
-          token_names[p->tok.type]);
+    error(p, "expected %s, got '%s'", s, token_names[p->tok.type]);
 }
 
 static Token expect(Parser *p, TokenType t) {
     Token tok = p->tok;
-    if (p->tok.type != t) {
-        errorExpected(p, t);
-    }
+    if (p->tok.type != t)
+        error(p, "expected '%s', got '%s'", token_names[t], token_names[p->tok.type]);
     // make progress
     next(p);
     return tok;
 }
 
 void expectEndOfLine(Parser *p) {
-    if (p->tok.type != TOK_NEWLINE && p->tok.type != TOK_COMMENT) {
+    if (p->tok.type != TOK_NEWLINE && p->tok.type != TOK_COMMENT)
         // FIXME error message
-        errorExpected(p, TOK_NEWLINE);
-    }
+        expect(p, TOK_NEWLINE);
     // make progress
     next(p);
-}
-
-// FIXME: unused?
-static int success(Parser *p)
-{
-	return p->errors == NULL || sb_len(p->errors) == 0;
 }
 
 // Assignment statements start with an expression, so we cannot easily
@@ -463,6 +462,12 @@ static void skipInvisibles(Parser *p)
         next(p);
 }
 
+static void skipToEndOfLine(Parser *p)
+{
+    while (p->tok.type != TOK_NEWLINE)
+        next(p);
+}
+
 static Node *parse_stmt(Parser *p)
 {
     Node *stmt;
@@ -482,7 +487,7 @@ static Node *parse_stmt(Parser *p)
     }
 
     if (is_decl_start(p)) {
-        Node *decl = parse_decl(p);
+        Node *decl = parseDecl(p);
         stmt = make_decl_stmt(p, decl);
         expectEndOfLine(p);
         return stmt;
@@ -552,7 +557,7 @@ static Node *parseTypeExpr(Parser *p) {
         next(p);
     }
 
-    return make_typeexpr(p, name, ref, subexpr);
+    return makeTypeExpr(p, name, ref, subexpr);
 }
 
 static Node *parse_idexpr(Parser *p)
@@ -677,7 +682,7 @@ static Node *parse_paramdecl(Parser *p)
     Name *name = push_name_from_token(p, tok);
 
     if (p->tok.type != TOK_COLON)
-        errorExpected(p, TOK_COLON);
+        expect(p, TOK_COLON);
     next(p);
     Node *typeexpr = parseTypeExpr(p);
 
@@ -712,11 +717,17 @@ static Node *parseVarDecl(Parser *p)
         if (!mut)
             error(p, "initial value required");
         Node *typeexpr = parseTypeExpr(p);
-        return make_vardecl(p, typeexpr, mut, name, NULL);
-    } else {
-        expect(p, TOK_EQUALS);
+        return makeVarDecl(p, typeexpr, mut, name, NULL);
+    } else if (p->tok.type == TOK_EQUALS) {
+        next(p);
         Node *assign = parse_expr(p);
-        return make_vardecl(p, NULL, mut, name, assign);
+        return makeVarDecl(p, NULL, mut, name, assign);
+    } else {
+        errorExpected(p, "':' or '='");
+        // recover by running to eol
+        skipToEndOfLine(p);
+        Node *typeexpr = makeBadTypeExpr(p);
+        return makeVarDecl(p, typeexpr, mut, name, NULL);
     }
 }
 
@@ -737,7 +748,7 @@ static int is_decl_start(Parser *p)
 // Decl:
 //	 VarDecl
 //	 FuncDecl
-static Node *parse_decl(Parser *p)
+static Node *parseDecl(Parser *p)
 {
 	Node *decl;
 

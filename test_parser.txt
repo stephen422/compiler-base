@@ -6,7 +6,7 @@ fn main() {
     let a = 3 + 4
     let b: int // [error: "initial value required"]
     var b: int
-    let c &int // [error: "expected.*':'.*found '&'"]
+    let c &int // [error: "expected.*':'.*got '&'"]
     // let c: int blah // [error: "expected end of decl.*blah"]
     // let d: & // [error: "expected type expression"]
     // let d: &mut // [error: "expected type name"]
@@ -26,7 +26,7 @@ fn main() {
     // f(3, 4, 2 + 5)
 }
 
-// fn f(a: int) int { // [error: "expected.*'->'.*found 'int'"]
+// fn f(a: int) int { // [error: "expected.*'->'.*got 'int'"]
 // }
 // 
 // fn f(a: int, b int, c: int) -> int { // [error: "expected.*':'"]

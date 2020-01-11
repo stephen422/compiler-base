@@ -12,6 +12,7 @@ typedef enum NodeKind {
     ND_NONE,
     ND_TOKEN,
     ND_TYPEEXPR,
+    ND_BADTYPEEXPR,
     ND_LITEXPR,   // 3
     ND_IDEXPR,    // a
     ND_REFEXPR,   // &a
