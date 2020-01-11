@@ -757,7 +757,6 @@ static Node *parse_decl(Parser *p)
 static Node *parseFuncDecl(Parser *p)
 {
     expect(p, TOK_FN);
-    next(p);
 
     Name *name = push_name_from_token(p, p->tok);
     Node *func = make_funcdecl(p, name);
@@ -807,45 +806,59 @@ void parserVerify(Parser *p) {
         if (error.loc.line == beacon.loc.line) {
             success = 0;
 
+            // trim the double-quotes
+            sds rs = sdsnew(beacon.msg);
+            sdstrim(rs, "\"");
             regex_t preg;
-            if (!regcomp(&preg, beacon.msg, 0))
+            if (regcomp(&preg, rs, REG_NOSUB) == 0) {
+                int match = regexec(&preg, error.msg, 0, NULL, 0);
+                if (match != 0) {
+                    sds es = errorString(error);
+                    sds bs = errorString(beacon);
+                    printf("< %s\n> %s\n", es, bs);
+                    sdsfree(es);
+                    sdsfree(bs);
+                }
+                regfree(&preg);
+            } else {
                 fatal("invalid regex in beacon: %s", beacon.msg);
-            else
-                fatal("good!");
+            }
+            sdsfree(rs);
 
-            sds es = errorString(error);
-            sds bs = errorString(beacon);
-            printf("< %s\n> %s\n", es, bs);
-            sdsfree(es);
-            sdsfree(bs);
             if (i < sb_count(p->errors))
                 i++;
             if (j < sb_count(p->beacons))
                 j++;
         } else if (error.loc.line < beacon.loc.line) {
             success = 0;
+
             sds es = errorString(error);
             printf("< %s\n", es);
             sdsfree(es);
+
             if (i < sb_count(p->errors))
                 i++;
         } else {
             success = 0;
+
             sds bs = errorString(beacon);
             printf("> %s\n", bs);
             sdsfree(bs);
+
             if (j < sb_count(p->beacons))
                 j++;
         }
     }
     for (; i < sb_count(p->errors); i++) {
         success = 0;
+
         sds es = errorString(p->errors[i]);
         printf("< %s\n", es);
         sdsfree(es);
     }
     for (; j < sb_count(p->beacons); j++) {
         success = 0;
+
         sds bs = errorString(p->beacons[j]);
         printf("> %s\n", bs);
         sdsfree(bs);
