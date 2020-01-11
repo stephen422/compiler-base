@@ -129,30 +129,27 @@ static void step(Lexer *l)
 
 int lexerInit(Lexer *l, const char *filename)
 {
-	memset(l, 0, sizeof(Lexer));
-	l->filename = calloc(256, 1);
-	l->filename = memcpy(l->filename, filename, 255);
-	l->src = readfile(filename, &l->srclen);
-	step(l);
-	return 1;
+    memset(l, 0, sizeof(Lexer));
+    memcpy(l->filename, filename, 255);
+    l->src = readfile(filename, &l->srclen);
+    step(l);
+    return 1;
 }
 
 int lexerInitText(Lexer *l, const char *text, size_t len)
 {
-	memset(l, 0, sizeof(Lexer));
-	l->filename = calloc(256, 1);
-	l->filename = strncpy(l->filename, "(null)", 255);
-        l->srclen = len;
-        l->src = calloc(len + 1, 1);
-        strncpy(l->src, text, len);
-        step(l);
-	return 1;
+    memset(l, 0, sizeof(Lexer));
+    strncpy(l->filename, "(null)", 255);
+    l->srclen = len;
+    l->src = calloc(len + 1, 1);
+    strncpy(l->src, text, len);
+    step(l);
+    return 1;
 }
 
 void lexerCleanup(Lexer *l)
 {
 	sb_free(l->line_offs);
-	free(l->filename);
 	free(l->src);
 }
 
@@ -304,21 +301,29 @@ int lexerNext(Lexer *l) {
     return 0;
 }
 
+// FIXME: lifetime of 'filename'?
 SrcLoc locate(Lexer *l, size_t pos)
 {
-	// Search linearly for line that contains this position.
-	if (sb_count(l->line_offs) == 0) {
-		// First line
-		return (SrcLoc) {1, pos + 1};
-	}
-	int line;
-	for (line = 0; line < sb_count(l->line_offs); line++) {
-		if (pos < l->line_offs[line]) {
-			break;
-		}
-	}
-	int col = pos - l->line_offs[line - 1];
-	return (SrcLoc) {line + 1, col};
+    // search linearly for line that contains this position
+    // TODO: performance
+
+    if (sb_count(l->line_offs) == 0)
+        // First line
+        return (SrcLoc){l->filename, 1, pos + 1};
+
+    int line;
+    for (line = 0; line < sb_count(l->line_offs); line++)
+        if (pos < l->line_offs[line])
+            break;
+
+    int col = pos - l->line_offs[line - 1];
+    return (SrcLoc){l->filename, line + 1, col};
+}
+
+sds srcLocString(const SrcLoc loc)
+{
+    sds s = sdscatprintf(sdsempty(), "%s:%d:%d", loc.filename, loc.line, loc.col);
+    return s;
 }
 
 char *tokenString(Lexer *lex, const Token tok) {

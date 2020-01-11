@@ -6,6 +6,7 @@
 #include "ast.h"
 #include "sema.h"
 
+// These are meant to be passed around by value.
 typedef struct {
 	SrcLoc loc;
 	char *msg;

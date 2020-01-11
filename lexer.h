@@ -2,6 +2,7 @@
 #ifndef LEX_H
 #define LEX_H
 
+#include "sds.h"
 #include <stdlib.h>
 
 typedef enum TokenType {
@@ -82,22 +83,23 @@ typedef struct Token {
 } Token;
 
 typedef struct SrcLoc {
+    const char *filename;
     int line;
     int col;
 } SrcLoc;
 
 typedef struct Lexer {
-    Token tok;         // currently lexed token
-    char ch;           // lookahead character
-    long off;          // lookahead character offset
-    long rd_off;       // next read character offset
-    long line_off;     // current line offset
-    size_t *line_offs; // byte offsets of '\n's
-    int lines;         // number of lines
-    long start;        // start of the last token literal
-    char *filename;    // source filename
-    char *src;         // source text
-    long srclen;       // length of src excluding \0
+    Token tok;          // currently lexed token
+    char ch;            // lookahead character
+    long off;           // lookahead character offset
+    long rd_off;        // next read character offset
+    long line_off;      // current line offset
+    size_t *line_offs;  // byte offsets of '\n's
+    int lines;          // number of lines
+    long start;         // start of the last token literal
+    char filename[256]; // source filename
+    char *src;          // source text
+    long srclen;        // length of src excluding \0
 } Lexer;
 
 void token_free(Token *t);
@@ -105,6 +107,7 @@ char *tokenString(Lexer *lex, const Token tok);
 void tokenPrint(Lexer *l, const Token t);
 int is_keyword(Token tok);
 SrcLoc locate(Lexer *l, size_t pos);
+sds srcLocString(const SrcLoc loc);
 int lexerInit(Lexer *l, const char *filename);
 int lexerInitText(Lexer *l, const char *text, size_t len);
 int lexerNext(Lexer *l);

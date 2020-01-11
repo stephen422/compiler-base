@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "sds.h"
 #include "stretchy_buffer.h"
 #include <assert.h>
 #include <regex.h>
@@ -140,9 +141,11 @@ static void iprintf(int indent, const char *fmt, ...) {
 }
 
 // Print current parsing position. Mainly used for debugging.
-static void printLocation(Parser *p) {
-    SrcLoc loc = locate(&p->lexer, p->tok.range.start);
-    printf("loc: %s:%d:%d\n", p->lexer.filename, loc.line, loc.col);
+static void printLocation(Parser *p)
+{
+    sds s = srcLocString(locate(&p->lexer, p->tok.range.start));
+    printf("loc: %s\n", s);
+    sdsfree(s);
 }
 
 static void print_ast_indent(Parser *p, const Node *node, int indent)
@@ -266,14 +269,18 @@ void printAst(Parser *p, const Node *node)
 	print_ast_indent(p, node, 0);
 }
 
-void parserInit(Parser *p, const char *filename) {
+// Initialize a Parser that parses the given filename.
+void parserInit(Parser *p, const char *filename)
+{
     memset(p, 0, sizeof(Parser));
     lexerInit(&p->lexer, filename);
     lexerNext(&p->lexer);
     p->tok = p->lexer.tok;
 }
 
-void parserInitText(Parser *p, const char *text, size_t len) {
+// Initialize a Parser for a predefined string.
+void parserInitText(Parser *p, const char *text, size_t len)
+{
     memset(p, 0, sizeof(Parser));
     lexerInitText(&p->lexer, text, len);
     lexerNext(&p->lexer);
@@ -373,25 +380,34 @@ static void error(Parser *p, const char *fmt, ...)
 	addError(p, loc, msg);
 }
 
-void parserReportErrors(Parser *p)
+static sds errorString(const Error e)
 {
-	for (int i = 0; i < sb_len(p->errors); i++) {
-		SrcLoc loc = p->errors[i].loc;
-		const char *msg = p->errors[i].msg;
-		fprintf(stderr, "%s:%d:%d: parse error: %s\n", p->lexer.filename, loc.line, loc.col, msg);
-	}
-	exit(1);
+    sds s = srcLocString(e.loc);
+    s = sdscatprintf(s, ": parse error: %s", e.msg);
+    return s;
 }
 
-static void error_expected(Parser *p, TokenType t)
+static void parserReportErrors(Parser *p)
 {
-	error(p, "expected '%s', got '%s'", token_names[t], token_names[p->tok.type]);
+    for (int i = 0; i < sb_len(p->errors); i++) {
+        SrcLoc loc = p->errors[i].loc;
+        const char *msg = p->errors[i].msg;
+        fprintf(stderr, "%s:%d:%d: parse error: %s\n", p->lexer.filename,
+                loc.line, loc.col, msg);
+    }
+    exit(1);
+}
+
+static void errorExpected(Parser *p, TokenType t)
+{
+    error(p, "expected '%s', got '%s'", token_names[t],
+          token_names[p->tok.type]);
 }
 
 static Token expect(Parser *p, TokenType t) {
     Token tok = p->tok;
     if (p->tok.type != t) {
-        error_expected(p, t);
+        errorExpected(p, t);
     }
     // make progress
     next(p);
@@ -401,12 +417,13 @@ static Token expect(Parser *p, TokenType t) {
 void expectEndOfLine(Parser *p) {
     if (p->tok.type != TOK_NEWLINE && p->tok.type != TOK_COMMENT) {
         // FIXME error message
-        error_expected(p, TOK_NEWLINE);
+        errorExpected(p, TOK_NEWLINE);
     }
     // make progress
     next(p);
 }
 
+// FIXME: unused?
 static int success(Parser *p)
 {
 	return p->errors == NULL || sb_len(p->errors) == 0;
@@ -660,7 +677,7 @@ static Node *parse_paramdecl(Parser *p)
     Name *name = push_name_from_token(p, tok);
 
     if (p->tok.type != TOK_COLON)
-        error_expected(p, TOK_COLON);
+        errorExpected(p, TOK_COLON);
     next(p);
     Node *typeexpr = parseTypeExpr(p);
 
@@ -796,30 +813,42 @@ void parserVerify(Parser *p) {
             else
                 fatal("good!");
 
-            printf("< %s\n> %s\n", error.msg, beacon.msg);
+            sds es = errorString(error);
+            sds bs = errorString(beacon);
+            printf("< %s\n> %s\n", es, bs);
+            sdsfree(es);
+            sdsfree(bs);
             if (i < sb_count(p->errors))
                 i++;
             if (j < sb_count(p->beacons))
                 j++;
         } else if (error.loc.line < beacon.loc.line) {
             success = 0;
-            printf("< %s\n", error.msg);
+            sds es = errorString(error);
+            printf("< %s\n", es);
+            sdsfree(es);
             if (i < sb_count(p->errors))
                 i++;
         } else {
             success = 0;
-            printf("> %s\n", beacon.msg);
+            sds bs = errorString(beacon);
+            printf("> %s\n", bs);
+            sdsfree(bs);
             if (j < sb_count(p->beacons))
                 j++;
         }
     }
     for (; i < sb_count(p->errors); i++) {
         success = 0;
-        printf("< %s\n", p->errors[i].msg);
+        sds es = errorString(p->errors[i]);
+        printf("< %s\n", es);
+        sdsfree(es);
     }
     for (; j < sb_count(p->beacons); j++) {
         success = 0;
-        printf("> %s\n", p->beacons[j].msg);
+        sds bs = errorString(p->beacons[j]);
+        printf("> %s\n", bs);
+        sdsfree(bs);
     }
 
     printf("%s %s\n", success ? "SUCCESS" : "FAIL", p->lexer.filename);
