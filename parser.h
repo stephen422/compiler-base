@@ -90,8 +90,8 @@ class Parser {
     std::vector<AstNode *> nodes;    // node pointer pool
     std::vector<ParseError> errors;  // error list
     std::vector<ParseError> beacons; // error beacon list
+    AstNode *ast = nullptr;          // resulting AST
     NameTable names;                 // name table
-    std::vector<Token> tokens;       // lexed tokens
 
 public:
     Parser(Lexer &lexer);

@@ -360,7 +360,7 @@ Expr *Parser::parse_funccall_or_declref_expr() {
 }
 
 bool Parser::is_start_of_typeexpr() const {
-    return tok.kind == TokenKind::ampersand || tok.is_identifier_or_keyword();
+    return tok.kind == TokenKind::ampersand || is_identifier_or_keyword(tok);
 }
 
 // Parse a type expression.
@@ -384,12 +384,12 @@ Expr *Parser::parse_typeexpr() {
         typeexpr->subexpr = parse_typeexpr();
         if (typeexpr->subexpr->kind == AstKind::type_expr)
             text = "&" + static_cast<TypeExpr *>(typeexpr->subexpr)->name->text;
-    } else if (tok.is_identifier_or_keyword()) {
+    } else if (is_identifier_or_keyword(tok)) {
         if (tok.kind == TokenKind::kw_mut) {
             expect(TokenKind::kw_mut);
             typeexpr->mut = true;
         }
-        if (!tok.is_identifier_or_keyword()) {
+        if (!is_identifier_or_keyword(tok)) {
             // FIXME: type name? expression?
             add_error_expected("type name");
             return make_node_with_pos<BadExpr>(typeexpr->start_pos);
@@ -612,8 +612,8 @@ File *Parser::parse_file() {
 }
 
 Ast Parser::parse() {
-    File *file = parse_file();
-    return Ast{file, names};
+    ast = parse_file();
+    return Ast{ast, names};
 }
 
 // Report errors to stdout.

@@ -18,8 +18,9 @@ std::string tokentype_to_string(TokenKind kind) {
     return "";
 }
 
-bool Token::is_identifier_or_keyword() const {
-    return kind == TokenKind::ident || (kind > TokenKind::KWSTART && kind < TokenKind::KWEND);
+bool is_identifier_or_keyword(const Token tok) {
+    return tok.kind == TokenKind::ident ||
+           (tok.kind > TokenKind::KWSTART && tok.kind < TokenKind::KWEND);
 }
 
 void Lexer::step() {

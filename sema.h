@@ -158,7 +158,7 @@ private:
 // Constructs the type if it wasn't in the type table beforehand.
 Type *get_reference_type(Semantics &sema, Type *type);
 
-class Ast;
+struct Ast;
 
 // Do a semantic analysis on the given AST.
 void semantic_analyze(Semantics &sema, Ast &ast);

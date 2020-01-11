@@ -49,13 +49,13 @@ class FuncDecl;
 
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
 
-// Ast is aggregate type that contains all information necessary for semantic
+// Ast is a struct that contains all necessary information for semantic
 // analysis of an AST: namely, the root node and the name table.
-class Ast {
-public:
-    Ast(AstNode *r, NameTable &nt) : root(r), name_table(nt) {}
+struct Ast {
     AstNode *root;
     NameTable &name_table;
+
+    Ast(AstNode *r, NameTable &nt) : root(r), name_table(nt) {}
 };
 
 class AstNode {

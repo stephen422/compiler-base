@@ -127,9 +127,9 @@ struct Token {
     Token(TokenKind kind, size_t pos) : kind(kind), pos(pos), text() {}
     Token(TokenKind kind, size_t pos, std::string_view text)
         : kind(kind), pos(pos), text(text) {}
-    bool is(TokenKind k) const { return kind == k; }
-    bool is_identifier_or_keyword() const;
 };
+
+bool is_identifier_or_keyword(const Token tok);
 
 /// Represents a lexer state machine.
 /// Assumes that the associated Source outlives it.

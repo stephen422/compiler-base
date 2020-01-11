@@ -29,8 +29,7 @@ int main(int argc, char **argv) {
     test_lexer(lexer);
 #else
     Parser p{lexer};
-    auto ast = p.parse();
-    ast.root->print();
+    p.parse();
     // p.report();
     p.verify();
     // Semantics sema{src, ast.name_table};
