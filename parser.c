@@ -345,8 +345,7 @@ static void next(Parser *p) {
         p->tok = p->lexer.tok;
 
         if (p->tok.type == TOK_COMMENT) {
-            // TODO: strnstr?
-            char *text = tokenString(&p->lexer, p->tok);
+            sds text = tokenString(&p->lexer, p->tok);
             char *found = strstr(text, "[error:");
             if (found) {
                 Parser p0;
@@ -358,7 +357,7 @@ static void next(Parser *p) {
                 e.loc = locate(&p->lexer, p->tok.range.start);
                 sb_push(p->beacons, e);
             }
-            free(text);
+            sdsfree(text);
         }
 
         // Push keywords that we come by into the name table.
@@ -408,13 +407,18 @@ static void parserReportErrors(Parser *p)
 // customized.
 static void errorExpected(Parser *p, const char *s)
 {
-    error(p, "expected %s, got '%s'", s, token_names[p->tok.type]);
+    sds ts = tokenString(&p->lexer, p->tok);
+    error(p, "expected %s, got '%s'", s, ts);
+    sdsfree(ts);
 }
 
 static Token expect(Parser *p, TokenType t) {
     Token tok = p->tok;
-    if (p->tok.type != t)
-        error(p, "expected '%s', got '%s'", token_names[t], token_names[p->tok.type]);
+    if (p->tok.type != t) {
+        sds ts = tokenString(&p->lexer, p->tok);
+        error(p, "expected '%s', got '%s'", token_names[t], ts);
+        sdsfree(ts);
+    }
     // make progress
     next(p);
     return tok;
@@ -724,7 +728,6 @@ static Node *parseVarDecl(Parser *p)
         return makeVarDecl(p, NULL, mut, name, assign);
     } else {
         errorExpected(p, "':' or '='");
-        // recover by running to eol
         skipToEndOfLine(p);
         Node *typeexpr = makeBadTypeExpr(p);
         return makeVarDecl(p, typeexpr, mut, name, NULL);
@@ -884,7 +887,10 @@ Error parseErrorBeacon(Parser *p) {
     expect(p, TOK_ERROR);
     expect(p, TOK_COLON);
 
-    char *msg = tokenString(&p->lexer, p->tok);
+    sds s = tokenString(&p->lexer, p->tok);
+    char *msg = strdup(s);
+    sdsfree(s);
+
     next(p);
 
     expect(p, TOK_RBRACKET);

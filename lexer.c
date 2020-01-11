@@ -326,11 +326,10 @@ sds srcLocString(const SrcLoc loc)
     return s;
 }
 
-char *tokenString(Lexer *lex, const Token tok) {
+sds tokenString(Lexer *lex, const Token tok) {
     size_t len = tok.range.end - tok.range.start;
-    char *text = calloc(len + 1, 1);
-    strncpy(text, lex->src + tok.range.start, len);
-    return text;
+    sds s = sdsnewlen(lex->src + tok.range.start, len);
+    return s;
 }
 
 void tokenPrint(Lexer *lex, const Token tok) {
