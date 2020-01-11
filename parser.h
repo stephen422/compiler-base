@@ -147,7 +147,6 @@ private:
 
     // Expect and consume functions.
     bool expect(TokenKind kind, const std::string &msg);
-    bool expect_end_of_stmt();
 
     // Skip until a specific token(s) show up.
     void skip_until(TokenKind kind);

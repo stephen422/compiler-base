@@ -77,13 +77,6 @@ bool Parser::expect(TokenKind kind, const std::string &msg = "") {
     return true;
 }
 
-bool Parser::expect_end_of_stmt() {
-    if (!is_end_of_stmt())
-        return false;
-    skip_newlines();
-    return true;
-}
-
 bool Parser::is_end_of_stmt() const {
     return tok.kind == TokenKind::newline || tok.kind == TokenKind::comment;
 }
@@ -122,7 +115,7 @@ Stmt *Parser::parse_return_stmt() {
     Expr *expr = nullptr;
     if (!is_end_of_stmt())
         expr = parse_expr();
-    if (!expect_end_of_stmt()) {
+    if (!is_end_of_stmt()) {
         skip_until_end_of_line();
         return make_node_with_pos<BadStmt>(start_pos);
     }
@@ -132,7 +125,7 @@ Stmt *Parser::parse_return_stmt() {
 // let a = ...
 DeclStmt *Parser::parse_decl_stmt() {
     auto decl = parse_decl();
-    if (!expect_end_of_stmt()) {
+    if (!is_end_of_stmt()) {
         if (decl->kind != AstKind::bad_decl)
             expect(TokenKind::newline);
         // try to recover
