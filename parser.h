@@ -85,17 +85,16 @@ using DeclResult = ParserResult<Decl>;
 using ExprResult = ParserResult<Expr>;
 
 class Parser {
-    Lexer &lexer;                    // associated lexer
-    Token tok;                       // lookahead token
-    std::vector<AstNode *> nodes;    // node pointer pool
-    std::vector<ParseError> errors;  // error list
-    std::vector<ParseError> beacons; // error beacon list
-    AstNode *ast = nullptr;          // resulting AST
-    NameTable names;                 // name table
+    Lexer &lexer;                                // associated lexer
+    Token tok;                                   // lookahead token
+    std::vector<std::unique_ptr<AstNode>> nodes; // node pointer pool
+    std::vector<ParseError> errors;              // error list
+    std::vector<ParseError> beacons;             // error beacon list
+    AstNode *ast = nullptr;                      // resulting AST
+    NameTable names;                             // name table
 
 public:
     Parser(Lexer &lexer);
-    ~Parser();
     Ast parse();
     void report() const;
     void verify() const;
@@ -140,7 +139,7 @@ private:
     void add_error(const std::string &msg) {
         errors.push_back(make_error(msg));
     }
-    void add_error_expected(const std::string &msg);
+    void error_expected(const std::string &msg);
 
     // Advance the lookahead token.
     void next();
@@ -156,9 +155,8 @@ private:
 
     template <typename T, typename... Args> T *make_node(Args &&... args)
     {
-        T *ptr = new T{std::forward<Args>(args)...};
-        nodes.push_back(ptr);
-        return ptr;
+        nodes.emplace_back(new T{std::forward<Args>(args)...});
+        return static_cast<T *>(nodes.back().get());
     }
 
     template <typename T, typename... Args>

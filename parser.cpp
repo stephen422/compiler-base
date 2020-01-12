@@ -29,19 +29,14 @@ Parser::Parser(Lexer &lexer) : lexer{lexer} {
         names.get_or_add(std::string{m.first});
 }
 
-Parser::~Parser() {
-    for (auto ptr : nodes)
-        delete ptr;
-}
-
-void Parser::add_error_expected(const std::string &msg) {
+void Parser::error_expected(const std::string &msg) {
     std::string s = fmt::format("expected {}, found '{}'", msg, tok);
     add_error(s);
 }
 
 // In the course of this, if an error beacon is found in the comment, add the
 // error to the parser error list so that it can be compared to the actual
-// errors later in the testing phase.
+// errors later in the verifying phase.
 void Parser::next() {
     if (tok.kind != TokenKind::eos) {
         tok = lexer.lex();
@@ -199,7 +194,7 @@ Decl *Parser::parse_var_decl() {
         return make_node_with_pos<VarDecl>(start_pos, name,
                                            typeexpr, nullptr);
     } else {
-        add_error_expected("'=' or ':' after var name");
+        error_expected("'=' or ':' after var name");
         return make_node_with_pos<BadDecl>(start_pos);
     }
 }
@@ -217,17 +212,15 @@ std::vector<Decl *> Parser::parse_var_decl_list() {
         decl = parse_var_decl();
         decls.push_back(decl);
 
-        if (decl->kind == AstKind::bad_decl) {
+        if (decl->kind == AstKind::bad_decl)
             // Determining where each decl ends is a little tricky.
             // We could test for every tokens that are either (1) separator
             // tokens, i.e. comma, newline, or (2) used to enclose a decl list,
             // i.e. parentheses and braces.
             skip_until({TokenKind::comma, TokenKind::newline, TokenKind::rparen,
                         TokenKind::rbrace});
-        }
-        if (tok.kind == TokenKind::comma) {
+        if (tok.kind == TokenKind::comma)
             next();
-        }
     }
     skip_newlines();
 
@@ -238,7 +231,7 @@ StructDecl *Parser::parse_struct_decl() {
     expect(TokenKind::kw_struct);
 
     if (tok.kind != TokenKind::ident)
-        add_error_expected("an identifier");
+        error_expected("an identifier");
     Name *name = names.get_or_add(std::string{tok.text});
     next();
 
@@ -272,7 +265,7 @@ FuncDecl *Parser::parse_func_decl() {
         func->retTypeExpr = parse_typeexpr();
     }
     if (tok.kind != TokenKind::lbrace) {
-        add_error_expected("'->' or '{'");
+        error_expected("'->' or '{'");
         skip_until(TokenKind::lbrace);
     }
     // function body
@@ -380,7 +373,7 @@ Expr *Parser::parse_typeexpr() {
         }
         if (!is_identifier_or_keyword(tok)) {
             // FIXME: type name? expression?
-            add_error_expected("type name");
+            error_expected("type name");
             return make_node_with_pos<BadExpr>(typeexpr->start_pos);
         }
         typeexpr->ref = false;
@@ -388,7 +381,7 @@ Expr *Parser::parse_typeexpr() {
         text = tok.text;
         next();
     } else {
-        add_error_expected("type expression");
+        error_expected("type expression");
         return make_node_with_pos<BadExpr>(typeexpr->start_pos);
     }
 
@@ -426,7 +419,7 @@ Expr *Parser::parse_unary_expr() {
         // Because all expressions start with a unary expression, failing here
         // means no other expression could be matched either, so just do a
         // really generic report.
-        add_error_expected("an expression");
+        error_expected("an expression");
         return make_node_with_pos<BadExpr>(start_pos);
     }
 }
