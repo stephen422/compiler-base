@@ -3,4 +3,6 @@
 fn main() {
     let a = 3 + 4
     let a = 4 // [error: "redefinition.*'a'"]
+
+    *a // [error: "dereference"] // TODO: report 'int'
 }

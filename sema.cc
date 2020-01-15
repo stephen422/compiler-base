@@ -132,32 +132,32 @@ void FuncDecl::traverse(Sema &sema) {
 }
 
 void UnaryExpr::traverse(Sema &sema) {
-    // DeclRefs and Literals bypass this function altogether by virtual
-    // dispatch, so no need to handle them in this switch.
-    switch (unary_kind) {
-    case Paren:
-        operand->traverse(sema);
-        type = operand->type;
-        break;
-    case Deref:
-        operand->traverse(sema);
-        if (!operand->type->ref) {
-            sema.error(pos, "cannot dereference a non-reference");
-        }
-        type = operand->type->value_type;
-        break;
-    case Address:
-        operand->traverse(sema);
-        assert(operand->kind == AstKind::unary_expr);
-        if (static_cast<UnaryExpr *>(operand)->unary_kind != DeclRef) {
-            // TODO: LValue & RValue
-            sema.error(pos, "cannot take address of a non-variable (TODO: rvalue)");
-        }
-        type = get_reference_type(sema, operand->type);
-        break;
-    default:
-        assert(!"unreachable");
+  // DeclRefs and Literals have their own traverse(), so no need to handle them
+  // in this switch.
+  switch (unary_kind) {
+  case Paren:
+    operand->traverse(sema);
+    type = operand->type;
+    break;
+  case Deref:
+    operand->traverse(sema);
+    if (!operand->type->ref) {
+      sema.error(pos, "cannot dereference a non-reference");
     }
+    type = operand->type->value_type;
+    break;
+  case Address:
+    operand->traverse(sema);
+    assert(operand->kind == AstKind::unary_expr);
+    if (static_cast<UnaryExpr *>(operand)->unary_kind != DeclRef) {
+      // TODO: LValue & RValue
+      sema.error(pos, "cannot take address of a non-variable (TODO: rvalue)");
+    }
+    type = get_reference_type(sema, operand->type);
+    break;
+  default:
+    assert(!"unreachable");
+  }
 }
 
 void IntegerLiteral::traverse(Sema &sema) {
