@@ -83,7 +83,7 @@ void VarDecl::traverse(Sema &sema) {
   // check for redefinition
   auto found = sema.decl_table.find(name);
   if (found && found->scope_level == sema.decl_table.scope_level)
-    sema.error(pos, "redefinition");
+    sema.error(pos, fmt::format("redefinition of '{}'", name->text));
 
   // type inferrence
   if (assign_expr) {
@@ -221,6 +221,7 @@ Sema::Sema(Source &s, NameTable &n) : source(s), names(n) {
     this->i64_type = type_table.insert({i64_name, i64_type});
 }
 
+// FIXME: lifetime of p.lexer.source() and p.names?
 Sema::Sema(Parser &p) : Sema(p.lexer.source(), p.names) {
   errors = p.errors;
   beacons = p.beacons;

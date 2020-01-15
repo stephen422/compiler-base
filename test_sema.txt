@@ -2,5 +2,5 @@
 
 fn main() {
     let a = 3 + 4
-    let a = 4 // [error: "redefinition"]
+    let a = 4 // [error: "redefinition.*'a'"]
 }
