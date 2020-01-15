@@ -3,29 +3,10 @@
 
 #include "lexer.h"
 #include "ast.h"
+#include "error.h"
 #include <variant>
 
 namespace cmp {
-
-enum class ErrorKind {
-    err_expect,
-};
-
-const std::pair<std::string_view, ErrorKind> error_map[]{
-    {"expect", ErrorKind::err_expect},
-};
-
-struct ParseError {
-    SourceLoc loc;
-    ErrorKind kind;
-    std::string message;
-
-    ParseError() {}
-    ParseError(SourceLoc loc, ErrorKind kind) : loc(loc), kind(kind) {}
-    ParseError(SourceLoc loc, const std::string &msg): loc(loc), message(msg) {}
-
-    void print() const;
-};
 
 // ParserResult wraps the result of a single parse operation, i.e. the
 // resulting AST node in the successful case, or an error object in the failing
@@ -51,7 +32,7 @@ public:
     ParserResult(U *ptr) : result(ptr) {}
 
     // Erroneous result
-    ParserResult(const ParseError &error) : result(error) {}
+    ParserResult(const Error &error) : result(error) {}
 
     // Upcasting
     template <typename U>
@@ -70,14 +51,14 @@ public:
     // Get the stored node pointer.
     T *ptr() const { return std::get<T *>(result); }
 
-    // Get the stored ParseError object.
-    const ParseError &error() const { return std::get<ParseError>(result); }
+    // Get the stored Error object.
+    const Error &error() const { return std::get<Error>(result); }
 
     // Is this result successful?
     bool success() { return std::holds_alternative<T *>(result); }
 
 private:
-    std::variant<T *, ParseError> result;
+    std::variant<T *, Error> result;
 };
 
 using StmtResult = ParserResult<Stmt>;
@@ -88,8 +69,8 @@ class Parser {
     Lexer &lexer;                                // associated lexer
     Token tok;                                   // lookahead token
     std::vector<std::unique_ptr<AstNode>> nodes; // node pointer pool
-    std::vector<ParseError> errors;              // error list
-    std::vector<ParseError> beacons;             // error beacon list
+    std::vector<Error> errors;                   // error list
+    std::vector<Error> beacons;                  // error beacon list
     AstNode *ast = nullptr;                      // resulting AST
     NameTable names;                             // name table
 
@@ -132,10 +113,9 @@ private:
     Expr *parse_binary_expr_rhs(Expr *lhs, int precedence = 0);
     bool is_start_of_typeexpr() const;
 
-    std::vector<ParseError> parse_error_beacon();
+    std::vector<Error> parse_error_beacon();
 
     // Error handling
-    ParseError make_error(const std::string &msg) { return {locate(), msg}; }
     void error(const std::string &msg);
     void error_expected(const std::string &msg);
 
@@ -170,14 +150,5 @@ private:
 };
 
 } // namespace cmp
-
-template <> struct fmt::formatter<cmp::ParseError> {
-    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
-
-    template <typename FormatContext>
-    auto format(const cmp::ParseError &e, FormatContext &ctx) {
-        return format_to(ctx.out(), "{}: parse error: {}", e.loc, e.message);
-    }
-};
 
 #endif

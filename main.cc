@@ -34,6 +34,7 @@ int main(int argc, char **argv) {
     p.verify();
     Sema s{src, ast.name_table};
     sema(s, ast);
+    s.report();
     fmt::print("==== Declaration table ====\n");
     s.decl_table.print();
     // fmt::print("==== Type table ====\n");

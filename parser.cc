@@ -7,12 +7,6 @@ namespace cmp {
 
 template <typename T> using Res = ParserResult<T>;
 
-// Report this error to stderr.
-void ParseError::print() const {
-    fmt::print(stderr, "{}:{}:{}: parse error: {}\n", loc.filename, loc.line,
-               loc.col, message);
-}
-
 Parser::Parser(Lexer &lexer) : lexer{lexer} {
     tok = lexer.lex();
     // insert keywords in name table
@@ -21,7 +15,7 @@ Parser::Parser(Lexer &lexer) : lexer{lexer} {
 }
 
 void Parser::error(const std::string &msg) {
-  errors.push_back(make_error(msg));
+  errors.push_back({locate(), msg});
 }
 
 void Parser::error_expected(const std::string &msg) {
@@ -481,12 +475,12 @@ Expr *Parser::parse_expr() {
     return parse_binary_expr_rhs(unary);
 }
 
-std::vector<ParseError> Parser::parse_error_beacon() {
+std::vector<Error> Parser::parse_error_beacon() {
     expect(TokenKind::lbracket);
     expect(TokenKind::kw_error);
     expect(TokenKind::colon);
 
-    std::vector<ParseError> v;
+    std::vector<Error> v;
     v.push_back({locate(), std::string{tok.text}});
     next();
 
@@ -494,46 +488,9 @@ std::vector<ParseError> Parser::parse_error_beacon() {
     return v;
 }
 
-// Verify errors against the error beacons embedded in the source text.
+// See ::cmp::verify().
 bool Parser::verify() const {
-  bool success = true;
-  fmt::print("\033[0;32mTEST\033[0m {}:\n", lexer.source().filename);
-
-  size_t i = 0, j = 0;
-  while (i < errors.size() && j < beacons.size()) {
-    auto error = errors[i];
-    auto beacon = beacons[j];
-    if (error.loc.line == beacon.loc.line) {
-      std::string stripped{std::cbegin(beacon.message) + 1,
-                           std::cend(beacon.message) - 1};
-      std::regex regex{stripped};
-      if (!std::regex_search(error.message, regex)) {
-        success = false;
-        fmt::print("< {}\n> {}\n", error, beacon);
-      }
-      i++;
-      j++;
-    } else if (error.loc.line < beacon.loc.line) {
-      success = false;
-      fmt::print("< {}\n", error);
-      i++;
-    } else {
-      success = false;
-      fmt::print("> {}\n", beacon);
-      j++;
-    }
-  }
-  for (; i < errors.size(); i++) {
-    success = false;
-    fmt::print("< {}\n", errors[i]);
-  }
-  for (; j < beacons.size(); j++) {
-    success = false;
-    fmt::print("> {}\n", beacons[j]);
-  }
-
-  fmt::print("{} {}\n", success ? "\033[0;32mSUCCESS\033[0m" : "\033[0;31mFAIL\033[0m", lexer.source().filename);
-  return success;
+  return ::cmp::verify(lexer.source().filename, errors, beacons);
 }
 
 void Parser::skip_until(TokenKind kind) {
@@ -594,9 +551,8 @@ Ast Parser::parse() {
 
 // Report errors to stdout.
 void Parser::report() const {
-    for (auto e : errors) {
-        e.print();
-    }
+  for (auto e : errors)
+    fmt::print("{}\n", e);
 }
 
 } // namespace cmp

@@ -1,6 +1,7 @@
 #ifndef SEMA_H
 #define SEMA_H
 
+#include "error.h"
 #include <array>
 #include <iostream>
 #include <unordered_map>
@@ -112,11 +113,13 @@ public:
 // Stores all of the semantic information necessary for semantic analysis
 // phase.
 struct Sema {
-  Source &src;                         // source text
+  Source &source;                      // source text
   NameTable &names;                    // name table
   ScopedTable<Declaration> decl_table; // declaration table
   ScopedTable<Type> type_table;        // type table
   std::vector<Context> context_table;  // semantic analysis context table
+  std::vector<Error> errors;           // error list
+  std::vector<Error> beacons;          // error beacon list
   Type *int_type = nullptr;
   Type *i64_type = nullptr;
 
@@ -126,6 +129,7 @@ struct Sema {
   void scope_open();
   void scope_close();
   Context &getContext() { return context_table.back(); }
+  void report() const;
 };
 
 // Get a reference type of a given type.

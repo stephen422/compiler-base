@@ -15,15 +15,7 @@ std::string Declaration::to_string() const {
 }
 
 void Sema::error(size_t pos, const std::string &msg) {
-    auto loc = src.locate(pos);
-    std::cout << "==== Declaration table ====\n";
-    decl_table.print();
-    std::cout << "==== Type table ====\n";
-    type_table.print();
-    std::cout << std::endl;
-    fmt::print(stderr, "{}:{}:{}: error: {}\n", loc.filename, loc.line, loc.col,
-               msg);
-    exit(1);
+  errors.push_back({source.locate(pos), msg});
 }
 
 // @Future: inefficient string operations?
@@ -220,7 +212,7 @@ void BinaryExpr::traverse(Sema &sema) {
     type = lhs->type;
 }
 
-Sema::Sema(Source &s, NameTable &n) : src(s), names(n) {
+Sema::Sema(Source &s, NameTable &n) : source(s), names(n) {
     Name *int_name = names.get_or_add("int");
     Type int_type{int_name};
     this->int_type = type_table.insert({int_name, int_type});
@@ -239,6 +231,11 @@ void Sema::scope_close() {
   decl_table.scope_close();
   type_table.scope_close();
   context_table.pop_back();
+}
+
+void Sema::report() const {
+  for (auto e : errors)
+    fmt::print("{}\n", e);
 }
 
 void sema(Sema &sema, Ast &ast) { ast.root->traverse(sema); }
