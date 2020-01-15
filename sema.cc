@@ -99,8 +99,8 @@ void VarDecl::traverse(Sema &sema) {
     type = assign_expr->type;
   } else if (type_expr) {
     type_expr->traverse(sema);
-    // FIXME: This is kinda hack; type depicts the type of the
-    // _value_ of a Expr, but TypeExpr does not have any value.
+    // FIXME: This is kinda hack; type depicts the type of the _value_ of a
+    // Expr, but TypeExpr does not have any value.
     type = type_expr->type;
   } else {
     assert(!"unreachable");

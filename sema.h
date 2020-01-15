@@ -100,7 +100,6 @@ public:
     T value;                 // semantic value of this symbol
     Symbol *next = nullptr;  // pointer to next symbol in the hash table bucket
     Symbol *cross = nullptr; // pointer to next symbol in the same scope
-    int scope_level;
   };
 
   std::array<Symbol *, symbol_table_key_size> keys;

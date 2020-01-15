@@ -43,7 +43,6 @@ T *ScopedTable<T>::insert(std::pair<Name *, const T &> pair) {
     *p = head;
 
     // Set the scope chain
-    head->scope_level = scope_stack.size() - 1;
     head->cross = scope_stack.back();
     scope_stack.back() = head;
     return &head->value;
