@@ -262,7 +262,7 @@ FuncDecl *Parser::parse_func_decl() {
     // return type (-> ...)
     if (tok.kind == TokenKind::arrow) {
         next();
-        func->retTypeExpr = parse_typeexpr();
+        func->ret_type_expr = parse_typeexpr();
     }
     if (tok.kind != TokenKind::lbrace) {
         error_expected("'->' or '{'");

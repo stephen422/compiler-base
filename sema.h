@@ -63,7 +63,6 @@ public:
 // Represents declaration of a variable or a function.
 class Declaration {
 public:
-    Declaration(Name *n, Type &t) : name(n), type(t) {}
     std::string to_string() const;
 
     Name *name = nullptr;
@@ -81,34 +80,32 @@ public:
 
 constexpr int symbol_table_key_size = 512;
 
-template<typename T>
-class ScopedTable {
+template <typename T> class ScopedTable {
 public:
-    ScopedTable();
-    ~ScopedTable();
-    T *insert(std::pair<Name *, const T &> pair);
-    T *find(Name *name) const;
-    void print() const;
+  ScopedTable();
+  ~ScopedTable();
+  T *insert(std::pair<Name *, const T &> pair);
+  T *find(Name *name) const;
+  void print() const;
 
-    // Start a new scope.
-    void scope_open();
-    // Close current cope.
-    void scope_close();
+  // Start a new scope.
+  void scope_open();
+  // Close current cope.
+  void scope_close();
 
-    struct Symbol {
-        Symbol(Name *n, const T &v) : name(n), value(v) {}
+  struct Symbol {
+    Symbol(Name *n, const T &v) : name(n), value(v) {}
 
-        Name *name; // name of this symbol
-        T value;    // semantic value of this symbol
-        Symbol *next =
-            nullptr; // pointer to next symbol in the hash table bucket
-        Symbol *cross = nullptr; // pointer to next symbol in the same scope
-        int scope_level;
-    };
+    Name *name;              // name of this symbol
+    T value;                 // semantic value of this symbol
+    Symbol *next = nullptr;  // pointer to next symbol in the hash table bucket
+    Symbol *cross = nullptr; // pointer to next symbol in the same scope
+    int scope_level;
+  };
 
-    std::array<Symbol *, symbol_table_key_size> keys;
-    std::vector<Symbol *> scope_stack = {};
-    int scope_level = 0;
+  std::array<Symbol *, symbol_table_key_size> keys;
+  std::vector<Symbol *> scope_stack = {};
+  int scope_level = 0;
 };
 
 #include "scoped_table.h"
@@ -139,7 +136,7 @@ Type *get_reference_type(Sema &sema, Type *type);
 struct Ast;
 
 // Do a semantic analysis on the given AST.
-void semantic_analyze(Sema &sema, Ast &ast);
+void sema(Sema &sema, Ast &ast);
 
 } // namespace cmp
 

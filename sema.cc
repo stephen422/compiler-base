@@ -86,36 +86,31 @@ void CompoundStmt::traverse(Sema &sema) {
 }
 
 void VarDecl::traverse(Sema &sema) {
-    Type *type = nullptr;
+  Type *type = nullptr;
 
-    // Check for redefinition
-    auto found = sema.decl_table.find(name);
-    if (found && found->scope_level == sema.decl_table.scope_level) { // TODO: check scope
-        sema.error(start_pos, "redefinition");
-    }
+  // check for redefinition
+  auto found = sema.decl_table.find(name);
+  if (found && found->scope_level == sema.decl_table.scope_level)
+    sema.error(start_pos, "redefinition");
 
-    // Infer type from the assignment expression.
-    if (assignExpr) {
-        assignExpr->traverse(sema);
-        type = assignExpr->type;
-    }
-    // If none, try explicit type expression.
-    // Assumes assignExpr and typeExpr do not coexist.
-    else if (typeExpr) {
-        typeExpr->traverse(sema);
-        // FIXME: This is kinda hack; type depicts the type of the
-        // _value_ of a Expr, but TypeExpr does not have any value.
-        type = typeExpr->type;
-    } else {
-        assert(!"unreachable");
-    }
+  // type inferrence
+  if (assign_expr) {
+    assign_expr->traverse(sema);
+    type = assign_expr->type;
+  } else if (type_expr) {
+    type_expr->traverse(sema);
+    // FIXME: This is kinda hack; type depicts the type of the
+    // _value_ of a Expr, but TypeExpr does not have any value.
+    type = type_expr->type;
+  } else {
+    assert(!"unreachable");
+  }
 
-    // Inferrence failure!
-    if (!type)
-        sema.error(start_pos, "cannot infer type of variable declaration");
+  if (!type)
+    sema.error(start_pos, "cannot infer type of variable declaration");
 
-    Declaration decl{name, *type};
-    sema.decl_table.insert({name, decl});
+  Declaration decl{name, *type, sema.decl_table.scope_level};
+  sema.decl_table.insert({name, decl});
 }
 
 void StructDecl::traverse(Sema &sema) {
@@ -124,24 +119,24 @@ void StructDecl::traverse(Sema &sema) {
 }
 
 void FuncDecl::traverse(Sema &sema) {
-    sema.scope_open();
+  sema.scope_open();
 
-    if (retTypeExpr) {
-        retTypeExpr->traverse(sema);
-        assert(retTypeExpr->type);
-        sema.getContext().retType = retTypeExpr->type;
-    }
+  if (ret_type_expr) {
+    ret_type_expr->traverse(sema);
+    assert(ret_type_expr->type);
+    sema.getContext().retType = ret_type_expr->type;
+  }
 
-    for (auto &p : params)
-        p->traverse(sema);
+  for (auto &p : params)
+    p->traverse(sema);
 
-    body->traverse(sema);
+  body->traverse(sema);
 
-    if (retTypeExpr && !sema.getContext().seenReturn) {
-        sema.error(start_pos, "no return statement found for function");
-    }
+  if (ret_type_expr && !sema.getContext().seenReturn) {
+    sema.error(start_pos, "no return statement found for function");
+  }
 
-    sema.scope_close();
+  sema.scope_close();
 }
 
 void UnaryExpr::traverse(Sema &sema) {
@@ -246,6 +241,6 @@ void Sema::scope_close() {
   context_table.pop_back();
 }
 
-void semantic_analyze(Sema &sema, Ast &ast) { ast.root->traverse(sema); }
+void sema(Sema &sema, Ast &ast) { ast.root->traverse(sema); }
 
 } // namespace cmp

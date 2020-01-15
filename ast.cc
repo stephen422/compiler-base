@@ -71,14 +71,14 @@ void CompoundStmt::print() const {
 void VarDecl::print() const {
     out() << "[VarDecl] " << name->text << "\n";
     PrintScope start;
-    if (typeExpr) {
-        typeExpr->print();
+    if (type_expr) {
+        type_expr->print();
     }
 
-    if (assignExpr) {
+    if (assign_expr) {
         out() << "[AssignExpr]\n";
         PrintScope start;
-        assignExpr->print();
+        assign_expr->print();
     }
 }
 
@@ -94,8 +94,8 @@ void FuncDecl::print() const {
     PrintScope start;
     for (auto &p : params)
         p->print();
-    if (retTypeExpr)
-        retTypeExpr->print();
+    if (ret_type_expr)
+        ret_type_expr->print();
     body->print();
 }
 

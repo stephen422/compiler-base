@@ -52,10 +52,8 @@ std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
 // Ast is a struct that contains all necessary information for semantic
 // analysis of an AST: namely, the root node and the name table.
 struct Ast {
-    AstNode *root;
-    NameTable &name_table;
-
-    Ast(AstNode *r, NameTable &nt) : root(r), name_table(nt) {}
+  AstNode *root;
+  NameTable &name_table;
 };
 
 class AstNode {
@@ -301,17 +299,17 @@ public:
 class VarDecl : public Decl {
 public:
     VarDecl(Name *n, Expr *t, Expr *expr)
-        : Decl(AstKind::var_decl), name(n), typeExpr(std::move(t)),
-          assignExpr(std::move(expr)) {}
+        : Decl(AstKind::var_decl), name(n), type_expr(std::move(t)),
+          assign_expr(std::move(expr)) {}
     void print() const override;
     void traverse(Sema &sema) override;
 
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
-    Name *name = nullptr;       // name of the variable
-    Expr *typeExpr = nullptr;   // type node of the variable.
-                                // If null, it will be inferred later
-    Expr *assignExpr = nullptr; // initial assignment value
+    Name *name = nullptr;        // name of the variable
+    Expr *type_expr = nullptr;   // type node of the variable.
+                                 // If null, it will be inferred later
+    Expr *assign_expr = nullptr; // initial assignment value
 };
 
 // Struct declaration.
@@ -337,7 +335,7 @@ public:
     Name *name = nullptr;          // name of the function
     std::vector<Decl *> params;    // list of parameters
     CompoundStmt *body = nullptr;  // body statements
-    Expr *retTypeExpr = nullptr;   // return type expression
+    Expr *ret_type_expr = nullptr; // return type expression
 };
 
 class BadDecl : public Decl {

@@ -29,16 +29,15 @@ int main(int argc, char **argv) {
     test_lexer(lexer);
 #else
     Parser p{lexer};
-    p.parse();
+    auto ast = p.parse();
     // p.report();
     p.verify();
-    // Semantics sema{src, ast.name_table};
-    // fmt::print("After parsing:\n");
-    // semantic_analyze(sema, ast);
-    // fmt::print("==== Declaration table ====\n");
-    // sema.decl_table.print();
+    Sema s{src, ast.name_table};
+    sema(s, ast);
+    fmt::print("==== Declaration table ====\n");
+    s.decl_table.print();
     // fmt::print("==== Type table ====\n");
-    // sema.type_table.print();
+    // s.type_table.print();
 #endif
 
     return 0;
