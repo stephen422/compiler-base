@@ -97,7 +97,7 @@ public:
     Parser(Lexer &lexer);
     Ast parse();
     void report() const;
-    void verify() const;
+    bool verify() const;
 
 private:
     // Parse the whole file.

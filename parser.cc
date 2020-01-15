@@ -501,60 +501,60 @@ std::vector<ParseError> Parser::parse_error_beacon() {
 }
 
 // Verify errors against the error beacons embedded in the source text.
-void Parser::verify() const {
-    bool success = true;
-    fmt::print("TEST {}:\n", lexer.source().filename);
+bool Parser::verify() const {
+  bool success = true;
+  fmt::print("\033[0;32mTEST\033[0m {}:\n", lexer.source().filename);
 
-    size_t i = 0, j = 0;
-    while (i < errors.size() && j < beacons.size()) {
-        auto error = errors[i];
-        auto beacon = beacons[j];
-        if (error.loc.line == beacon.loc.line) {
-            std::string stripped{std::cbegin(beacon.message) + 1,
-                                 std::cend(beacon.message) - 1};
-            std::regex regex{stripped};
-            if (!std::regex_search(error.message, regex)) {
-                success = false;
-                fmt::print("< {}\n> {}\n", error, beacon);
-            }
-            i++;
-            j++;
-        } else if (error.loc.line < beacon.loc.line) {
-            success = false;
-            fmt::print("< {}\n", error);
-            i++;
-        } else {
-            success = false;
-            fmt::print("> {}\n", beacon);
-            j++;
-        }
-    }
-    for (; i < errors.size(); i++) {
+  size_t i = 0, j = 0;
+  while (i < errors.size() && j < beacons.size()) {
+    auto error = errors[i];
+    auto beacon = beacons[j];
+    if (error.loc.line == beacon.loc.line) {
+      std::string stripped{std::cbegin(beacon.message) + 1,
+                           std::cend(beacon.message) - 1};
+      std::regex regex{stripped};
+      if (!std::regex_search(error.message, regex)) {
         success = false;
-        fmt::print("< {}\n", errors[i]);
+        fmt::print("< {}\n> {}\n", error, beacon);
+      }
+      i++;
+      j++;
+    } else if (error.loc.line < beacon.loc.line) {
+      success = false;
+      fmt::print("< {}\n", error);
+      i++;
+    } else {
+      success = false;
+      fmt::print("> {}\n", beacon);
+      j++;
     }
-    for (; j < beacons.size(); j++) {
-        success = false;
-        fmt::print("> {}\n", beacons[j]);
-    }
+  }
+  for (; i < errors.size(); i++) {
+    success = false;
+    fmt::print("< {}\n", errors[i]);
+  }
+  for (; j < beacons.size(); j++) {
+    success = false;
+    fmt::print("> {}\n", beacons[j]);
+  }
 
-    fmt::print("{} {}\n", success ? "SUCCESS" : "FAIL",
-               lexer.source().filename);
+  fmt::print("{} {}\n", success ? "\033[0;32mSUCCESS\033[0m" : "\033[0;31mFAIL\033[0m", lexer.source().filename);
+  return success;
 }
 
 void Parser::skip_until(TokenKind kind) {
-    while (tok.kind != kind)
-        next();
+  while (tok.kind != kind)
+    next();
 }
 
 void Parser::skip_until(const std::vector<TokenKind> &kinds) {
-    while (true) {
-        for (auto kind : kinds) {
-            if (tok.kind == kind)
-                return;
-        }
-        next();
+  while (true) {
+    for (auto kind : kinds) {
+      if (tok.kind == kind)
+        return;
     }
+    next();
+  }
 }
 
 void Parser::skip_until_end_of_line() {
