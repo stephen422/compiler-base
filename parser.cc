@@ -13,15 +13,6 @@ void ParseError::print() const {
                loc.col, message);
 }
 
-template <typename T>
-T *ParserResult<T>::unwrap() {
-    if (!success()) {
-        error().report();
-        exit(EXIT_FAILURE);
-    }
-    return ptr();
-}
-
 Parser::Parser(Lexer &lexer) : lexer{lexer} {
     tok = lexer.lex();
     // insert keywords in name table
@@ -29,34 +20,40 @@ Parser::Parser(Lexer &lexer) : lexer{lexer} {
         names.get_or_add(std::string{m.first});
 }
 
+void Parser::error(const std::string &msg) {
+  errors.push_back(make_error(msg));
+}
+
 void Parser::error_expected(const std::string &msg) {
-    std::string s = fmt::format("expected {}, found '{}'", msg, tok);
-    add_error(s);
+  std::string s = fmt::format("expected {}, found '{}'", msg, tok);
+  error(s);
 }
 
 // In the course of this, if an error beacon is found in the comment, add the
 // error to the parser error list so that it can be compared to the actual
 // errors later in the verifying phase.
 void Parser::next() {
-    if (tok.kind != TokenKind::eos) {
-        tok = lexer.lex();
-        if (tok.kind == TokenKind::comment) {
-            std::string_view marker{"[error:"};
-            auto found = tok.text.find(marker);
-            if (found != std::string_view::npos) {
-                auto bracket = tok.text.substr(found);
-                Source s{std::string{bracket}};
-                Lexer l{s};
-                Parser p{l};
-                auto v = p.parse_error_beacon();
-                // override location
-                for (auto &e : v) {
-                    e.loc = locate();
-                    beacons.push_back(e);
-                }
-            }
-        }
+  if (tok.kind == TokenKind::eos)
+    return;
+
+  tok = lexer.lex();
+
+  if (tok.kind == TokenKind::comment) {
+    std::string_view marker{"[error:"};
+    auto found = tok.text.find(marker);
+    if (found != std::string_view::npos) {
+      auto bracket = tok.text.substr(found);
+      Source s{std::string{bracket}};
+      Lexer l{s};
+      Parser p{l};
+      auto v = p.parse_error_beacon();
+      // override location
+      for (auto &e : v) {
+        e.loc = locate();
+        beacons.push_back(e);
+      }
     }
+  }
 }
 
 bool Parser::expect(TokenKind kind, const std::string &msg = "") {
@@ -65,7 +62,7 @@ bool Parser::expect(TokenKind kind, const std::string &msg = "") {
         if (msg.empty())
             s = fmt::format("expected '{}', found '{}'",
                             tokentype_to_string(kind), tok);
-        add_error(s);
+        error(s);
         return false;
     }
     next();

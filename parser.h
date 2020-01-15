@@ -136,9 +136,7 @@ private:
 
     // Error handling
     ParseError make_error(const std::string &msg) { return {locate(), msg}; }
-    void add_error(const std::string &msg) {
-        errors.push_back(make_error(msg));
-    }
+    void error(const std::string &msg);
     void error_expected(const std::string &msg);
 
     // Advance the lookahead token.
