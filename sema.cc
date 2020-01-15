@@ -221,6 +221,11 @@ Sema::Sema(Source &s, NameTable &n) : source(s), names(n) {
     this->i64_type = type_table.insert({i64_name, i64_type});
 }
 
+Sema::Sema(Parser &p) : Sema(p.lexer.source(), p.names) {
+  errors = p.errors;
+  beacons = p.beacons;
+}
+
 void Sema::scope_open() {
   decl_table.scope_open();
   type_table.scope_open();
@@ -236,6 +241,11 @@ void Sema::scope_close() {
 void Sema::report() const {
   for (auto e : errors)
     fmt::print("{}\n", e);
+}
+
+// See ::cmp::verify().
+bool Sema::verify() const {
+  return ::cmp::verify(source.filename, errors, beacons);
 }
 
 void sema(Sema &sema, Ast &ast) { ast.root->traverse(sema); }

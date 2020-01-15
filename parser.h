@@ -66,6 +66,7 @@ using DeclResult = ParserResult<Decl>;
 using ExprResult = ParserResult<Expr>;
 
 class Parser {
+public:
     Lexer &lexer;                                // associated lexer
     Token tok;                                   // lookahead token
     std::vector<std::unique_ptr<AstNode>> nodes; // node pointer pool
@@ -74,7 +75,6 @@ class Parser {
     AstNode *ast = nullptr;                      // resulting AST
     NameTable names;                             // name table
 
-public:
     Parser(Lexer &lexer);
     Ast parse();
     void report() const;

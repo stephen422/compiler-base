@@ -1,7 +1,7 @@
 #ifndef SEMA_H
 #define SEMA_H
 
-#include "error.h"
+#include "parser.h"
 #include <array>
 #include <iostream>
 #include <unordered_map>
@@ -10,40 +10,6 @@
 namespace cmp {
 
 class Source;
-
-// A Name corresponds to a single unique identifier string in the source text.
-// There may be multiple occurrences of a string in the source text, but only
-// one instance of the matching Name can reside in the name table.
-class Name {
-public:
-    Name(const std::string &s) : text(s) {}
-    std::string text;
-};
-
-// A NameTable is a hash table of Names queried by their string value.  It
-// serves to reduce the number of string hashing operation, since we can look
-// up the symbol table using Name instead of raw char * throughout the semantic
-// analysis.
-class NameTable {
-public:
-    Name *get_or_add(const std::string &s) {
-        Name *found = get(s);
-        if (found) {
-            return found;
-        }
-        auto pair = map.insert({s, {s}});
-        return &pair.first->second;
-    }
-    Name *get(const std::string &s) {
-        auto found = map.find(s);
-        if (found == map.end()) {
-            return nullptr;
-        } else {
-            return &found->second;
-        }
-    }
-    std::unordered_map<std::string, Name> map;
-};
 
 // Represents a type, whether it be built-in, user-defined, or a reference to
 // another type.  This exists separately from the AST node TypeExpr so that
@@ -124,12 +90,15 @@ struct Sema {
   Type *i64_type = nullptr;
 
   Sema(Source &src_, NameTable &nt);
+  Sema(Parser &p);
   Sema(const Sema &) = delete;
+  Sema(Sema &&) = delete;
   void error(size_t pos, const std::string &msg);
   void scope_open();
   void scope_close();
   Context &getContext() { return context_table.back(); }
   void report() const;
+  bool verify() const;
 };
 
 // Get a reference type of a given type.

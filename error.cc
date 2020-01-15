@@ -6,7 +6,7 @@ namespace cmp {
 bool verify(const std::string &filename, const std::vector<Error> &errors,
             const std::vector<Error> &beacons) {
   bool success = true;
-  fmt::print("\033[0;32mTEST\033[0m {}:\n", filename);
+  fmt::print("\033[0;32mtest\033[0m {}:\n", filename);
 
   size_t i = 0, j = 0;
   while (i < errors.size() && j < beacons.size()) {
@@ -42,7 +42,7 @@ bool verify(const std::string &filename, const std::vector<Error> &errors,
   }
 
   fmt::print("{} {}\n",
-             success ? "\033[0;32mSUCCESS\033[0m" : "\033[0;31mFAIL\033[0m",
+             success ? "\033[0;32msuccess\033[0m" : "\033[0;31mfail\033[0m",
              filename);
   return success;
 }

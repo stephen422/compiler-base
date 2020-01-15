@@ -31,14 +31,15 @@ int main(int argc, char **argv) {
     Parser p{lexer};
     auto ast = p.parse();
     // p.report();
-    p.verify();
-    Sema s{src, ast.name_table};
+    // p.verify();
+    Sema s{p};
     sema(s, ast);
-    s.report();
-    fmt::print("==== Declaration table ====\n");
-    s.decl_table.print();
-    // fmt::print("==== Type table ====\n");
-    // s.type_table.print();
+    if (!s.verify()) {
+      fmt::print("==== Declaration table ====\n");
+      s.decl_table.print();
+      // fmt::print("==== Type table ====\n");
+      // s.type_table.print();
+    }
 #endif
 
     return 0;

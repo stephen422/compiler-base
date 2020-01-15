@@ -1,7 +1,6 @@
 #ifndef AST_H
 #define AST_H
 
-#include "sema.h"
 #include "lexer.h"
 #include <iostream>
 #include <memory>
@@ -9,10 +8,39 @@
 
 namespace cmp {
 
-// Note about header dependency: AST depends on Sema because it is traversed
-// multiple times in the course of compilation, and therefore it has to be able
-// to retain semantic informations for the next traverse, as class members of
-// AstNodes.
+// A Name corresponds to a single unique identifier string in the source text.
+// There may be multiple occurrences of a string in the source text, but only
+// one instance of the matching Name can reside in the name table.
+class Name {
+public:
+    Name(const std::string &s) : text(s) {}
+    std::string text;
+};
+
+// A NameTable is a hash table of Names queried by their string value.  It
+// serves to reduce the number of string hashing operation, since we can look
+// up the symbol table using Name instead of raw char * throughout the semantic
+// analysis.
+class NameTable {
+public:
+    Name *get_or_add(const std::string &s) {
+        Name *found = get(s);
+        if (found) {
+            return found;
+        }
+        auto pair = map.insert({s, {s}});
+        return &pair.first->second;
+    }
+    Name *get(const std::string &s) {
+        auto found = map.find(s);
+        if (found == map.end()) {
+            return nullptr;
+        } else {
+            return &found->second;
+        }
+    }
+    std::unordered_map<std::string, Name> map;
+};
 
 enum class AstKind {
     none, // FIXME necessary?
@@ -55,6 +83,8 @@ struct Ast {
   AstNode *root;
   NameTable &name_table;
 };
+
+struct Sema;
 
 class AstNode {
 public:
