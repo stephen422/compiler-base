@@ -115,8 +115,7 @@ public:
 
 // Stores all of the semantic information necessary for semantic analysis
 // phase.
-class Semantics {
-public:
+struct Sema {
   Source &src;                         // source text
   NameTable &names;                    // name table
   ScopedTable<Declaration> decl_table; // declaration table
@@ -125,33 +124,22 @@ public:
   Type *int_type = nullptr;
   Type *i64_type = nullptr;
 
-  Semantics(Source &src_, NameTable &nt);
-  Semantics(const Semantics &) = delete;
+  Sema(Source &src_, NameTable &nt);
+  Sema(const Sema &) = delete;
   void error(size_t pos, const std::string &msg);
-
-  void scope_open() {
-    decl_table.scope_open();
-    type_table.scope_open();
-    context_table.push_back(Context{});
-  }
-
-  void scope_close() {
-    decl_table.scope_close();
-    type_table.scope_close();
-    context_table.pop_back();
-  }
-
+  void scope_open();
+  void scope_close();
   Context &getContext() { return context_table.back(); }
 };
 
 // Get a reference type of a given type.
 // Constructs the type if it wasn't in the type table beforehand.
-Type *get_reference_type(Semantics &sema, Type *type);
+Type *get_reference_type(Sema &sema, Type *type);
 
 struct Ast;
 
 // Do a semantic analysis on the given AST.
-void semantic_analyze(Semantics &sema, Ast &ast);
+void semantic_analyze(Sema &sema, Ast &ast);
 
 } // namespace cmp
 

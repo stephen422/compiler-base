@@ -70,7 +70,7 @@ public:
     // TODO: AST is traversed at least twice, i.e. once for semantic analysis
     // and once for IR generation.  So there should be a generic way to
     // traverse it; maybe pass in a lambda that does work for a single node?
-    virtual void traverse(Semantics &sema) {
+    virtual void traverse(Sema &sema) {
         (void)sema; // squelch unused warning
     }
 
@@ -107,7 +107,7 @@ class File : public AstNode {
 public:
     File() : AstNode(AstKind::file) {}
     void print() const override;
-    void traverse(Semantics &sema) override;
+    void traverse(Sema &sema) override;
 
     std::vector<AstNode *> toplevels;
 };
@@ -125,7 +125,7 @@ class DeclStmt : public Stmt {
 public:
     DeclStmt(Decl *decl) : Stmt(AstKind::decl_stmt), decl(std::move(decl)) {}
     void print() const override;
-    void traverse(Semantics &sema) override;
+    void traverse(Sema &sema) override;
 
     Decl *decl;
 };
@@ -134,7 +134,7 @@ class ExprStmt : public Stmt {
 public:
     ExprStmt(Expr *expr) : Stmt(AstKind::expr_stmt), expr(std::move(expr)) {}
     void print() const override;
-    void traverse(Semantics &sema) override;
+    void traverse(Sema &sema) override;
 
     Expr *expr;
 };
@@ -148,7 +148,7 @@ class AssignStmt : public Stmt {
 public:
     AssignStmt(Expr *lhs, Expr *rhs) : Stmt(AstKind::assign_stmt), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
     void print() const override;
-    void traverse(Semantics &sema) override;
+    void traverse(Sema &sema) override;
 
     Expr *lhs;
     Expr *rhs;
@@ -158,7 +158,7 @@ class ReturnStmt : public Stmt {
 public:
     ReturnStmt(Expr *expr) : Stmt(AstKind::return_stmt), expr(std::move(expr)) {}
     void print() const override;
-    void traverse(Semantics &sema) override;
+    void traverse(Sema &sema) override;
 
     Expr *expr;
 };
@@ -167,7 +167,7 @@ class CompoundStmt : public Stmt {
 public:
     CompoundStmt() : Stmt(AstKind::compound_stmt) {}
     void print() const override;
-    void traverse(Semantics &sema) override;
+    void traverse(Sema &sema) override;
 
     std::vector<Stmt *> stmts;
 };
@@ -210,7 +210,7 @@ struct UnaryExpr : public Expr {
     UnaryExpr(UnaryKind k, Expr *oper)
         : Expr(AstKind::unary_expr), unary_kind(k), operand(std::move(oper)) {}
     void print() const override;
-    void traverse(Semantics &sema) override;
+    void traverse(Sema &sema) override;
 };
 
 struct IntegerLiteral : public UnaryExpr {
@@ -218,7 +218,7 @@ struct IntegerLiteral : public UnaryExpr {
 
     IntegerLiteral(int64_t v) : UnaryExpr(Literal, nullptr), value(v) {}
     void print() const override;
-    void traverse(Semantics &sema) override;
+    void traverse(Sema &sema) override;
 };
 
 struct DeclRefExpr : public UnaryExpr {
@@ -228,7 +228,7 @@ struct DeclRefExpr : public UnaryExpr {
 
     DeclRefExpr(Name *name) : UnaryExpr(DeclRef, nullptr), name(name) {}
     void print() const override;
-    void traverse(Semantics &sema) override;
+    void traverse(Sema &sema) override;
 };
 
 struct FuncCallExpr : public UnaryExpr {
@@ -238,7 +238,7 @@ struct FuncCallExpr : public UnaryExpr {
     FuncCallExpr(Name *name, const std::vector<Expr *> &args)
         : UnaryExpr(FuncCall, nullptr), name(name), args(args) {}
     void print() const override;
-    void traverse(Semantics &sema) override;
+    void traverse(Sema &sema) override;
 };
 
 // XXX: can I call this an expression?
@@ -251,7 +251,7 @@ struct TypeExpr : public Expr {
 
     TypeExpr() : Expr(AstKind::type_expr) {}
     void print() const override;
-    void traverse(Semantics &sema) override;
+    void traverse(Sema &sema) override;
 };
 
 struct BinaryExpr : public Expr {
@@ -266,7 +266,7 @@ struct BinaryExpr : public Expr {
         start_pos = pair.first;
     }
     void print() const override;
-    void traverse(Semantics &sema) override;
+    void traverse(Sema &sema) override;
 };
 
 struct BadExpr : public Expr {
@@ -304,7 +304,7 @@ public:
         : Decl(AstKind::var_decl), name(n), typeExpr(std::move(t)),
           assignExpr(std::move(expr)) {}
     void print() const override;
-    void traverse(Semantics &sema) override;
+    void traverse(Sema &sema) override;
 
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
@@ -320,7 +320,7 @@ public:
     StructDecl(Name *n, std::vector<Decl *> m)
         : Decl(AstKind::struct_decl), name(n), members(std::move(m)) {}
     void print() const override;
-    void traverse(Semantics &sema) override;
+    void traverse(Sema &sema) override;
 
     Name *name = nullptr;            // name of the struct
     std::vector<Decl *> members; // member variables
@@ -332,7 +332,7 @@ class FuncDecl : public Decl {
 public:
     FuncDecl(Name *n) : Decl(AstKind::func_decl), name(n) {}
     void print() const override;
-    void traverse(Semantics &sema) override;
+    void traverse(Sema &sema) override;
 
     Name *name = nullptr;          // name of the function
     std::vector<Decl *> params;    // list of parameters
@@ -346,7 +346,7 @@ public:
     void print() const override;
 };
 
-void test(Semantics &sema);
+void test(Sema &sema);
 
 } // namespace cmp
 

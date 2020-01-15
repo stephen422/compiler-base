@@ -14,7 +14,7 @@ std::string Declaration::to_string() const {
     return name->text + ":" + type.to_string();
 }
 
-void Semantics::error(size_t pos, const std::string &msg) {
+void Sema::error(size_t pos, const std::string &msg) {
     auto loc = src.locate(pos);
     std::cout << "==== Declaration table ====\n";
     decl_table.print();
@@ -27,7 +27,7 @@ void Semantics::error(size_t pos, const std::string &msg) {
 }
 
 // @Future: inefficient string operations?
-Type *get_reference_type(Semantics &sema, Type *type) {
+Type *get_reference_type(Sema &sema, Type *type) {
     Name *name = sema.names.get_or_add("&" + type->name->text);
     Type ref_type {name, type, true};
     if (auto found = sema.type_table.find(name)) {
@@ -40,17 +40,17 @@ Type *get_reference_type(Semantics &sema, Type *type) {
 // AST Traversal
 //
 
-void File::traverse(Semantics &sema) {
+void File::traverse(Sema &sema) {
     for (auto &tl : toplevels) {
         tl->traverse(sema);
     }
 }
 
-void DeclStmt::traverse(Semantics &sema) { decl->traverse(sema); }
+void DeclStmt::traverse(Sema &sema) { decl->traverse(sema); }
 
-void ExprStmt::traverse(Semantics &sema) { expr->traverse(sema); }
+void ExprStmt::traverse(Sema &sema) { expr->traverse(sema); }
 
-void AssignStmt::traverse(Semantics &sema) {
+void AssignStmt::traverse(Sema &sema) {
     lhs->traverse(sema);
     rhs->traverse(sema);
 
@@ -65,7 +65,7 @@ void AssignStmt::traverse(Semantics &sema) {
     }
 }
 
-void ReturnStmt::traverse(Semantics &sema) {
+void ReturnStmt::traverse(Sema &sema) {
     if (expr) {
         expr->traverse(sema);
         if (!sema.getContext().retType)
@@ -80,12 +80,12 @@ void ReturnStmt::traverse(Semantics &sema) {
     sema.getContext().seenReturn = true;
 }
 
-void CompoundStmt::traverse(Semantics &sema) {
+void CompoundStmt::traverse(Sema &sema) {
     for (auto &stmt : stmts)
         stmt->traverse(sema);
 }
 
-void VarDecl::traverse(Semantics &sema) {
+void VarDecl::traverse(Sema &sema) {
     Type *type = nullptr;
 
     // Check for redefinition
@@ -118,12 +118,12 @@ void VarDecl::traverse(Semantics &sema) {
     sema.decl_table.insert({name, decl});
 }
 
-void StructDecl::traverse(Semantics &sema) {
+void StructDecl::traverse(Sema &sema) {
     for (auto &m : members)
         m->traverse(sema);
 }
 
-void FuncDecl::traverse(Semantics &sema) {
+void FuncDecl::traverse(Sema &sema) {
     sema.scope_open();
 
     if (retTypeExpr) {
@@ -144,7 +144,7 @@ void FuncDecl::traverse(Semantics &sema) {
     sema.scope_close();
 }
 
-void UnaryExpr::traverse(Semantics &sema) {
+void UnaryExpr::traverse(Sema &sema) {
     // DeclRefs and Literals bypass this function altogether by virtual
     // dispatch, so no need to handle them in this switch.
     switch (unary_kind) {
@@ -173,11 +173,11 @@ void UnaryExpr::traverse(Semantics &sema) {
     }
 }
 
-void IntegerLiteral::traverse(Semantics &sema) {
+void IntegerLiteral::traverse(Sema &sema) {
     type = sema.int_type;
 }
 
-void DeclRefExpr::traverse(Semantics &sema) {
+void DeclRefExpr::traverse(Sema &sema) {
     Declaration *decl = sema.decl_table.find(name);
     if (decl == nullptr) {
         sema.error(start_pos, "undeclared identifier");
@@ -186,11 +186,11 @@ void DeclRefExpr::traverse(Semantics &sema) {
     type = &decl->type;
 }
 
-void FuncCallExpr::traverse(Semantics &sema) {
+void FuncCallExpr::traverse(Sema &sema) {
     assert(false && "not implemented");
 }
 
-void TypeExpr::traverse(Semantics &sema) {
+void TypeExpr::traverse(Sema &sema) {
     if (subexpr)
         subexpr->traverse(sema);
 
@@ -213,7 +213,7 @@ void TypeExpr::traverse(Semantics &sema) {
     this->type = type;
 }
 
-void BinaryExpr::traverse(Semantics &sema) {
+void BinaryExpr::traverse(Sema &sema) {
     lhs->traverse(sema);
     rhs->traverse(sema);
 
@@ -225,7 +225,7 @@ void BinaryExpr::traverse(Semantics &sema) {
     type = lhs->type;
 }
 
-Semantics::Semantics(Source &s, NameTable &n) : src(s), names(n) {
+Sema::Sema(Source &s, NameTable &n) : src(s), names(n) {
     Name *int_name = names.get_or_add("int");
     Type int_type{int_name};
     this->int_type = type_table.insert({int_name, int_type});
@@ -234,6 +234,18 @@ Semantics::Semantics(Source &s, NameTable &n) : src(s), names(n) {
     this->i64_type = type_table.insert({i64_name, i64_type});
 }
 
-void semantic_analyze(Semantics &sema, Ast &ast) { ast.root->traverse(sema); }
+void Sema::scope_open() {
+  decl_table.scope_open();
+  type_table.scope_open();
+  context_table.push_back(Context{});
+}
+
+void Sema::scope_close() {
+  decl_table.scope_close();
+  type_table.scope_close();
+  context_table.pop_back();
+}
+
+void semantic_analyze(Sema &sema, Ast &ast) { ast.root->traverse(sema); }
 
 } // namespace cmp
