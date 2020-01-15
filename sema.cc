@@ -90,7 +90,7 @@ void VarDecl::traverse(Semantics &sema) {
 
     // Check for redefinition
     auto found = sema.decl_table.find(name);
-    if (found && found->scope_level == sema.decl_table.get_scope_level()) { // TODO: check scope
+    if (found && found->scope_level == sema.decl_table.scope_level) { // TODO: check scope
         sema.error(start_pos, "redefinition");
     }
 
@@ -124,7 +124,7 @@ void StructDecl::traverse(Semantics &sema) {
 }
 
 void FuncDecl::traverse(Semantics &sema) {
-    sema.scopeOpen();
+    sema.scope_open();
 
     if (retTypeExpr) {
         retTypeExpr->traverse(sema);
@@ -141,7 +141,7 @@ void FuncDecl::traverse(Semantics &sema) {
         sema.error(start_pos, "no return statement found for function");
     }
 
-    sema.scopeClose();
+    sema.scope_close();
 }
 
 void UnaryExpr::traverse(Semantics &sema) {
@@ -174,7 +174,7 @@ void UnaryExpr::traverse(Semantics &sema) {
 }
 
 void IntegerLiteral::traverse(Semantics &sema) {
-    type = sema.get_int_type();
+    type = sema.int_type;
 }
 
 void DeclRefExpr::traverse(Semantics &sema) {

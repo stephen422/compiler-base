@@ -91,15 +91,11 @@ public:
     void print() const;
 
     // Start a new scope.
-    void scopeOpen();
+    void scope_open();
     // Close current cope.
-    void scopeClose();
-    // Get current scope level.
-    int get_scope_level() { return scope_level; }
+    void scope_close();
 
-private:
-    class Symbol {
-    public:
+    struct Symbol {
         Symbol(Name *n, const T &v) : name(n), value(v) {}
 
         Name *name; // name of this symbol
@@ -121,37 +117,31 @@ private:
 // phase.
 class Semantics {
 public:
-    Semantics(Source &src_, NameTable &nt);
-    Semantics(const Semantics &) = delete;
-    void error(size_t pos, const std::string &msg);
+  Source &src;                         // source text
+  NameTable &names;                    // name table
+  ScopedTable<Declaration> decl_table; // declaration table
+  ScopedTable<Type> type_table;        // type table
+  std::vector<Context> context_table;  // semantic analysis context table
+  Type *int_type = nullptr;
+  Type *i64_type = nullptr;
 
-    // Access functions for the statically allocated built-in type objects.
-    Type *get_int_type() { return int_type; }
-    Type *get_i64_type() { return i64_type; }
+  Semantics(Source &src_, NameTable &nt);
+  Semantics(const Semantics &) = delete;
+  void error(size_t pos, const std::string &msg);
 
-    void scopeOpen() {
-        decl_table.scopeOpen();
-        type_table.scopeOpen();
-        context_table.push_back(Context{});
-    }
+  void scope_open() {
+    decl_table.scope_open();
+    type_table.scope_open();
+    context_table.push_back(Context{});
+  }
 
-    void scopeClose() {
-        decl_table.scopeClose();
-        type_table.scopeClose();
-        context_table.pop_back();
-    }
+  void scope_close() {
+    decl_table.scope_close();
+    type_table.scope_close();
+    context_table.pop_back();
+  }
 
-    Context &getContext() { return context_table.back(); }
-
-    Source &src;                        // source text
-    NameTable &names;                   // name table
-    ScopedTable<Declaration> decl_table; // declaration table
-    ScopedTable<Type> type_table;        // type table
-    std::vector<Context> context_table;  // semantic analysis context table
-
-private:
-    Type *int_type = nullptr;
-    Type *i64_type = nullptr;
+  Context &getContext() { return context_table.back(); }
 };
 
 // Get a reference type of a given type.
