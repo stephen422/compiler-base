@@ -15,8 +15,8 @@ std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes) 
         if (!node) {
             continue;
         }
-        if (node->start_pos < min) {
-            min = node->start_pos;
+        if (node->pos < min) {
+            min = node->pos;
         }
     }
     return {min, max};

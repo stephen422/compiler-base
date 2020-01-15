@@ -61,7 +61,7 @@ void AssignStmt::traverse(Sema &sema) {
         sema.type_table.print();
         std::cout << "LHS: " << lhs->type->to_string() << std::endl;
         std::cout << "RHS: " << rhs->type->to_string() << std::endl;
-        sema.error(rhs->start_pos, "type mismatch: ");
+        sema.error(rhs->pos, "type mismatch: ");
     }
 }
 
@@ -69,12 +69,12 @@ void ReturnStmt::traverse(Sema &sema) {
     if (expr) {
         expr->traverse(sema);
         if (!sema.getContext().retType)
-            sema.error(expr->start_pos, "function does not return a value");
+            sema.error(expr->pos, "function does not return a value");
         else if (sema.getContext().retType != expr->type)
-            sema.error(expr->start_pos, "return type mismatch");
+            sema.error(expr->pos, "return type mismatch");
     } else {
         if (sema.getContext().retType)
-            sema.error(start_pos, "a return a value should be specified for this function");
+            sema.error(pos, "a return a value should be specified for this function");
     }
 
     sema.getContext().seenReturn = true;
@@ -91,7 +91,7 @@ void VarDecl::traverse(Sema &sema) {
   // check for redefinition
   auto found = sema.decl_table.find(name);
   if (found && found->scope_level == sema.decl_table.scope_level)
-    sema.error(start_pos, "redefinition");
+    sema.error(pos, "redefinition");
 
   // type inferrence
   if (assign_expr) {
@@ -107,7 +107,7 @@ void VarDecl::traverse(Sema &sema) {
   }
 
   if (!type)
-    sema.error(start_pos, "cannot infer type of variable declaration");
+    sema.error(pos, "cannot infer type of variable declaration");
 
   Declaration decl{name, *type, sema.decl_table.scope_level};
   sema.decl_table.insert({name, decl});
@@ -133,7 +133,7 @@ void FuncDecl::traverse(Sema &sema) {
   body->traverse(sema);
 
   if (ret_type_expr && !sema.getContext().seenReturn) {
-    sema.error(start_pos, "no return statement found for function");
+    sema.error(pos, "no return statement found for function");
   }
 
   sema.scope_close();
@@ -150,7 +150,7 @@ void UnaryExpr::traverse(Sema &sema) {
     case Deref:
         operand->traverse(sema);
         if (!operand->type->ref) {
-            sema.error(start_pos, "cannot dereference a non-reference");
+            sema.error(pos, "cannot dereference a non-reference");
         }
         type = operand->type->value_type;
         break;
@@ -159,7 +159,7 @@ void UnaryExpr::traverse(Sema &sema) {
         assert(operand->kind == AstKind::unary_expr);
         if (static_cast<UnaryExpr *>(operand)->unary_kind != DeclRef) {
             // TODO: LValue & RValue
-            sema.error(start_pos, "cannot take address of a non-variable (TODO: rvalue)");
+            sema.error(pos, "cannot take address of a non-variable (TODO: rvalue)");
         }
         type = get_reference_type(sema, operand->type);
         break;
@@ -175,7 +175,7 @@ void IntegerLiteral::traverse(Sema &sema) {
 void DeclRefExpr::traverse(Sema &sema) {
     Declaration *decl = sema.decl_table.find(name);
     if (decl == nullptr) {
-        sema.error(start_pos, "undeclared identifier");
+        sema.error(pos, "undeclared identifier");
     }
     // Type inferrence
     type = &decl->type;
@@ -193,7 +193,7 @@ void TypeExpr::traverse(Sema &sema) {
     if (type == nullptr) {
         // If this is a value type, we should check use before declaration.
         if (!ref) {
-            sema.error(start_pos, "reference of undeclared type");
+            sema.error(pos, "reference of undeclared type");
         }
         // If not, this is an instantiation of a derivative type, and should be
         // put into the table.
@@ -214,7 +214,7 @@ void BinaryExpr::traverse(Sema &sema) {
 
     if (lhs->type && rhs->type &&
         lhs->type != rhs->type)
-        sema.error(start_pos, "type mismatch in binary expression");
+        sema.error(pos, "type mismatch in binary expression");
 
     // propagate from left to right
     type = lhs->type;

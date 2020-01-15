@@ -90,7 +90,7 @@ public:
     };
 
     AstKind kind = AstKind::none; // node kind
-    size_t start_pos = 0;         // start pos of this AST in the source text
+    size_t pos = 0;               // start pos of this AST in the source text
     // Indentation of the current node when dumping AST.
     // static because all nodes share this.
     static int depth;
@@ -261,7 +261,7 @@ struct BinaryExpr : public Expr {
         : Expr(AstKind::binary_expr), lhs(std::move(lhs_)), op(op_),
           rhs(std::move(rhs_)) {
         auto pair = get_ast_range({lhs, rhs});
-        start_pos = pair.first;
+        pos = pair.first;
     }
     void print() const override;
     void traverse(Sema &sema) override;
