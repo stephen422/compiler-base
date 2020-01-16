@@ -80,7 +80,7 @@ public:
 // Stores all of the semantic information necessary for semantic analysis
 // phase.
 struct Sema {
-    Source &source;                      // source text
+    const Source &source;                // source text
     NameTable &names;                    // name table
     ScopedTable<Declaration> decl_table; // declaration table
     ScopedTable<Type> type_table;        // type table
@@ -90,7 +90,7 @@ struct Sema {
     Type *int_type = nullptr;
     Type *i64_type = nullptr;
 
-    Sema(Source &src_, NameTable &nt);
+    Sema(const Source &src_, NameTable &nt);
     Sema(Parser &p);
     Sema(const Sema &) = delete;
     Sema(Sema &&) = delete;

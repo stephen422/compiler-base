@@ -14,6 +14,9 @@ Parser::Parser(Lexer &&l) : lexer{std::move(l)} {
         names.get_or_add(std::string{m.first});
 }
 
+// Construct directly from a Source for convenience.
+Parser::Parser(const Source &src) : Parser(Lexer{src}) {}
+
 void Parser::error(const std::string &msg) {
   errors.push_back({locate(), msg});
 }

@@ -216,7 +216,7 @@ void BinaryExpr::traverse(Sema &sema) {
     type = lhs->type;
 }
 
-Sema::Sema(Source &s, NameTable &n) : source(s), names(n) {
+Sema::Sema(const Source &s, NameTable &n) : source(s), names(n) {
     Name *int_name = names.get_or_add("int");
     Type int_type{int_name};
     this->int_type = type_table.insert({int_name, int_type});

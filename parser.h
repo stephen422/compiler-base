@@ -76,6 +76,7 @@ public:
     NameTable names;                             // name table
 
     Parser(Lexer &&lexer);
+    Parser(const Source &src);
     Ast parse();
     void report() const;
     bool verify() const;

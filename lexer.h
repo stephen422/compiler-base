@@ -135,14 +135,14 @@ bool is_identifier_or_keyword(const Token tok);
 /// Assumes that the associated Source outlives it.
 class Lexer {
 public:
-    Source &src;                  // source fed to this lexer
+    const Source &src;            // source fed to this lexer
     std::string_view sv;          // view into the source buffer
     const char *look;             // lookahead position
     const char *curr;             // start of the current token
     std::vector<size_t> line_off; // offsets of each newline
     size_t num_ident = 0;         // number of identifiers found
 
-    Lexer(Source &s)
+    Lexer(const Source &s)
         : src(s), sv(src.buf.data(), src.buf.size()), look(std::cbegin(sv)),
           curr(std::cbegin(sv)) {}
 
@@ -152,7 +152,7 @@ public:
     std::vector<Token> lex_all();
     /// Peek the next token without consuming it.
     Token peek();
-    Source &source() const { return src; }
+    const Source &source() const { return src; }
 
 private:
     Token lex_ident_or_keyword();
