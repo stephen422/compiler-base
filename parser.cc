@@ -488,9 +488,9 @@ std::vector<Error> Parser::parse_error_beacon() {
     return v;
 }
 
-// See ::cmp::verify().
+// See cmp::verify().
 bool Parser::verify() const {
-  return ::cmp::verify(lexer.source().filename, errors, beacons);
+  return cmp::verify(lexer.source().filename, errors, beacons);
 }
 
 void Parser::skip_until(TokenKind kind) {

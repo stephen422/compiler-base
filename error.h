@@ -7,10 +7,10 @@
 namespace cmp {
 
 struct Error {
-  SourceLoc loc;
-  std::string message;
+    SourceLoc loc;
+    std::string message;
 
-  Error(SourceLoc loc, const std::string &msg) : loc(loc), message(msg) {}
+    Error(SourceLoc loc, const std::string &msg) : loc(loc), message(msg) {}
 };
 
 bool verify(const std::string &filename, const std::vector<Error> &errors,
@@ -19,13 +19,13 @@ bool verify(const std::string &filename, const std::vector<Error> &errors,
 } // namespace cmp
 
 template <> struct fmt::formatter<cmp::Error> {
-  constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
+    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
 
-  template <typename FormatContext>
-  auto format(const cmp::Error &e, FormatContext &ctx) {
-    // TODO: differentiate "parse error:" from "error:"?
-    return format_to(ctx.out(), "{}: error: {}", e.loc, e.message);
-  }
+    template <typename FormatContext>
+    auto format(const cmp::Error &e, FormatContext &ctx) {
+        // TODO: differentiate "parse error:" from "error:"?
+        return format_to(ctx.out(), "{}: error: {}", e.loc, e.message);
+    }
 };
 
 #endif

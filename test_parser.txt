@@ -1,4 +1,5 @@
 // TODO:
+// let a: int = 4
 // if/while
 // struct declaration
 // struct fields

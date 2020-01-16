@@ -98,9 +98,6 @@ void VarDecl::traverse(Sema &sema) {
         assert(!"unreachable");
     }
 
-    if (!type)
-        sema.error(pos, "cannot infer type of variable declaration");
-
     Declaration decl{name, *type, sema.decl_table.scope_level};
     sema.decl_table.insert({name, decl});
 }
@@ -186,7 +183,7 @@ void TypeExpr::traverse(Sema &sema) {
     if (type == nullptr) {
         // If this is a value type, we should check use before declaration.
         if (!ref) {
-            sema.error(pos, "reference of undeclared type");
+            sema.error(pos, fmt::format("unknown type '{}'", name->text));
         }
         // If not, this is an instantiation of a derivative type, and should be
         // put into the table.
@@ -197,7 +194,6 @@ void TypeExpr::traverse(Sema &sema) {
         }
     }
 
-    assert(type);
     this->type = type;
 }
 
@@ -245,9 +241,9 @@ void Sema::report() const {
         fmt::print("{}\n", e);
 }
 
-// See ::cmp::verify().
+// See cmp::verify().
 bool Sema::verify() const {
-    return ::cmp::verify(source.filename, errors, beacons);
+    return cmp::verify(source.filename, errors, beacons);
 }
 
 void sema(Sema &sema, Ast &ast) { ast.root->traverse(sema); }
