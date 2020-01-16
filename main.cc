@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
 #if 0
     test_lexer(lexer);
 #else
-    Parser p{lexer};
+    Parser p{std::move(lexer)};
     auto ast = p.parse();
     if (!p.verify())
         return 1;

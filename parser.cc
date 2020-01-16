@@ -7,7 +7,7 @@ namespace cmp {
 
 template <typename T> using Res = ParserResult<T>;
 
-Parser::Parser(Lexer &lexer) : lexer{lexer} {
+Parser::Parser(Lexer &&l) : lexer{std::move(l)} {
     tok = lexer.lex();
     // insert keywords in name table
     for (auto m : keyword_map)
@@ -27,27 +27,26 @@ void Parser::error_expected(const std::string &msg) {
 // error to the parser error list so that it can be compared to the actual
 // errors later in the verifying phase.
 void Parser::next() {
-  if (tok.kind == TokenKind::eos)
-    return;
+    if (tok.kind == TokenKind::eos)
+        return;
 
-  tok = lexer.lex();
+    tok = lexer.lex();
 
-  if (tok.kind == TokenKind::comment) {
-    std::string_view marker{"[error:"};
-    auto found = tok.text.find(marker);
-    if (found != std::string_view::npos) {
-      auto bracket = tok.text.substr(found);
-      Source s{std::string{bracket}};
-      Lexer l{s};
-      Parser p{l};
-      auto v = p.parse_error_beacon();
-      // override location
-      for (auto &e : v) {
-        e.loc = locate();
-        beacons.push_back(e);
-      }
+    if (tok.kind == TokenKind::comment) {
+        std::string_view marker{"[error:"};
+        auto found = tok.text.find(marker);
+        if (found != std::string_view::npos) {
+            auto bracket = tok.text.substr(found);
+            Source s{std::string{bracket}};
+            Parser p{Lexer{s}};
+            auto v = p.parse_error_beacon();
+            // override location
+            for (auto &e : v) {
+                e.loc = locate();
+                beacons.push_back(e);
+            }
+        }
     }
-  }
 }
 
 bool Parser::expect(TokenKind kind, const std::string &msg = "") {
@@ -496,7 +495,7 @@ std::vector<Error> Parser::parse_error_beacon() {
 
 // See cmp::verify().
 bool Parser::verify() const {
-  return cmp::verify(lexer.source().filename, errors, beacons);
+    return cmp::verify(lexer.source().filename, errors, beacons);
 }
 
 void Parser::skip_until(TokenKind kind) {

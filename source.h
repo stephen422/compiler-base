@@ -10,9 +10,7 @@
 
 namespace cmp {
 
-class Path {
-public:
-    Path(const std::string &path) : path(path) {}
+struct Path {
     std::string path;
 };
 
@@ -28,14 +26,15 @@ struct SourceLoc {
 /// TODO: construct from string_view
 class Source {
 public:
+    const std::string filename;
+    std::vector<char> buf;
+    std::vector<size_t> line_off;
+
     // Create from a filepath.
     Source(const Path &p);
 
     // Create source from a string.
     Source(const std::string &text);
-
-    // Initialize source text from an istream.
-    void init(std::istream &in);
 
     // Return source length.
     size_t length() const { return buf.size(); }
@@ -44,9 +43,9 @@ public:
     // Both are zero-based indices.
     SourceLoc locate(size_t pos) const;
 
-    const std::string filename;
-    std::vector<char> buf {};
-    std::vector<size_t> line_off {};
+private:
+    // Initialize source text from an istream.
+    void init(std::istream &in);
 };
 
 } // namespace cmp

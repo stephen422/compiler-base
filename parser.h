@@ -67,7 +67,7 @@ using ExprResult = ParserResult<Expr>;
 
 class Parser {
 public:
-    Lexer &lexer;                                // associated lexer
+    Lexer lexer;                                 // owned lexer
     Token tok;                                   // lookahead token
     std::vector<std::unique_ptr<AstNode>> nodes; // node pointer pool
     std::vector<Error> errors;                   // error list
@@ -75,7 +75,7 @@ public:
     AstNode *ast = nullptr;                      // resulting AST
     NameTable names;                             // name table
 
-    Parser(Lexer &lexer);
+    Parser(Lexer &&lexer);
     Ast parse();
     void report() const;
     bool verify() const;

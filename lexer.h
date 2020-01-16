@@ -134,6 +134,7 @@ bool is_identifier_or_keyword(const Token tok);
 /// Represents a lexer state machine.
 /// Assumes that the associated Source outlives it.
 class Lexer {
+public:
     Source &src;                  // source fed to this lexer
     std::string_view sv;          // view into the source buffer
     const char *look;             // lookahead position
@@ -141,7 +142,6 @@ class Lexer {
     std::vector<size_t> line_off; // offsets of each newline
     size_t num_ident = 0;         // number of identifiers found
 
-public:
     Lexer(Source &s)
         : src(s), sv(src.buf.data(), src.buf.size()), look(std::cbegin(sv)),
           curr(std::cbegin(sv)) {}
@@ -152,7 +152,7 @@ public:
     std::vector<Token> lex_all();
     /// Peek the next token without consuming it.
     Token peek();
-    Source &source() { return src; }
+    Source &source() const { return src; }
 
 private:
     Token lex_ident_or_keyword();
@@ -165,7 +165,7 @@ private:
     void step();
     const char *lookn(long n) const;
     const char *eos() const {
-        // Account for '\0' at the end.
+        // account for '\0' at the end
         return std::cend(sv) - 1;
     }
     size_t pos() const { return curr - std::cbegin(sv); }
@@ -183,9 +183,8 @@ template <> struct fmt::formatter<cmp::Token> {
 
     template <typename FormatContext>
     auto format(const cmp::Token &tok, FormatContext &ctx) {
-        if (tok.kind == cmp::TokenKind::newline) {
+        if (tok.kind == cmp::TokenKind::newline)
             return format_to(ctx.out(), "\\n");
-        }
         return format_to(ctx.out(), "{}", tok.text);
     }
 };
