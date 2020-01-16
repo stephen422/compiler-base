@@ -171,20 +171,26 @@ Decl *Parser::parse_var_decl() {
     Name *name = names.get_or_add(std::string{tok.text});
     next();
 
-    if (tok.kind == TokenKind::equals) {
-        // a = expr
-        expect(TokenKind::equals);
-        auto assignexpr = parse_expr();
-        return make_node_with_pos<VarDecl>(pos, name, nullptr, assignexpr);
-    } else if (tok.kind == TokenKind::colon) {
-        // a: type
-        expect(TokenKind::colon);
-        auto typeexpr = parse_typeexpr();
-        return make_node_with_pos<VarDecl>(pos, name, typeexpr, nullptr);
-    } else {
-        error_expected("'=' or ':' after var name");
-        return make_node_with_pos<BadDecl>(pos);
+    Decl *v = nullptr;
+    // '=' comes either first, or after the ': type' part.
+    if (tok.kind == TokenKind::colon) {
+        next();
+        auto type_expr = parse_typeexpr();
+        v = make_node_with_pos<VarDecl>(pos, name, type_expr, nullptr);
     }
+    if (tok.kind == TokenKind::equals) {
+        next();
+        auto assign_expr = parse_expr();
+        if (v)
+            static_cast<VarDecl *>(v)->assign_expr = assign_expr;
+        else
+            v = make_node_with_pos<VarDecl>(pos, name, nullptr, assign_expr);
+    }
+    if (!v) {
+        error_expected("'=' or ':' after var name");
+        v = make_node_with_pos<BadDecl>(pos);
+    }
+    return v;
 }
 
 // This doesn't include enclosing parentheses or braces.

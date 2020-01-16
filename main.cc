@@ -30,8 +30,9 @@ int main(int argc, char **argv) {
 #else
     Parser p{lexer};
     auto ast = p.parse();
-    // p.report();
-    // p.verify();
+    if (!p.verify())
+        return 1;
+
     Sema s{p};
     sema(s, ast);
     if (!s.verify()) {
