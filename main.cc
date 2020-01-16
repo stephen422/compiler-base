@@ -27,8 +27,9 @@ int main(int argc, char **argv) {
 #else
     Source src_parser{Path{"../test_parser.txt"}};
     Parser p_parser{src_parser};
+    p_parser.parse();
     if (!p_parser.verify())
-        return 1;
+        return EXIT_FAILURE;
 
     Source src_sema{Path{"../test_sema.txt"}};
     Parser p_sema{src_sema};
@@ -43,5 +44,5 @@ int main(int argc, char **argv) {
     }
 #endif
 
-    return 0;
+    return EXIT_SUCCESS;
 }

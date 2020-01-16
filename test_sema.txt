@@ -4,7 +4,7 @@ fn main() {
     let a: int = 3 + 4
     let a = 4 // [error: "redefinition.*'a'"]
     let b: Car // [error: "type.*'Car'"]
-    c = 5 // [error: "undeclared.*'c'"
+    c = 5 // [error: "undeclared.*'c'"]
 
     *a // [error: "dereference"] // TODO: report 'int'
 }
