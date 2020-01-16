@@ -22,18 +22,18 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    Source src{Path{argv[1]}};
-    Lexer lexer{src};
-
 #if 0
     test_lexer(lexer);
 #else
-    Parser p{std::move(lexer)};
-    auto ast = p.parse();
-    if (!p.verify())
+    Source src_parser{Path{"../test_parser.txt"}};
+    Parser p_parser{Lexer{src_parser}};
+    if (!p_parser.verify())
         return 1;
 
-    Sema s{p};
+    Source src_sema{Path{"../test_sema.txt"}};
+    Parser p_sema{Lexer{src_sema}};
+    auto ast = p_sema.parse();
+    Sema s{p_sema};
     sema(s, ast);
     if (!s.verify()) {
         fmt::print("==== Declaration table ====\n");

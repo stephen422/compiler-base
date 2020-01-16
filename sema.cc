@@ -100,6 +100,11 @@ void VarDecl::traverse(Sema &sema) {
         assert(!"unreachable");
     }
 
+    // 'type' may be null here, e.g. for undeclared type errors.  For those
+    // cases, we can't push a new declaration anyway, so just bail.
+    if (!type)
+        return;
+
     Declaration decl{name, *type, sema.decl_table.scope_level};
     sema.decl_table.insert({name, decl});
 }
