@@ -47,8 +47,10 @@ void AssignStmt::traverse(Sema &sema) {
     rhs->traverse(sema);
 
     // Type check.  For now, type of LHS and RHS should match exactly.
-    assert(lhs->type);
-    assert(rhs->type);
+    if (!lhs->type || !rhs->type) {
+        // sema error in either hs
+        return;
+    }
     if (lhs->type != rhs->type) {
         sema.type_table.print();
         std::cout << "LHS: " << lhs->type->to_string() << std::endl;
@@ -83,7 +85,7 @@ void VarDecl::traverse(Sema &sema) {
     // check for redefinition
     auto found = sema.decl_table.find(name);
     if (found && found->scope_level == sema.decl_table.scope_level)
-        sema.error(pos, fmt::format("redefinition of '{}'", name->text));
+        sema.error(pos, fmt::format("redefinition of '{}'", *name));
 
     // type inferrence
     if (assign_expr) {
@@ -164,11 +166,12 @@ void IntegerLiteral::traverse(Sema &sema) {
 
 void DeclRefExpr::traverse(Sema &sema) {
     Declaration *decl = sema.decl_table.find(name);
-    if (decl == nullptr) {
-        sema.error(pos, "undeclared identifier");
+    if (decl) {
+        // Type inferrence
+        type = &decl->type;
+    } else {
+        sema.error(pos, fmt::format("undeclared identifier '{}'", *name));
     }
-    // Type inferrence
-    type = &decl->type;
 }
 
 void FuncCallExpr::traverse(Sema &sema) {
@@ -183,7 +186,7 @@ void TypeExpr::traverse(Sema &sema) {
     if (type == nullptr) {
         // If this is a value type, we should check use before declaration.
         if (!ref) {
-            sema.error(pos, fmt::format("unknown type '{}'", name->text));
+            sema.error(pos, fmt::format("unknown type '{}'", *name));
         }
         // If not, this is an instantiation of a derivative type, and should be
         // put into the table.
@@ -201,8 +204,7 @@ void BinaryExpr::traverse(Sema &sema) {
     lhs->traverse(sema);
     rhs->traverse(sema);
 
-    if (lhs->type && rhs->type &&
-        lhs->type != rhs->type)
+    if (lhs->type && rhs->type && lhs->type != rhs->type)
         sema.error(pos, "type mismatch in binary expression");
 
     // propagate from left to right

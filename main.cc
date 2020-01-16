@@ -36,10 +36,10 @@ int main(int argc, char **argv) {
     Sema s{p};
     sema(s, ast);
     if (!s.verify()) {
-      fmt::print("==== Declaration table ====\n");
-      s.decl_table.print();
-      // fmt::print("==== Type table ====\n");
-      // s.type_table.print();
+        fmt::print("==== Declaration table ====\n");
+        s.decl_table.print();
+        // fmt::print("==== Type table ====\n");
+        // s.type_table.print();
     }
 #endif
 

@@ -378,4 +378,15 @@ void test(Sema &sema);
 
 } // namespace cmp
 
+template <> struct fmt::formatter<cmp::Name> {
+    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
+
+    template <typename FormatContext>
+    auto format(const cmp::Name &n, FormatContext &ctx) {
+        // TODO: differentiate "parse error:" from "error:"?
+        return format_to(ctx.out(), "{}", n.text);
+    }
+};
+
+
 #endif
