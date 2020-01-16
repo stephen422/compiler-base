@@ -15,7 +15,7 @@ std::string Declaration::to_string() const {
 }
 
 void Sema::error(size_t pos, const std::string &msg) {
-  errors.push_back({source.locate(pos), msg});
+    errors.push_back({source.locate(pos), msg});
 }
 
 // @Future: inefficient string operations?
@@ -78,31 +78,31 @@ void CompoundStmt::traverse(Sema &sema) {
 }
 
 void VarDecl::traverse(Sema &sema) {
-  Type *type = nullptr;
+    Type *type = nullptr;
 
-  // check for redefinition
-  auto found = sema.decl_table.find(name);
-  if (found && found->scope_level == sema.decl_table.scope_level)
-    sema.error(pos, fmt::format("redefinition of '{}'", name->text));
+    // check for redefinition
+    auto found = sema.decl_table.find(name);
+    if (found && found->scope_level == sema.decl_table.scope_level)
+        sema.error(pos, fmt::format("redefinition of '{}'", name->text));
 
-  // type inferrence
-  if (assign_expr) {
-    assign_expr->traverse(sema);
-    type = assign_expr->type;
-  } else if (type_expr) {
-    type_expr->traverse(sema);
-    // FIXME: This is kinda hack; type depicts the type of the _value_ of a
-    // Expr, but TypeExpr does not have any value.
-    type = type_expr->type;
-  } else {
-    assert(!"unreachable");
-  }
+    // type inferrence
+    if (assign_expr) {
+        assign_expr->traverse(sema);
+        type = assign_expr->type;
+    } else if (type_expr) {
+        type_expr->traverse(sema);
+        // FIXME: This is kinda hack; type depicts the type of the _value_ of a
+        // Expr, but TypeExpr does not have any value.
+        type = type_expr->type;
+    } else {
+        assert(!"unreachable");
+    }
 
-  if (!type)
-    sema.error(pos, "cannot infer type of variable declaration");
+    if (!type)
+        sema.error(pos, "cannot infer type of variable declaration");
 
-  Declaration decl{name, *type, sema.decl_table.scope_level};
-  sema.decl_table.insert({name, decl});
+    Declaration decl{name, *type, sema.decl_table.scope_level};
+    sema.decl_table.insert({name, decl});
 }
 
 void StructDecl::traverse(Sema &sema) {
@@ -111,53 +111,54 @@ void StructDecl::traverse(Sema &sema) {
 }
 
 void FuncDecl::traverse(Sema &sema) {
-  sema.scope_open();
+    sema.scope_open();
 
-  if (ret_type_expr) {
-    ret_type_expr->traverse(sema);
-    assert(ret_type_expr->type);
-    sema.getContext().retType = ret_type_expr->type;
-  }
+    if (ret_type_expr) {
+        ret_type_expr->traverse(sema);
+        assert(ret_type_expr->type);
+        sema.getContext().retType = ret_type_expr->type;
+    }
 
-  for (auto &p : params)
-    p->traverse(sema);
+    for (auto &p : params)
+        p->traverse(sema);
 
-  body->traverse(sema);
+    body->traverse(sema);
 
-  if (ret_type_expr && !sema.getContext().seenReturn) {
-    sema.error(pos, "no return statement found for function");
-  }
+    if (ret_type_expr && !sema.getContext().seenReturn) {
+        sema.error(pos, "no return statement found for function");
+    }
 
-  sema.scope_close();
+    sema.scope_close();
 }
 
 void UnaryExpr::traverse(Sema &sema) {
-  // DeclRefs and Literals have their own traverse(), so no need to handle them
-  // in this switch.
-  switch (unary_kind) {
-  case Paren:
-    operand->traverse(sema);
-    type = operand->type;
-    break;
-  case Deref:
-    operand->traverse(sema);
-    if (!operand->type->ref) {
-      sema.error(pos, "cannot dereference a non-reference");
+    // DeclRefs and Literals have their own traverse(), so no need to handle
+    // them in this switch.
+    switch (unary_kind) {
+    case Paren:
+        operand->traverse(sema);
+        type = operand->type;
+        break;
+    case Deref:
+        operand->traverse(sema);
+        if (!operand->type->ref) {
+            sema.error(pos, "cannot dereference a non-reference");
+        }
+        type = operand->type->value_type;
+        break;
+    case Address:
+        operand->traverse(sema);
+        assert(operand->kind == AstKind::unary_expr);
+        if (static_cast<UnaryExpr *>(operand)->unary_kind != DeclRef) {
+            // TODO: LValue & RValue
+            sema.error(pos,
+                       "cannot take address of a non-variable (TODO: rvalue)");
+        }
+        type = get_reference_type(sema, operand->type);
+        break;
+    default:
+        assert(!"unreachable");
     }
-    type = operand->type->value_type;
-    break;
-  case Address:
-    operand->traverse(sema);
-    assert(operand->kind == AstKind::unary_expr);
-    if (static_cast<UnaryExpr *>(operand)->unary_kind != DeclRef) {
-      // TODO: LValue & RValue
-      sema.error(pos, "cannot take address of a non-variable (TODO: rvalue)");
-    }
-    type = get_reference_type(sema, operand->type);
-    break;
-  default:
-    assert(!"unreachable");
-  }
 }
 
 void IntegerLiteral::traverse(Sema &sema) {
@@ -223,30 +224,30 @@ Sema::Sema(Source &s, NameTable &n) : source(s), names(n) {
 
 // FIXME: lifetime of p.lexer.source() and p.names?
 Sema::Sema(Parser &p) : Sema(p.lexer.source(), p.names) {
-  errors = p.errors;
-  beacons = p.beacons;
+    errors = p.errors;
+    beacons = p.beacons;
 }
 
 void Sema::scope_open() {
-  decl_table.scope_open();
-  type_table.scope_open();
-  context_table.push_back(Context{});
+    decl_table.scope_open();
+    type_table.scope_open();
+    context_table.push_back(Context{});
 }
 
 void Sema::scope_close() {
-  decl_table.scope_close();
-  type_table.scope_close();
-  context_table.pop_back();
+    decl_table.scope_close();
+    type_table.scope_close();
+    context_table.pop_back();
 }
 
 void Sema::report() const {
-  for (auto e : errors)
-    fmt::print("{}\n", e);
+    for (auto e : errors)
+        fmt::print("{}\n", e);
 }
 
 // See ::cmp::verify().
 bool Sema::verify() const {
-  return ::cmp::verify(source.filename, errors, beacons);
+    return ::cmp::verify(source.filename, errors, beacons);
 }
 
 void sema(Sema &sema, Ast &ast) { ast.root->traverse(sema); }

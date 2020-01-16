@@ -49,29 +49,30 @@ constexpr int symbol_table_key_size = 512;
 
 template <typename T> class ScopedTable {
 public:
-  ScopedTable();
-  ~ScopedTable();
-  T *insert(std::pair<Name *, const T &> pair);
-  T *find(Name *name) const;
-  void print() const;
+    ScopedTable();
+    ~ScopedTable();
+    T *insert(std::pair<Name *, const T &> pair);
+    T *find(Name *name) const;
+    void print() const;
 
-  // Start a new scope.
-  void scope_open();
-  // Close current cope.
-  void scope_close();
+    // Start a new scope.
+    void scope_open();
+    // Close current cope.
+    void scope_close();
 
-  struct Symbol {
-    Symbol(Name *n, const T &v) : name(n), value(v) {}
+    struct Symbol {
+        Symbol(Name *n, const T &v) : name(n), value(v) {}
 
-    Name *name;              // name of this symbol
-    T value;                 // semantic value of this symbol
-    Symbol *next = nullptr;  // pointer to next symbol in the hash table bucket
-    Symbol *cross = nullptr; // pointer to next symbol in the same scope
-  };
+        Name *name; // name of this symbol
+        T value;    // semantic value of this symbol
+        Symbol *next =
+            nullptr; // pointer to next symbol in the hash table bucket
+        Symbol *cross = nullptr; // pointer to next symbol in the same scope
+    };
 
-  std::array<Symbol *, symbol_table_key_size> keys;
-  std::vector<Symbol *> scope_stack = {};
-  int scope_level = 0;
+    std::array<Symbol *, symbol_table_key_size> keys;
+    std::vector<Symbol *> scope_stack = {};
+    int scope_level = 0;
 };
 
 #include "scoped_table.h"
@@ -79,26 +80,26 @@ public:
 // Stores all of the semantic information necessary for semantic analysis
 // phase.
 struct Sema {
-  Source &source;                      // source text
-  NameTable &names;                    // name table
-  ScopedTable<Declaration> decl_table; // declaration table
-  ScopedTable<Type> type_table;        // type table
-  std::vector<Context> context_table;  // semantic analysis context table
-  std::vector<Error> errors;           // error list
-  std::vector<Error> beacons;          // error beacon list
-  Type *int_type = nullptr;
-  Type *i64_type = nullptr;
+    Source &source;                      // source text
+    NameTable &names;                    // name table
+    ScopedTable<Declaration> decl_table; // declaration table
+    ScopedTable<Type> type_table;        // type table
+    std::vector<Context> context_table;  // semantic analysis context table
+    std::vector<Error> errors;           // error list
+    std::vector<Error> beacons;          // error beacon list
+    Type *int_type = nullptr;
+    Type *i64_type = nullptr;
 
-  Sema(Source &src_, NameTable &nt);
-  Sema(Parser &p);
-  Sema(const Sema &) = delete;
-  Sema(Sema &&) = delete;
-  void error(size_t pos, const std::string &msg);
-  void scope_open();
-  void scope_close();
-  Context &getContext() { return context_table.back(); }
-  void report() const;
-  bool verify() const;
+    Sema(Source &src_, NameTable &nt);
+    Sema(Parser &p);
+    Sema(const Sema &) = delete;
+    Sema(Sema &&) = delete;
+    void error(size_t pos, const std::string &msg);
+    void scope_open();
+    void scope_close();
+    Context &getContext() { return context_table.back(); }
+    void report() const;
+    bool verify() const;
 };
 
 // Get a reference type of a given type.
