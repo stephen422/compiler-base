@@ -12,29 +12,29 @@ namespace cmp {
 class Source;
 
 // Represents a type, whether it be built-in, user-defined, or a reference to
-// another type.  This exists separately from the AST node TypeExpr so that
+// another type.  Type exists separately from the AST node TypeExpr so that
 // type comparisons can be made by simply comparing raw Type pointers.
+//
+// TODO: switch to union?
 struct Type {
+    enum class Kind { value, ref, array } kind;
     Name *name = nullptr;       // name of this type
     Type *value_type = nullptr; // the type this reference refers to
-    bool ref = false;           // is this a reference type?
     int scope_level = 0;        // scope that this was declared
 
-    Type() {}
-    Type(Name *n) : name(n) {}
-    Type(Name *n, Type *v, bool r) : name(n), value_type(v), ref(r) {}
+    Type(Name *n) : kind(Kind::value), name(n) {}
+    Type(Kind k, Name *n, Type *v, int s)
+        : kind(k), name(n), value_type(v), scope_level(s) {}
 };
 
 // Represents declaration of a variable or a function.
-class Declaration {
-public:
+struct Declaration {
     Name *name = nullptr;
     Type &type;
-    int scope_level = 0;        // scope that this was declared
+    int scope_level = 0; // scope that this was declared
 };
 
-class Context {
-public:
+struct Context {
     // Return type of this function
     Type *retType = nullptr;
     // Seen one or more return statement in this function

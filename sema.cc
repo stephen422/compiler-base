@@ -13,10 +13,10 @@ void Sema::error(size_t pos, const std::string &msg) {
 // @Future: inefficient string operations?
 Type *get_reference_type(Sema &sema, Type *type) {
     Name *name = sema.names.get_or_add("&" + type->name->text);
-    Type ref_type {name, type, true};
-    if (auto found = sema.type_table.find(name)) {
+    // FIXME: scope_level
+    Type ref_type{Type::Kind::ref, name, type, 0};
+    if (auto found = sema.type_table.find(name))
         return found;
-    }
     return sema.type_table.insert({name, ref_type});
 }
 
@@ -137,9 +137,8 @@ void UnaryExpr::traverse(Sema &sema) {
         break;
     case Deref:
         operand->traverse(sema);
-        if (!operand->type->ref) {
+        if (operand->type->kind != Type::Kind::ref)
             sema.error(pos, "cannot dereference a non-reference");
-        }
         type = operand->type->value_type;
         break;
     case Address:
@@ -189,7 +188,8 @@ void TypeExpr::traverse(Sema &sema) {
         // put into the table.
         else {
             assert(subexpr);
-            Type ref_type{name, subexpr->type, true};
+            // FIXME: scope_level
+            Type ref_type{Type::Kind::ref, name, subexpr->type, 0};
             type = sema.type_table.insert({name, ref_type});
         }
     }
