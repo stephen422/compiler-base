@@ -304,6 +304,9 @@ UnaryExpr *Parser::parse_literal_expr() {
         expr = make_node<IntegerLiteral>(value);
         break;
     }
+    case TokenKind::string:
+        expr = make_node<StringLiteral>(tok.text);
+        break;
     default:
         assert(false && "non-integer literals not implemented");
     }

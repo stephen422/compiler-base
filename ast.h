@@ -211,7 +211,7 @@ public:
 //   Expression
 // ==============
 
-class Type;
+struct Type;
 
 struct Expr : public AstNode {
     Expr(AstKind kind) : AstNode(kind) {}
@@ -247,6 +247,14 @@ struct IntegerLiteral : public UnaryExpr {
     IntegerLiteral(int64_t v) : UnaryExpr(Literal, nullptr), value(v) {}
     void print() const override;
     void traverse(Sema &sema) override;
+};
+
+struct StringLiteral : public UnaryExpr {
+    const std::string_view value;
+
+    StringLiteral(std::string_view sv) : UnaryExpr(Literal, nullptr), value(sv) {}
+    void print() const override;
+    // void traverse(Sema &sema) override;
 };
 
 struct DeclRefExpr : public UnaryExpr {

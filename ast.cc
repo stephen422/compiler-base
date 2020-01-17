@@ -140,6 +140,10 @@ void IntegerLiteral::print() const {
     out() << "[IntegerLiteral] " << value << std::endl;
 }
 
+void StringLiteral::print() const {
+    out() << "[StringLiteral] " << value << std::endl;
+}
+
 void DeclRefExpr::print() const {
     out() << "[DeclRefExpr] " << "((Name *)";
     printf("0x..%04x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(name)));

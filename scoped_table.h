@@ -88,7 +88,7 @@ void ScopedTable<T>::print() const {
         }
         std::cout << "[" << i << "]";
         while (p) {
-            std::cout << " {" << p->value.to_string() << "}";
+            fmt::print("{{}}", p->value);
             p = p->next;
         }
         std::cout << std::endl;
@@ -96,7 +96,7 @@ void ScopedTable<T>::print() const {
     for (size_t i = 0; i < scope_stack.size(); i++) {
         std::cout << "Scope " << i << ":";
         for (Symbol *p = scope_stack[i]; p; p = p->cross) {
-            std::cout << " {" << p->value.to_string() << "}";
+            fmt::print("{{}}", p->value);
         }
         std::cout << std::endl;
     }

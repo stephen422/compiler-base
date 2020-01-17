@@ -6,14 +6,6 @@
 
 namespace cmp {
 
-std::string Type::to_string() const {
-    return name->text;
-}
-
-std::string Declaration::to_string() const {
-    return name->text + ":" + type.to_string();
-}
-
 void Sema::error(size_t pos, const std::string &msg) {
     errors.push_back({source.locate(pos), msg});
 }
@@ -53,8 +45,8 @@ void AssignStmt::traverse(Sema &sema) {
     }
     if (lhs->type != rhs->type) {
         sema.type_table.print();
-        std::cout << "LHS: " << lhs->type->to_string() << std::endl;
-        std::cout << "RHS: " << rhs->type->to_string() << std::endl;
+        fmt::print("LHS: {}\n", *lhs->type);
+        fmt::print("RHS: {}\n", *rhs->type);
         sema.error(rhs->pos, "type mismatch: ");
     }
 }
@@ -220,9 +212,9 @@ Sema::Sema(const Source &s, NameTable &n) : source(s), names(n) {
     Name *int_name = names.get_or_add("int");
     Type int_type{int_name};
     this->int_type = type_table.insert({int_name, int_type});
-    Name *i64_name = names.get_or_add("i64");
-    Type i64_type{i64_name};
-    this->i64_type = type_table.insert({i64_name, i64_type});
+    Name *char_name = names.get_or_add("char");
+    Type char_type{char_name};
+    this->char_type = type_table.insert({char_name, char_type});
 }
 
 // FIXME: lifetime of p.lexer.source() and p.names?

@@ -14,24 +14,20 @@ class Source;
 // Represents a type, whether it be built-in, user-defined, or a reference to
 // another type.  This exists separately from the AST node TypeExpr so that
 // type comparisons can be made by simply comparing raw Type pointers.
-class Type {
-public:
-    Type() {}
-    Type(Name *n) : name(n) {}
-    Type(Name *n, Type *v, bool r) : name(n), value_type(v), ref(r) {}
-    std::string to_string() const;
-
+struct Type {
     Name *name = nullptr;       // name of this type
     Type *value_type = nullptr; // the type this reference refers to
     bool ref = false;           // is this a reference type?
     int scope_level = 0;        // scope that this was declared
+
+    Type() {}
+    Type(Name *n) : name(n) {}
+    Type(Name *n, Type *v, bool r) : name(n), value_type(v), ref(r) {}
 };
 
 // Represents declaration of a variable or a function.
 class Declaration {
 public:
-    std::string to_string() const;
-
     Name *name = nullptr;
     Type &type;
     int scope_level = 0;        // scope that this was declared
@@ -88,7 +84,7 @@ struct Sema {
     std::vector<Error> errors;           // error list
     std::vector<Error> beacons;          // error beacon list
     Type *int_type = nullptr;
-    Type *i64_type = nullptr;
+    Type *char_type = nullptr;
 
     Sema(const Source &src_, NameTable &nt);
     Sema(Parser &p);
@@ -112,5 +108,26 @@ struct Ast;
 void sema(Sema &sema, Ast &ast);
 
 } // namespace cmp
+
+template <> struct fmt::formatter<cmp::Type> {
+    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
+
+    template <typename FormatContext>
+    auto format(const cmp::Type &type, FormatContext &ctx) {
+        // TODO: differentiate "parse error:" from "error:"?
+        return format_to(ctx.out(), "{}", *type.name);
+    }
+};
+
+template <> struct fmt::formatter<cmp::Declaration> {
+    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
+
+    template <typename FormatContext>
+    auto format(const cmp::Declaration &decl, FormatContext &ctx) {
+        // TODO: differentiate "parse error:" from "error:"?
+        return format_to(ctx.out(), "{}:{}", *decl.name, decl.type);
+    }
+};
+
 
 #endif

@@ -1,6 +1,8 @@
 // TODO:
-// let a: int = 4
-// if/while
+// string literals
+// & -> *
+// arrays []T
+// if/for
 // struct declaration
 // struct fields
 
