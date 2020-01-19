@@ -82,12 +82,14 @@ typedef struct Token {
     SrcRange range;
 } Token;
 
+// Represents a unique location (file:line:col) in the source.
 typedef struct SrcLoc {
     const char *filename;
     int line;
     int col;
 } SrcLoc;
 
+// Lexer state.
 typedef struct Lexer {
     Token tok;          // currently lexed token
     char ch;            // lookahead character
@@ -102,15 +104,17 @@ typedef struct Lexer {
     long srclen;        // length of src excluding \0
 } Lexer;
 
-void token_free(Token *t);
 sds tokenString(Lexer *lex, const Token tok);
 void tokenPrint(Lexer *l, const Token t);
-int is_keyword(Token tok);
-SrcLoc locate(Lexer *l, size_t pos);
+
 sds srcLocString(const SrcLoc loc);
+SrcLoc locate(Lexer *l, size_t pos);
+
 int lexerInit(Lexer *l, const char *filename);
 int lexerInitText(Lexer *l, const char *text, size_t len);
 int lexerNext(Lexer *l);
 void lexerCleanup(Lexer *l);
+
+int isKeyword(Token tok);
 
 #endif

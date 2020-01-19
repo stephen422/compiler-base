@@ -361,7 +361,7 @@ static void next(Parser *p) {
         }
 
         // Push keywords that we come by into the name table.
-        if (is_keyword(p->tok))
+        if (isKeyword(p->tok))
             push_name_from_token(p, p->tok);
     }
 }
@@ -816,71 +816,46 @@ void parserVerify(Parser *p) {
     printf("TEST %s:\n", p->lexer.filename);
 
     int i = 0, j = 0;
-    while (i < sb_count(p->errors) && j < sb_count(p->beacons)) {
-        Error error = p->errors[i];
-        Error beacon = p->beacons[j];
-        if (error.loc.line == beacon.loc.line) {
+    while (i < sb_count(p->errors) || j < sb_count(p->beacons)) {
+        int bothInRange = i < sb_count(p->errors) && j < sb_count(p->beacons);
+        if (bothInRange && p->errors[i].loc.line == p->beacons[j].loc.line) {
             success = 0;
-
-            printf("looking beacon [%s]\n", beacon.msg);
-            // trim the double-quotes
-            sds rs = sdsnew(beacon.msg);
+            sds rs = sdsnew(p->beacons[j].msg);
             sdstrim(rs, "\"");
             regex_t preg;
             if (regcomp(&preg, rs, REG_NOSUB) == 0) {
-                int match = regexec(&preg, error.msg, 0, NULL, 0);
+                int match = regexec(&preg, p->errors[i].msg, 0, NULL, 0);
                 if (match != 0) {
-                    sds es = errorString(error);
-                    sds bs = errorString(beacon);
+                    sds es = errorString(p->errors[i]);
+                    sds bs = errorString(p->beacons[j]);
                     printf("< %s\n> %s\n", es, bs);
                     sdsfree(es);
                     sdsfree(bs);
-                } else {
-                    printf("matched [%s] with [%s]\n", error.msg, beacon.msg);
                 }
                 regfree(&preg);
             } else {
-                fatal("invalid regex in beacon: %s", beacon.msg);
+                fatal("invalid regex in beacon: %s", p->beacons[j].msg);
             }
             sdsfree(rs);
-
-            if (i < sb_count(p->errors))
-                i++;
-            if (j < sb_count(p->beacons))
-                j++;
-        } else if (error.loc.line < beacon.loc.line) {
+            i++;
+            j++;
+        } else if ((bothInRange &&
+                    p->errors[i].loc.line < p->beacons[j].loc.line) ||
+                   i < sb_count(p->errors)) {
             success = 0;
-
-            sds es = errorString(error);
+            sds es = errorString(p->errors[i]);
             printf("< %s\n", es);
             sdsfree(es);
-
-            if (i < sb_count(p->errors))
-                i++;
-        } else {
+            i++;
+        } else if ((bothInRange &&
+                    p->errors[i].loc.line > p->beacons[j].loc.line) ||
+                   j < sb_count(p->beacons)) {
             success = 0;
-
-            sds bs = errorString(beacon);
+            sds bs = errorString(p->beacons[j]);
             printf("> %s\n", bs);
             sdsfree(bs);
-
-            if (j < sb_count(p->beacons))
-                j++;
+            j++;
         }
-    }
-    for (; i < sb_count(p->errors); i++) {
-        success = 0;
-
-        sds es = errorString(p->errors[i]);
-        printf("< %s\n", es);
-        sdsfree(es);
-    }
-    for (; j < sb_count(p->beacons); j++) {
-        success = 0;
-
-        sds bs = errorString(p->beacons[j]);
-        printf("> %s\n", bs);
-        sdsfree(bs);
     }
 
     printf("%s %s\n", success ? "SUCCESS" : "FAIL", p->lexer.filename);

@@ -84,7 +84,7 @@ struct token_map keywords[] = {
 	{NULL, 0}
 };
 
-int is_keyword(Token tok)
+int isKeyword(Token tok)
 {
 	return TOK_KEYWORDS < tok.type && tok.type < TOK_ERR;
 }
@@ -172,11 +172,6 @@ static void makeToken(Lexer *l, TokenType type)
 	memset(&l->tok, 0, sizeof(Token));
 	l->tok.type = type;
 	l->tok.range = (SrcRange) {l->start, l->off};
-}
-
-void token_free(Token *t)
-{
-	free(t);
 }
 
 static void lexIdentOrKeyword(Lexer *l)
