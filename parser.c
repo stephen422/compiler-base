@@ -813,7 +813,7 @@ static Node *parseTopLevel(Parser *p)
 
 void parserVerify(Parser *p) {
     int success = 1;
-    printf("TEST %s:\n", p->lexer.filename);
+    printf("\033[0;32mtest\033[0m %s:\n", p->lexer.filename);
 
     int i = 0, j = 0;
     while (i < sb_count(p->errors) || j < sb_count(p->beacons)) {
@@ -858,7 +858,7 @@ void parserVerify(Parser *p) {
         }
     }
 
-    printf("%s %s\n", success ? "SUCCESS" : "FAIL", p->lexer.filename);
+    printf("%s %s\n", success ? "\033[0;32msuccess\033[0m" : "\033[0;31mfail\033[0m", p->lexer.filename);
 }
 
 // Parse a single error beacon ([error: "regex"]).
