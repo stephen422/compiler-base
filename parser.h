@@ -12,6 +12,7 @@ typedef struct {
 	char *msg;
 } Error;
 
+// Parser state.
 typedef struct {
     Lexer lexer;         // lexer driven by this parser
     Token tok;           // current token

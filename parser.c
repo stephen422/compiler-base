@@ -10,8 +10,8 @@
 #include <string.h>
 #include <sys/types.h>
 
-static Node *parse_expr(Parser *p);
-static int is_decl_start(Parser *p);
+static Node *parseExpr(Parser *p);
+static int isDeclStart(Parser *p);
 static Node *parseDecl(Parser *p);
 
 static Name *push_name_from_token(Parser *p, Token tok)
@@ -440,7 +440,7 @@ static Node *parse_assignstmt_or_exprstmt(Parser *p, Node *expr)
 {
 	if (p->tok.type == TOK_EQUALS) {
 		next(p);
-		Node *rhs = parse_expr(p);
+		Node *rhs = parseExpr(p);
 		return make_assignstmt(p, expr, rhs);
 	} else {
 		return make_exprstmt(p, expr);
@@ -451,7 +451,7 @@ static Node *parse_returnstmt(Parser *p)
 {
 	expect(p, TOK_RETURN);
 
-	Node *expr = parse_expr(p);
+	Node *expr = parseExpr(p);
 	if (!expr)
 		error(p, "expected expression");
 
@@ -490,7 +490,7 @@ static Node *parse_stmt(Parser *p)
         break;
     }
 
-    if (is_decl_start(p)) {
+    if (isDeclStart(p)) {
         Node *decl = parseDecl(p);
         stmt = make_decl_stmt(p, decl);
         expectEndOfLine(p);
@@ -498,7 +498,7 @@ static Node *parse_stmt(Parser *p)
     }
 
     // all productions from now on start with an expression
-    Node *expr = parse_expr(p);
+    Node *expr = parseExpr(p);
     if (expr) {
         return parse_assignstmt_or_exprstmt(p, expr);
     }
@@ -529,15 +529,15 @@ static Node *parse_litexpr(Parser *p)
 	return expr;
 }
 
-static int is_typename(Token tok)
+static int isTypeName(Token tok)
 {
-	switch (tok.type) {
-	case TOK_INT:
-	case TOK_IDENT:
-		return 1;
-	default:
-		return 0;
-	}
+    switch (tok.type) {
+    case TOK_INT:
+    case TOK_IDENT:
+        return 1;
+    default:
+        return 0;
+    }
 }
 
 static Node *parseTypeExpr(Parser *p) {
@@ -554,8 +554,11 @@ static Node *parseTypeExpr(Parser *p) {
         ref = 0;
         subexpr = NULL;
 
-        if (!is_typename(p->tok))
-            error(p, "invalid type name '%s'", token_names[p->tok.type]);
+        if (!isTypeName(p->tok)) {
+            sds ts = tokenString(&p->lexer, p->tok);
+            error(p, "invalid type name '%s'", ts);
+            sdsfree(ts);
+        }
 
         name = push_name_from_token(p, p->tok);
         next(p);
@@ -593,7 +596,7 @@ static Node *parse_unaryexpr(Parser *p) {
         break;
     case TOK_LPAREN:
         expect(p, TOK_LPAREN);
-        expr = parse_expr(p);
+        expr = parseExpr(p);
         expect(p, TOK_RPAREN);
         break;
     default:
@@ -673,7 +676,7 @@ static Node *parse_binexpr_rhs(Parser *p, Node *lhs, int precedence)
 // This grammar requires two or more lookahead, because a single token
 // lookahead would not tell us whether it is a single-ID expression or a call
 // expression.
-static Node *parse_expr(Parser *p)
+static Node *parseExpr(Parser *p)
 {
 	Node *expr = parse_unaryexpr(p);
 	expr = parse_binexpr_rhs(p, expr, 0);
@@ -724,7 +727,7 @@ static Node *parseVarDecl(Parser *p)
         return makeVarDecl(p, typeexpr, mut, name, NULL);
     } else if (p->tok.type == TOK_EQUALS) {
         next(p);
-        Node *assign = parse_expr(p);
+        Node *assign = parseExpr(p);
         return makeVarDecl(p, NULL, mut, name, assign);
     } else {
         errorExpected(p, "':' or '='");
@@ -735,15 +738,14 @@ static Node *parseVarDecl(Parser *p)
 }
 
 // Declarations have clear indicator tokens.
-static int is_decl_start(Parser *p)
-{
-	switch (p->tok.type) {
-	case TOK_LET:
-	case TOK_VAR:
-		return 1;
-	default:
-		return 0;
-	}
+static int isDeclStart(Parser *p) {
+    switch (p->tok.type) {
+    case TOK_LET:
+    case TOK_VAR:
+        return 1;
+    default:
+        return 0;
+    }
 }
 
 // Parse a declaration.
@@ -820,6 +822,7 @@ void parserVerify(Parser *p) {
         if (error.loc.line == beacon.loc.line) {
             success = 0;
 
+            printf("looking beacon [%s]\n", beacon.msg);
             // trim the double-quotes
             sds rs = sdsnew(beacon.msg);
             sdstrim(rs, "\"");
@@ -832,6 +835,8 @@ void parserVerify(Parser *p) {
                     printf("< %s\n> %s\n", es, bs);
                     sdsfree(es);
                     sdsfree(bs);
+                } else {
+                    printf("matched [%s] with [%s]\n", error.msg, beacon.msg);
                 }
                 regfree(&preg);
             } else {
