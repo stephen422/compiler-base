@@ -15,9 +15,10 @@ fn main() {
     1 * 2 + 3 + 4 * 5
     3 + (a - (b + a * 3)) * 2
 
-    // b a // [error: "expected.*="]
-    // b = a
-    // c = &b
+    b a // [error: "expected '\\n'.*'a'"]
+    b = // [error: "expected.*expr"]
+    b = a
+    c = &b
 
     // f(3, 4)
     // f(3, 4,)

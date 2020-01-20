@@ -425,12 +425,25 @@ static Token expect(Parser *p, TokenType t) {
     return tok;
 }
 
-void expectEndOfLine(Parser *p) {
-    if (p->tok.type != TOK_NEWLINE && p->tok.type != TOK_COMMENT)
-        // FIXME error message
+static int isEndOfLine(const Parser *p) {
+    return p->tok.type == TOK_NEWLINE || p->tok.type == TOK_COMMENT;
+}
+
+static void expectEndOfLine(Parser *p) {
+    if (!isEndOfLine(p))
         expect(p, TOK_NEWLINE);
     // make progress
     next(p);
+}
+
+static void skipInvisibles(Parser *p) {
+    while (p->tok.type == TOK_NEWLINE || p->tok.type == TOK_COMMENT)
+        next(p);
+}
+
+static void skipToEndOfLine(Parser *p) {
+    while (p->tok.type != TOK_NEWLINE)
+        next(p);
 }
 
 // Assignment statements start with an expression, so we cannot easily
@@ -438,38 +451,29 @@ void expectEndOfLine(Parser *p) {
 // until we see the '='.  We therefore first parse the expression (LHS) and
 // then call this to transform that node into an assignment if needed.
 static Node *parseAssignOrExprStmt(Parser *p, Node *expr) {
+    Node *stmt = NULL;
     if (p->tok.type == TOK_EQUALS) {
         next(p);
         Node *rhs = parseExpr(p);
-        return makeAssignStmt(p, expr, rhs);
+        stmt = makeAssignStmt(p, expr, rhs);
     } else {
-        return makeExprStmt(p, expr);
+        stmt = makeExprStmt(p, expr);
     }
+    expectEndOfLine(p);
+    skipToEndOfLine(p);
+    return stmt;
 }
 
-static Node *parse_returnstmt(Parser *p)
-{
-	expect(p, TOK_RETURN);
+static Node *parseReturnStmt(Parser *p) {
+    expect(p, TOK_RETURN);
 
-	Node *expr = parseExpr(p);
-	if (!expr)
-		error(p, "expected expression");
+    Node *expr = parseExpr(p);
+    if (!expr)
+        errorExpected(p, "expression");
 
-        expectEndOfLine(p);
+    expectEndOfLine(p);
 
-	return makeRetstmt(p, expr);
-}
-
-static void skipInvisibles(Parser *p)
-{
-    while (p->tok.type == TOK_NEWLINE || p->tok.type == TOK_COMMENT)
-        next(p);
-}
-
-static void skipToEndOfLine(Parser *p)
-{
-    while (p->tok.type != TOK_NEWLINE)
-        next(p);
+    return makeRetstmt(p, expr);
 }
 
 static Node *parse_stmt(Parser *p)
@@ -484,7 +488,7 @@ static Node *parse_stmt(Parser *p)
     case TOK_RBRACE: // compoundstmt end
         return NULL;
     case TOK_RETURN:
-        stmt = parse_returnstmt(p);
+        stmt = parseReturnStmt(p);
         return stmt;
     default:
         break;
@@ -627,41 +631,40 @@ static int get_precedence(const Token op)
 //	 UnaryExpr (op BinaryExpr)*
 //
 // Return the pointer to the node respresenting the reduced binary expression.
-static Node *parse_binexpr_rhs(Parser *p, Node *lhs, int precedence)
-{
-	while (1) {
-		int this_prec = get_precedence(p->tok);
+static Node *parse_binexpr_rhs(Parser *p, Node *lhs, int precedence) {
+    while (1) {
+        int this_prec = get_precedence(p->tok);
 
-		// If the upcoming op has lower precedence, the subexpression of the
-		// precedence level that we are currently parsing in is finished.
-		// This is equivalent to reducing on a shift/reduce conflict in
-		// bottom-up parsing.
-		if (this_prec < precedence)
-			break;
+        // If the upcoming op has lower precedence, the subexpression of the
+        // precedence level that we are currently parsing in is finished.
+        // This is equivalent to reducing on a shift/reduce conflict in
+        // bottom-up parsing.
+        if (this_prec < precedence)
+            break;
 
-		Node *op = makeNode(p, ND_TOKEN, p->tok);
-		next(p);
+        Node *op = makeNode(p, ND_TOKEN, p->tok);
+        next(p);
 
-		// Parse the next term.  We do not know yet if this term should bind to
-		// LHS or RHS; e.g. "a * b + c" or "a + b * c".  To know this, we should
-		// look ahead for the operator that follows this term.
-		Node *rhs = parseUnaryExpr(p);
-		if (!rhs)
-			error(p, "expected expression");
-		int next_prec = get_precedence(p->tok);
+        // Parse the next term.  We do not know yet if this term should bind to
+        // LHS or RHS; e.g. "a * b + c" or "a + b * c".  To know this, we should
+        // look ahead for the operator that follows this term.
+        Node *rhs = parseUnaryExpr(p);
+        if (!rhs)
+            error(p, "expected expression");
+        int next_prec = get_precedence(p->tok);
 
-		// If the next operator is indeed higher-level, evaluate the RHS as a
-		// whole subexpression with elevated minimum precedence. Else, just
-		// treat it as a unary expression.  This is equivalent to shifting on a
-		// shift/reduce conflict in bottom-up parsing.
-		//
-		// If this_prec == next_prec, don't shift, but reduce it with lhs.
-		// This implies left associativity.
-		if (this_prec < next_prec)
-			rhs = parse_binexpr_rhs(p, rhs, precedence + 1);
-		lhs = makeBinexpr(p, lhs, op, rhs);
-	}
-	return lhs;
+        // If the next operator is indeed higher-level, evaluate the RHS as a
+        // whole subexpression with elevated minimum precedence. Else, just
+        // treat it as a unary expression.  This is equivalent to shifting on a
+        // shift/reduce conflict in bottom-up parsing.
+        //
+        // If this_prec == next_prec, don't shift, but reduce it with lhs.
+        // This implies left associativity.
+        if (this_prec < next_prec)
+            rhs = parse_binexpr_rhs(p, rhs, precedence + 1);
+        lhs = makeBinexpr(p, lhs, op, rhs);
+    }
+    return lhs;
 }
 
 // Parse an expression.
