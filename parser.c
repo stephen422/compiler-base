@@ -546,7 +546,7 @@ static Node *parseTypeExpr(Parser *p) {
     Name *name;
     int ref;
 
-    if (p->tok.type == TOK_AMPERSAND) {
+    if (p->tok.type == TOK_STAR) {
         next(p);
         ref = 1;
         subexpr = parseTypeExpr(p);

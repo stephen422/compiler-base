@@ -6,12 +6,11 @@ fn main() {
     let a = 3 + 4
     let b: int // [error: "initial value required"]
     var b: int
-    let c &int // [error: "expected.*':'.*got '&'"]
-    var c: int blah // [error: "expected.*'\\n'.*blah"]
-    var d: & // [error: "expected type name"]
-    var d: &mut // [error: "expected type name"]
-    // let d: &mut Car
-    // let d: &mut Car Sedan // [error: "expected end of decl.*Sedan"]
+    let c *int // [error: "expected ':'.*got '*'"]
+    var c: int blah // [error: "expected '\\n'.*blah"]
+    var d: * // [error: "expected type name"]
+    var d: *Car
+    var d: *Car Sedan // [error: "expected '\\n'.*Sedan"]
 
     1 * 2 + 3 + 4 * 5
     3 + (a - (b + a * 3)) * 2
