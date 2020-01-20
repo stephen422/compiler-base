@@ -21,7 +21,7 @@ void Parser::error(const std::string &msg) {
   errors.push_back({locate(), msg});
 }
 
-void Parser::error_expected(const std::string &msg) {
+void Parser::errorExpected(const std::string &msg) {
   std::string s = fmt::format("expected {}, found '{}'", msg, tok);
   error(s);
 }
@@ -42,7 +42,7 @@ void Parser::next() {
             auto bracket = tok.text.substr(found);
             Source s{std::string{bracket}};
             Parser p{Lexer{s}};
-            auto v = p.parse_error_beacon();
+            auto v = p.parseErrorBeacon();
             // override location
             for (auto &e : v) {
                 e.loc = locate();
@@ -70,7 +70,7 @@ bool Parser::is_end_of_stmt() const {
 }
 
 bool Parser::is_eos() {
-    skip_newlines();
+    skipNewlines();
     return tok.kind == TokenKind::eos;
 }
 
@@ -79,17 +79,17 @@ bool Parser::is_eos() {
 // Stmt:
 //     Decl
 //     Expr
-Stmt *Parser::parse_stmt() {
+Stmt *Parser::parseStmt() {
     Stmt *stmt = nullptr;
 
     if (tok.kind == TokenKind::kw_return) {
         stmt = parse_return_stmt();
-    } else if (is_start_of_decl()) {
+    } else if (isStartOfDecl()) {
         stmt = parse_decl_stmt();
     } else {
-        stmt = parse_expr_or_assign_stmt();
+        stmt = parseExprOrAssignStmt();
     }
-    skip_newlines();
+    skipNewlines();
 
     return stmt;
 }
@@ -102,9 +102,9 @@ Stmt *Parser::parse_return_stmt() {
     // optional
     Expr *expr = nullptr;
     if (!is_end_of_stmt())
-        expr = parse_expr();
+        expr = parseExpr();
     if (!is_end_of_stmt()) {
-        skip_until_end_of_line();
+        skipUntilEndOfLine();
         return make_node_with_pos<BadStmt>(pos);
     }
     return make_node_with_pos<ReturnStmt>(pos, expr);
@@ -112,36 +112,36 @@ Stmt *Parser::parse_return_stmt() {
 
 // let a = ...
 DeclStmt *Parser::parse_decl_stmt() {
-    auto decl = parse_decl();
+    auto decl = parseDecl();
     if (!is_end_of_stmt()) {
         if (decl->kind != AstKind::bad_decl)
             expect(TokenKind::newline);
         // try to recover
-        skip_until_end_of_line();
+        skipUntilEndOfLine();
     }
     return make_node<DeclStmt>(decl);
 }
 
-Stmt *Parser::parse_expr_or_assign_stmt() {
+Stmt *Parser::parseExprOrAssignStmt() {
     auto pos = tok.pos;
 
-    auto lhs = parse_expr();
+    auto lhs = parseExpr();
     // ExprStmt: expression ends with a newline
     if (is_end_of_stmt()) {
-        skip_until_end_of_line();
+        skipUntilEndOfLine();
         return make_node<ExprStmt>(lhs);
     }
 
     // AssignStmt: expression is followed by equals
     // (anything else is treated as an error)
     if (!expect(TokenKind::equals)) {
-        skip_until_end_of_line();
+        skipUntilEndOfLine();
         return make_node_with_pos<BadStmt>(pos);
     }
 
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
-    auto rhs = parse_expr();
+    auto rhs = parseExpr();
     return make_node_with_pos<AssignStmt>(pos, lhs, rhs);
 }
 
@@ -156,10 +156,10 @@ CompoundStmt *Parser::parse_compound_stmt() {
     auto compound = make_node<CompoundStmt>();
 
     while (true) {
-        skip_newlines();
+        skipNewlines();
         if (tok.kind == TokenKind::rbrace)
             break;
-        auto stmt = parse_stmt();
+        auto stmt = parseStmt();
         compound->stmts.push_back(stmt);
     }
 
@@ -167,7 +167,7 @@ CompoundStmt *Parser::parse_compound_stmt() {
     return compound;
 }
 
-Decl *Parser::parse_var_decl() {
+Decl *Parser::parseVarDecl() {
     auto pos = tok.pos;
 
     Name *name = names.get_or_add(std::string{tok.text});
@@ -177,35 +177,35 @@ Decl *Parser::parse_var_decl() {
     // '=' comes either first, or after the ': type' part.
     if (tok.kind == TokenKind::colon) {
         next();
-        auto type_expr = parse_typeexpr();
+        auto type_expr = parseTypeExpr();
         v = make_node_with_pos<VarDecl>(pos, name, type_expr, nullptr);
     }
     if (tok.kind == TokenKind::equals) {
         next();
-        auto assign_expr = parse_expr();
+        auto assign_expr = parseExpr();
         if (v)
             static_cast<VarDecl *>(v)->assign_expr = assign_expr;
         else
             v = make_node_with_pos<VarDecl>(pos, name, nullptr, assign_expr);
     }
     if (!v) {
-        error_expected("'=' or ':' after var name");
+        errorExpected("'=' or ':' after var name");
         v = make_node_with_pos<BadDecl>(pos);
     }
     return v;
 }
 
 // This doesn't include enclosing parentheses or braces.
-std::vector<Decl *> Parser::parse_var_decl_list() {
+std::vector<Decl *> Parser::parseVarDeclList() {
     std::vector<Decl *> decls;
 
     while (true) {
         Decl *decl = nullptr;
-        skip_newlines();
+        skipNewlines();
         if (tok.kind != TokenKind::ident)
             break;
 
-        decl = parse_var_decl();
+        decl = parseVarDecl();
         decls.push_back(decl);
 
         if (decl->kind == AstKind::bad_decl)
@@ -213,34 +213,34 @@ std::vector<Decl *> Parser::parse_var_decl_list() {
             // We could test for every tokens that are either (1) separator
             // tokens, i.e. comma, newline, or (2) used to enclose a decl list,
             // i.e. parentheses and braces.
-            skip_until({TokenKind::comma, TokenKind::newline, TokenKind::rparen,
+            skipUntil({TokenKind::comma, TokenKind::newline, TokenKind::rparen,
                         TokenKind::rbrace});
         if (tok.kind == TokenKind::comma)
             next();
     }
-    skip_newlines();
+    skipNewlines();
 
     return decls;
 }
 
-StructDecl *Parser::parse_struct_decl() {
+StructDecl *Parser::parseStructDecl() {
     expect(TokenKind::kw_struct);
 
     if (tok.kind != TokenKind::ident)
-        error_expected("an identifier");
+        errorExpected("an identifier");
     Name *name = names.get_or_add(std::string{tok.text});
     next();
 
     if (!expect(TokenKind::lbrace))
-        skip_until_end_of_line();
-    auto fields = parse_var_decl_list();
+        skipUntilEndOfLine();
+    auto fields = parseVarDeclList();
     expect(TokenKind::rbrace, "unterminated struct declaration");
     // TODO: recover
 
     return make_node<StructDecl>(name, fields);
 }
 
-FuncDecl *Parser::parse_func_decl() {
+FuncDecl *Parser::parseFuncDecl() {
     auto pos = tok.pos;
 
     expect(TokenKind::kw_fn);
@@ -252,17 +252,17 @@ FuncDecl *Parser::parse_func_decl() {
 
     // argument list
     expect(TokenKind::lparen);
-    func->params = parse_var_decl_list();
+    func->params = parseVarDeclList();
     expect(TokenKind::rparen);
 
     // return type (-> ...)
     if (tok.kind == TokenKind::arrow) {
         next();
-        func->ret_type_expr = parse_typeexpr();
+        func->ret_type_expr = parseTypeExpr();
     }
     if (tok.kind != TokenKind::lbrace) {
-        error_expected("'->' or '{'");
-        skip_until(TokenKind::lbrace);
+        errorExpected("'->' or '{'");
+        skipUntil(TokenKind::lbrace);
     }
     // function body
     func->body = parse_compound_stmt();
@@ -271,7 +271,7 @@ FuncDecl *Parser::parse_func_decl() {
     return func;
 }
 
-bool Parser::is_start_of_decl() const {
+bool Parser::isStartOfDecl() const {
     switch (tok.kind) {
     case TokenKind::kw_let:
     case TokenKind::kw_var:
@@ -282,11 +282,11 @@ bool Parser::is_start_of_decl() const {
 }
 
 // 'let a = ...'
-Decl *Parser::parse_decl() {
+Decl *Parser::parseDecl() {
     switch (tok.kind) {
     case TokenKind::kw_let:
         next();
-        return parse_var_decl();
+        return parseVarDecl();
     default:
         assert(false && "not a start of a declaration");
     }
@@ -294,7 +294,7 @@ Decl *Parser::parse_decl() {
     return nullptr;
 }
 
-UnaryExpr *Parser::parse_literal_expr() {
+UnaryExpr *Parser::parseLiteralExpr() {
     UnaryExpr *expr = nullptr;
     // TODO Literals other than integers?
     switch (tok.kind) {
@@ -317,9 +317,14 @@ UnaryExpr *Parser::parse_literal_expr() {
     return expr;
 }
 
-// TODO: Add struct declaration here, e.g. Car {}
-// maybe name it parse_ident_start_exprs?
-Expr *Parser::parse_funccall_or_declref_expr() {
+// Upon seeing an expression that starts with an identifier, we don't know
+// whether it is just a variable, a function call, or struct initialization
+// without lookahead ('a' vs 'a()' vs 'a {...}'). Rather than using lookahead,
+// parse the both kinds in one go in this function.
+//
+// TODO: maybe name it parse_ident_start_exprs?
+// TODO: add struct declaration here, e.g. Car {}
+Expr *Parser::parseFuncCallOrDeclRefExpr() {
     auto pos = tok.pos;
     assert(tok.kind == TokenKind::ident);
     auto name = names.get_or_add(std::string{tok.text});
@@ -329,7 +334,7 @@ Expr *Parser::parse_funccall_or_declref_expr() {
         expect(TokenKind::lparen);
         std::vector<Expr *> args;
         while (tok.kind != TokenKind::rparen) {
-            args.push_back(parse_expr());
+            args.push_back(parseExpr());
             if (tok.kind == TokenKind::comma)
                 next();
         }
@@ -340,7 +345,7 @@ Expr *Parser::parse_funccall_or_declref_expr() {
     }
 }
 
-bool Parser::is_start_of_typeexpr() const {
+bool Parser::isStartOfTypeExpr() const {
     return tok.kind == TokenKind::ampersand || is_identifier_or_keyword(tok);
 }
 
@@ -351,7 +356,7 @@ bool Parser::is_start_of_typeexpr() const {
 // TypeExpr:
 //     '&' TypeExpr
 //     'mut'? ident
-Expr *Parser::parse_typeexpr() {
+Expr *Parser::parseTypeExpr() {
     auto typeexpr = make_node<TypeExpr>();
 
     typeexpr->pos = tok.pos;
@@ -362,7 +367,7 @@ Expr *Parser::parse_typeexpr() {
     if (tok.kind == TokenKind::ampersand) {
         next();
         typeexpr->ref = true;
-        typeexpr->subexpr = parse_typeexpr();
+        typeexpr->subexpr = parseTypeExpr();
         if (typeexpr->subexpr->kind == AstKind::type_expr)
             text = "&" + static_cast<TypeExpr *>(typeexpr->subexpr)->name->text;
     } else if (is_identifier_or_keyword(tok)) {
@@ -372,7 +377,7 @@ Expr *Parser::parse_typeexpr() {
         }
         if (!is_identifier_or_keyword(tok)) {
             // FIXME: type name? expression?
-            error_expected("type name");
+            errorExpected("type name");
             return make_node_with_pos<BadExpr>(typeexpr->pos);
         }
         typeexpr->ref = false;
@@ -380,7 +385,7 @@ Expr *Parser::parse_typeexpr() {
         text = tok.text;
         next();
     } else {
-        error_expected("type expression");
+        errorExpected("type expression");
         return make_node_with_pos<BadExpr>(typeexpr->pos);
     }
 
@@ -389,28 +394,28 @@ Expr *Parser::parse_typeexpr() {
     return typeexpr;
 }
 
-Expr *Parser::parse_unary_expr() {
+Expr *Parser::parseUnaryExpr() {
     auto pos = tok.pos;
 
     switch (tok.kind) {
     case TokenKind::number:
     case TokenKind::string:
-        return parse_literal_expr();
+        return parseLiteralExpr();
     case TokenKind::ident:
-        return parse_funccall_or_declref_expr();
+        return parseFuncCallOrDeclRefExpr();
     case TokenKind::star: {
         next();
-        auto expr = parse_unary_expr();
+        auto expr = parseUnaryExpr();
         return make_node_with_pos<UnaryExpr>(pos, UnaryExpr::Deref, expr);
     }
     case TokenKind::ampersand: {
         next();
-        auto expr = parse_unary_expr();
+        auto expr = parseUnaryExpr();
         return make_node_with_pos<UnaryExpr>(pos, UnaryExpr::Address, expr);
     }
     case TokenKind::lparen: {
         expect(TokenKind::lparen);
-        auto expr = parse_expr();
+        auto expr = parseExpr();
         expect(TokenKind::rparen);
         return make_node_with_pos<UnaryExpr>(pos, UnaryExpr::Paren, expr);
     }
@@ -418,7 +423,7 @@ Expr *Parser::parse_unary_expr() {
         // Because all expressions start with a unary expression, failing here
         // means no other expression could be matched either, so just do a
         // really generic report.
-        error_expected("an expression");
+        errorExpected("an expression");
         return make_node_with_pos<BadExpr>(pos);
     }
 }
@@ -440,7 +445,7 @@ static int op_precedence(const Token &op) {
 // Extend a unary expression into binary if possible, by parsing any attached
 // RHS.  Returns result that owns the node of the newly constructed binary
 // expression.
-Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence) {
+Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence) {
     Expr *root = lhs;
 
     while (true) {
@@ -457,7 +462,7 @@ Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence) {
         next();
 
         // Parse the second term.
-        Expr *rhs = parse_unary_expr();
+        Expr *rhs = parseUnaryExpr();
 
         // We do not know if this term should associate to left or right;
         // e.g. "(a * b) + c" or "a + (b * c)".  We should look ahead for the
@@ -468,7 +473,7 @@ Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence) {
         // the RHS as a single subexpression with elevated minimum precedence.
         // Else ("a * b + c"), just treat it as a unary expression.
         if (this_prec < next_prec) {
-            rhs = parse_binary_expr_rhs(rhs, precedence + 1);
+            rhs = parseBinaryExprRhs(rhs, precedence + 1);
         }
 
         // Create a new root with the old root as its LHS, and the recursion
@@ -479,14 +484,14 @@ Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence) {
     return root;
 }
 
-Expr *Parser::parse_expr() {
-    auto unary = parse_unary_expr();
+Expr *Parser::parseExpr() {
+    auto unary = parseUnaryExpr();
     if (!unary)
         return unary;
-    return parse_binary_expr_rhs(unary);
+    return parseBinaryExprRhs(unary);
 }
 
-std::vector<Error> Parser::parse_error_beacon() {
+std::vector<Error> Parser::parseErrorBeacon() {
     expect(TokenKind::lbracket);
     expect(TokenKind::kw_error);
     expect(TokenKind::colon);
@@ -504,12 +509,12 @@ bool Parser::verify() const {
     return cmp::verify(lexer.source().filename, errors, beacons);
 }
 
-void Parser::skip_until(TokenKind kind) {
+void Parser::skipUntil(TokenKind kind) {
   while (tok.kind != kind)
     next();
 }
 
-void Parser::skip_until(const std::vector<TokenKind> &kinds) {
+void Parser::skipUntil(const std::vector<TokenKind> &kinds) {
   while (true) {
     for (auto kind : kinds) {
       if (tok.kind == kind)
@@ -519,7 +524,7 @@ void Parser::skip_until(const std::vector<TokenKind> &kinds) {
   }
 }
 
-void Parser::skip_until_end_of_line() {
+void Parser::skipUntilEndOfLine() {
     while (!is_end_of_stmt())
         next();
 }
@@ -527,36 +532,36 @@ void Parser::skip_until_end_of_line() {
 // The language is newline-aware, but newlines are mostly meaningless unless
 // they are at the end of a statement or a declaration.  In those cases we use
 // this to skip over them.
-void Parser::skip_newlines() {
+void Parser::skipNewlines() {
     while (tok.kind == TokenKind::newline || tok.kind == TokenKind::comment)
         next();
 }
 
-AstNode *Parser::parse_toplevel() {
-    skip_newlines();
+AstNode *Parser::parseToplevel() {
+    skipNewlines();
 
     switch (tok.kind) {
     case TokenKind::kw_fn:
-        return parse_func_decl();
+        return parseFuncDecl();
     case TokenKind::kw_struct:
-        return parse_struct_decl();
+        return parseStructDecl();
     default:
         assert(false && "unreachable");
     }
 }
 
-File *Parser::parse_file() {
+File *Parser::parseFile() {
     auto file = make_node<File>();
     // FIXME
     while (!is_eos()) {
-        auto toplevel = parse_toplevel();
+        auto toplevel = parseToplevel();
         file->toplevels.push_back(toplevel);
     }
     return file;
 }
 
 Ast Parser::parse() {
-    ast = parse_file();
+    ast = parseFile();
     return Ast{ast, names};
 }
 

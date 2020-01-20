@@ -254,7 +254,7 @@ struct StringLiteral : public UnaryExpr {
 
     StringLiteral(std::string_view sv) : UnaryExpr(Literal, nullptr), value(sv) {}
     void print() const override;
-    // void traverse(Sema &sema) override;
+    void traverse(Sema &sema) override;
 };
 
 struct DeclRefExpr : public UnaryExpr {

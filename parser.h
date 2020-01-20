@@ -75,22 +75,22 @@ public:
     AstNode *ast = nullptr;                      // resulting AST
     NameTable names;                             // name table
 
-    Parser(Lexer &&lexer);
     Parser(const Source &src);
+    Parser(Lexer &&lexer);
     Ast parse();
     void report() const;
     bool verify() const;
 
 private:
     // Parse the whole file.
-    File *parse_file();
+    File *parseFile();
 
     // Parse a toplevel statement.
-    AstNode *parse_toplevel();
+    AstNode *parseToplevel();
 
     // Statement parsers.
-    Stmt *parse_stmt();
-    Stmt *parse_expr_or_assign_stmt();
+    Stmt *parseStmt();
+    Stmt *parseExprOrAssignStmt();
     Stmt *parse_return_stmt();
     DeclStmt *parse_decl_stmt();
     CompoundStmt *parse_compound_stmt();
@@ -98,27 +98,27 @@ private:
     bool is_eos();
 
     // Declaration parsers
-    Decl *parse_decl();
-    std::vector<Decl *> parse_var_decl_list();
-    Decl *parse_var_decl();
-    StructDecl *parse_struct_decl();
-    FuncDecl *parse_func_decl();
-    bool is_start_of_decl() const;
+    Decl *parseDecl();
+    std::vector<Decl *> parseVarDeclList();
+    Decl *parseVarDecl();
+    StructDecl *parseStructDecl();
+    FuncDecl *parseFuncDecl();
+    bool isStartOfDecl() const;
 
     // Expression parsers
-    Expr *parse_expr();
-    Expr *parse_unary_expr();
-    UnaryExpr *parse_literal_expr();
-    Expr *parse_funccall_or_declref_expr();
-    Expr *parse_typeexpr();
-    Expr *parse_binary_expr_rhs(Expr *lhs, int precedence = 0);
-    bool is_start_of_typeexpr() const;
+    Expr *parseExpr();
+    Expr *parseUnaryExpr();
+    UnaryExpr *parseLiteralExpr();
+    Expr *parseFuncCallOrDeclRefExpr();
+    Expr *parseTypeExpr();
+    Expr *parseBinaryExprRhs(Expr *lhs, int precedence = 0);
+    bool isStartOfTypeExpr() const;
 
-    std::vector<Error> parse_error_beacon();
+    std::vector<Error> parseErrorBeacon();
 
     // Error handling
     void error(const std::string &msg);
-    void error_expected(const std::string &msg);
+    void errorExpected(const std::string &msg);
 
     // Advance the lookahead token.
     void next();
@@ -127,20 +127,18 @@ private:
     bool expect(TokenKind kind, const std::string &msg);
 
     // Skip until a specific token(s) show up.
-    void skip_until(TokenKind kind);
-    void skip_until(const std::vector<TokenKind> &kinds);
-    void skip_until_end_of_line();
-    void skip_newlines();
+    void skipUntil(TokenKind kind);
+    void skipUntil(const std::vector<TokenKind> &kinds);
+    void skipUntilEndOfLine();
+    void skipNewlines();
 
-    template <typename T, typename... Args> T *make_node(Args &&... args)
-    {
+    template <typename T, typename... Args> T *make_node(Args &&... args) {
         nodes.emplace_back(new T{std::forward<Args>(args)...});
         return static_cast<T *>(nodes.back().get());
     }
 
     template <typename T, typename... Args>
-    T *make_node_with_pos(size_t pos, Args &&... args)
-    {
+    T *make_node_with_pos(size_t pos, Args &&... args) {
         auto node = make_node<T>(std::forward<Args>(args)...);
         node->pos = pos;
         return node;

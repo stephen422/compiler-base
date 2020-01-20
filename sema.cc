@@ -120,9 +120,8 @@ void FuncDecl::traverse(Sema &sema) {
 
     body->traverse(sema);
 
-    if (ret_type_expr && !sema.getContext().seenReturn) {
+    if (ret_type_expr && !sema.getContext().seenReturn)
         sema.error(pos, "no return statement found for function");
-    }
 
     sema.scope_close();
 }
@@ -158,6 +157,11 @@ void UnaryExpr::traverse(Sema &sema) {
 
 void IntegerLiteral::traverse(Sema &sema) {
     type = sema.int_type;
+}
+
+void StringLiteral::traverse(Sema &sema) {
+    // TODO: add to the Type table
+    type = sema.char_type;
 }
 
 void DeclRefExpr::traverse(Sema &sema) {
