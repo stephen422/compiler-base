@@ -392,8 +392,7 @@ static sds errorString(const Error e)
     return s;
 }
 
-static void parserReportErrors(Parser *p)
-{
+void parserReportErrors(const Parser *p) {
     for (int i = 0; i < sb_len(p->errors); i++) {
         SrcLoc loc = p->errors[i].loc;
         const char *msg = p->errors[i].msg;
@@ -405,19 +404,21 @@ static void parserReportErrors(Parser *p)
 
 // Emit general 'expected ..., got ...' message, with the 'expected' part
 // customized.
-static void errorExpected(Parser *p, const char *s)
-{
+static void errorExpected(Parser *p, const char *s) {
     sds ts = tokenString(&p->lexer, p->tok);
-    error(p, "expected %s, got '%s'", s, ts);
+    // if it's a comment, don't print the actual comment, as it can mess with
+    // beacon regex matching.
+    error(p, "expected %s, got '%s'", s,
+          p->tok.type == TOK_COMMENT ? "comment" : ts);
     sdsfree(ts);
 }
 
 static Token expect(Parser *p, TokenType t) {
     Token tok = p->tok;
     if (p->tok.type != t) {
-        sds ts = tokenString(&p->lexer, p->tok);
-        error(p, "expected '%s', got '%s'", token_names[t], ts);
-        sdsfree(ts);
+        sds quoted = sdscatprintf(sdsempty(), "'%s'", token_names[t]);
+        errorExpected(p, quoted);
+        sdsfree(quoted);
     }
     // make progress
     next(p);
@@ -554,7 +555,9 @@ static Node *parseTypeExpr(Parser *p) {
         ref = 0;
         subexpr = NULL;
 
-        if (!isTypeName(p->tok)) {
+        if (p->tok.type != TOK_IDENT && !isKeyword(p->tok)) {
+            errorExpected(p, "type name");
+        } else if (!isTypeName(p->tok)) {
             sds ts = tokenString(&p->lexer, p->tok);
             error(p, "invalid type name '%s'", ts);
             sdsfree(ts);
@@ -811,7 +814,7 @@ static Node *parseTopLevel(Parser *p)
     }
 }
 
-void parserVerify(Parser *p) {
+void parserVerify(const Parser *p) {
     int success = 1;
     printf("\033[0;32mtest\033[0m %s:\n", p->lexer.filename);
 

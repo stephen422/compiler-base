@@ -8,8 +8,8 @@ fn main() {
     var b: int
     let c &int // [error: "expected.*':'.*got '&'"]
     var c: int blah // [error: "expected.*'\\n'.*blah"]
-    var d: & // [error: "invalid type.*"]
-    // var d: &mut // [error: "expected type name"]
+    var d: & // [error: "expected type name"]
+    var d: &mut // [error: "expected type name"]
     // let d: &mut Car
     // let d: &mut Car Sedan // [error: "expected end of decl.*Sedan"]
 

@@ -84,9 +84,8 @@ struct token_map keywords[] = {
 	{NULL, 0}
 };
 
-int isKeyword(Token tok)
-{
-	return TOK_KEYWORDS < tok.type && tok.type < TOK_ERR;
+int isKeyword(Token tok) {
+    return TOK_KEYWORDS < tok.type && tok.type < TOK_ERR;
 }
 
 static char *readfile(const char *filename, long *filesize)
