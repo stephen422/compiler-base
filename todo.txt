@@ -1,0 +1,4 @@
+- We do declaration, name binding and type checking in one pass. These should
+  be separated to different passes. It's unsure if we should separate
+  declaration pass from parsing, or just push declaration in the parser
+  directly.
