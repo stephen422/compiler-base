@@ -11,8 +11,7 @@ namespace cmp {
 // A Name corresponds to a single unique identifier string in the source text.
 // There may be multiple occurrences of a string in the source text, but only
 // one instance of the matching Name can reside in the name table.
-class Name {
-public:
+struct Name {
     Name(const std::string &s) : text(s) {}
     std::string text;
 };
@@ -67,13 +66,13 @@ enum class AstKind {
     error_beacon,
 };
 
-class AstNode;
-class File;
-class Toplevel;
-class Stmt;
+struct AstNode;
+struct File;
+struct Toplevel;
+struct Stmt;
 struct Expr;
-class Decl;
-class FuncDecl;
+struct Decl;
+struct FuncDecl;
 
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
 
@@ -86,8 +85,7 @@ struct Ast {
 
 struct Sema;
 
-class AstNode {
-public:
+struct AstNode {
     AstNode() {}
     AstNode(AstKind kind) : kind(kind) {}
     virtual ~AstNode() = default;
@@ -113,8 +111,7 @@ public:
     }
 
     // RAII trick to handle indentation.
-    class PrintScope {
-    public:
+    struct PrintScope {
         PrintScope() { depth += 2; }
         ~PrintScope() { depth -= 2; }
     };
@@ -131,8 +128,7 @@ public:
 // ========
 
 // File is simply a group of Toplevels.
-class File : public AstNode {
-public:
+struct File : public AstNode {
     File() : AstNode(AstKind::file) {}
     void print() const override;
     void traverse(Sema &sema) override;
@@ -144,13 +140,11 @@ public:
 //   Statement
 // =============
 
-class Stmt : public AstNode {
-public:
+struct Stmt : public AstNode {
     Stmt(AstKind kind) : AstNode(kind) {}
 };
 
-class DeclStmt : public Stmt {
-public:
+struct DeclStmt : public Stmt {
     DeclStmt(Decl *decl) : Stmt(AstKind::decl_stmt), decl(std::move(decl)) {}
     void print() const override;
     void traverse(Sema &sema) override;
@@ -158,8 +152,7 @@ public:
     Decl *decl;
 };
 
-class ExprStmt : public Stmt {
-public:
+struct ExprStmt : public Stmt {
     ExprStmt(Expr *expr) : Stmt(AstKind::expr_stmt), expr(std::move(expr)) {}
     void print() const override;
     void traverse(Sema &sema) override;
@@ -172,8 +165,7 @@ public:
 // but this is not easily determined at the parsing stage.  As such, parse both
 // LHS and RHS as generic Exprs, and check the assignability at the semantic
 // stage.
-class AssignStmt : public Stmt {
-public:
+struct AssignStmt : public Stmt {
     AssignStmt(Expr *lhs, Expr *rhs) : Stmt(AstKind::assign_stmt), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
     void print() const override;
     void traverse(Sema &sema) override;
@@ -182,8 +174,7 @@ public:
     Expr *rhs;
 };
 
-class ReturnStmt : public Stmt {
-public:
+struct ReturnStmt : public Stmt {
     ReturnStmt(Expr *expr) : Stmt(AstKind::return_stmt), expr(std::move(expr)) {}
     void print() const override;
     void traverse(Sema &sema) override;
@@ -191,8 +182,7 @@ public:
     Expr *expr;
 };
 
-class CompoundStmt : public Stmt {
-public:
+struct CompoundStmt : public Stmt {
     CompoundStmt() : Stmt(AstKind::compound_stmt) {}
     void print() const override;
     void traverse(Sema &sema) override;
@@ -200,8 +190,7 @@ public:
     std::vector<Stmt *> stmts;
 };
 
-class BadStmt : public Stmt {
-public:
+struct BadStmt : public Stmt {
     BadStmt() : Stmt(AstKind::bad_stmt) {}
     void print() const override;
 };
@@ -216,8 +205,7 @@ struct Type;
 struct Expr : public AstNode {
     Expr(AstKind kind) : AstNode(kind) {}
 
-    // This value will be propagated by post-order tree traversal, starting
-    // from DeclRefExpr or literal expressions.
+    // This value will be filled in the type checking phase.
     Type *type = nullptr;
 };
 
@@ -259,7 +247,7 @@ struct StringLiteral : public UnaryExpr {
 
 struct DeclRefExpr : public UnaryExpr {
     // The integer value of this pointer serves as a unique ID to be used for
-    // indexing the symbol table.
+    // indexing the symbol table in the name binding phase.
     Name *name = nullptr;
 
     DeclRefExpr(Name *name) : UnaryExpr(DeclRef, nullptr), name(name) {}
@@ -314,10 +302,10 @@ struct BadExpr : public Expr {
 //   Declarations
 // ================
 
-class VarDecl;
-class StructDecl;
-class FuncDecl;
-class ErrorDecl;
+struct VarDecl;
+struct StructDecl;
+struct FuncDecl;
+struct ErrorDecl;
 
 // class Visitor {
 // public:
@@ -328,14 +316,12 @@ class ErrorDecl;
 // };
 
 // A declaration.
-class Decl : public AstNode {
-public:
+struct Decl : public AstNode {
     Decl(AstKind kind) : AstNode(kind) {}
 };
 
 // Variable declaration.
-class VarDecl : public Decl {
-public:
+struct VarDecl : public Decl {
     VarDecl(Name *n, Expr *t, Expr *expr)
         : Decl(AstKind::var_decl), name(n), type_expr(std::move(t)),
           assign_expr(std::move(expr)) {}
@@ -351,8 +337,7 @@ public:
 };
 
 // Struct declaration.
-class StructDecl : public Decl {
-public:
+struct StructDecl : public Decl {
     StructDecl(Name *n, std::vector<Decl *> m)
         : Decl(AstKind::struct_decl), name(n), members(std::move(m)) {}
     void print() const override;
@@ -364,8 +349,7 @@ public:
 
 // Function declaration.  There is no separate function definition: functions
 // should always be defined whenever they are declared.
-class FuncDecl : public Decl {
-public:
+struct FuncDecl : public Decl {
     FuncDecl(Name *n) : Decl(AstKind::func_decl), name(n) {}
     void print() const override;
     void traverse(Sema &sema) override;
@@ -376,8 +360,7 @@ public:
     Expr *ret_type_expr = nullptr; // return type expression
 };
 
-class BadDecl : public Decl {
-public:
+struct BadDecl : public Decl {
     BadDecl() : Decl(AstKind::bad_decl) {}
     void print() const override;
 };

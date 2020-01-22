@@ -5,7 +5,7 @@
   So we may need something like a tree of tables whose structure directly
   mirrors the lexical structure of the source.
 
-  --> VERIFY!!! Can't the decls be just stored in the AST node? What about types?)
+  --> VERIFY!!! Can't the decls be just stored in the AST node? What about types?
   It's clear that after the name binding pass, everything should be stored in
   the AST node and directly accessible as the consequence of the binding.
 
@@ -13,6 +13,13 @@
   the declarations, and make the scoped symbol table work with references to
   those stored objects, and bind those references to AST nodes at the name
   binding pass.
+
+- What do I index the symbol table with?
+  Name? How do we name types?
+  Maybe only store canonical types, and make new Type objects for each
+  ref/array types?
+  - But then we would waste heap memory unless we store the whole Type object
+    in AST nodes.  Small sizeof(Type) would become a requirement.
 
 - We do declaration, name binding and type checking in one pass. These should
   be separated into different passes.

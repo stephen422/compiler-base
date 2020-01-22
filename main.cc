@@ -42,6 +42,7 @@ int main(int argc, char **argv) {
         // fmt::print("==== Type table ====\n");
         // s.type_table.print();
     }
+    fmt::print("{}\n", sizeof(TypeExpr));
 #endif
 
     return EXIT_SUCCESS;

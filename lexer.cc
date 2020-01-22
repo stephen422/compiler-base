@@ -177,8 +177,7 @@ Token Lexer::peek() {
     return token;
 }
 
-template <typename F>
-void Lexer::skip_while(F &&lambda) {
+template <typename F> void Lexer::skip_while(F &&lambda) {
     while (look < eos() && lambda(*look)) {
         step();
     }
