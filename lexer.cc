@@ -4,7 +4,7 @@
 
 namespace cmp {
 
-std::string tokentype_to_string(TokenKind kind) {
+std::string tokenTypeToString(TokenKind kind) {
     if (kind == TokenKind::newline)
         return "\\n";
     for (auto &p : symbol_map) {

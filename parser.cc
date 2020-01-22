@@ -14,34 +14,35 @@ Parser::Parser(Lexer &&l) : lexer{std::move(l)} {
         names.get_or_add(std::string{m.first});
 }
 
-// Construct directly from a Source for convenience.
+// Construct directly from a Source for convenience.  Note that 'src' should
+// live longer than the Parser.
 Parser::Parser(const Source &src) : Parser(Lexer{src}) {}
 
 void Parser::error(const std::string &msg) {
-  errors.push_back({locate(), msg});
+    errors.push_back({locate(), msg});
 }
 
 void Parser::errorExpected(const std::string &msg) {
-  std::string s = fmt::format("expected {}, found '{}'", msg, tok);
-  error(s);
+    std::string s = fmt::format("expected {}, found '{}'", msg, tok);
+    error(s);
 }
 
-// In the course of this, if an error beacon is found in the comment, add the
-// error to the parser error list so that it can be compared to the actual
-// errors later in the verifying phase.
 void Parser::next() {
     if (tok.kind == TokenKind::eos)
         return;
 
     tok = lexer.lex();
 
+    // If an error beacon is found in a comment, add the error to the parser
+    // error list so that it can be compared to the actual errors later in the
+    // verifying phase.
     if (tok.kind == TokenKind::comment) {
         std::string_view marker{"[error:"};
         auto found = tok.text.find(marker);
         if (found != std::string_view::npos) {
             auto bracket = tok.text.substr(found);
             Source s{std::string{bracket}};
-            Parser p{Lexer{s}};
+            Parser p{s};
             auto v = p.parseErrorBeacon();
             // override location
             for (auto &e : v) {
@@ -57,7 +58,7 @@ bool Parser::expect(TokenKind kind, const std::string &msg = "") {
         std::string s = msg;
         if (msg.empty())
             s = fmt::format("expected '{}', found '{}'",
-                            tokentype_to_string(kind), tok);
+                            tokenTypeToString(kind), tok.text);
         error(s);
         return false;
     }

@@ -19,12 +19,12 @@ class Source;
 struct Type {
     enum class Kind { value, ref, array } kind;
     Name *name = nullptr;       // name of this type
-    Type *value_type = nullptr; // the type this reference refers to
+    Type *target_type = nullptr; // the type this reference refers to
     int scope_level = 0;        // scope that this was declared
 
     Type(Name *n) : kind(Kind::value), name(n) {}
     Type(Kind k, Name *n, Type *v, int s)
-        : kind(k), name(n), value_type(v), scope_level(s) {}
+        : kind(k), name(n), target_type(v), scope_level(s) {}
 };
 
 // Represents declaration of a variable or a function.

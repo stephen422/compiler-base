@@ -138,7 +138,7 @@ void UnaryExpr::traverse(Sema &sema) {
         operand->traverse(sema);
         if (operand->type->kind != Type::Kind::ref)
             sema.error(pos, "cannot dereference a non-reference");
-        type = operand->type->value_type;
+        type = operand->type->target_type;
         break;
     case Address:
         operand->traverse(sema);

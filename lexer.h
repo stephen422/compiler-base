@@ -114,7 +114,7 @@ const std::pair<std::string_view, TokenKind> keyword_map[] {
     {"error", TokenKind::kw_error},
 };
 
-std::string tokentype_to_string(TokenKind kind);
+std::string tokenTypeToString(TokenKind kind);
 
 // Token contains the kind, a view of the text data, and the source position of
 // a token.
