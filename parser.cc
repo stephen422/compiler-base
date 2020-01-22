@@ -23,7 +23,7 @@ void Parser::error(const std::string &msg) {
 }
 
 void Parser::errorExpected(const std::string &msg) {
-    std::string s = fmt::format("expected {}, found '{}'", msg, tok);
+    std::string s = fmt::format("expected {}, found '{}'", msg, tok.toString());
     error(s);
 }
 
@@ -569,7 +569,7 @@ Ast Parser::parse() {
 // Report errors to stdout.
 void Parser::report() const {
   for (auto e : errors)
-    fmt::print("{}\n", e);
+    fmt::print("{}\n", e.toString());
 }
 
 } // namespace cmp

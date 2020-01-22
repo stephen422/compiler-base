@@ -7,6 +7,10 @@
 
 namespace cmp {
 
+std::string SourceLoc::toString() const {
+    return fmt::format("{}:{}:{}", filename, line, col);
+}
+
 Source::Source(const Path &p) : filename(p.path)
 {
     std::ifstream in{filename, std::ios::binary};

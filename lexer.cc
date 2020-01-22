@@ -23,6 +23,12 @@ bool is_identifier_or_keyword(const Token tok) {
            (tok.kind > TokenKind::KWSTART && tok.kind < TokenKind::KWEND);
 }
 
+std::string Token::toString() const {
+    if (kind == TokenKind::newline)
+        return std::string{"\\n"};
+    return std::string{text};
+}
+
 void Lexer::step() {
     if (look < eos()) {
         // Register newline first

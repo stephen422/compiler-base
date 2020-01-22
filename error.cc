@@ -2,6 +2,10 @@
 
 namespace cmp {
 
+std::string Error::toString() const {
+    return fmt::format("{}: error: {}", loc.toString(), message);
+}
+
 // Verify errors against the error beacons embedded in the source text.
 bool verify(const std::string &filename, const std::vector<Error> &errors,
             const std::vector<Error> &beacons) {
@@ -18,27 +22,27 @@ bool verify(const std::string &filename, const std::vector<Error> &errors,
             std::regex regex{stripped};
             if (!std::regex_search(error.message, regex)) {
                 success = false;
-                fmt::print("< {}\n> {}\n", error, beacon);
+                fmt::print("< {}\n> {}\n", error.toString(), beacon.toString());
             }
             i++;
             j++;
         } else if (error.loc.line < beacon.loc.line) {
             success = false;
-            fmt::print("< {}\n", error);
+            fmt::print("< {}\n", error.toString());
             i++;
         } else {
             success = false;
-            fmt::print("> {}\n", beacon);
+            fmt::print("> {}\n", beacon.toString());
             j++;
         }
     }
     for (; i < errors.size(); i++) {
         success = false;
-        fmt::print("< {}\n", errors[i]);
+        fmt::print("< {}\n", errors[i].toString());
     }
     for (; j < beacons.size(); j++) {
         success = false;
-        fmt::print("> {}\n", beacons[j]);
+        fmt::print("> {}\n", beacons[j].toString());
     }
 
     fmt::print("{} {}\n",

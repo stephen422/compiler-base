@@ -12,8 +12,10 @@ namespace cmp {
 // There may be multiple occurrences of a string in the source text, but only
 // one instance of the matching Name can reside in the name table.
 struct Name {
-    Name(const std::string &s) : text(s) {}
     std::string text;
+
+    Name(const std::string &s) : text(s) {}
+    std::string toString() const;
 };
 
 // A NameTable is a hash table of Names queried by their string value.  It
@@ -367,16 +369,5 @@ struct BadDecl : public Decl {
 void test(Sema &sema);
 
 } // namespace cmp
-
-template <> struct fmt::formatter<cmp::Name> {
-    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
-
-    template <typename FormatContext>
-    auto format(const cmp::Name &n, FormatContext &ctx) {
-        // TODO: differentiate "parse error:" from "error:"?
-        return format_to(ctx.out(), "{}", n.text);
-    }
-};
-
 
 #endif

@@ -7,6 +7,10 @@ namespace cmp {
 
 int AstNode::depth = 0;
 
+std::string Name::toString() const {
+    return text;
+}
+
 // TODO: max is currently not being used.
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes) {
     size_t min = static_cast<size_t>(-1);

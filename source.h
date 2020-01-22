@@ -19,6 +19,8 @@ struct SourceLoc {
     std::string filename;
     int line;
     int col;
+
+    std::string toString() const;
 };
 
 /// Source content handler for file reading, position reporting and so
@@ -49,15 +51,5 @@ private:
 };
 
 } // namespace cmp
-
-template <> struct fmt::formatter<cmp::SourceLoc> {
-    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
-
-    template <typename FormatContext>
-    auto format(const cmp::SourceLoc &loc, FormatContext &ctx) {
-        return format_to(ctx.out(), "{}:{}:{}", loc.filename, loc.line,
-                         loc.col);
-    }
-};
 
 #endif

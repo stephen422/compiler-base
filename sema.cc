@@ -31,9 +31,8 @@ Type *get_reference_type(Sema &sema, Type *type) {
 //
 
 void File::traverse(Sema &sema) {
-    for (auto &tl : toplevels) {
+    for (auto &tl : toplevels)
         tl->traverse(sema);
-    }
 }
 
 void DeclStmt::traverse(Sema &sema) { decl->traverse(sema); }
@@ -83,7 +82,7 @@ void VarDecl::traverse(Sema &sema) {
     // check for redefinition
     auto found = sema.decl_table.find(name);
     if (found && found->scope_level == sema.decl_table.scope_level)
-        sema.error(pos, fmt::format("redefinition of '{}'", *name));
+        sema.error(pos, fmt::format("redefinition of '{}'", name->toString()));
 
     // type inferrence
     if (assign_expr) {
@@ -176,7 +175,7 @@ void DeclRefExpr::traverse(Sema &sema) {
         // Type inferrence
         type = decl->type;
     } else {
-        sema.error(pos, fmt::format("undeclared identifier '{}'", *name));
+        sema.error(pos, fmt::format("undeclared identifier '{}'", name->toString()));
     }
 }
 
@@ -192,7 +191,7 @@ void TypeExpr::traverse(Sema &sema) {
     if (type == nullptr) {
         // If this is a value type, we should check use before declaration.
         if (!ref) {
-            sema.error(pos, fmt::format("unknown type '{}'", *name));
+            sema.error(pos, fmt::format("unknown type '{}'", name->toString()));
         }
         // If not, this is an instantiation of a derivative type, and should be
         // put into the table.
@@ -247,7 +246,7 @@ void Sema::scope_close() {
 
 void Sema::report() const {
     for (auto e : errors)
-        fmt::print("{}\n", e);
+        fmt::print("{}\n", e.toString());
 }
 
 // See cmp::verify().

@@ -127,6 +127,7 @@ struct Token {
     Token(TokenKind kind, size_t pos) : kind(kind), pos(pos), text() {}
     Token(TokenKind kind, size_t pos, std::string_view text)
         : kind(kind), pos(pos), text(text) {}
+    std::string toString() const;
 };
 
 bool is_identifier_or_keyword(const Token tok);
@@ -177,16 +178,5 @@ private:
 };
 
 } // namespace cmp
-
-template <> struct fmt::formatter<cmp::Token> {
-    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
-
-    template <typename FormatContext>
-    auto format(const cmp::Token &tok, FormatContext &ctx) {
-        if (tok.kind == cmp::TokenKind::newline)
-            return format_to(ctx.out(), "\\n");
-        return format_to(ctx.out(), "{}", tok.text);
-    }
-};
 
 #endif
