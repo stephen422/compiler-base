@@ -26,7 +26,7 @@
   potential be a use of a external declaration, and we cannot emit any
   use-before-declaration error in the first pass.
 
-  This can be prevented by mandating explicit syntax for use of external
+  A: This can be prevented by mandating explicit syntax for use of external
   declarations, e.g. 'module.variable', similar to what Go does.  Simple 'a'
   can only refer to either (1) local variables/function args, or (2) file-local
   constants.

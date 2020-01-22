@@ -25,13 +25,16 @@ struct Type {
     Type(Name *n) : kind(Kind::value), name(n) {}
     Type(Kind k, Name *n, Type *v, int s)
         : kind(k), name(n), target_type(v), scope_level(s) {}
+    std::string toString() const;
 };
 
 // Represents declaration of a variable or a function.
 struct Declaration {
     Name *name = nullptr;
-    Type &type;
+    Type *type = nullptr;
     int scope_level = 0; // scope that this was declared
+
+    std::string toString() const;
 };
 
 struct Context {
@@ -108,26 +111,5 @@ struct Ast;
 void sema(Sema &sema, Ast &ast);
 
 } // namespace cmp
-
-template <> struct fmt::formatter<cmp::Type> {
-    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
-
-    template <typename FormatContext>
-    auto format(const cmp::Type &type, FormatContext &ctx) {
-        // TODO: differentiate "parse error:" from "error:"?
-        return format_to(ctx.out(), "{}", *type.name);
-    }
-};
-
-template <> struct fmt::formatter<cmp::Declaration> {
-    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
-
-    template <typename FormatContext>
-    auto format(const cmp::Declaration &decl, FormatContext &ctx) {
-        // TODO: differentiate "parse error:" from "error:"?
-        return format_to(ctx.out(), "{}:{}", *decl.name, decl.type);
-    }
-};
-
 
 #endif

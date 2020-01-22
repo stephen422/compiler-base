@@ -6,6 +6,12 @@
 
 namespace cmp {
 
+std::string Type::toString() const { return name->text; }
+
+std::string Declaration::toString() const {
+    return name->text + "+" + type->toString();
+}
+
 void Sema::error(size_t pos, const std::string &msg) {
     errors.push_back({source.locate(pos), msg});
 }
@@ -45,8 +51,8 @@ void AssignStmt::traverse(Sema &sema) {
     }
     if (lhs->type != rhs->type) {
         sema.type_table.print();
-        fmt::print("LHS: {}\n", *lhs->type);
-        fmt::print("RHS: {}\n", *rhs->type);
+        fmt::print("LHS: {}\n", lhs->type->toString());
+        fmt::print("RHS: {}\n", rhs->type->toString());
         sema.error(rhs->pos, "type mismatch: ");
     }
 }
@@ -97,7 +103,7 @@ void VarDecl::traverse(Sema &sema) {
     if (!type)
         return;
 
-    Declaration decl{name, *type, sema.decl_table.scope_level};
+    Declaration decl{name, type, sema.decl_table.scope_level};
     sema.decl_table.insert({name, decl});
 }
 
@@ -168,7 +174,7 @@ void DeclRefExpr::traverse(Sema &sema) {
     Declaration *decl = sema.decl_table.find(name);
     if (decl) {
         // Type inferrence
-        type = &decl->type;
+        type = decl->type;
     } else {
         sema.error(pos, fmt::format("undeclared identifier '{}'", *name));
     }
