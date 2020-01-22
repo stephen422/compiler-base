@@ -52,9 +52,9 @@ public:
     void print() const;
 
     // Start a new scope.
-    void scope_open();
+    void scopeOpen();
     // Close current cope.
-    void scope_close();
+    void scopeClose();
 
     struct Symbol {
         Symbol(Name *n, const T &v) : name(n), value(v) {}

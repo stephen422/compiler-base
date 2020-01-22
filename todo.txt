@@ -21,10 +21,21 @@
   - But then we would waste heap memory unless we store the whole Type object
     in AST nodes.  Small sizeof(Type) would become a requirement.
 
-- We do declaration, name binding and type checking in one pass. These should
+- What about use of declarations that are declared in other files/modules? We
+  need multiple passes for this one.  In this case, *every* identifier can
+  potential be a use of a external declaration, and we cannot emit any
+  use-before-declaration error in the first pass.
+
+  This can be prevented by mandating explicit syntax for use of external
+  declarations, e.g. 'module.variable', similar to what Go does.  Simple 'a'
+  can only refer to either (1) local variables/function args, or (2) file-local
+  constants.
+
+- We do declaration/name binding and type checking in one pass. These should
   be separated into different passes.
-  Declaration and name binding should be in the same pass, because otherwise we
-  can't catch use-before-declaration errors in the same scope.  For example:
+  (??) Declaration and name binding should be in the same pass, because
+  otherwise we can't catch use-before-declaration errors in the same scope.
+  For example:
 
          {
              a = 3; // 'a' undeclared

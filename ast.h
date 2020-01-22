@@ -305,7 +305,6 @@ struct BadExpr : public Expr {
 struct VarDecl;
 struct StructDecl;
 struct FuncDecl;
-struct ErrorDecl;
 
 // class Visitor {
 // public:

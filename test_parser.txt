@@ -15,14 +15,14 @@ fn main() {
     let d: & // [error: "expected type expression"]
     let d: &mut // [error: "expected type name"]
     let d: &mut Car
-    let d: &mut Car Sedan // [error: "expected '\\n'.*'Sedan'"]
+    let d: &mut Car Sedan // [error: "expected '\\n'.*found 'Sedan'"]
 
     let str = "hello there"
 
     1 * 2 + 3 + 4 * 5
     3 + (a - (b + a * 3)) * 2
 
-    b a // [error: "expected.*="]
+    b a // [error: "expected '='"]
     b = a
     c = &b
 
@@ -32,14 +32,14 @@ fn main() {
     f(3, 4, 2 + 5)
 }
 
-fn f(a: int) int { // [error: "expected.*'->'.*found 'int'"]
+fn f(a: int) int { // [error: "expected '->'.*found 'int'"]
 }
 
 fn f(a: int, b int, c: int) -> int { // [error: "expected.*':'"]
     return * // [error: "expected.*expression"]
 }
 
-struct Car // [error: "expected.*\{"]
+struct Car // [error: "expected '\{'"]
     a: i64,
     b: int
     c: int, // comma is permitted

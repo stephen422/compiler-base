@@ -228,14 +228,14 @@ Sema::Sema(Parser &p) : Sema(p.lexer.source(), p.names) {
 }
 
 void Sema::scope_open() {
-    decl_table.scope_open();
-    type_table.scope_open();
+    decl_table.scopeOpen();
+    type_table.scopeOpen();
     context_table.push_back(Context{});
 }
 
 void Sema::scope_close() {
-    decl_table.scope_close();
-    type_table.scope_close();
+    decl_table.scopeClose();
+    type_table.scopeClose();
     context_table.pop_back();
 }
 
