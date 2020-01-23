@@ -49,13 +49,11 @@ T *ScopedTable<T>::insert(std::pair<Name *, const T &> pair) {
 }
 
 template <typename T>
-T *ScopedTable<T>::find(Name *name) const {
+typename ScopedTable<T>::Symbol *ScopedTable<T>::find(Name *name) const {
     int index = hash(name) % symbol_table_key_size;
-    for (Symbol *s = keys[index]; s; s = s->next) {
-        if (s->name == name) {
-            return &s->value;
-        }
-    }
+    for (Symbol *s = keys[index]; s; s = s->next)
+        if (s->name == name)
+            return s;
     return nullptr;
 }
 

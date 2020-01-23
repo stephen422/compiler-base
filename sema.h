@@ -20,11 +20,9 @@ struct Type {
     enum class Kind { value, ref, array } kind;
     Name *name = nullptr;       // name of this type
     Type *target_type = nullptr; // the type this reference refers to
-    int scope_level = 0;        // scope that this was declared
 
     Type(Name *n) : kind(Kind::value), name(n) {}
-    Type(Kind k, Name *n, Type *v, int s)
-        : kind(k), name(n), target_type(v), scope_level(s) {}
+    Type(Kind k, Name *n, Type *v, int s) : kind(k), name(n), target_type(v) {}
     std::string toString() const;
 };
 
@@ -32,7 +30,6 @@ struct Type {
 struct Declaration {
     Name *name = nullptr;
     Type *type = nullptr;
-    int scope_level = 0; // scope that this was declared
 
     std::string toString() const;
 };
@@ -48,17 +45,6 @@ constexpr int symbol_table_key_size = 512;
 
 template <typename T> class ScopedTable {
 public:
-    ScopedTable();
-    ~ScopedTable();
-    T *insert(std::pair<Name *, const T &> pair);
-    T *find(Name *name) const;
-    void print() const;
-
-    // Start a new scope.
-    void scopeOpen();
-    // Close current cope.
-    void scopeClose();
-
     struct Symbol {
         Symbol(Name *n, const T &v) : name(n), value(v) {}
 
@@ -67,7 +53,19 @@ public:
         Symbol *next =
             nullptr; // pointer to next symbol in the hash table bucket
         Symbol *cross = nullptr; // pointer to next symbol in the same scope
+        int scope_level = 0;
     };
+
+    ScopedTable();
+    ~ScopedTable();
+    T *insert(std::pair<Name *, const T &> pair);
+    Symbol *find(Name *name) const;
+    void print() const;
+
+    // Start a new scope.
+    void scopeOpen();
+    // Close current cope.
+    void scopeClose();
 
     std::array<Symbol *, symbol_table_key_size> keys;
     std::vector<Symbol *> scope_stack = {};

@@ -22,7 +22,7 @@ Type *get_reference_type(Sema &sema, Type *type) {
     // FIXME: scope_level
     Type ref_type{Type::Kind::ref, name, type, 0};
     if (auto found = sema.type_table.find(name))
-        return found;
+        return &found->value;
     return sema.type_table.insert({name, ref_type});
 }
 
@@ -102,7 +102,7 @@ void VarDecl::traverse(Sema &sema) {
     if (!type)
         return;
 
-    Declaration decl{name, type, sema.decl_table.scope_level};
+    Declaration decl{name, type};
     sema.decl_table.insert({name, decl});
 }
 
@@ -170,10 +170,10 @@ void StringLiteral::traverse(Sema &sema) {
 }
 
 void DeclRefExpr::traverse(Sema &sema) {
-    Declaration *decl = sema.decl_table.find(name);
-    if (decl) {
+    auto sym = sema.decl_table.find(name);
+    if (sym) {
         // Type inferrence
-        type = decl->type;
+        type = sym->value.type;
     } else {
         sema.error(pos, fmt::format("undeclared identifier '{}'", name->toString()));
     }
@@ -187,8 +187,9 @@ void TypeExpr::traverse(Sema &sema) {
     if (subexpr)
         subexpr->traverse(sema);
 
-    Type *type = sema.type_table.find(name);
-    if (type == nullptr) {
+    auto sym = sema.type_table.find(name);
+    Type *type = nullptr;
+    if (!sym) {
         // If this is a value type, we should check use before declaration.
         if (!ref) {
             sema.error(pos, fmt::format("unknown type '{}'", name->toString()));
