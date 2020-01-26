@@ -22,7 +22,7 @@ struct Type {
     Type *target_type = nullptr; // the type this reference refers to
 
     Type(Name *n) : kind(Kind::value), name(n) {}
-    Type(Kind k, Name *n, Type *v, int s) : kind(k), name(n), target_type(v) {}
+    Type(Kind k, Name *n, Type *v) : kind(k), name(n), target_type(v) {}
     std::string toString() const;
 };
 
@@ -43,16 +43,16 @@ struct Context {
 
 constexpr int symbol_table_key_size = 512;
 
+// Scoped symbol table.
 template <typename T> class ScopedTable {
 public:
     struct Symbol {
         Symbol(Name *n, const T &v) : name(n), value(v) {}
 
-        Name *name; // name of this symbol
-        T value;    // semantic value of this symbol
-        Symbol *next =
-            nullptr; // pointer to next symbol in the hash table bucket
-        Symbol *cross = nullptr; // pointer to next symbol in the same scope
+        Name *name;              // name of this symbol
+        T value;                 // semantic value of this symbol
+        Symbol *next = nullptr;  // next symbol in the hash table bucket
+        Symbol *cross = nullptr; // next symbol in the same scope
         int scope_level = 0;
     };
 
@@ -101,7 +101,7 @@ struct Sema {
 
 // Get a reference type of a given type.
 // Constructs the type if it wasn't in the type table beforehand.
-Type *get_reference_type(Sema &sema, Type *type);
+Type *getReferenceType(Sema &sema, Type *type);
 
 struct Ast;
 

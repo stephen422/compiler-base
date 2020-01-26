@@ -16,11 +16,12 @@ void Sema::error(size_t pos, const std::string &msg) {
     errors.push_back({source.locate(pos), msg});
 }
 
-// @Future: inefficient string operations?
-Type *get_reference_type(Sema &sema, Type *type) {
+// Get or make a reference type of a given type.
+// TODO: inefficient string operations?
+Type *getReferenceType(Sema &sema, Type *type) {
     Name *name = sema.names.get_or_add("&" + type->name->text);
     // FIXME: scope_level
-    Type ref_type{Type::Kind::ref, name, type, 0};
+    Type ref_type{Type::Kind::ref, name, type};
     if (auto found = sema.type_table.find(name))
         return &found->value;
     return sema.type_table.insert({name, ref_type});
@@ -30,18 +31,87 @@ Type *get_reference_type(Sema &sema, Type *type) {
 // AST Traversal
 //
 
-void File::traverse(Sema &sema) {
-    for (auto &tl : toplevels)
-        tl->traverse(sema);
+void walkAST(Sema &sema, AstNode *ast) {
+    // TODO: pre_fn
+
+    // TODO
+    switch (ast->kind) {
+    case AstKind::file:
+        for (auto tl : static_cast<File *>(ast)->toplevels)
+            walkAST(sema, tl);
+        break;
+    case AstKind::decl_stmt:
+        walkAST(sema, static_cast<DeclStmt *>(ast)->decl);
+        break;
+    case AstKind::expr_stmt:
+        walkAST(sema, static_cast<ExprStmt *>(ast)->expr);
+        break;
+    case AstKind::assign_stmt:
+        walkAST(sema, static_cast<AssignStmt *>(ast)->lhs);
+        walkAST(sema, static_cast<AssignStmt *>(ast)->rhs);
+        break;
+    case AstKind::return_stmt: {
+        ReturnStmt *ret = static_cast<ReturnStmt *>(ast);
+        if (ret)
+            // ret->expr might be nullptr if no return statment was ever
+            // processed.
+            walkAST(sema, ret->expr);
+        break;
+    }
+    case AstKind::compound_stmt:
+        for (auto stmt : static_cast<CompoundStmt *>(ast)->stmts)
+            walkAST(sema, stmt);
+        break;
+    case AstKind::var_decl: {
+        auto var = static_cast<VarDecl *>(ast);
+        if (var->assign_expr)
+            walkAST(sema, var->assign_expr);
+        else if (var->type_expr)
+            walkAST(sema, var->type_expr);
+        else
+            assert(false && "unreachable");
+        break;
+    }
+    case AstKind::struct_decl:
+        for (auto m : static_cast<StructDecl *>(ast)->members)
+            walkAST(sema, m);
+        break;
+    case AstKind::func_decl: {
+        // TODO: ret_type insertion between ret_type_expr and body?
+        auto func = static_cast<FuncDecl *>(ast);
+        if (func->ret_type_expr)
+            walkAST(sema, func->ret_type_expr);
+        for (auto p : func->params)
+            walkAST(sema, p);
+        walkAST(sema, func->body);
+        break;
+    }
+    case AstKind::unary_expr: {
+        auto unary = static_cast<UnaryExpr *>(ast);
+        if (unary->unary_kind == UnaryExpr::FuncCall)
+            ;
+        walkAST(sema, static_cast<UnaryExpr *>(ast)->operand);
+    }
+    default:
+        // BadExprs, Literals, etc.
+        break;
+    }
+
+    // TODO: post_fn
 }
 
-void DeclStmt::traverse(Sema &sema) { decl->traverse(sema); }
+void File::walk(Sema &sema) {
+    for (auto &tl : toplevels)
+        tl->walk(sema);
+}
 
-void ExprStmt::traverse(Sema &sema) { expr->traverse(sema); }
+void DeclStmt::walk(Sema &sema) { decl->walk(sema); }
 
-void AssignStmt::traverse(Sema &sema) {
-    lhs->traverse(sema);
-    rhs->traverse(sema);
+void ExprStmt::walk(Sema &sema) { expr->walk(sema); }
+
+void AssignStmt::walk(Sema &sema) {
+    lhs->walk(sema);
+    rhs->walk(sema);
 
     // Type check.  For now, type of LHS and RHS should match exactly.
     if (!lhs->type || !rhs->type) {
@@ -56,9 +126,9 @@ void AssignStmt::traverse(Sema &sema) {
     }
 }
 
-void ReturnStmt::traverse(Sema &sema) {
+void ReturnStmt::walk(Sema &sema) {
     if (expr) {
-        expr->traverse(sema);
+        expr->walk(sema);
         if (!sema.getContext().retType)
             sema.error(expr->pos, "function does not return a value");
         else if (sema.getContext().retType != expr->type)
@@ -71,12 +141,12 @@ void ReturnStmt::traverse(Sema &sema) {
     sema.getContext().seenReturn = true;
 }
 
-void CompoundStmt::traverse(Sema &sema) {
+void CompoundStmt::walk(Sema &sema) {
     for (auto &stmt : stmts)
-        stmt->traverse(sema);
+        stmt->walk(sema);
 }
 
-void VarDecl::traverse(Sema &sema) {
+void VarDecl::walk(Sema &sema) {
     Type *type = nullptr;
 
     // check for redefinition
@@ -86,10 +156,10 @@ void VarDecl::traverse(Sema &sema) {
 
     // type inferrence
     if (assign_expr) {
-        assign_expr->traverse(sema);
+        assign_expr->walk(sema);
         type = assign_expr->type;
     } else if (type_expr) {
-        type_expr->traverse(sema);
+        type_expr->walk(sema);
         // FIXME: This is kinda hack; type depicts the type of the _value_ of a
         // Expr, but TypeExpr does not have any value.
         type = type_expr->type;
@@ -106,24 +176,24 @@ void VarDecl::traverse(Sema &sema) {
     sema.decl_table.insert({name, decl});
 }
 
-void StructDecl::traverse(Sema &sema) {
+void StructDecl::walk(Sema &sema) {
     for (auto &m : members)
-        m->traverse(sema);
+        m->walk(sema);
 }
 
-void FuncDecl::traverse(Sema &sema) {
+void FuncDecl::walk(Sema &sema) {
     sema.scope_open();
 
     if (ret_type_expr) {
-        ret_type_expr->traverse(sema);
+        ret_type_expr->walk(sema);
         assert(ret_type_expr->type);
         sema.getContext().retType = ret_type_expr->type;
     }
 
     for (auto &p : params)
-        p->traverse(sema);
+        p->walk(sema);
 
-    body->traverse(sema);
+    body->walk(sema);
 
     if (ret_type_expr && !sema.getContext().seenReturn)
         sema.error(pos, "no return statement found for function");
@@ -131,45 +201,45 @@ void FuncDecl::traverse(Sema &sema) {
     sema.scope_close();
 }
 
-void UnaryExpr::traverse(Sema &sema) {
-    // DeclRefs and Literals have their own traverse(), so no need to handle
+void UnaryExpr::walk(Sema &sema) {
+    // DeclRefs and Literals have their own walk(), so no need to handle
     // them in this switch.
     switch (unary_kind) {
     case Paren:
-        operand->traverse(sema);
+        operand->walk(sema);
         type = operand->type;
         break;
     case Deref:
-        operand->traverse(sema);
+        operand->walk(sema);
         if (operand->type->kind != Type::Kind::ref)
             sema.error(pos, "cannot dereference a non-reference");
         type = operand->type->target_type;
         break;
     case Address:
-        operand->traverse(sema);
+        operand->walk(sema);
         assert(operand->kind == AstKind::unary_expr);
         if (static_cast<UnaryExpr *>(operand)->unary_kind != DeclRef) {
             // TODO: LValue & RValue
             sema.error(pos,
                        "cannot take address of a non-variable (TODO: rvalue)");
         }
-        type = get_reference_type(sema, operand->type);
+        type = getReferenceType(sema, operand->type);
         break;
     default:
         assert(!"unreachable");
     }
 }
 
-void IntegerLiteral::traverse(Sema &sema) {
+void IntegerLiteral::walk(Sema &sema) {
     type = sema.int_type;
 }
 
-void StringLiteral::traverse(Sema &sema) {
+void StringLiteral::walk(Sema &sema) {
     // TODO: add to the Type table
     type = sema.char_type;
 }
 
-void DeclRefExpr::traverse(Sema &sema) {
+void DeclRefExpr::walk(Sema &sema) {
     auto sym = sema.decl_table.find(name);
     if (sym) {
         // Type inferrence
@@ -179,13 +249,13 @@ void DeclRefExpr::traverse(Sema &sema) {
     }
 }
 
-void FuncCallExpr::traverse(Sema &sema) {
+void FuncCallExpr::walk(Sema &sema) {
     assert(false && "not implemented");
 }
 
-void TypeExpr::traverse(Sema &sema) {
+void TypeExpr::walk(Sema &sema) {
     if (subexpr)
-        subexpr->traverse(sema);
+        subexpr->walk(sema);
 
     auto sym = sema.type_table.find(name);
     Type *type = nullptr;
@@ -199,7 +269,7 @@ void TypeExpr::traverse(Sema &sema) {
         else {
             assert(subexpr);
             // FIXME: scope_level
-            Type ref_type{Type::Kind::ref, name, subexpr->type, 0};
+            Type ref_type{Type::Kind::ref, name, subexpr->type};
             type = sema.type_table.insert({name, ref_type});
         }
     }
@@ -207,9 +277,9 @@ void TypeExpr::traverse(Sema &sema) {
     this->type = type;
 }
 
-void BinaryExpr::traverse(Sema &sema) {
-    lhs->traverse(sema);
-    rhs->traverse(sema);
+void BinaryExpr::walk(Sema &sema) {
+    lhs->walk(sema);
+    rhs->walk(sema);
 
     if (lhs->type && rhs->type && lhs->type != rhs->type)
         sema.error(pos, "type mismatch in binary expression");
@@ -250,11 +320,11 @@ void Sema::report() const {
         fmt::print("{}\n", e.toString());
 }
 
-// See cmp::verify().
+// See comments for cmp::verify().
 bool Sema::verify() const {
     return cmp::verify(source.filename, errors, beacons);
 }
 
-void sema(Sema &sema, Ast &ast) { ast.root->traverse(sema); }
+void sema(Sema &sema, Ast &ast) { ast.root->walk(sema); }
 
 } // namespace cmp
