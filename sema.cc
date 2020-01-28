@@ -33,8 +33,13 @@ Type *getReferenceType(Sema &sema, Type *type) {
 
 void walkAST(Sema &sema, AstNode *ast) {
     // TODO: pre_fn
+    printf("pre_fn\n");
 
     // TODO
+    if (!ast) {
+        printf("error: ast must not be null!\n");
+        return;
+    }
     switch (ast->kind) {
     case AstKind::file:
         for (auto tl : static_cast<File *>(ast)->toplevels)
@@ -87,17 +92,28 @@ void walkAST(Sema &sema, AstNode *ast) {
         break;
     }
     case AstKind::unary_expr: {
+        // TODO: proper UnaryKind subtypes
         auto unary = static_cast<UnaryExpr *>(ast);
         if (unary->unary_kind == UnaryExpr::FuncCall)
-            ;
+            for (auto arg : static_cast<FuncCallExpr *>(ast)->args)
+                walkAST(sema, arg);
         walkAST(sema, static_cast<UnaryExpr *>(ast)->operand);
     }
+    case AstKind::type_expr: {
+        auto type_expr = static_cast<TypeExpr *>(ast);
+        if (type_expr->subexpr)
+            walkAST(sema, type_expr->subexpr);
+    }
+    case AstKind::binary_expr:
+        walkAST(sema, static_cast<BinaryExpr *>(ast)->lhs);
+        walkAST(sema, static_cast<BinaryExpr *>(ast)->rhs);
     default:
         // BadExprs, Literals, etc.
         break;
     }
 
     // TODO: post_fn
+    printf("post_fn\n");
 }
 
 void File::walk(Sema &sema) {

@@ -101,6 +101,8 @@ struct AstNode {
     virtual void walk(Sema &sema) {
         (void)sema; // squelch unused warning
     }
+    // Name binding pass.
+    virtual void nameBind(Sema &sema) {}
 
     // Convenience ostream for AST printing.
     // Handles indentation, tree drawing, etc.

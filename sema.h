@@ -106,6 +106,7 @@ Type *getReferenceType(Sema &sema, Type *type);
 struct Ast;
 
 // Do a semantic analysis on the given AST.
+void walkAST(Sema &sema, AstNode *ast);
 void sema(Sema &sema, Ast &ast);
 
 } // namespace cmp

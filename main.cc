@@ -34,15 +34,16 @@ int main(int argc, char **argv) {
     Source src_sema{Path{"../test_sema.txt"}};
     Parser p_sema{src_sema};
     auto ast = p_sema.parse();
+    ast.root->print();
     Sema s{p_sema};
-    sema(s, ast);
-    if (!s.verify()) {
-        fmt::print("==== Declaration table ====\n");
-        s.decl_table.print();
-        // fmt::print("==== Type table ====\n");
-        // s.type_table.print();
-    }
-    fmt::print("{}\n", sizeof(TypeExpr));
+    walkAST(s, ast.root);
+    // sema(s, ast);
+    // if (!s.verify()) {
+    //     fmt::print("==== Declaration table ====\n");
+    //     s.decl_table.print();
+    //     // fmt::print("==== Type table ====\n");
+    //     // s.type_table.print();
+    // }
 #endif
 
     return EXIT_SUCCESS;
