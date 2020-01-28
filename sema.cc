@@ -31,89 +31,90 @@ Type *getReferenceType(Sema &sema, Type *type) {
 // AST Traversal
 //
 
-void walkAST(Sema &sema, AstNode *ast) {
-    // TODO: pre_fn
-    printf("pre_fn\n");
+void walkAST(Sema &sema, AstNode *node, std::function<void(AstNode *)> pre_fn,
+             std::function<void(AstNode *)> post_fn) {
+    assert(node);
 
-    // TODO
-    if (!ast) {
-        printf("error: ast must not be null!\n");
-        return;
-    }
-    switch (ast->kind) {
+    pre_fn(node);
+
+    switch (node->kind) {
     case AstKind::file:
-        for (auto tl : static_cast<File *>(ast)->toplevels)
-            walkAST(sema, tl);
+        for (auto tl : static_cast<File *>(node)->toplevels)
+            walkAST(sema, tl, pre_fn, post_fn);
         break;
     case AstKind::decl_stmt:
-        walkAST(sema, static_cast<DeclStmt *>(ast)->decl);
+        walkAST(sema, static_cast<DeclStmt *>(node)->decl, pre_fn, post_fn);
         break;
     case AstKind::expr_stmt:
-        walkAST(sema, static_cast<ExprStmt *>(ast)->expr);
+        walkAST(sema, static_cast<ExprStmt *>(node)->expr, pre_fn, post_fn);
         break;
     case AstKind::assign_stmt:
-        walkAST(sema, static_cast<AssignStmt *>(ast)->lhs);
-        walkAST(sema, static_cast<AssignStmt *>(ast)->rhs);
+        walkAST(sema, static_cast<AssignStmt *>(node)->lhs, pre_fn, post_fn);
+        walkAST(sema, static_cast<AssignStmt *>(node)->rhs, pre_fn, post_fn);
         break;
     case AstKind::return_stmt: {
-        ReturnStmt *ret = static_cast<ReturnStmt *>(ast);
+        ReturnStmt *ret = static_cast<ReturnStmt *>(node);
         if (ret)
             // ret->expr might be nullptr if no return statment was ever
             // processed.
-            walkAST(sema, ret->expr);
+            walkAST(sema, ret->expr, pre_fn, post_fn);
         break;
     }
     case AstKind::compound_stmt:
-        for (auto stmt : static_cast<CompoundStmt *>(ast)->stmts)
-            walkAST(sema, stmt);
+        for (auto stmt : static_cast<CompoundStmt *>(node)->stmts)
+            walkAST(sema, stmt, pre_fn, post_fn);
         break;
     case AstKind::var_decl: {
-        auto var = static_cast<VarDecl *>(ast);
+        auto var = static_cast<VarDecl *>(node);
         if (var->assign_expr)
-            walkAST(sema, var->assign_expr);
+            walkAST(sema, var->assign_expr, pre_fn, post_fn);
         else if (var->type_expr)
-            walkAST(sema, var->type_expr);
+            walkAST(sema, var->type_expr, pre_fn, post_fn);
         else
             assert(false && "unreachable");
         break;
     }
     case AstKind::struct_decl:
-        for (auto m : static_cast<StructDecl *>(ast)->members)
-            walkAST(sema, m);
+        for (auto m : static_cast<StructDecl *>(node)->members)
+            walkAST(sema, m, pre_fn, post_fn);
         break;
     case AstKind::func_decl: {
         // TODO: ret_type insertion between ret_type_expr and body?
-        auto func = static_cast<FuncDecl *>(ast);
+        auto func = static_cast<FuncDecl *>(node);
         if (func->ret_type_expr)
-            walkAST(sema, func->ret_type_expr);
+            walkAST(sema, func->ret_type_expr, pre_fn, post_fn);
         for (auto p : func->params)
-            walkAST(sema, p);
-        walkAST(sema, func->body);
+            walkAST(sema, p, pre_fn, post_fn);
+        walkAST(sema, func->body, pre_fn, post_fn);
         break;
     }
     case AstKind::unary_expr: {
         // TODO: proper UnaryKind subtypes
-        auto unary = static_cast<UnaryExpr *>(ast);
+        auto unary = static_cast<UnaryExpr *>(node);
         if (unary->unary_kind == UnaryExpr::FuncCall)
-            for (auto arg : static_cast<FuncCallExpr *>(ast)->args)
-                walkAST(sema, arg);
-        walkAST(sema, static_cast<UnaryExpr *>(ast)->operand);
+            for (auto arg : static_cast<FuncCallExpr *>(node)->args)
+                walkAST(sema, arg, pre_fn, post_fn);
+        if (static_cast<UnaryExpr *>(node)->operand)
+            walkAST(sema, static_cast<UnaryExpr *>(node)->operand, pre_fn,
+                    post_fn);
+        break;
     }
     case AstKind::type_expr: {
-        auto type_expr = static_cast<TypeExpr *>(ast);
+        auto type_expr = static_cast<TypeExpr *>(node);
         if (type_expr->subexpr)
-            walkAST(sema, type_expr->subexpr);
+            walkAST(sema, type_expr->subexpr, pre_fn, post_fn);
+        break;
     }
     case AstKind::binary_expr:
-        walkAST(sema, static_cast<BinaryExpr *>(ast)->lhs);
-        walkAST(sema, static_cast<BinaryExpr *>(ast)->rhs);
+        walkAST(sema, static_cast<BinaryExpr *>(node)->lhs, pre_fn, post_fn);
+        walkAST(sema, static_cast<BinaryExpr *>(node)->rhs, pre_fn, post_fn);
+        break;
     default:
         // BadExprs, Literals, etc.
         break;
     }
 
-    // TODO: post_fn
-    printf("post_fn\n");
+    post_fn(node);
 }
 
 void File::walk(Sema &sema) {

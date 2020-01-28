@@ -36,7 +36,9 @@ int main(int argc, char **argv) {
     auto ast = p_sema.parse();
     ast.root->print();
     Sema s{p_sema};
-    walkAST(s, ast.root);
+    walkAST(
+        s, ast.root, [](AstNode *) { printf("pre_fn\n"); },
+        [](AstNode *) { printf("post_fn\n"); });
     // sema(s, ast);
     // if (!s.verify()) {
     //     fmt::print("==== Declaration table ====\n");
