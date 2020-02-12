@@ -10,7 +10,7 @@ std::string Type::toString() const { return name->text; }
 
 std::string Declaration::toString() const {
     // return name->text + "+" + type->toString();
-    return name->text;
+    return name->toString();
 }
 
 void Sema::error(size_t pos, const std::string &msg) {
