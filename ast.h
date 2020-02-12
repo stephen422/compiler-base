@@ -336,7 +336,6 @@ struct VarDecl : public Decl {
           assign_expr(std::move(expr)) {}
     void print() const override;
     void walk(Sema &sema) override;
-    void nameBindPre(Sema &sema) override;
     void nameBindPost(Sema &sema) override;
 
     // The value of this pointer serves as a unique integer ID to be used for

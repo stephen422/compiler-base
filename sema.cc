@@ -123,26 +123,21 @@ void walkAST(Sema &sema, AstNode *node,
 // Name binding pass
 //
 
-void VarDecl::nameBindPre(Sema &sema) {
-    printf("nameBindPre for VarDecl!\n");
+void VarDecl::nameBindPost(Sema &sema) {
+    printf("nameBindPost for VarDecl!\n");
 
     // check for redefinition
+    sema.decl_table.print();
     auto found = sema.decl_table.find(name);
     if (found && found->scope_level == sema.decl_table.scope_level) {
         sema.error(pos, fmt::format("redefinition of '{}'", name->toString()));
         fmt::print("redefinition of {}\n", name->toString());
+    } else {
+        // TODO
+        Declaration decl{name, nullptr};
+        fmt::print("name={}\n", name->toString());
+        sema.decl_table.insert({name, decl});
     }
-    sema.decl_table.print();
-}
-
-void VarDecl::nameBindPost(Sema &sema) {
-    printf("nameBindPost for VarDecl!\n");
-
-    // TODO
-    Declaration decl{name, nullptr};
-    fmt::print("name={}\n", name->toString());
-    sema.decl_table.insert({name, decl});
-    sema.decl_table.print();
 }
 
 void File::walk(Sema &sema) {

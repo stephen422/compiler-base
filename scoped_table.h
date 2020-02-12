@@ -12,7 +12,7 @@ ScopedTable<T>::ScopedTable() {
     for (int i = 0; i < symbol_table_key_size; i++) {
         keys[i] = nullptr;
     }
-    scopeOpen();
+    scope_stack.push_back(nullptr);
 }
 
 template <typename T>
@@ -32,17 +32,17 @@ ScopedTable<T>::~ScopedTable() {
 
 template <typename T>
 T *ScopedTable<T>::insert(std::pair<Name *, const T &> pair) {
-    // Memory for T is stored inside the symbol
+    // memory for T is stored inside the symbol
     // FIXME: bad allocator
     Symbol *head = new Symbol(pair.first, pair.second);
 
-    // Insert into the bucket
+    // insert into the bucket
     int index = hash(pair.first) % symbol_table_key_size;
     Symbol **p = &keys[index];
     head->next = *p;
     *p = head;
 
-    // Set the scope chain
+    // set the scope chain
     head->cross = scope_stack.back();
     scope_stack.back() = head;
     return &head->value;
@@ -81,21 +81,17 @@ template <typename T>
 void ScopedTable<T>::print() const {
     for (int i = 0; i < symbol_table_key_size; i++) {
         auto *p = keys[i];
-        if (!p) {
+        if (!p)
             continue;
-        }
         std::cout << "[" << i << "]";
-        while (p) {
+        for (; p; p = p->next)
             fmt::print("{{{}}}", p->value.toString());
-            p = p->next;
-        }
         std::cout << std::endl;
     }
     for (size_t i = 0; i < scope_stack.size(); i++) {
         std::cout << "Scope " << i << ":";
-        for (Symbol *p = scope_stack[i]; p; p = p->cross) {
+        for (Symbol *p = scope_stack[i]; p; p = p->cross)
             fmt::print("{{{}}}", p->value.toString());
-        }
         std::cout << std::endl;
     }
 }
