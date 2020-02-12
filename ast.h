@@ -196,6 +196,8 @@ struct CompoundStmt : public Stmt {
     CompoundStmt() : Stmt(AstKind::compound_stmt) {}
     void print() const override;
     void walk(Sema &sema) override;
+    void nameBindPre(Sema &sema) override;
+    void nameBindPost(Sema &sema) override;
 
     std::vector<Stmt *> stmts;
 };

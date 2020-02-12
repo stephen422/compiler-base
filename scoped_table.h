@@ -44,6 +44,7 @@ T *ScopedTable<T>::insert(std::pair<Name *, const T &> pair) {
 
     // set the scope chain
     head->cross = scope_stack.back();
+    head->scope_level = scope_level;
     scope_stack.back() = head;
     return &head->value;
 }

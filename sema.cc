@@ -123,6 +123,10 @@ void walkAST(Sema &sema, AstNode *node,
 // Name binding pass
 //
 
+void CompoundStmt::nameBindPre(Sema &sema) { sema.decl_table.scopeOpen(); }
+
+void CompoundStmt::nameBindPost(Sema &sema) { sema.decl_table.scopeClose(); }
+
 void VarDecl::nameBindPost(Sema &sema) {
     printf("nameBindPost for VarDecl!\n");
 
