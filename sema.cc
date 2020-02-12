@@ -9,7 +9,8 @@ namespace cmp {
 std::string Type::toString() const { return name->text; }
 
 std::string Declaration::toString() const {
-    return name->text + "+" + type->toString();
+    // return name->text + "+" + type->toString();
+    return name->text;
 }
 
 void Sema::error(size_t pos, const std::string &msg) {
@@ -31,11 +32,12 @@ Type *getReferenceType(Sema &sema, Type *type) {
 // AST Traversal
 //
 
-void walkAST(Sema &sema, AstNode *node, std::function<void(AstNode *)> pre_fn,
-             std::function<void(AstNode *)> post_fn) {
+void walkAST(Sema &sema, AstNode *node,
+             std::function<void(Sema &sema, AstNode *)> pre_fn,
+             std::function<void(Sema &sema, AstNode *)> post_fn) {
     assert(node);
 
-    pre_fn(node);
+    pre_fn(sema, node);
 
     switch (node->kind) {
     case AstKind::file:
@@ -114,7 +116,33 @@ void walkAST(Sema &sema, AstNode *node, std::function<void(AstNode *)> pre_fn,
         break;
     }
 
-    post_fn(node);
+    post_fn(sema, node);
+}
+
+//
+// Name binding pass
+//
+
+void VarDecl::nameBindPre(Sema &sema) {
+    printf("nameBindPre for VarDecl!\n");
+
+    // check for redefinition
+    auto found = sema.decl_table.find(name);
+    if (found && found->scope_level == sema.decl_table.scope_level) {
+        sema.error(pos, fmt::format("redefinition of '{}'", name->toString()));
+        fmt::print("redefinition of {}\n", name->toString());
+    }
+    sema.decl_table.print();
+}
+
+void VarDecl::nameBindPost(Sema &sema) {
+    printf("nameBindPost for VarDecl!\n");
+
+    // TODO
+    Declaration decl{name, nullptr};
+    fmt::print("name={}\n", name->toString());
+    sema.decl_table.insert({name, decl});
+    sema.decl_table.print();
 }
 
 void File::walk(Sema &sema) {
@@ -166,11 +194,6 @@ void CompoundStmt::walk(Sema &sema) {
 void VarDecl::walk(Sema &sema) {
     Type *type = nullptr;
 
-    // check for redefinition
-    auto found = sema.decl_table.find(name);
-    if (found && found->scope_level == sema.decl_table.scope_level)
-        sema.error(pos, fmt::format("redefinition of '{}'", name->toString()));
-
     // type inferrence
     if (assign_expr) {
         assign_expr->walk(sema);
@@ -188,9 +211,6 @@ void VarDecl::walk(Sema &sema) {
     // cases, we can't push a new declaration anyway, so just bail.
     if (!type)
         return;
-
-    Declaration decl{name, type};
-    sema.decl_table.insert({name, decl});
 }
 
 void StructDecl::walk(Sema &sema) {

@@ -102,7 +102,8 @@ struct AstNode {
         (void)sema; // squelch unused warning
     }
     // Name binding pass.
-    virtual void nameBind(Sema &sema) {}
+    virtual void nameBindPre(Sema &sema) { (void)sema; }
+    virtual void nameBindPost(Sema &sema) { (void)sema; }
 
     // Convenience ostream for AST printing.
     // Handles indentation, tree drawing, etc.
@@ -126,6 +127,11 @@ struct AstNode {
     // static because all nodes share this.
     static int depth;
 };
+
+// These are free-standing functions that simply do the virtual call into the
+// polymorphic compiler pass functions.
+inline void nameBindPre(Sema &sema, AstNode *node) { node->nameBindPre(sema); }
+inline void nameBindPost(Sema &sema, AstNode *node) { node->nameBindPost(sema); }
 
 // ========
 //   File
@@ -330,6 +336,8 @@ struct VarDecl : public Decl {
           assign_expr(std::move(expr)) {}
     void print() const override;
     void walk(Sema &sema) override;
+    void nameBindPre(Sema &sema) override;
+    void nameBindPost(Sema &sema) override;
 
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
