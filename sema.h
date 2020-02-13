@@ -27,7 +27,7 @@ struct Type {
 };
 
 // Represents declaration of a variable or a function.
-struct Declaration {
+struct Decl {
     Name *name = nullptr;
     Type *type = nullptr;
 
@@ -79,7 +79,7 @@ public:
 struct Sema {
     const Source &source;                // source text
     NameTable &names;                    // name table
-    ScopedTable<Declaration> decl_table; // declaration table
+    ScopedTable<Decl> decl_table; // declaration table
     ScopedTable<Type> type_table;        // type table
     std::vector<Context> context_table;  // semantic analysis context table
     std::vector<Error> errors;           // error list

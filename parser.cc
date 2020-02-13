@@ -168,13 +168,13 @@ CompoundStmt *Parser::parse_compound_stmt() {
     return compound;
 }
 
-Decl *Parser::parseVarDecl() {
+DeclNode *Parser::parseVarDecl() {
     auto pos = tok.pos;
 
     Name *name = names.get_or_add(std::string{tok.text});
     next();
 
-    Decl *v = nullptr;
+    DeclNode *v = nullptr;
     // '=' comes either first, or after the ': type' part.
     if (tok.kind == TokenKind::colon) {
         next();
@@ -197,11 +197,11 @@ Decl *Parser::parseVarDecl() {
 }
 
 // This doesn't include enclosing parentheses or braces.
-std::vector<Decl *> Parser::parseVarDeclList() {
-    std::vector<Decl *> decls;
+std::vector<DeclNode *> Parser::parseVarDeclList() {
+    std::vector<DeclNode *> decls;
 
     while (true) {
-        Decl *decl = nullptr;
+        DeclNode *decl = nullptr;
         skipNewlines();
         if (tok.kind != TokenKind::ident)
             break;
@@ -283,7 +283,7 @@ bool Parser::isStartOfDecl() const {
 }
 
 // 'let a = ...'
-Decl *Parser::parseDecl() {
+DeclNode *Parser::parseDecl() {
     switch (tok.kind) {
     case TokenKind::kw_let:
         next();

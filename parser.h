@@ -62,7 +62,7 @@ private:
 };
 
 using StmtResult = ParserResult<Stmt>;
-using DeclResult = ParserResult<Decl>;
+using DeclResult = ParserResult<DeclNode>;
 using ExprResult = ParserResult<Expr>;
 
 class Parser {
@@ -98,9 +98,9 @@ private:
     bool is_eos();
 
     // Declaration parsers
-    Decl *parseDecl();
-    std::vector<Decl *> parseVarDeclList();
-    Decl *parseVarDecl();
+    DeclNode *parseDecl();
+    std::vector<DeclNode *> parseVarDeclList();
+    DeclNode *parseVarDecl();
     StructDecl *parseStructDecl();
     FuncDecl *parseFuncDecl();
     bool isStartOfDecl() const;

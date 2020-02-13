@@ -73,7 +73,7 @@ struct File;
 struct Toplevel;
 struct Stmt;
 struct Expr;
-struct Decl;
+struct DeclNode;
 struct FuncDecl;
 
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
@@ -86,6 +86,7 @@ struct Ast {
 };
 
 struct Sema;
+struct Decl;
 
 struct AstNode {
     AstNode() {}
@@ -155,11 +156,11 @@ struct Stmt : public AstNode {
 };
 
 struct DeclStmt : public Stmt {
-    DeclStmt(Decl *decl) : Stmt(AstKind::decl_stmt), decl(std::move(decl)) {}
+    DeclStmt(DeclNode *decl) : Stmt(AstKind::decl_stmt), decl(std::move(decl)) {}
     void print() const override;
     void walk(Sema &sema) override;
 
-    Decl *decl;
+    DeclNode *decl;
 };
 
 struct ExprStmt : public Stmt {
@@ -261,10 +262,12 @@ struct DeclRefExpr : public UnaryExpr {
     // The integer value of this pointer serves as a unique ID to be used for
     // indexing the symbol table in the name binding phase.
     Name *name = nullptr;
+    Decl *decl = nullptr;
 
     DeclRefExpr(Name *name) : UnaryExpr(DeclRef, nullptr), name(name) {}
     void print() const override;
     void walk(Sema &sema) override;
+    void nameBindPost(Sema &sema) override;
 };
 
 struct FuncCallExpr : public UnaryExpr {
@@ -327,14 +330,14 @@ struct FuncDecl;
 // };
 
 // A declaration.
-struct Decl : public AstNode {
-    Decl(AstKind kind) : AstNode(kind) {}
+struct DeclNode : public AstNode {
+    DeclNode(AstKind kind) : AstNode(kind) {}
 };
 
 // Variable declaration.
-struct VarDecl : public Decl {
+struct VarDecl : public DeclNode {
     VarDecl(Name *n, Expr *t, Expr *expr)
-        : Decl(AstKind::var_decl), name(n), type_expr(std::move(t)),
+        : DeclNode(AstKind::var_decl), name(n), type_expr(std::move(t)),
           assign_expr(std::move(expr)) {}
     void print() const override;
     void walk(Sema &sema) override;
@@ -349,31 +352,31 @@ struct VarDecl : public Decl {
 };
 
 // Struct declaration.
-struct StructDecl : public Decl {
-    StructDecl(Name *n, std::vector<Decl *> m)
-        : Decl(AstKind::struct_decl), name(n), members(std::move(m)) {}
+struct StructDecl : public DeclNode {
+    StructDecl(Name *n, std::vector<DeclNode *> m)
+        : DeclNode(AstKind::struct_decl), name(n), members(std::move(m)) {}
     void print() const override;
     void walk(Sema &sema) override;
 
     Name *name = nullptr;            // name of the struct
-    std::vector<Decl *> members; // member variables
+    std::vector<DeclNode *> members; // member variables
 };
 
 // Function declaration.  There is no separate function definition: functions
 // should always be defined whenever they are declared.
-struct FuncDecl : public Decl {
-    FuncDecl(Name *n) : Decl(AstKind::func_decl), name(n) {}
+struct FuncDecl : public DeclNode {
+    FuncDecl(Name *n) : DeclNode(AstKind::func_decl), name(n) {}
     void print() const override;
     void walk(Sema &sema) override;
 
     Name *name = nullptr;          // name of the function
-    std::vector<Decl *> params;    // list of parameters
+    std::vector<DeclNode *> params;    // list of parameters
     CompoundStmt *body = nullptr;  // body statements
     Expr *ret_type_expr = nullptr; // return type expression
 };
 
-struct BadDecl : public Decl {
-    BadDecl() : Decl(AstKind::bad_decl) {}
+struct BadDecl : public DeclNode {
+    BadDecl() : DeclNode(AstKind::bad_decl) {}
     void print() const override;
 };
 

@@ -8,7 +8,7 @@ namespace cmp {
 
 std::string Type::toString() const { return name->text; }
 
-std::string Declaration::toString() const {
+std::string Decl::toString() const {
     // return name->text + "+" + type->toString();
     return name->toString();
 }
@@ -136,9 +136,18 @@ void VarDecl::nameBindPost(Sema &sema) {
         sema.error(pos, fmt::format("redefinition of '{}'", name->toString()));
     } else {
         // TODO
-        Declaration decl{name, nullptr};
+        Decl decl{name, nullptr};
         fmt::print("name={}\n", name->toString());
         sema.decl_table.insert({name, decl});
+    }
+}
+
+void DeclRefExpr::nameBindPost(Sema &sema) {
+    auto sym = sema.decl_table.find(name);
+    if (sym) {
+        decl = &sym->value;
+    } else {
+        sema.error(pos, fmt::format("undeclared identifier '{}'", name->toString()));
     }
 }
 
@@ -278,8 +287,6 @@ void DeclRefExpr::walk(Sema &sema) {
     if (sym) {
         // Type inferrence
         type = sym->value.type;
-    } else {
-        sema.error(pos, fmt::format("undeclared identifier '{}'", name->toString()));
     }
 }
 
