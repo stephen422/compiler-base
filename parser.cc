@@ -225,6 +225,8 @@ std::vector<DeclNode *> Parser::parseVarDeclList() {
 }
 
 StructDecl *Parser::parseStructDecl() {
+    auto pos = tok.pos;
+
     expect(TokenKind::kw_struct);
 
     if (tok.kind != TokenKind::ident)
@@ -238,7 +240,7 @@ StructDecl *Parser::parseStructDecl() {
     expect(TokenKind::rbrace, "unterminated struct declaration");
     // TODO: recover
 
-    return make_node<StructDecl>(name, fields);
+    return make_node_with_pos<StructDecl>(pos, name, fields);
 }
 
 FuncDecl *Parser::parseFuncDecl() {

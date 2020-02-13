@@ -3,6 +3,9 @@
 struct Car {
 }
 
+struct Car {
+}
+
 fn main() {
     let a: int = 3 + 4
     let a = 4 // [error: "redefinition.*'a'"]
