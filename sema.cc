@@ -131,8 +131,7 @@ void CompoundStmt::nameBindPost(Sema &sema) { sema.decl_table.scopeClose(); }
 void VarDecl::nameBindPost(Sema &sema) {
     // check for redefinition
     auto found = sema.decl_table.find(name);
-    if (found && found->value.kind == Decl::Kind::var &&
-        found->scope_level <= sema.decl_table.scope_level) {
+    if (found && found->scope_level <= sema.decl_table.scope_level) {
         sema.error(pos, fmt::format("redefinition of '{}'", name->toString()));
     } else {
         Decl decl{Decl::Kind::var, name, nullptr};
@@ -141,15 +140,14 @@ void VarDecl::nameBindPost(Sema &sema) {
 }
 
 void StructDecl::nameBindPost(Sema &sema) {
-    // TODO: repetition
+    // TODO: repetition with VarDecl::nameBindPost
     // check for redefinition
-    auto found = sema.decl_table.find(name);
-    if (found && found->value.kind == Decl::Kind::type &&
-        found->scope_level <= sema.decl_table.scope_level) {
-        sema.error(pos, fmt::format("redefinition of type '{}'", name->toString()));
+    auto found = sema.type_table.find(name);
+    if (found && found->scope_level <= sema.type_table.scope_level) {
+        sema.error(pos, fmt::format("redefinition of '{}'", name->toString()));
     } else {
-        Decl decl{Decl::Kind::type, name, nullptr};
-        sema.decl_table.insert({name, decl});
+        Type type{Type::Kind::value, name, nullptr};
+        sema.type_table.insert({name, type});
     }
 }
 
@@ -163,9 +161,9 @@ void DeclRefExpr::nameBindPost(Sema &sema) {
 }
 
 void TypeExpr::nameBindPost(Sema &sema) {
-    auto sym = sema.decl_table.find(name);
+    auto sym = sema.type_table.find(name);
     if (sym) {
-        decl = &sym->value;
+        type = &sym->value;
     } else {
         sema.error(pos, fmt::format("use of undeclared type '{}'", name->toString()));
     }

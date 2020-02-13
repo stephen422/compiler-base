@@ -283,7 +283,7 @@ struct FuncCallExpr : public UnaryExpr {
 // XXX: can I call this an expression?
 struct TypeExpr : public Expr {
     Name *name = nullptr;    // name of the type
-    Decl *decl = nullptr;    // type declaration (TODO)
+    Type *type = nullptr;    // type declaration
     bool mut = false;        // mutable?
     bool ref = false;        // is this a reference type?
     Expr *subexpr = nullptr; // 'T' part of '&T'.  It is Expr mainly so that
