@@ -11,9 +11,10 @@ namespace cmp {
 
 class Source;
 
-// Represents a type, whether it be built-in, user-defined, or a reference to
-// another type.  Type exists separately from the AST node TypeExpr so that
-// type comparisons can be made by simply comparing raw Type pointers.
+// 'Type' represents a type, whether it be built-in, user-defined, or a
+// reference to another type.  Type exists separately from the AST node
+// TypeExpr so that type comparisons can be made by simply comparing raw Type
+// pointers.
 //
 // TODO: switch to union?
 struct Type {
@@ -26,7 +27,11 @@ struct Type {
     std::string toString() const;
 };
 
-// Represents declaration of a variable or a function.
+// 'Decl' represents declaration of a variable, a function, or a type.
+// All Decls are stored in a global pool.  Scoped Decl tables act on the
+// references of these pooled Decls to determine undeclared-use or
+// redefinition.
+// TODO: Clarify the meaning of a 'Decl'.
 struct Decl {
     Name *name = nullptr;
     Type *type = nullptr;

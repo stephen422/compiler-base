@@ -283,6 +283,7 @@ struct FuncCallExpr : public UnaryExpr {
 // XXX: can I call this an expression?
 struct TypeExpr : public Expr {
     Name *name = nullptr;    // name of the type
+    Decl *decl = nullptr;    // type declaration (TODO)
     bool mut = false;        // mutable?
     bool ref = false;        // is this a reference type?
     Expr *subexpr = nullptr; // 'T' part of '&T'.  It is Expr mainly so that
@@ -291,6 +292,7 @@ struct TypeExpr : public Expr {
     TypeExpr() : Expr(AstKind::type_expr) {}
     void print() const override;
     void walk(Sema &sema) override;
+    void nameBindPost(Sema &sema) override;
 };
 
 struct BinaryExpr : public Expr {

@@ -149,6 +149,15 @@ void DeclRefExpr::nameBindPost(Sema &sema) {
     }
 }
 
+void TypeExpr::nameBindPost(Sema &sema) {
+    auto sym = sema.decl_table.find(name);
+    if (sym) {
+        decl = &sym->value;
+    } else {
+        sema.error(pos, fmt::format("use of undeclared type '{}'", name->toString()));
+    }
+}
+
 void File::walk(Sema &sema) {
     for (auto &tl : toplevels)
         tl->walk(sema);
