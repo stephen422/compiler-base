@@ -130,14 +130,12 @@ void CompoundStmt::nameBindPost(Sema &sema) { sema.decl_table.scopeClose(); }
 
 void VarDecl::nameBindPost(Sema &sema) {
     // check for redefinition
-    sema.decl_table.print();
     auto found = sema.decl_table.find(name);
     if (found && found->scope_level == sema.decl_table.scope_level) {
         sema.error(pos, fmt::format("redefinition of '{}'", name->toString()));
     } else {
         // TODO
         Decl decl{name, nullptr};
-        fmt::print("name={}\n", name->toString());
         sema.decl_table.insert({name, decl});
     }
 }
@@ -147,7 +145,7 @@ void DeclRefExpr::nameBindPost(Sema &sema) {
     if (sym) {
         decl = &sym->value;
     } else {
-        sema.error(pos, fmt::format("undeclared identifier '{}'", name->toString()));
+        sema.error(pos, fmt::format("use of undeclared identifier '{}'", name->toString()));
     }
 }
 

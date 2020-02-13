@@ -14,6 +14,11 @@ target_compile_options(qc PRIVATE -Wall -Wextra -fno-omit-frame-pointer
     -fdiagnostics-color=always "$<$<CONFIG:DEBUG>:-glldb>")
 target_link_libraries(qc PRIVATE -fno-omit-frame-pointer)
 
+# Selectively use LLD on Linux
+if(UNIX AND NOT APPLE)
+    target_link_libraries(qc PRIVATE -fuse-ld=lld)
+endif()
+
 # Comment this out to disable AddressSanitizer.
 target_compile_options(qc PRIVATE
     "$<$<CONFIG:DEBUG>:-fsanitize=address,leak,undefined>")
