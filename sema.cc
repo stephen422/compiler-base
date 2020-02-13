@@ -131,13 +131,21 @@ void CompoundStmt::nameBindPost(Sema &sema) { sema.decl_table.scopeClose(); }
 void VarDecl::nameBindPost(Sema &sema) {
     // check for redefinition
     auto found = sema.decl_table.find(name);
-    if (found && found->scope_level == sema.decl_table.scope_level) {
+    if (found && found->value.kind == Decl::Kind::var &&
+        found->scope_level <= sema.decl_table.scope_level) {
+        // TODO: also check if this Decl is var, not a type
         sema.error(pos, fmt::format("redefinition of '{}'", name->toString()));
     } else {
         // TODO
-        Decl decl{name, nullptr};
+        Decl decl{Decl::Kind::var, name, nullptr};
         sema.decl_table.insert({name, decl});
     }
+}
+
+void StructDecl::nameBindPost(Sema &sema) {
+    // TODO: differentiate type decls from variable decls
+    Decl decl{Decl::Kind::type, name, nullptr};
+    sema.decl_table.insert({name, decl});
 }
 
 void DeclRefExpr::nameBindPost(Sema &sema) {

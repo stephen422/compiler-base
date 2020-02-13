@@ -359,6 +359,7 @@ struct StructDecl : public DeclNode {
         : DeclNode(AstKind::struct_decl), name(n), members(std::move(m)) {}
     void print() const override;
     void walk(Sema &sema) override;
+    void nameBindPost(Sema &sema) override;
 
     Name *name = nullptr;            // name of the struct
     std::vector<DeclNode *> members; // member variables

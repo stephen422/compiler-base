@@ -31,11 +31,14 @@ struct Type {
 // All Decls are stored in a global pool.  Scoped Decl tables act on the
 // references of these pooled Decls to determine undeclared-use or
 // redefinition.
-// TODO: Clarify the meaning of a 'Decl'.
+// TODO: Clarify the definition. Should type names have a Decl too?  What is
+// the 'type' member of a TypeDecl?
 struct Decl {
+    enum class Kind { var, type } kind;
     Name *name = nullptr;
     Type *type = nullptr;
 
+    Decl(Kind k, Name *n, Type *t) : kind(k), name(n), type(t) {}
     std::string toString() const;
 };
 
