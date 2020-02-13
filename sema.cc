@@ -14,7 +14,8 @@ std::string Declaration::toString() const {
 }
 
 void Sema::error(size_t pos, const std::string &msg) {
-    errors.push_back({source.locate(pos), msg});
+    Error e{source.locate(pos), msg};
+    fmt::print("{}\n", e.toString());
 }
 
 // Get or make a reference type of a given type.
@@ -128,14 +129,11 @@ void CompoundStmt::nameBindPre(Sema &sema) { sema.decl_table.scopeOpen(); }
 void CompoundStmt::nameBindPost(Sema &sema) { sema.decl_table.scopeClose(); }
 
 void VarDecl::nameBindPost(Sema &sema) {
-    printf("nameBindPost for VarDecl!\n");
-
     // check for redefinition
     sema.decl_table.print();
     auto found = sema.decl_table.find(name);
     if (found && found->scope_level == sema.decl_table.scope_level) {
         sema.error(pos, fmt::format("redefinition of '{}'", name->toString()));
-        fmt::print("redefinition of {}\n", name->toString());
     } else {
         // TODO
         Declaration decl{name, nullptr};

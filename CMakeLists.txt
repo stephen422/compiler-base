@@ -12,7 +12,7 @@ endif()
 target_compile_features(qc PUBLIC cxx_std_17)
 target_compile_options(qc PRIVATE -Wall -Wextra -fno-omit-frame-pointer
     -fdiagnostics-color=always "$<$<CONFIG:DEBUG>:-glldb>")
-target_link_libraries(qc PRIVATE -fno-omit-frame-pointer -fuse-ld=lld)
+target_link_libraries(qc PRIVATE -fno-omit-frame-pointer)
 
 # Comment this out to disable AddressSanitizer.
 target_compile_options(qc PRIVATE
