@@ -94,8 +94,8 @@ private:
     Stmt *parse_return_stmt();
     DeclStmt *parse_decl_stmt();
     CompoundStmt *parse_compound_stmt();
-    bool is_end_of_stmt() const;
-    bool is_eos();
+    bool isEndOfStmt() const;
+    bool isEOS();
 
     // Declaration parsers
     DeclNode *parseDecl();

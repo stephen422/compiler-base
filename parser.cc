@@ -66,11 +66,11 @@ bool Parser::expect(TokenKind kind, const std::string &msg = "") {
     return true;
 }
 
-bool Parser::is_end_of_stmt() const {
+bool Parser::isEndOfStmt() const {
     return tok.kind == TokenKind::newline || tok.kind == TokenKind::comment;
 }
 
-bool Parser::is_eos() {
+bool Parser::isEOS() {
     skipNewlines();
     return tok.kind == TokenKind::eos;
 }
@@ -102,9 +102,9 @@ Stmt *Parser::parse_return_stmt() {
 
     // optional
     Expr *expr = nullptr;
-    if (!is_end_of_stmt())
+    if (!isEndOfStmt())
         expr = parseExpr();
-    if (!is_end_of_stmt()) {
+    if (!isEndOfStmt()) {
         skipUntilEndOfLine();
         return makeNodeWithPos<BadStmt>(pos);
     }
@@ -114,7 +114,7 @@ Stmt *Parser::parse_return_stmt() {
 // let a = ...
 DeclStmt *Parser::parse_decl_stmt() {
     auto decl = parseDecl();
-    if (!is_end_of_stmt()) {
+    if (!isEndOfStmt()) {
         if (decl->kind != AstKind::bad_decl)
             expect(TokenKind::newline);
         // try to recover
@@ -128,7 +128,7 @@ Stmt *Parser::parseExprOrAssignStmt() {
 
     auto lhs = parseExpr();
     // ExprStmt: expression ends with a newline
-    if (is_end_of_stmt()) {
+    if (isEndOfStmt()) {
         skipUntilEndOfLine();
         return makeNode<ExprStmt>(lhs);
     }
@@ -531,7 +531,7 @@ void Parser::skipUntilAny(const std::vector<TokenKind> &kinds) {
 }
 
 void Parser::skipUntilEndOfLine() {
-    while (!is_end_of_stmt())
+    while (!isEndOfStmt())
         next();
 }
 
@@ -559,7 +559,7 @@ AstNode *Parser::parseToplevel() {
 File *Parser::parseFile() {
     auto file = makeNode<File>();
     // FIXME
-    while (!is_eos()) {
+    while (!isEOS()) {
         auto toplevel = parseToplevel();
         file->toplevels.push_back(toplevel);
     }
