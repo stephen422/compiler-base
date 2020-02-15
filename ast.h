@@ -338,8 +338,8 @@ struct DeclNode : public AstNode {
 
 // Variable declaration.
 struct VarDecl : public DeclNode {
-    VarDecl(Name *n, Expr *t, Expr *expr)
-        : DeclNode(AstKind::var_decl), name(n), type_expr(t),
+    VarDecl(Name *n, bool mem, Expr *t, Expr *expr)
+        : DeclNode(AstKind::var_decl), name(n), is_member(mem), type_expr(t),
           assign_expr(std::move(expr)) {}
     void print() const override;
     void walk(Sema &sema) override;
@@ -348,8 +348,9 @@ struct VarDecl : public DeclNode {
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
     Name *name = nullptr;        // name of the variable
-    Expr *type_expr = nullptr;   // type node of the variable.
-                                 // If null, it will be inferred later
+    bool is_member = false;      // member of a struct?
+    Expr *type_expr = nullptr;   // type node of the variable
+                                 // (inferred later if null)
     Expr *assign_expr = nullptr; // initial assignment value
 };
 
