@@ -196,6 +196,7 @@ DeclNode *Parser::parseVarDecl() {
     return v;
 }
 
+// Parses function argument lists and struct declaration member lists.
 // This doesn't include enclosing parentheses or braces.
 std::vector<DeclNode *> Parser::parseVarDeclList() {
     std::vector<DeclNode *> decls;
@@ -210,11 +211,11 @@ std::vector<DeclNode *> Parser::parseVarDeclList() {
         decls.push_back(decl);
 
         if (decl->kind == AstKind::bad_decl) {
-            // Determining where the decl list ends is a little tricky.
-            // Here, we test for every tokens that are either (1) separator
-            // tokens, i.e. comma, newline, or (2) used to enclose a decl list,
-            // i.e. parentheses and braces.  This works for both function
-            // argument lists and struct member lists.
+            // Determining where each decl ends in a list is a little tricky.
+            // Here, we stop for any token that is either (1) separator tokens,
+            // i.e. comma, newline, or (2) used to enclose a decl list, i.e.
+            // parentheses and braces.  This works for both function argument
+            // lists and struct member lists.
             skipUntilAny({TokenKind::comma, TokenKind::newline,
                           TokenKind::rparen, TokenKind::rbrace});
         }
