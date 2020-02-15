@@ -54,8 +54,8 @@ enum class AstKind {
     compound_stmt,
     bad_stmt,
     var_decl,
-    param_decl,
     struct_decl,
+    member_decl,
     func_decl,
     bad_decl,
     literal_expr,
@@ -339,7 +339,7 @@ struct DeclNode : public AstNode {
 // Variable declaration.
 struct VarDecl : public DeclNode {
     VarDecl(Name *n, Expr *t, Expr *expr)
-        : DeclNode(AstKind::var_decl), name(n), type_expr(std::move(t)),
+        : DeclNode(AstKind::var_decl), name(n), type_expr(t),
           assign_expr(std::move(expr)) {}
     void print() const override;
     void walk(Sema &sema) override;
@@ -356,13 +356,27 @@ struct VarDecl : public DeclNode {
 // Struct declaration.
 struct StructDecl : public DeclNode {
     StructDecl(Name *n, std::vector<DeclNode *> m)
-        : DeclNode(AstKind::struct_decl), name(n), members(std::move(m)) {}
+        : DeclNode(AstKind::struct_decl), name(n), members(m) {}
     void print() const override;
     void walk(Sema &sema) override;
     void nameBindPost(Sema &sema) override;
 
     Name *name = nullptr;            // name of the struct
     std::vector<DeclNode *> members; // member variables
+};
+
+// Struct member declaration.
+struct MemberDecl : public DeclNode {
+    MemberDecl(Name *n, Expr *t, Expr *expr)
+        : DeclNode(AstKind::member_decl), name(n), type_expr(t),
+          assign_expr(expr) {}
+    void print() const override;
+    void nameBindPost(Sema &sema) override;
+
+    Name *name = nullptr;        // name of the member
+    Expr *type_expr = nullptr;   // type node of the member.
+                                 // If null, it will be inferred later.
+    Expr *assign_expr = nullptr; // initial assignment value
 };
 
 // Function declaration.  There is no separate function definition: functions

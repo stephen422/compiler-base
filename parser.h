@@ -128,18 +128,18 @@ private:
 
     // Skip until a specific token(s) show up.
     void skipUntil(TokenKind kind);
-    void skipUntil(const std::vector<TokenKind> &kinds);
+    void skipUntilAny(const std::vector<TokenKind> &kinds);
     void skipUntilEndOfLine();
     void skipNewlines();
 
-    template <typename T, typename... Args> T *make_node(Args &&... args) {
+    template <typename T, typename... Args> T *makeNode(Args &&... args) {
         nodes.emplace_back(new T{std::forward<Args>(args)...});
         return static_cast<T *>(nodes.back().get());
     }
 
     template <typename T, typename... Args>
-    T *make_node_with_pos(size_t pos, Args &&... args) {
-        auto node = make_node<T>(std::forward<Args>(args)...);
+    T *makeNodeWithPos(size_t pos, Args &&... args) {
+        auto node = makeNode<T>(std::forward<Args>(args)...);
         node->pos = pos;
         return node;
     }
