@@ -43,13 +43,14 @@ struct Decl {
 };
 
 struct Context {
+    std::vector<Decl *> struct_decl_stack; // current enclosing struct decl
     // Return type of this function
-    Type *retType = nullptr;
+    Type *ret_type = nullptr;
     // Seen one or more return statement in this function
-    bool seenReturn = false;
+    bool seen_return = false;
 };
 
-constexpr int symbol_table_key_size = 512;
+constexpr int symbol_table_bucket_count = 512;
 
 // Scoped symbol table.
 template <typename T> class ScopedTable {
@@ -75,7 +76,7 @@ public:
     // Close current cope.
     void scopeClose();
 
-    std::array<Symbol *, symbol_table_key_size> keys;
+    std::array<Symbol *, symbol_table_bucket_count> keys;
     std::vector<Symbol *> scope_stack = {};
     int scope_level = 0;
 };

@@ -129,13 +129,19 @@ void CompoundStmt::nameBindPre(Sema &sema) { sema.decl_table.scopeOpen(); }
 void CompoundStmt::nameBindPost(Sema &sema) { sema.decl_table.scopeClose(); }
 
 void VarDecl::nameBindPost(Sema &sema) {
-    // check for redefinition
-    auto found = sema.decl_table.find(name);
-    if (found && found->scope_level <= sema.decl_table.scope_level) {
-        sema.error(pos, fmt::format("redefinition of '{}'", name->toString()));
+    if (is_member) {
+        sema.error(pos, "don't know how to do is_member yet");
+        return;
     } else {
-        Decl decl{Decl::Kind::var, name, nullptr};
-        sema.decl_table.insert({name, decl});
+        // check for redefinition
+        auto found = sema.decl_table.find(name);
+        if (found && found->scope_level <= sema.decl_table.scope_level) {
+            sema.error(pos,
+                       fmt::format("redefinition of '{}'", name->toString()));
+        } else {
+            Decl decl{Decl::Kind::var, name, nullptr};
+            sema.decl_table.insert({name, decl});
+        }
     }
 }
 
@@ -198,16 +204,16 @@ void AssignStmt::walk(Sema &sema) {
 void ReturnStmt::walk(Sema &sema) {
     if (expr) {
         expr->walk(sema);
-        if (!sema.getContext().retType)
+        if (!sema.getContext().ret_type)
             sema.error(expr->pos, "function does not return a value");
-        else if (sema.getContext().retType != expr->type)
+        else if (sema.getContext().ret_type != expr->type)
             sema.error(expr->pos, "return type mismatch");
     } else {
-        if (sema.getContext().retType)
+        if (sema.getContext().ret_type)
             sema.error(pos, "a return a value should be specified for this function");
     }
 
-    sema.getContext().seenReturn = true;
+    sema.getContext().seen_return = true;
 }
 
 void CompoundStmt::walk(Sema &sema) {
@@ -248,7 +254,7 @@ void FuncDecl::walk(Sema &sema) {
     if (ret_type_expr) {
         ret_type_expr->walk(sema);
         assert(ret_type_expr->type);
-        sema.getContext().retType = ret_type_expr->type;
+        sema.getContext().ret_type = ret_type_expr->type;
     }
 
     for (auto &p : params)
@@ -256,7 +262,7 @@ void FuncDecl::walk(Sema &sema) {
 
     body->walk(sema);
 
-    if (ret_type_expr && !sema.getContext().seenReturn)
+    if (ret_type_expr && !sema.getContext().seen_return)
         sema.error(pos, "no return statement found for function");
 
     sema.scope_close();

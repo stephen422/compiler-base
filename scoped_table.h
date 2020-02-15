@@ -9,7 +9,7 @@ static inline uint64_t hash(const void *p) {
 
 template <typename T>
 ScopedTable<T>::ScopedTable() {
-    for (int i = 0; i < symbol_table_key_size; i++) {
+    for (int i = 0; i < symbol_table_bucket_count; i++) {
         keys[i] = nullptr;
     }
     scope_stack.push_back(nullptr);
@@ -17,7 +17,7 @@ ScopedTable<T>::ScopedTable() {
 
 template <typename T>
 ScopedTable<T>::~ScopedTable() {
-    for (int i = 0; i < symbol_table_key_size; i++) {
+    for (int i = 0; i < symbol_table_bucket_count; i++) {
         Symbol *p = keys[i];
         if (!p) {
             continue;
@@ -37,7 +37,7 @@ T *ScopedTable<T>::insert(std::pair<Name *, const T &> pair) {
     Symbol *head = new Symbol(pair.first, pair.second);
 
     // insert into the bucket
-    int index = hash(pair.first) % symbol_table_key_size;
+    int index = hash(pair.first) % symbol_table_bucket_count;
     Symbol **p = &keys[index];
     head->next = *p;
     *p = head;
@@ -51,7 +51,7 @@ T *ScopedTable<T>::insert(std::pair<Name *, const T &> pair) {
 
 template <typename T>
 typename ScopedTable<T>::Symbol *ScopedTable<T>::find(Name *name) const {
-    int index = hash(name) % symbol_table_key_size;
+    int index = hash(name) % symbol_table_bucket_count;
     for (Symbol *s = keys[index]; s; s = s->next)
         if (s->name == name)
             return s;
@@ -68,7 +68,7 @@ template <typename T>
 void ScopedTable<T>::scopeClose() {
     Symbol *p = scope_stack.back();
     while (p) {
-        int index = hash(p->name) % symbol_table_key_size;
+        int index = hash(p->name) % symbol_table_bucket_count;
         keys[index] = p->next;
         auto cross = p->cross;
         delete p;
@@ -80,7 +80,7 @@ void ScopedTable<T>::scopeClose() {
 
 template <typename T>
 void ScopedTable<T>::print() const {
-    for (int i = 0; i < symbol_table_key_size; i++) {
+    for (int i = 0; i < symbol_table_bucket_count; i++) {
         auto *p = keys[i];
         if (!p)
             continue;
