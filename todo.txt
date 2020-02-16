@@ -1,3 +1,8 @@
+Idea: "Programmable lifetime"
+
+Let the programmer tell the compiler explicitly where a specific type of object
+lives and dies in the code.
+
 - Symbol table: how do I organize this?
   Some kind of a scoped table with scopeOpen/Close() functions.
   But, the contents of the table should not just go away with scopeClose()
