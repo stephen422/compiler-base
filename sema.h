@@ -1,15 +1,51 @@
 #ifndef SEMA_H
 #define SEMA_H
 
-#include "parser.h"
-#include <array>
+#include "error.h"
+#include "fmt/core.h"
+#include "fmt/format.h"
 #include <iostream>
-#include <unordered_map>
+#include <variant>
 #include <vector>
 
 namespace cmp {
 
 class Source;
+
+// A Name corresponds to a single unique identifier string in the source text.
+// There may be multiple occurrences of a string in the source text, but only
+// one instance of the matching Name can reside in the name table.
+struct Name {
+    std::string text;
+
+    Name(const std::string &s) : text(s) {}
+    std::string toString() const;
+};
+
+// A NameTable is a hash table of Names queried by their string value.  It
+// serves to reduce the number of string hashing operation, since we can look
+// up the symbol table using Name instead of raw char * throughout the semantic
+// analysis.
+class NameTable {
+public:
+    Name *get_or_add(const std::string &s) {
+        Name *found = get(s);
+        if (found) {
+            return found;
+        }
+        auto pair = map.insert({s, {s}});
+        return &pair.first->second;
+    }
+    Name *get(const std::string &s) {
+        auto found = map.find(s);
+        if (found == map.end()) {
+            return nullptr;
+        } else {
+            return &found->second;
+        }
+    }
+    std::unordered_map<std::string, Name> map;
+};
 
 // 'Type' represents a type, whether it be built-in, user-defined, or a
 // reference to another type.  Type exists separately from the AST node
@@ -27,20 +63,37 @@ struct Type {
     std::string toString() const;
 };
 
+// struct Decl {
+//     enum class Kind { var, type } kind;
+//     Name *name = nullptr;
+//     Type *type = nullptr;
+// 
+//     Decl(Kind k, Name *n, Type *t) : kind(k), name(n), type(t) {}
+//     std::string toString() const;
+// };
+
+struct VarDecl {
+    Name *name = nullptr;
+    Type *type = nullptr;
+
+    std::string toString() const;
+};
+
+struct StructDecl {
+    Name *name = nullptr;
+    Type *type = nullptr;
+    std::vector<VarDecl *> fields;
+
+    std::string toString() const;
+};
+
 // 'Decl' represents declaration of a variable, a function, or a type.
 // All Decls are stored in a global pool.  Scoped Decl tables act on the
 // references of these pooled Decls to determine undeclared-use or
 // redefinition.
 // TODO: Clarify the definition. Should type names have a Decl too?  What is
 // the 'type' member of a TypeDecl?
-struct Decl {
-    enum class Kind { var, type } kind;
-    Name *name = nullptr;
-    Type *type = nullptr;
-
-    Decl(Kind k, Name *n, Type *t) : kind(k), name(n), type(t) {}
-    std::string toString() const;
-};
+using Decl = std::variant<VarDecl, StructDecl>;
 
 struct Context {
     std::vector<Decl *> struct_decl_stack; // current enclosing struct decl
@@ -83,6 +136,8 @@ public:
 
 #include "scoped_table.h"
 
+class Parser;
+
 // Stores all of the semantic information necessary for semantic analysis
 // phase.
 struct Sema {
@@ -112,6 +167,7 @@ struct Sema {
 Type *getReferenceType(Sema &sema, Type *type);
 
 struct Ast;
+struct AstNode;
 
 // Do a semantic analysis on the given AST.
 void walkAST(Sema &sema, AstNode *node,

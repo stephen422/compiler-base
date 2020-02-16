@@ -1,47 +1,13 @@
 #ifndef AST_H
 #define AST_H
 
+#include "sema.h"
 #include "lexer.h"
 #include <iostream>
 #include <memory>
 #include <unordered_map>
 
 namespace cmp {
-
-// A Name corresponds to a single unique identifier string in the source text.
-// There may be multiple occurrences of a string in the source text, but only
-// one instance of the matching Name can reside in the name table.
-struct Name {
-    std::string text;
-
-    Name(const std::string &s) : text(s) {}
-    std::string toString() const;
-};
-
-// A NameTable is a hash table of Names queried by their string value.  It
-// serves to reduce the number of string hashing operation, since we can look
-// up the symbol table using Name instead of raw char * throughout the semantic
-// analysis.
-class NameTable {
-public:
-    Name *get_or_add(const std::string &s) {
-        Name *found = get(s);
-        if (found) {
-            return found;
-        }
-        auto pair = map.insert({s, {s}});
-        return &pair.first->second;
-    }
-    Name *get(const std::string &s) {
-        auto found = map.find(s);
-        if (found == map.end()) {
-            return nullptr;
-        } else {
-            return &found->second;
-        }
-    }
-    std::unordered_map<std::string, Name> map;
-};
 
 enum class AstKind {
     none, // FIXME necessary?
@@ -86,7 +52,6 @@ struct Ast {
 };
 
 struct Sema;
-struct Decl;
 
 struct AstNode {
     AstNode() {}

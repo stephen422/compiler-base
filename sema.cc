@@ -1,5 +1,6 @@
 #include "sema.h"
 #include "ast.h"
+#include "parser.h"
 #include "fmt/core.h"
 #include "source.h"
 #include <cassert>
@@ -8,10 +9,23 @@ namespace cmp {
 
 std::string Type::toString() const { return name->text; }
 
-std::string Decl::toString() const {
-    // return name->text + "+" + type->toString();
-    return name->toString();
+std::string VarDecl::toString() const {
+    return name->text;
 }
+
+std::string StructDecl::toString() const {
+    return name->text;
+}
+
+// std::string Decl::toString() const {
+//     if (std::holds_alternative<VarDecl>(*this)) {
+//         return "VarDecl";
+//     } else {
+//         return "Something else";
+//     }
+//     return std::visit([](const auto &v) -> std::string { return v.toString(); },
+//                       *this)
+// }
 
 void Sema::error(size_t pos, const std::string &msg) {
     Error e{source.locate(pos), msg};
@@ -139,7 +153,7 @@ void VarDeclNode::nameBindPost(Sema &sema) {
             sema.error(pos,
                        fmt::format("redefinition of '{}'", name->toString()));
         } else {
-            Decl decl{Decl::Kind::var, name, nullptr};
+            Decl decl{VarDecl{name, nullptr}};
             sema.decl_table.insert({name, decl});
         }
     }
@@ -310,7 +324,8 @@ void DeclRefExpr::walk(Sema &sema) {
     auto sym = sema.decl_table.find(name);
     if (sym) {
         // Type inferrence
-        type = sym->value.type;
+        // FIXME
+        type = std::get<VarDecl>(sym->value).type;
     }
 }
 
