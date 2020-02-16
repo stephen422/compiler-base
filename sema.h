@@ -12,7 +12,7 @@ namespace cmp {
 
 class Source;
 
-// A Name corresponds to a single unique identifier string in the source text.
+// 'Name' corresponds to a single unique identifier string in the source text.
 // There may be multiple occurrences of a string in the source text, but only
 // one instance of the matching Name can reside in the name table.
 struct Name {
@@ -22,7 +22,7 @@ struct Name {
     std::string toString() const;
 };
 
-// A NameTable is a hash table of Names queried by their string value.  It
+// 'NameTable' is a hash table of Names queried by their string value.  It
 // serves to reduce the number of string hashing operation, since we can look
 // up the symbol table using Name instead of raw char * throughout the semantic
 // analysis.
@@ -47,6 +47,8 @@ public:
     std::unordered_map<std::string, Name> map;
 };
 
+struct Sema;
+
 // 'Type' represents a type, whether it be built-in, user-defined, or a
 // reference to another type.  Type exists separately from the AST node
 // TypeExpr so that type comparisons can be made by simply comparing raw Type
@@ -63,15 +65,7 @@ struct Type {
     std::string toString() const;
 };
 
-// struct Decl {
-//     enum class Kind { var, type } kind;
-//     Name *name = nullptr;
-//     Type *type = nullptr;
-// 
-//     Decl(Kind k, Name *n, Type *t) : kind(k), name(n), type(t) {}
-//     std::string toString() const;
-// };
-
+// Declaration of a variable. Includes struct field variables.
 struct VarDecl {
     Name *name = nullptr;
     Type *type = nullptr;
@@ -79,6 +73,7 @@ struct VarDecl {
     std::string toString() const;
 };
 
+// Declaration of a struct.
 struct StructDecl {
     Name *name = nullptr;
     Type *type = nullptr;
@@ -94,6 +89,11 @@ struct StructDecl {
 // TODO: Clarify the definition. Should type names have a Decl too?  What is
 // the 'type' member of a TypeDecl?
 using Decl = std::variant<VarDecl, StructDecl>;
+
+// Convenience cast function.
+template <typename T> T &declCast(Decl &d) { return std::get<T>(d); }
+// Allocator function.
+template <typename... Args> Decl *makeDecl(Sema &sema, Args &&... args);
 
 struct Context {
     std::vector<Decl *> struct_decl_stack; // current enclosing struct decl
@@ -141,13 +141,14 @@ class Parser;
 // Stores all of the semantic information necessary for semantic analysis
 // phase.
 struct Sema {
-    const Source &source;                // source text
-    NameTable &names;                    // name table
-    ScopedTable<Decl> decl_table; // declaration table
-    ScopedTable<Type> type_table;        // type table
+    const Source &source;           // source text
+    NameTable &names;               // name table
+    std::vector<Decl *> decl_pool;  // memory pool for decls
+    ScopedTable<Decl *> decl_table; // scoped declaration table
+    ScopedTable<Type> type_table;   // scoped type table
     Context context;
-    std::vector<Error> errors;           // error list
-    std::vector<Error> beacons;          // error beacon list
+    std::vector<Error> errors;  // error list
+    std::vector<Error> beacons; // error beacon list
     Type *int_type = nullptr;
     Type *char_type = nullptr;
 
@@ -155,6 +156,7 @@ struct Sema {
     Sema(Parser &p);
     Sema(const Sema &) = delete;
     Sema(Sema &&) = delete;
+    ~Sema();
     void error(size_t pos, const std::string &msg);
     void scope_open();
     void scope_close();
@@ -176,5 +178,14 @@ void walkAST(Sema &sema, AstNode *node,
 void sema(Sema &sema, Ast &ast);
 
 } // namespace cmp
+
+// template <> struct fmt::formatter<std::variant<int, double>> {
+//     constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
+// 
+//     template <typename FormatContext>
+//     auto format(const std::variant<int, double> &d, FormatContext &ctx) {
+//         return format_to(ctx.out(), "this is a decl");
+//     }
+// };
 
 #endif

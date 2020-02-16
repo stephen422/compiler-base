@@ -9,6 +9,12 @@ namespace cmp {
 
 std::string Type::toString() const { return name->text; }
 
+template <typename... Args> Decl *makeDecl(Sema &sema, Args &&... args) {
+    Decl *decl = new Decl{std::forward<Args>(args)...};
+    sema.decl_pool.push_back(decl);
+    return decl;
+}
+
 std::string VarDecl::toString() const {
     return name->text;
 }
@@ -16,16 +22,6 @@ std::string VarDecl::toString() const {
 std::string StructDecl::toString() const {
     return name->text;
 }
-
-// std::string Decl::toString() const {
-//     if (std::holds_alternative<VarDecl>(*this)) {
-//         return "VarDecl";
-//     } else {
-//         return "Something else";
-//     }
-//     return std::visit([](const auto &v) -> std::string { return v.toString(); },
-//                       *this)
-// }
 
 void Sema::error(size_t pos, const std::string &msg) {
     Error e{source.locate(pos), msg};
@@ -144,7 +140,7 @@ void CompoundStmt::nameBindPost(Sema &sema) { sema.decl_table.scopeClose(); }
 
 void VarDeclNode::nameBindPost(Sema &sema) {
     if (is_member) {
-        sema.error(pos, "don't know how to do is_member yet");
+        sema.error(pos, "don't know how to do struct members yet");
         return;
     } else {
         // check for redefinition
@@ -153,7 +149,9 @@ void VarDeclNode::nameBindPost(Sema &sema) {
             sema.error(pos,
                        fmt::format("redefinition of '{}'", name->toString()));
         } else {
-            Decl decl{VarDecl{name, nullptr}};
+            // new variable declaration
+            // TODO: proper allocator
+            Decl *decl = makeDecl(sema, VarDecl{name, nullptr});
             sema.decl_table.insert({name, decl});
         }
     }
@@ -174,7 +172,7 @@ void StructDeclNode::nameBindPost(Sema &sema) {
 void DeclRefExpr::nameBindPost(Sema &sema) {
     auto sym = sema.decl_table.find(name);
     if (sym) {
-        decl = &sym->value;
+        decl = sym->value;
     } else {
         sema.error(pos, fmt::format("use of undeclared identifier '{}'", name->toString()));
     }
@@ -325,7 +323,7 @@ void DeclRefExpr::walk(Sema &sema) {
     if (sym) {
         // Type inferrence
         // FIXME
-        type = std::get<VarDecl>(sym->value).type;
+        type = declCast<VarDecl>(*sym->value).type;
     }
 }
 
@@ -375,6 +373,12 @@ Sema::Sema(const Source &s, NameTable &n) : source(s), names(n) {
     Name *char_name = names.get_or_add("char");
     Type char_type{char_name};
     this->char_type = type_table.insert({char_name, char_type});
+}
+
+Sema::~Sema() {
+    for (auto d : decl_pool) {
+        delete d;
+    }
 }
 
 // FIXME: lifetime of p.lexer.source() and p.names?

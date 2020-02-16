@@ -45,6 +45,5 @@ int main(int argc, char **argv) {
     //     // s.type_table.print();
     // }
 #endif
-
     return EXIT_SUCCESS;
 }

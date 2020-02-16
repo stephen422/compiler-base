@@ -313,6 +313,7 @@ struct VarDeclNode : public DeclNode {
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
     Name *name = nullptr;        // name of the variable
+    VarDecl *decl = nullptr;     // decl info
     bool is_member = false;      // member of a struct?
     Expr *type_expr = nullptr;   // type node of the variable
                                  // (inferred later if null)
@@ -328,6 +329,7 @@ struct StructDeclNode : public DeclNode {
     void nameBindPost(Sema &sema) override;
 
     Name *name = nullptr;            // name of the struct
+    StructDecl *decl = nullptr;      // decl info
     std::vector<DeclNode *> members; // member variables
 };
 
