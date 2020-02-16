@@ -3,6 +3,7 @@
 struct Car {
     a: int,
     b: int,
+    a: int, // [error: "redefinition.*'a'"]
 }
 
 fn main() {

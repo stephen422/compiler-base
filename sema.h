@@ -70,6 +70,7 @@ struct VarDecl {
     Name *name = nullptr;
     Type *type = nullptr;
 
+    VarDecl(Name *n) : name(n) {}
     std::string toString() const;
 };
 
@@ -79,6 +80,7 @@ struct StructDecl {
     Type *type = nullptr;
     std::vector<VarDecl *> fields;
 
+    StructDecl(Name *n) : name(n) {}
     std::string toString() const;
 };
 
@@ -90,13 +92,13 @@ struct StructDecl {
 // the 'type' member of a TypeDecl?
 using Decl = std::variant<VarDecl, StructDecl>;
 
-// Convenience cast function.
-template <typename T> T &declCast(Decl &d) { return std::get<T>(d); }
+// Convenience cast function. Note that this works on a *pointer* to the Decl.
+template <typename T> T *declCast(Decl *d) { return &std::get<T>(*d); }
 // Allocator function.
-template <typename... Args> Decl *makeDecl(Sema &sema, Args &&... args);
+Decl *makeDecl(Sema &sema, Decl &&arg);
 
 struct Context {
-    std::vector<Decl *> struct_decl_stack; // current enclosing struct decl
+    std::vector<StructDecl *> struct_decl_stack; // current enclosing struct decl
     // Return type of this function
     Type *ret_type = nullptr;
     // Seen one or more return statement in this function

@@ -9,8 +9,8 @@ namespace cmp {
 
 std::string Type::toString() const { return name->text; }
 
-template <typename... Args> Decl *makeDecl(Sema &sema, Args &&... args) {
-    Decl *decl = new Decl{std::forward<Args>(args)...};
+Decl *makeDecl(Sema &sema, Decl &&arg) {
+    Decl *decl = new Decl{arg};
     sema.decl_pool.push_back(decl);
     return decl;
 }
@@ -139,26 +139,35 @@ void CompoundStmt::nameBindPre(Sema &sema) { sema.decl_table.scopeOpen(); }
 void CompoundStmt::nameBindPost(Sema &sema) { sema.decl_table.scopeClose(); }
 
 void VarDeclNode::nameBindPost(Sema &sema) {
-    if (is_member) {
-        sema.error(pos, "don't know how to do struct members yet");
-        return;
+    // check for redefinition
+    auto found = sema.decl_table.find(name);
+    if (found && found->scope_level <= sema.decl_table.scope_level) {
+        sema.error(pos, fmt::format("redefinition of '{}'", name->toString()));
     } else {
-        // check for redefinition
-        auto found = sema.decl_table.find(name);
-        if (found && found->scope_level <= sema.decl_table.scope_level) {
-            sema.error(pos,
-                       fmt::format("redefinition of '{}'", name->toString()));
-        } else {
-            // new variable declaration
-            // TODO: proper allocator
-            Decl *decl = makeDecl(sema, VarDecl{name, nullptr});
-            sema.decl_table.insert({name, decl});
+        // new variable declaration
+        auto decl = makeDecl(sema, VarDecl{name});
+        sema.decl_table.insert({name, decl});
+        var_decl = declCast<VarDecl>(decl);
+        if (is_member) {
+            assert(sema.context.struct_decl_stack.size() >= 1);
+            auto &current_struct = *sema.context.struct_decl_stack.back();
+            current_struct.fields.push_back(var_decl);
         }
     }
 }
 
+void StructDeclNode::nameBindPre(Sema &sema) {
+    // Don't check for redefinition, just discard everything if it turns out to
+    // be so in post.
+    auto decl = makeDecl(sema, StructDecl{name});
+    struct_decl = declCast<StructDecl>(decl);
+    // Decl table is going to be used for checking redefinition.
+    sema.decl_table.scopeOpen();
+    sema.context.struct_decl_stack.push_back(struct_decl);
+}
+
 void StructDeclNode::nameBindPost(Sema &sema) {
-    // TODO: repetition with VarDecl::nameBindPost
+    // FIXME: repetition with VarDecl::nameBindPost
     // check for redefinition
     auto found = sema.type_table.find(name);
     if (found && found->scope_level <= sema.type_table.scope_level) {
@@ -167,6 +176,8 @@ void StructDeclNode::nameBindPost(Sema &sema) {
         Type type{Type::Kind::value, name, nullptr};
         sema.type_table.insert({name, type});
     }
+    sema.context.struct_decl_stack.pop_back();
+    sema.decl_table.scopeClose();
 }
 
 void DeclRefExpr::nameBindPost(Sema &sema) {
@@ -323,7 +334,7 @@ void DeclRefExpr::walk(Sema &sema) {
     if (sym) {
         // Type inferrence
         // FIXME
-        type = declCast<VarDecl>(*sym->value).type;
+        type = declCast<VarDecl>(sym->value)->type;
     }
 }
 
