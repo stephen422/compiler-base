@@ -9,9 +9,9 @@ struct Car {
 fn main() {
     let a: int = 3 + 4
     let a = 4 // [error: "redefinition.*'a'"]
-    let b: Car // [error: "unknown type.*'Car'"]
+    let car: Car
     a = "hi"
-    c = 5 // [error: "undeclared.*'c'"]
+    car.a = 5
 
     *a // [error: "dereference"] // TODO: report 'int'
 }

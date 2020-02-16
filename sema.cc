@@ -150,8 +150,8 @@ void VarDeclNode::nameBindPost(Sema &sema) {
         var_decl = declCast<VarDecl>(decl);
         if (is_member) {
             assert(sema.context.struct_decl_stack.size() >= 1);
-            auto &current_struct = *sema.context.struct_decl_stack.back();
-            current_struct.fields.push_back(var_decl);
+            auto current_struct = sema.context.struct_decl_stack.back();
+            current_struct->fields.push_back(var_decl);
         }
     }
 }

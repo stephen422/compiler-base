@@ -12,10 +12,10 @@ fn main() {
     let b: int = 3 + 4
     let c &int // [error: "expected.*':'.*found '&'"]
     let c: int blah // [error: "expected '\\n'.*'blah'"]
-    let d: & // [error: "expected type expression"]
-    let d: &mut // [error: "expected type name"]
-    let d: &mut Car
-    let d: &mut Car Sedan // [error: "expected '\\n'.*found 'Sedan'"]
+    let car: & // [error: "expected type expression"]
+    let car: &mut // [error: "expected type name"]
+    let car: &mut Car
+    let car: &mut Car Sedan // [error: "expected '\\n'.*found 'Sedan'"]
 
     let str = "hello there"
 
@@ -30,6 +30,9 @@ fn main() {
     f(3, 4,)
     f(3, 4, ,) // [error: "expected.*expression"]
     f(3, 4, 2 + 5)
+    
+    car.wheel
+    car.driver.age
 }
 
 fn f(a: int) int { // [error: "expected '->'.*found 'int'"]
