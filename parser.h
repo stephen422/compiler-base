@@ -101,8 +101,8 @@ private:
     DeclNode *parseDecl();
     DeclNode *parseVarDecl(bool is_member);
     std::vector<DeclNode *> parseVarDeclList(bool is_member);
-    StructDecl *parseStructDecl();
-    FuncDecl *parseFuncDecl();
+    StructDeclNode *parseStructDecl();
+    FuncDeclNode *parseFuncDecl();
     bool isStartOfDecl() const;
 
     // Expression parsers

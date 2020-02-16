@@ -74,7 +74,7 @@ struct Toplevel;
 struct Stmt;
 struct Expr;
 struct DeclNode;
-struct FuncDecl;
+struct FuncDeclNode;
 
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
 
@@ -319,9 +319,9 @@ struct BadExpr : public Expr {
 //   Declarations
 // ================
 
-struct VarDecl;
-struct StructDecl;
-struct FuncDecl;
+struct VarDeclNode;
+struct StructDeclNode;
+struct FuncDeclNode;
 
 // class Visitor {
 // public:
@@ -337,8 +337,8 @@ struct DeclNode : public AstNode {
 };
 
 // Variable declaration.
-struct VarDecl : public DeclNode {
-    VarDecl(Name *n, bool mem, Expr *t, Expr *expr)
+struct VarDeclNode : public DeclNode {
+    VarDeclNode(Name *n, bool mem, Expr *t, Expr *expr)
         : DeclNode(AstKind::var_decl), name(n), is_member(mem), type_expr(t),
           assign_expr(std::move(expr)) {}
     void print() const override;
@@ -355,8 +355,8 @@ struct VarDecl : public DeclNode {
 };
 
 // Struct declaration.
-struct StructDecl : public DeclNode {
-    StructDecl(Name *n, std::vector<DeclNode *> m)
+struct StructDeclNode : public DeclNode {
+    StructDeclNode(Name *n, std::vector<DeclNode *> m)
         : DeclNode(AstKind::struct_decl), name(n), members(m) {}
     void print() const override;
     void walk(Sema &sema) override;
@@ -366,24 +366,10 @@ struct StructDecl : public DeclNode {
     std::vector<DeclNode *> members; // member variables
 };
 
-// Struct member declaration.
-struct MemberDecl : public DeclNode {
-    MemberDecl(Name *n, Expr *t, Expr *expr)
-        : DeclNode(AstKind::member_decl), name(n), type_expr(t),
-          assign_expr(expr) {}
-    void print() const override;
-    void nameBindPost(Sema &sema) override;
-
-    Name *name = nullptr;        // name of the member
-    Expr *type_expr = nullptr;   // type node of the member.
-                                 // If null, it will be inferred later.
-    Expr *assign_expr = nullptr; // initial assignment value
-};
-
 // Function declaration.  There is no separate function definition: functions
 // should always be defined whenever they are declared.
-struct FuncDecl : public DeclNode {
-    FuncDecl(Name *n) : DeclNode(AstKind::func_decl), name(n) {}
+struct FuncDeclNode : public DeclNode {
+    FuncDeclNode(Name *n) : DeclNode(AstKind::func_decl), name(n) {}
     void print() const override;
     void walk(Sema &sema) override;
 
@@ -393,8 +379,8 @@ struct FuncDecl : public DeclNode {
     Expr *ret_type_expr = nullptr; // return type expression
 };
 
-struct BadDecl : public DeclNode {
-    BadDecl() : DeclNode(AstKind::bad_decl) {}
+struct BadDeclNode : public DeclNode {
+    BadDeclNode() : DeclNode(AstKind::bad_decl) {}
     void print() const override;
 };
 

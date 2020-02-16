@@ -180,19 +180,19 @@ DeclNode *Parser::parseVarDecl(bool is_member) {
     if (tok.kind == TokenKind::colon) {
         next();
         auto type_expr = parseTypeExpr();
-        v = makeNodeWithPos<VarDecl>(pos, name, is_member, type_expr, nullptr);
+        v = makeNodeWithPos<VarDeclNode>(pos, name, is_member, type_expr, nullptr);
     }
     if (tok.kind == TokenKind::equals) {
         next();
         auto assign_expr = parseExpr();
         if (v)
-            static_cast<VarDecl *>(v)->assign_expr = assign_expr;
+            static_cast<VarDeclNode *>(v)->assign_expr = assign_expr;
         else
-            v = makeNodeWithPos<VarDecl>(pos, name, is_member, nullptr, assign_expr);
+            v = makeNodeWithPos<VarDeclNode>(pos, name, is_member, nullptr, assign_expr);
     }
     if (!v) {
         errorExpected("'=' or ':' after var name");
-        v = makeNodeWithPos<BadDecl>(pos);
+        v = makeNodeWithPos<BadDeclNode>(pos);
     }
     return v;
 }
@@ -230,7 +230,7 @@ std::vector<DeclNode *> Parser::parseVarDeclList(bool is_member) {
     return decls;
 }
 
-StructDecl *Parser::parseStructDecl() {
+StructDeclNode *Parser::parseStructDecl() {
     auto pos = tok.pos;
 
     expect(TokenKind::kw_struct);
@@ -246,16 +246,16 @@ StructDecl *Parser::parseStructDecl() {
     expect(TokenKind::rbrace, "unterminated struct declaration");
     // TODO: recover
 
-    return makeNodeWithPos<StructDecl>(pos, name, fields);
+    return makeNodeWithPos<StructDeclNode>(pos, name, fields);
 }
 
-FuncDecl *Parser::parseFuncDecl() {
+FuncDeclNode *Parser::parseFuncDecl() {
     auto pos = tok.pos;
 
     expect(TokenKind::kw_fn);
 
     Name *name = names.get_or_add(std::string{tok.text});
-    auto func = makeNode<FuncDecl>(name);
+    auto func = makeNode<FuncDeclNode>(name);
     func->pos = tok.pos;
     next();
 

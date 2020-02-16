@@ -72,7 +72,7 @@ void CompoundStmt::print() const {
     }
 }
 
-void VarDecl::print() const {
+void VarDeclNode::print() const {
     out() << "[VarDecl] " << name->text << "\n";
     PrintScope start;
     if (type_expr) {
@@ -86,14 +86,14 @@ void VarDecl::print() const {
     }
 }
 
-void StructDecl::print() const {
+void StructDeclNode::print() const {
     out() << "[StructDecl] " << name->text << "\n";
     PrintScope start;
     for (auto &m : members)
         m->print();
 }
 
-void FuncDecl::print() const {
+void FuncDeclNode::print() const {
     out() << "[FuncDecl] " << name->text << "\n";
     PrintScope start;
     for (auto &p : params)
@@ -176,7 +176,7 @@ void TypeExpr::print() const {
 }
 
 void BadStmt::print() const { out() << "[BadStmt]\n"; }
-void BadDecl::print() const { out() << "[BadDecl]\n"; }
+void BadDeclNode::print() const { out() << "[BadDecl]\n"; }
 void BadExpr::print() const { out() << "[BadExpr]\n"; }
 
 } // namespace cmp

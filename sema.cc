@@ -68,7 +68,7 @@ void walkAST(Sema &sema, AstNode *node,
             walkAST(sema, stmt, pre_fn, post_fn);
         break;
     case AstKind::var_decl: {
-        auto var = static_cast<VarDecl *>(node);
+        auto var = static_cast<VarDeclNode *>(node);
         if (var->assign_expr)
             walkAST(sema, var->assign_expr, pre_fn, post_fn);
         else if (var->type_expr)
@@ -78,12 +78,12 @@ void walkAST(Sema &sema, AstNode *node,
         break;
     }
     case AstKind::struct_decl:
-        for (auto m : static_cast<StructDecl *>(node)->members)
+        for (auto m : static_cast<StructDeclNode *>(node)->members)
             walkAST(sema, m, pre_fn, post_fn);
         break;
     case AstKind::func_decl: {
         // TODO: ret_type insertion between ret_type_expr and body?
-        auto func = static_cast<FuncDecl *>(node);
+        auto func = static_cast<FuncDeclNode *>(node);
         if (func->ret_type_expr)
             walkAST(sema, func->ret_type_expr, pre_fn, post_fn);
         for (auto p : func->params)
@@ -128,7 +128,7 @@ void CompoundStmt::nameBindPre(Sema &sema) { sema.decl_table.scopeOpen(); }
 
 void CompoundStmt::nameBindPost(Sema &sema) { sema.decl_table.scopeClose(); }
 
-void VarDecl::nameBindPost(Sema &sema) {
+void VarDeclNode::nameBindPost(Sema &sema) {
     if (is_member) {
         sema.error(pos, "don't know how to do is_member yet");
         return;
@@ -145,7 +145,7 @@ void VarDecl::nameBindPost(Sema &sema) {
     }
 }
 
-void StructDecl::nameBindPost(Sema &sema) {
+void StructDeclNode::nameBindPost(Sema &sema) {
     // TODO: repetition with VarDecl::nameBindPost
     // check for redefinition
     auto found = sema.type_table.find(name);
@@ -204,16 +204,16 @@ void AssignStmt::walk(Sema &sema) {
 void ReturnStmt::walk(Sema &sema) {
     if (expr) {
         expr->walk(sema);
-        if (!sema.getContext().ret_type)
-            sema.error(expr->pos, "function does not return a value");
-        else if (sema.getContext().ret_type != expr->type)
-            sema.error(expr->pos, "return type mismatch");
+        // if (!sema.getContext().ret_type)
+        //     sema.error(expr->pos, "function does not return a value");
+        // else if (sema.getContext().ret_type != expr->type)
+        //     sema.error(expr->pos, "return type mismatch");
     } else {
-        if (sema.getContext().ret_type)
-            sema.error(pos, "a return a value should be specified for this function");
+        // if (sema.getContext().ret_type)
+        //     sema.error(pos, "a return a value should be specified for this function");
     }
 
-    sema.getContext().seen_return = true;
+    // sema.getContext().seen_return = true;
 }
 
 void CompoundStmt::walk(Sema &sema) {
@@ -221,7 +221,7 @@ void CompoundStmt::walk(Sema &sema) {
         stmt->walk(sema);
 }
 
-void VarDecl::walk(Sema &sema) {
+void VarDeclNode::walk(Sema &sema) {
     Type *type = nullptr;
 
     // type inferrence
@@ -243,18 +243,18 @@ void VarDecl::walk(Sema &sema) {
         return;
 }
 
-void StructDecl::walk(Sema &sema) {
+void StructDeclNode::walk(Sema &sema) {
     for (auto &m : members)
         m->walk(sema);
 }
 
-void FuncDecl::walk(Sema &sema) {
+void FuncDeclNode::walk(Sema &sema) {
     sema.scope_open();
 
     if (ret_type_expr) {
         ret_type_expr->walk(sema);
         assert(ret_type_expr->type);
-        sema.getContext().ret_type = ret_type_expr->type;
+        // sema.getContext().ret_type = ret_type_expr->type;
     }
 
     for (auto &p : params)
@@ -262,8 +262,8 @@ void FuncDecl::walk(Sema &sema) {
 
     body->walk(sema);
 
-    if (ret_type_expr && !sema.getContext().seen_return)
-        sema.error(pos, "no return statement found for function");
+    // if (ret_type_expr && !sema.getContext().seen_return)
+    //     sema.error(pos, "no return statement found for function");
 
     sema.scope_close();
 }
@@ -371,13 +371,11 @@ Sema::Sema(Parser &p) : Sema(p.lexer.source(), p.names) {
 void Sema::scope_open() {
     decl_table.scopeOpen();
     type_table.scopeOpen();
-    context_table.push_back(Context{});
 }
 
 void Sema::scope_close() {
     decl_table.scopeClose();
     type_table.scopeClose();
-    context_table.pop_back();
 }
 
 void Sema::report() const {

@@ -90,7 +90,7 @@ struct Sema {
     NameTable &names;                    // name table
     ScopedTable<Decl> decl_table; // declaration table
     ScopedTable<Type> type_table;        // type table
-    std::vector<Context> context_table;  // semantic analysis context table
+    Context context;
     std::vector<Error> errors;           // error list
     std::vector<Error> beacons;          // error beacon list
     Type *int_type = nullptr;
@@ -103,7 +103,6 @@ struct Sema {
     void error(size_t pos, const std::string &msg);
     void scope_open();
     void scope_close();
-    Context &getContext() { return context_table.back(); }
     void report() const;
     bool verify() const;
 };
