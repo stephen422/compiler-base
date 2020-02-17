@@ -80,7 +80,7 @@ void VarDeclNode::print() const {
     }
 
     if (assign_expr) {
-        out() << "[AssignExpr]\n";
+        out() << "'='\n";
         PrintScope start;
         assign_expr->print();
     }
@@ -115,14 +115,14 @@ void BinaryExpr::print() const {
 void UnaryExpr::print() const {
     out() << "[UnaryExpr] ";
 
-    switch (unary_kind) {
-    case Deref: {
+    switch (kind) {
+    case AstKind::deref_expr: {
         std::cout << "Deref\n";
         PrintScope start;
         operand->print();
         break;
     }
-    case Address: {
+    case AstKind::address_expr: {
         std::cout << "Address\n";
         PrintScope start;
         operand->print();
@@ -174,8 +174,8 @@ void ParenExpr::print() const {
 void MemberExpr::print() const {
     out() << "[MemberExpr]" << std::endl;
     PrintScope start;
-    expr->print();
-    out() << "." << member_name->text << std::endl;
+    struct_expr->print();
+    out() << "'.' " << member_name->text << std::endl;
 }
 
 void TypeExpr::print() const {

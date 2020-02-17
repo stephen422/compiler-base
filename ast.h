@@ -24,11 +24,18 @@ enum class AstKind {
     member_decl,
     func_decl,
     bad_decl,
-    literal_expr,
-    integer_literal,
     ref_expr,
     type_expr,
     unary_expr,
+    integer_literal,
+    string_literal,
+    decl_ref_expr,
+    func_call_expr,
+    paren_expr,
+    address_expr,
+    deref_expr,
+    plus_expr, // TODO
+    minus_expr, // TODO
     binary_expr,
     member_expr,
     bad_expr,
@@ -189,21 +196,10 @@ struct Expr : public AstNode {
 };
 
 struct UnaryExpr : public Expr {
-    enum UnaryKind {
-        Literal,
-        DeclRef,
-        FuncCall,
-        Paren,
-        Address,
-        Deref,
-        // TODO:
-        Plus,
-        Minus,
-    } unary_kind;
     Expr *operand;
 
-    UnaryExpr(UnaryKind k, Expr *oper)
-        : Expr(AstKind::unary_expr), unary_kind(k), operand(std::move(oper)) {}
+    UnaryExpr(AstKind k, Expr *oper)
+        : Expr(k), operand(std::move(oper)) {}
     void print() const override;
     void walk(Sema &sema) override;
 };
@@ -211,7 +207,8 @@ struct UnaryExpr : public Expr {
 struct IntegerLiteral : public UnaryExpr {
     int64_t value;
 
-    IntegerLiteral(int64_t v) : UnaryExpr(Literal, nullptr), value(v) {}
+    IntegerLiteral(int64_t v)
+        : UnaryExpr(AstKind::integer_literal, nullptr), value(v) {}
     void print() const override;
     void walk(Sema &sema) override;
 };
@@ -219,7 +216,8 @@ struct IntegerLiteral : public UnaryExpr {
 struct StringLiteral : public UnaryExpr {
     const std::string_view value;
 
-    StringLiteral(std::string_view sv) : UnaryExpr(Literal, nullptr), value(sv) {}
+    StringLiteral(std::string_view sv)
+        : UnaryExpr(AstKind::string_literal, nullptr), value(sv) {}
     void print() const override;
     void walk(Sema &sema) override;
 };
@@ -230,7 +228,8 @@ struct DeclRefExpr : public UnaryExpr {
     Name *name = nullptr;
     Decl *decl = nullptr;
 
-    DeclRefExpr(Name *name) : UnaryExpr(DeclRef, nullptr), name(name) {}
+    DeclRefExpr(Name *name)
+        : UnaryExpr(AstKind::decl_ref_expr, nullptr), name(name) {}
     void print() const override;
     void walk(Sema &sema) override;
     void nameBindPost(Sema &sema) override;
@@ -241,7 +240,8 @@ struct FuncCallExpr : public UnaryExpr {
     std::vector<Expr *> args;
 
     FuncCallExpr(Name *name, const std::vector<Expr *> &args)
-        : UnaryExpr(FuncCall, nullptr), func_name(name), args(args) {}
+        : UnaryExpr(AstKind::func_call_expr, nullptr), func_name(name),
+          args(args) {}
     void print() const override;
     void walk(Sema &sema) override;
 };
@@ -252,16 +252,16 @@ struct ParenExpr : public UnaryExpr {
     Decl *decl = nullptr;
 
     ParenExpr(Expr *inside_expr)
-        : UnaryExpr(Paren, inside_expr) {}
+        : UnaryExpr(AstKind::paren_expr, inside_expr) {}
     void print() const override;
 };
 
 struct MemberExpr : public Expr {
-    Expr *expr = nullptr;
+    Expr *struct_expr = nullptr;
     Name *member_name = nullptr;
 
     MemberExpr(Expr *e, Name *m)
-        : Expr(AstKind::member_expr), expr(e), member_name(m) {}
+        : Expr(AstKind::member_expr), struct_expr(e), member_name(m) {}
     void print() const override;
     void nameBindPost(Sema &sema) override;
 };

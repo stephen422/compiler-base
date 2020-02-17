@@ -12,6 +12,8 @@ fn main() {
     let car: Car
     a = "hi"
     car.a = 5
+    (car).a = 5
+    (3 + 4).a = 5
 
     *a // [error: "dereference"] // TODO: report 'int'
 }

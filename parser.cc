@@ -419,12 +419,12 @@ Expr *Parser::parseUnaryExpr() {
     case TokenKind::star: {
         next();
         auto expr = parseUnaryExpr();
-        return makeNodeWithPos<UnaryExpr>(pos, UnaryExpr::Deref, expr);
+        return makeNodeWithPos<UnaryExpr>(pos, AstKind::deref_expr, expr);
     }
     case TokenKind::ampersand: {
         next();
         auto expr = parseUnaryExpr();
-        return makeNodeWithPos<UnaryExpr>(pos, UnaryExpr::Address, expr);
+        return makeNodeWithPos<UnaryExpr>(pos, AstKind::address_expr, expr);
     }
     case TokenKind::lparen: {
         expect(TokenKind::lparen);

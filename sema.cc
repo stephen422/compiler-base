@@ -103,15 +103,15 @@ void walkAST(Sema &sema, AstNode *node,
     }
     case AstKind::unary_expr: {
         // TODO: proper UnaryKind subtypes
-        auto unary = static_cast<UnaryExpr *>(node);
-        if (unary->unary_kind == UnaryExpr::FuncCall)
-            for (auto arg : static_cast<FuncCallExpr *>(node)->args)
-                walkAST(sema, arg, pre_fn, post_fn);
         if (static_cast<UnaryExpr *>(node)->operand)
             walkAST(sema, static_cast<UnaryExpr *>(node)->operand, pre_fn,
                     post_fn);
         break;
     }
+    case AstKind::func_call_expr:
+        for (auto arg : static_cast<FuncCallExpr *>(node)->args)
+            walkAST(sema, arg, pre_fn, post_fn);
+        break;
     case AstKind::type_expr: {
         auto type_expr = static_cast<TypeExpr *>(node);
         if (type_expr->subexpr)
@@ -190,8 +190,21 @@ void DeclRefExpr::nameBindPost(Sema &sema) {
     }
 }
 
+static bool isMemberAccessible(Expr *expr) {
+    if (expr->kind == AstKind::paren_expr) {
+        return isMemberAccessible(static_cast<ParenExpr *>(expr)->operand);
+    }
+    return expr->kind == AstKind::decl_ref_expr ||
+           expr->kind == AstKind::member_expr;
+}
 void MemberExpr::nameBindPost(Sema &sema) {
-    assert(expr->kind == AstKind::unary_expr);
+    // Here we check if the operand expression was member-accessible, e.g.
+    // error on '(a + b).m'.
+    if (!isMemberAccessible(struct_expr)) {
+        // TODO: ParenExpr
+        sema.error(pos, fmt::format("cannot member access type 'TODO({})'",
+                                    struct_expr->kind));
+    }
 }
 
 void TypeExpr::nameBindPost(Sema &sema) {
@@ -299,21 +312,21 @@ void FuncDeclNode::walk(Sema &sema) {
 void UnaryExpr::walk(Sema &sema) {
     // DeclRefs and Literals have their own walk(), so no need to handle
     // them in this switch.
-    switch (unary_kind) {
-    case Paren:
+    switch (kind) {
+    case AstKind::paren_expr:
         operand->walk(sema);
         type = operand->type;
         break;
-    case Deref:
+    case AstKind::deref_expr:
         operand->walk(sema);
         if (operand->type->kind != Type::Kind::ref)
             sema.error(pos, "cannot dereference a non-reference");
         type = operand->type->target_type;
         break;
-    case Address:
+    case AstKind::address_expr:
         operand->walk(sema);
         assert(operand->kind == AstKind::unary_expr);
-        if (static_cast<UnaryExpr *>(operand)->unary_kind != DeclRef) {
+        if (operand->kind != AstKind::deref_expr) {
             // TODO: LValue & RValue
             sema.error(pos,
                        "cannot take address of a non-variable (TODO: rvalue)");
