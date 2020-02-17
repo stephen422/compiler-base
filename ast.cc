@@ -160,8 +160,8 @@ void DeclRefExpr::print() const {
 void FuncCallExpr::print() const {
     out() << "[FuncCallExpr] "
           << "((Name *)";
-    printf("0x..%04x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(name)));
-    std::cout << ") " << name->text;
+    printf("0x..%04x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(func_name)));
+    std::cout << ") " << func_name->text;
     if (type)
         std::cout << " '" << type->name->text << "'";
     std::cout << std::endl;
@@ -169,6 +169,10 @@ void FuncCallExpr::print() const {
     PrintScope start;
     for (auto &arg : args)
         arg->print();
+}
+
+void MemberExpr::print() const {
+    out() << "[MemberExpr] not yet implemented";
 }
 
 void TypeExpr::print() const {

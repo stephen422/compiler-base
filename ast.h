@@ -30,6 +30,7 @@ enum class AstKind {
     type_expr,
     unary_expr,
     binary_expr,
+    member_expr,
     bad_expr,
     error_beacon,
 };
@@ -236,13 +237,22 @@ struct DeclRefExpr : public UnaryExpr {
 };
 
 struct FuncCallExpr : public UnaryExpr {
-    Name *name = nullptr;
+    Name *func_name = nullptr;
     std::vector<Expr *> args;
 
     FuncCallExpr(Name *name, const std::vector<Expr *> &args)
-        : UnaryExpr(FuncCall, nullptr), name(name), args(args) {}
+        : UnaryExpr(FuncCall, nullptr), func_name(name), args(args) {}
     void print() const override;
     void walk(Sema &sema) override;
+};
+
+struct MemberExpr : public Expr {
+    Expr *expr = nullptr;
+    Name *member_name = nullptr;
+
+    MemberExpr(Expr *e, Name *m)
+        : Expr(AstKind::member_expr), expr(e), member_name(m) {}
+    void print() const override;
 };
 
 // XXX: can I call this an expression?

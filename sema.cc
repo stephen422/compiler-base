@@ -148,6 +148,7 @@ void VarDeclNode::nameBindPost(Sema &sema) {
         auto decl = makeDecl(sema, VarDecl{name});
         sema.decl_table.insert({name, decl});
         var_decl = declCast<VarDecl>(decl);
+
         if (is_member) {
             assert(sema.context.struct_decl_stack.size() >= 1);
             auto current_struct = sema.context.struct_decl_stack.back();
@@ -157,8 +158,8 @@ void VarDeclNode::nameBindPost(Sema &sema) {
 }
 
 void StructDeclNode::nameBindPre(Sema &sema) {
-    // Don't check for redefinition, just discard everything if it turns out to
-    // be so in post.
+    // Don't check for redefinition here, just discard everything if it turns
+    // out to be so in post.
     auto decl = makeDecl(sema, StructDecl{name});
     struct_decl = declCast<StructDecl>(decl);
     // Decl table is going to be used for checking redefinition.

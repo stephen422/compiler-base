@@ -111,7 +111,8 @@ private:
     UnaryExpr *parseLiteralExpr();
     Expr *parseFuncCallOrDeclRefExpr();
     Expr *parseTypeExpr();
-    Expr *parseBinaryExprRhs(Expr *lhs, int precedence = 0);
+    Expr *parseBinaryExprRhs(Expr *lhs, int precedence);
+    Expr *parseMemberExprMaybe(Expr *expr);
     bool isStartOfTypeExpr() const;
 
     std::vector<Error> parseErrorBeacon();

@@ -411,8 +411,11 @@ Expr *Parser::parseUnaryExpr() {
     case TokenKind::number:
     case TokenKind::string:
         return parseLiteralExpr();
-    case TokenKind::ident:
-        return parseFuncCallOrDeclRefExpr();
+    case TokenKind::ident: {
+        // TODO: do proper op precedence parsing
+        auto expr = parseFuncCallOrDeclRefExpr();
+        return parseMemberExprMaybe(expr);
+    }
     case TokenKind::star: {
         next();
         auto expr = parseUnaryExpr();
@@ -429,6 +432,7 @@ Expr *Parser::parseUnaryExpr() {
         expect(TokenKind::rparen);
         return makeNodeWithPos<UnaryExpr>(pos, UnaryExpr::Paren, expr);
     }
+    // TODO: prefix (++), postfix, sign (+/-)
     default:
         // Because all expressions start with a unary expression, failing here
         // means no other expression could be matched either, so just do a
@@ -438,7 +442,7 @@ Expr *Parser::parseUnaryExpr() {
     }
 }
 
-static int op_precedence(const Token &op) {
+static int binary_op_precedence(const Token &op) {
     switch (op.kind) {
     case TokenKind::star:
     case TokenKind::slash:
@@ -447,19 +451,21 @@ static int op_precedence(const Token &op) {
     case TokenKind::minus:
         return 0;
     default:
-        // Not an operator
+        // not an operator
         return -1;
     }
 }
 
 // Extend a unary expression into binary if possible, by parsing any attached
-// RHS.  Returns result that owns the node of the newly constructed binary
-// expression.
-Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence) {
+// RHS. There may be more than one terms in the RHS, all of which is consumed
+// by this function. The parsing goes on as long as operators with higher than
+// or equal to 'precedence' are seen. Giving this parameter 0 means to parse
+// the whole chain of binary expressions.
+Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence = 0) {
     Expr *root = lhs;
 
     while (true) {
-        int this_prec = op_precedence(tok);
+        int this_prec = binary_op_precedence(tok);
 
         // If the upcoming op has lower precedence, finish this subexpression.
         // It will be treated as a single term when this function is re-called
@@ -477,7 +483,7 @@ Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence) {
         // We do not know if this term should associate to left or right;
         // e.g. "(a * b) + c" or "a + (b * c)".  We should look ahead for the
         // next operator that follows this term.
-        int next_prec = op_precedence(tok);
+        int next_prec = binary_op_precedence(tok);
 
         // If the next operator has higher precedence ("a + b * c"), evaluate
         // the RHS as a single subexpression with elevated minimum precedence.
@@ -494,11 +500,30 @@ Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence) {
     return root;
 }
 
+// If this expression is a member expression with a dot (.) operator, parse as
+// such. If not, just pass along the original expression. This function is
+// called after the operand expression part is fully parsed.
+Expr *Parser::parseMemberExprMaybe(Expr *expr) {
+    Expr *result = expr;
+
+    while (tok.kind == TokenKind::dot) {
+        expect(TokenKind::dot);
+
+        Name *member_name = names.get_or_add(std::string{tok.text});
+        next();
+
+        result = makeNodeWithPos<MemberExpr>(result->pos, result, member_name);
+    }
+
+    return result;
+}
+
 Expr *Parser::parseExpr() {
     auto unary = parseUnaryExpr();
     if (!unary)
-        return unary;
-    return parseBinaryExprRhs(unary);
+        return nullptr;
+    auto binary = parseBinaryExprRhs(unary);
+    return parseMemberExprMaybe(binary);
 }
 
 std::vector<Error> Parser::parseErrorBeacon() {
