@@ -116,12 +116,6 @@ void UnaryExpr::print() const {
     out() << "[UnaryExpr] ";
 
     switch (unary_kind) {
-    case Paren: {
-        std::cout << "Paren\n";
-        PrintScope start;
-        operand->print();
-        break;
-    }
     case Deref: {
         std::cout << "Deref\n";
         PrintScope start;
@@ -149,8 +143,8 @@ void StringLiteral::print() const {
 }
 
 void DeclRefExpr::print() const {
-    out() << "[DeclRefExpr] " << "((Name *)";
-    printf("0x..%04x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(name)));
+    out() << "[DeclRefExpr] " << "(Name:";
+    printf("%04x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(name)));
     std::cout << ") "<< name->text;
     if (type)
         std::cout << " '" << type->name->text << "'";
@@ -159,8 +153,8 @@ void DeclRefExpr::print() const {
 
 void FuncCallExpr::print() const {
     out() << "[FuncCallExpr] "
-          << "((Name *)";
-    printf("0x..%04x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(func_name)));
+          << "(Name:";
+    printf("%04x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(func_name)));
     std::cout << ") " << func_name->text;
     if (type)
         std::cout << " '" << type->name->text << "'";
@@ -169,6 +163,12 @@ void FuncCallExpr::print() const {
     PrintScope start;
     for (auto &arg : args)
         arg->print();
+}
+
+void ParenExpr::print() const {
+    out() << "[ParenExpr]" << std::endl;
+    PrintScope start;
+    operand->print();
 }
 
 void MemberExpr::print() const {

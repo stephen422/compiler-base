@@ -246,6 +246,16 @@ struct FuncCallExpr : public UnaryExpr {
     void walk(Sema &sema) override;
 };
 
+struct ParenExpr : public UnaryExpr {
+    // Some unary expressions, such as Paren, can have an associated Decl (e.g.
+    // (a).m).  We thus have to carry a Decl* here.
+    Decl *decl = nullptr;
+
+    ParenExpr(Expr *inside_expr)
+        : UnaryExpr(Paren, inside_expr) {}
+    void print() const override;
+};
+
 struct MemberExpr : public Expr {
     Expr *expr = nullptr;
     Name *member_name = nullptr;
@@ -253,6 +263,7 @@ struct MemberExpr : public Expr {
     MemberExpr(Expr *e, Name *m)
         : Expr(AstKind::member_expr), expr(e), member_name(m) {}
     void print() const override;
+    void nameBindPost(Sema &sema) override;
 };
 
 // XXX: can I call this an expression?

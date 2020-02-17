@@ -190,6 +190,10 @@ void DeclRefExpr::nameBindPost(Sema &sema) {
     }
 }
 
+void MemberExpr::nameBindPost(Sema &sema) {
+    assert(expr->kind == AstKind::unary_expr);
+}
+
 void TypeExpr::nameBindPost(Sema &sema) {
     auto sym = sema.type_table.find(name);
     if (sym) {

@@ -428,9 +428,9 @@ Expr *Parser::parseUnaryExpr() {
     }
     case TokenKind::lparen: {
         expect(TokenKind::lparen);
-        auto expr = parseExpr();
+        auto inside_expr = parseExpr();
         expect(TokenKind::rparen);
-        return makeNodeWithPos<UnaryExpr>(pos, UnaryExpr::Paren, expr);
+        return makeNodeWithPos<ParenExpr>(pos, inside_expr);
     }
     // TODO: prefix (++), postfix, sign (+/-)
     default:
