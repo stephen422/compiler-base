@@ -172,7 +172,10 @@ void FuncCallExpr::print() const {
 }
 
 void MemberExpr::print() const {
-    out() << "[MemberExpr] not yet implemented";
+    out() << "[MemberExpr]" << std::endl;
+    PrintScope start;
+    expr->print();
+    out() << "." << member_name->text << std::endl;
 }
 
 void TypeExpr::print() const {
