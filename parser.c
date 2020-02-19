@@ -11,14 +11,15 @@
 #include <sys/types.h>
 
 static Node *parseExpr(Parser *p);
-static int isDeclStart(Parser *p);
-static Node *parseDecl(Parser *p);
+static int is_decl_start(Parser *p);
+static Node *parse_decl(Parser *p);
 
 static Name *push_name_from_token(Parser *p, Token tok)
 {
 	return push_name(&p->nametable, p->lexer.src + tok.range.start, tok.range.end - tok.range.start);
 }
 
+// FIXME: 'tok' is not really being used.
 static Node *makeNode(Parser *p, NodeKind k, Token tok)
 {
     // TODO: maybe store all nodes in a contiguous buffer for better locality?
@@ -44,27 +45,27 @@ static Node *makeFile(Parser *p, Node **nodes)
 static Node *makeExprStmt(Parser *p, Node *expr)
 {
 	Node *node = makeNode(p, ND_EXPRSTMT, p->tok);
-	node->expr = expr;
+	node->s.stmt_expr = expr;
 	return node;
 }
 
 static Node *makeDecl_stmt(Parser *p, Node *decl) {
 	Node *node = makeNode(p, ND_DECLSTMT, p->tok);
-	node->decl = decl;
+	node->s.decl = decl;
 	return node;
 }
 
 static Node *makeAssignStmt(Parser *p, Node *lhs, Node *rhs)
 {
 	Node *node = makeNode(p, ND_ASSIGNSTMT, p->tok);
-	node->lhs = lhs;
-	node->rhs = rhs;
+	node->e.lhs = lhs;
+	node->e.rhs = rhs;
 	return node;
 }
 
 static Node *makeRetstmt(Parser *p, Node *expr) {
 	Node *node = makeNode(p, ND_RETURNSTMT, p->tok);
-	node->expr = expr;
+	node->s.stmt_expr = expr;
 	return node;
 }
 
@@ -77,63 +78,63 @@ static Node *makeCompoundstmt(Parser *p)
 static Node *makeUnaryexpr(Parser *p, NodeKind t, Node *expr)
 {
 	Node *node = makeNode(p, t, p->tok);
-	node->expr = expr;
+	node->e.target = expr;
 	return node;
 }
 
-static Node *makeBinexpr(Parser *p, Node *lhs, Node *op, Node *rhs)
+static Node *make_binexpr(Parser *p, Node *lhs, Token op, Node *rhs)
 {
 	Node *node = makeNode(p, ND_BINEXPR, p->tok);
-	node->lhs = lhs;
-	node->op = op;
-	node->rhs = rhs;
+	node->e.lhs = lhs;
+	node->e.op = op;
+	node->e.rhs = rhs;
 	return node;
 }
 
-static Node *makeTypeExpr(Parser *p, Name *name, int ref, Node *canon)
+static Node *makeTypeExpr(Parser *p, Name *name, int ref, Node *base)
 {
 	Node *node = makeNode(p, ND_TYPEEXPR, p->tok);
-	node->name = name;
-	node->ref = ref;
-	node->typeexpr = canon;
+	node->t.name = name;
+	node->t.ref = ref;
+	node->t.base = base;
 	return node;
 }
 
-static Node *makeBadTypeExpr(Parser *p)
+static Node *make_badtypeexpr(Parser *p)
 {
 	Node *node = makeNode(p, ND_BADTYPEEXPR, p->tok);
 	return node;
 }
 
-static Node *makeIdexpr(Parser *p, Name *name)
+static Node *make_idexpr(Parser *p, Name *name)
 {
 	Node *node = makeNode(p, ND_IDEXPR, p->tok);
-	node->name = name;
+	node->e.name = name;
 	return node;
 }
 
-static Node *makeVarDecl(Parser *p, Node *typeexpr, int mutable, Name *name, Node *expr)
+static Node *make_vardecl(Parser *p, Node *typeexpr, int mutable, Name *name, Node *expr)
 {
 	Node *node = makeNode(p, ND_VARDECL, p->tok);
-	node->typeexpr = typeexpr;
-	node->mutable = mutable;
-	node->name = name;
-	node->expr = expr;
+	node->d.typeexpr = typeexpr;
+	node->d.mutable = mutable;
+	node->d.name = name;
+	node->d.expr = expr;
 	return node;
 }
 
-static Node *makeParamdecl(Parser *p, Name *name, Node *typeexpr)
+static Node *make_paramdecl(Parser *p, Name *name, Node *typeexpr)
 {
 	Node *node = makeNode(p, ND_PARAMDECL, p->tok);
-	node->name = name;
-	node->typeexpr = typeexpr;
+	node->d.name = name;
+	node->d.typeexpr = typeexpr;
 	return node;
 }
 
-static Node *makeFuncdecl(Parser *p, Name *name)
+static Node *make_funcdecl(Parser *p, Name *name)
 {
 	Node *node = makeNode(p, ND_FUNCDECL, p->tok);
-	node->name = name;
+	node->d.name = name;
 	return node;
 }
 
@@ -149,7 +150,7 @@ static void iprintf(int indent, const char *fmt, ...) {
 // Print current parsing position. Mainly used for debugging.
 static void printLocation(Parser *p)
 {
-    sds s = srcLocString(locate(&p->lexer, p->tok.range.start));
+    sds s = srcLocString(lexer_locate(&p->lexer, p->tok.range.start));
     printf("loc: %s\n", s);
     sdsfree(s);
 }
@@ -177,26 +178,26 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
 	case ND_DECLSTMT:
 		printf("[DeclStmt]\n");
 		indent += 2;
-		print_ast_indent(p, node->decl, indent);
+		print_ast_indent(p, node->s.decl, indent);
 		indent -= 2;
 		break;
 	case ND_EXPRSTMT:
 		printf("[ExprStmt]\n");
 		indent += 2;
-		print_ast_indent(p, node->expr, indent);
+		print_ast_indent(p, node->s.stmt_expr, indent);
 		indent -= 2;
 		break;
 	case ND_ASSIGNSTMT:
 		printf("[AssignStmt]\n");
 		indent += 2;
-		print_ast_indent(p, node->lhs, indent);
-		print_ast_indent(p, node->rhs, indent);
+		print_ast_indent(p, node->e.lhs, indent);
+		print_ast_indent(p, node->e.rhs, indent);
 		indent -= 2;
 		break;
 	case ND_RETURNSTMT:
 		printf("[ReturnStmt]\n");
 		indent += 2;
-		print_ast_indent(p, node->expr, indent);
+		print_ast_indent(p, node->s.stmt_expr, indent);
 		indent -= 2;
 		break;
 	case ND_COMPOUNDSTMT:
@@ -208,7 +209,7 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
 		indent -= 2;
 		break;
 	case ND_IDEXPR:
-		printf("[IdExpr] '%s'\n", node->name->text);
+		printf("[IdExpr] '%s'\n", node->e.name->text);
 		break;
 	case ND_LITEXPR:
 		printf("[LiteralExpr] ");
@@ -227,36 +228,36 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
         case ND_REFEXPR:
 		printf("[RefExpr]\n");
 		indent += 2;
-		print_ast_indent(p, node->expr, indent);
+		print_ast_indent(p, node->e.target, indent);
 		indent -= 2;
                 break;
 	case ND_DEREFEXPR:
 		printf("[DerefExpr]\n");
 		indent += 2;
-		print_ast_indent(p, node->expr, indent);
+		print_ast_indent(p, node->e.target, indent);
 		indent -= 2;
 		break;
 	case ND_BINEXPR:
 		printf("[BinaryExpr]\n");
 		indent += 2;
-		print_ast_indent(p, node->lhs, indent);
-		print_ast_indent(p, node->op, indent);
-		print_ast_indent(p, node->rhs, indent);
+		print_ast_indent(p, node->e.lhs, indent);
+                tokenPrint(&p->lexer, node->e.op);
+		print_ast_indent(p, node->e.rhs, indent);
 		indent -= 2;
 		break;
 	case ND_VARDECL:
-		printf("[VarDecl] '%s' %s\n", node->name->text,
-			   node->typeexpr ? node->typeexpr->name->text : "(null)");
+		printf("[VarDecl] '%s' %s\n", node->d.name->text,
+			   node->d.typeexpr ? node->d.typeexpr->t.name->text : "(null)");
 		indent += 2;
-		iprintf(indent, "mutable: %d\n", node->mutable);
-		print_ast_indent(p, node->expr, indent);
+		iprintf(indent, "mutable: %d\n", node->d.mutable);
+		print_ast_indent(p, node->d.expr, indent);
 		indent -= 2;
 		break;
 	case ND_PARAMDECL:
-		printf("[ParamDecl] '%s'\n", node->name->text);
+		printf("[ParamDecl] '%s'\n", node->d.name->text);
 		break;
 	case ND_FUNCDECL:
-		printf("[FuncDecl] '%s'\n", node->name->text);
+		printf("[FuncDecl] '%s'\n", node->d.name->text);
 		indent += 2;
 		for (int i = 0; i < sb_count(node->paramdecls); i++) {
 			print_ast_indent(p, node->paramdecls[i], indent);
@@ -336,6 +337,11 @@ void parserCleanup(Parser *p)
 	nametable_cleanup(&p->nametable);
 }
 
+static SrcLoc locate(Parser *p)
+{
+    return lexer_locate(&p->lexer, p->tok.range.start);
+}
+
 // In the process, if an error beacon is found in the comment, add the error to
 // the parser error list so that it can be compared to the actual errors later
 // in the verifying phase.
@@ -354,14 +360,14 @@ static void next(Parser *p) {
                 parserCleanup(&p0);
 
                 // override loc
-                e.loc = locate(&p->lexer, p->tok.range.start);
+                e.loc = lexer_locate(&p->lexer, p->tok.range.start);
                 sb_push(p->beacons, e);
             }
             sdsfree(text);
         }
 
         // Push keywords that we come by into the name table.
-        if (isKeyword(p->tok))
+        if (is_keyword(p->tok))
             push_name_from_token(p, p->tok);
     }
 }
@@ -381,7 +387,7 @@ static void error(Parser *p, const char *fmt, ...)
 	vsnprintf(msg, sizeof(msg), fmt, args);
 	va_end(args);
 
-	SrcLoc loc = locate(&p->lexer, p->tok.range.start);
+	SrcLoc loc = lexer_locate(&p->lexer, p->tok.range.start);
 	addError(p, loc, msg);
 }
 
@@ -404,7 +410,7 @@ void parserReportErrors(const Parser *p) {
 
 // Emit general 'expected ..., got ...' message, with the 'expected' part
 // customized.
-static void errorExpected(Parser *p, const char *s) {
+static void error_expected(Parser *p, const char *s) {
     sds ts = tokenString(&p->lexer, p->tok);
     // if it's a comment, don't print the actual comment, as it can mess with
     // beacon regex matching.
@@ -417,7 +423,7 @@ static Token expect(Parser *p, TokenType t) {
     Token tok = p->tok;
     if (p->tok.type != t) {
         sds quoted = sdscatprintf(sdsempty(), "'%s'", token_names[t]);
-        errorExpected(p, quoted);
+        error_expected(p, quoted);
         sdsfree(quoted);
     }
     // make progress
@@ -469,14 +475,14 @@ static Node *parseReturnStmt(Parser *p) {
 
     Node *expr = parseExpr(p);
     if (!expr)
-        errorExpected(p, "expression");
+        error_expected(p, "expression");
 
     expectEndOfLine(p);
 
     return makeRetstmt(p, expr);
 }
 
-static Node *parse_stmt(Parser *p)
+static Node *parseStmt(Parser *p)
 {
     Node *stmt;
 
@@ -494,8 +500,8 @@ static Node *parse_stmt(Parser *p)
         break;
     }
 
-    if (isDeclStart(p)) {
-        Node *decl = parseDecl(p);
+    if (is_decl_start(p)) {
+        Node *decl = parse_decl(p);
         stmt = makeDecl_stmt(p, decl);
         expectEndOfLine(p);
         return stmt;
@@ -517,7 +523,7 @@ static Node *parseCompoundStmt(Parser *p)
 
     Node *compound = makeCompoundstmt(p);
     Node *stmt;
-    while ((stmt = parse_stmt(p)) != NULL)
+    while ((stmt = parseStmt(p)) != NULL)
         sb_push(compound->nodes, stmt);
 
     expect(p, TOK_RBRACE);
@@ -532,7 +538,7 @@ static Node *parse_litexpr(Parser *p)
 	return expr;
 }
 
-static int isTypeName(Token tok)
+static int is_typename(Token tok)
 {
     switch (tok.type) {
     case TOK_INT:
@@ -543,40 +549,48 @@ static int isTypeName(Token tok)
     }
 }
 
-static Node *parseTypeExpr(Parser *p) {
-    Node *subexpr;
+static Node *parse_typeexpr(Parser *p) {
+    Node *subtype;
     Name *name;
     int ref;
 
     if (p->tok.type == TOK_STAR) {
         next(p);
         ref = 1;
-        subexpr = parseTypeExpr(p);
-        name = push_refname(&p->nametable, subexpr->name);
+
+        subtype = parse_typeexpr(p);
+        if (subtype->kind == ND_BADTYPEEXPR)
+            return subtype;
+        printf("subtype kind=%d\n", subtype->kind);
+
+        assert(subtype->t.name);
+        name = push_refname(&p->nametable, subtype->t.name);
     } else {
         ref = 0;
-        subexpr = NULL;
+        subtype = NULL;
 
-        if (p->tok.type != TOK_IDENT && !isKeyword(p->tok)) {
-            errorExpected(p, "type name");
-        } else if (!isTypeName(p->tok)) {
+        if (p->tok.type != TOK_IDENT && !is_keyword(p->tok)) {
+            error_expected(p, "type name");
+            return make_badtypeexpr(p);
+        } else if (!is_typename(p->tok)) {
             sds ts = tokenString(&p->lexer, p->tok);
             error(p, "invalid type name '%s'", ts);
             sdsfree(ts);
+            return make_badtypeexpr(p);
         }
 
         name = push_name_from_token(p, p->tok);
         next(p);
     }
 
-    return makeTypeExpr(p, name, ref, subexpr);
+    return makeTypeExpr(p, name, ref, subtype);
 }
 
 static Node *parse_idexpr(Parser *p)
 {
 	Name *name = push_name_from_token(p, p->tok);
 	next(p);
-	return makeIdexpr(p, name);
+	return make_idexpr(p, name);
 }
 
 static Node *parseUnaryExpr(Parser *p) {
@@ -642,7 +656,7 @@ static Node *parse_binexpr_rhs(Parser *p, Node *lhs, int precedence) {
         if (this_prec < precedence)
             break;
 
-        Node *op = makeNode(p, ND_TOKEN, p->tok);
+        Token op = p->tok;
         next(p);
 
         // Parse the next term.  We do not know yet if this term should bind to
@@ -662,9 +676,15 @@ static Node *parse_binexpr_rhs(Parser *p, Node *lhs, int precedence) {
         // This implies left associativity.
         if (this_prec < next_prec)
             rhs = parse_binexpr_rhs(p, rhs, precedence + 1);
-        lhs = makeBinexpr(p, lhs, op, rhs);
+        lhs = make_binexpr(p, lhs, op, rhs);
     }
     return lhs;
+}
+
+// Parse a function call expression.
+static Node *parseFuncCallExpr(Parser *p) {
+    // TODO
+    return NULL;
 }
 
 // Parse an expression.
@@ -694,9 +714,9 @@ static Node *parse_paramdecl(Parser *p)
     if (p->tok.type != TOK_COLON)
         expect(p, TOK_COLON);
     next(p);
-    Node *typeexpr = parseTypeExpr(p);
+    Node *typeexpr = parse_typeexpr(p);
 
-    return makeParamdecl(p, name, typeexpr);
+    return make_paramdecl(p, name, typeexpr);
 }
 
 static Node **parse_paramdecllist(Parser *p)
@@ -714,7 +734,7 @@ static Node **parse_paramdecllist(Parser *p)
     return list;
 }
 
-static Node *parseVarDecl(Parser *p)
+static Node *parse_vardecl(Parser *p)
 {
     int mut = (p->tok.type == TOK_VAR);
     next(p);
@@ -726,22 +746,22 @@ static Node *parseVarDecl(Parser *p)
         next(p);
         if (!mut)
             error(p, "initial value required");
-        Node *typeexpr = parseTypeExpr(p);
-        return makeVarDecl(p, typeexpr, mut, name, NULL);
+        Node *typeexpr = parse_typeexpr(p);
+        return make_vardecl(p, typeexpr, mut, name, NULL);
     } else if (p->tok.type == TOK_EQUALS) {
         next(p);
         Node *assign = parseExpr(p);
-        return makeVarDecl(p, NULL, mut, name, assign);
+        return make_vardecl(p, NULL, mut, name, assign);
     } else {
-        errorExpected(p, "':' or '='");
+        error_expected(p, "':' or '='");
         skipToEndOfLine(p);
-        Node *typeexpr = makeBadTypeExpr(p);
-        return makeVarDecl(p, typeexpr, mut, name, NULL);
+        Node *typeexpr = make_badtypeexpr(p);
+        return make_vardecl(p, typeexpr, mut, name, NULL);
     }
 }
 
 // Declarations have clear indicator tokens.
-static int isDeclStart(Parser *p) {
+static int is_decl_start(Parser *p) {
     switch (p->tok.type) {
     case TOK_LET:
     case TOK_VAR:
@@ -756,21 +776,21 @@ static int isDeclStart(Parser *p) {
 // Decl:
 //	 VarDecl
 //	 FuncDecl
-static Node *parseDecl(Parser *p)
+static Node *parse_decl(Parser *p)
 {
-	Node *decl;
+    Node *decl;
 
-	switch (p->tok.type) {
-	case TOK_LET:
-	case TOK_VAR:
-		decl = parseVarDecl(p);
-		break;
-	default:
-		error(p, "not a start of declaration");
-		decl = NULL;
-		break;
-	}
-	return decl;
+    switch (p->tok.type) {
+    case TOK_LET:
+    case TOK_VAR:
+        decl = parse_vardecl(p);
+        break;
+    default:
+        error(p, "not a start of declaration");
+        decl = NULL;
+        break;
+    }
+    return decl;
 }
 
 static Node *parseFuncDecl(Parser *p)
@@ -778,7 +798,7 @@ static Node *parseFuncDecl(Parser *p)
     expect(p, TOK_FN);
 
     Name *name = push_name_from_token(p, p->tok);
-    Node *func = makeFuncdecl(p, name);
+    Node *func = make_funcdecl(p, name);
     next(p);
 
     // parameter list
@@ -789,7 +809,7 @@ static Node *parseFuncDecl(Parser *p)
     // return type
     if (p->tok.type == TOK_ARROW) {
         expect(p, TOK_ARROW);
-        func->rettypeexpr = parseTypeExpr(p);
+        func->rettypeexpr = parse_typeexpr(p);
     } else {
         func->rettypeexpr = NULL;
     }

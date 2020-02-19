@@ -84,7 +84,7 @@ struct token_map keywords[] = {
 	{NULL, 0}
 };
 
-int isKeyword(Token tok) {
+int is_keyword(Token tok) {
     return TOK_KEYWORDS < tok.type && tok.type < TOK_ERR;
 }
 
@@ -296,7 +296,7 @@ int lexerNext(Lexer *l) {
 }
 
 // FIXME: lifetime of 'filename'?
-SrcLoc locate(Lexer *l, size_t pos)
+SrcLoc lexer_locate(Lexer *l, size_t pos)
 {
     // search linearly for line that contains this position
     // TODO: performance
@@ -326,14 +326,14 @@ sds tokenString(Lexer *lex, const Token tok) {
     return s;
 }
 
-void tokenPrint(Lexer *lex, const Token tok) {
+void tokenPrint(Lexer *l, const Token tok) {
     switch (tok.type) {
     case TOK_IDENT:
     case TOK_COMMENT:
     case TOK_NUM:
     case TOK_STRING:
         printf("'%.*s'\n", (int)(tok.range.end - tok.range.start),
-               lex->src + tok.range.start);
+               l->src + tok.range.start);
         break;
     case TOK_ERR:
         printf("error\n");

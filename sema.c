@@ -101,24 +101,20 @@ Name *get_name(NameTable *nt, const char *s, size_t len)
     return NULL;
 }
 
-static Type *makeType(Name *name, enum TypeKind kind, Type *canon_type)
+static Type *make_type(Name *name, enum TypeKind kind, Type *canon_type)
 {
     Type *type = calloc(1, sizeof(Type));
-
     type->kind = kind;
     type->name = name;
     type->canon_type = canon_type;
-
     return type;
 }
 
-static Decl *makeDecl(Name *name, Type *type)
+static Decl *make_decl(Name *name, Type *type)
 {
     Decl *decl = calloc(1, sizeof(Decl));
-
     decl->name = name;
     decl->type = type;
-
     return decl;
 }
 
@@ -141,7 +137,7 @@ static uint64_t ptrhash(const void *p) {
     return x;
 }
 
-static Symbol *makeSymbol(Name *name, int scope, void *value) {
+static Symbol *make_sym(Name *name, int scope, void *value) {
     Symbol *s;
 
     s = calloc(1, sizeof(Symbol));
@@ -197,7 +193,7 @@ static Symbol *map_push_at_scope(Map *m, Name *name, void *value, int scope)
     }
 
     i = ptrhash(name) % HASHTABLE_SIZE;
-    s = makeSymbol(name, scope, value);
+    s = make_sym(name, scope, value);
 
     /* insert into the bucket */
     p = &m->buckets[i];
@@ -303,7 +299,7 @@ static Type *reftype(Context *c, Type *type) {
         return try->value;
     }
 
-    Type *reftype = makeType(refname, T_REF, type);
+    Type *reftype = make_type(refname, T_REF, type);
     return map_push_at_scope(&c->typemap, refname, reftype, scope)->value;
 }
 
@@ -327,8 +323,8 @@ static void walk(Context *c, Node *node)
     case ND_FUNCDECL: {
         // Function declaration
         // TODO: type is NULL for now
-        Decl *funcdecl = makeDecl(node->name, NULL);
-        map_push(&c->declmap, node->name, funcdecl);
+        Decl *funcdecl = make_decl(node->d.name, NULL);
+        map_push(&c->declmap, node->d.name, funcdecl);
 
         push_scope(c);
 
@@ -345,7 +341,7 @@ static void walk(Context *c, Node *node)
         Name *retname = push_name(c->nt, retid, strlen(retid));
         if (node->rettypeexpr) {
             assert(node->rettypeexpr->type);
-            Type *rettype = makeType(retname, T_ALIAS, node->rettypeexpr->type);
+            Type *rettype = make_type(retname, T_ALIAS, node->rettypeexpr->type);
             map_push(&c->typemap, retname, rettype);
         }
 
@@ -363,27 +359,27 @@ static void walk(Context *c, Node *node)
         break;
     }
     case ND_TYPEEXPR:
-        if (node->typeexpr) {
-            walk(c, node->typeexpr);
-            if (node->ref) {
-                node->type = reftype(c, node->typeexpr->type);
+        if (node->d.typeexpr) {
+            walk(c, node->d.typeexpr);
+            if (node->d.ref) {
+                node->type = reftype(c, node->d.typeexpr->type);
             } else {
-                error("don't know what to do with this subtype: %s\n", node->name);
+                error("don't know what to do with this subtype: %s\n", node->t.name);
             }
         } else {
             // canonical type
-            s = map_find(&c->typemap, node->name);
+            s = map_find(&c->typemap, node->t.name);
             if (!s) {
-                error("undeclared type %s\n", node->name);
+                error("undeclared type %s\n", node->t.name);
             }
             node->type = (Type *)s->value;
         }
         break;
     case ND_IDEXPR:
-        s = map_find(&c->declmap, node->name);
-        if (!s) {
-            error("'%s' is not declared", node->name->text);
-        }
+        s = map_find(&c->declmap, node->e.name);
+        if (!s)
+            error("'%s' is not declared", node->e.name->text);
+
         decl = (Decl *)s->value;
         node->type = decl->type;
         break;
@@ -392,14 +388,14 @@ static void walk(Context *c, Node *node)
         node->type = c->i32_type;
         break;
     case ND_REFEXPR:
-        walk(c, node->expr);
+        walk(c, node->e.target);
 
-        node->type = reftype(c, node->expr->type);
+        node->type = reftype(c, node->e.target->type);
         break;
     case ND_DEREFEXPR: {
-        walk(c, node->expr);
+        walk(c, node->e.target);
 
-        Type *operand_type = node->expr->type;
+        Type *operand_type = node->e.target->type;
         if (operand_type->kind != T_REF) {
             error("dereference of a non-reference type %s\n", operand_type->name->text);
         }
@@ -407,63 +403,62 @@ static void walk(Context *c, Node *node)
         break;
     }
     case ND_BINEXPR:
-        walk(c, node->lhs);
-        walk(c, node->rhs);
+        walk(c, node->e.lhs);
+        walk(c, node->e.rhs);
 
-        assert(node->lhs->type);
-        assert(node->rhs->type);
+        assert(node->e.lhs->type);
+        assert(node->e.rhs->type);
 
-        if (node->lhs->type != node->rhs->type) {
-            printf("%s vs %s\n", node->lhs->type->name->text, node->rhs->type->name->text);
+        if (node->e.lhs->type != node->e.rhs->type) {
+            printf("%s vs %s\n", node->e.lhs->type->name->text, node->e.rhs->type->name->text);
             error("LHS and RHS of binary expression differs in type");
         }
-        node->type = node->lhs->type;
+        node->type = node->e.lhs->type;
         break;
     case ND_EXPRSTMT:
-        walk(c, node->expr);
+        walk(c, node->s.stmt_expr);
         break;
     case ND_PARAMDECL:
-        walk(c, node->typeexpr);
+        walk(c, node->d.typeexpr);
 
-        if (is_redefinition(&c->declmap, node->name)) {
-            error("redefinition of '%s'", node->name->text);
-        }
+        if (is_redefinition(&c->declmap, node->d.name))
+            error("redefinition of '%s'", node->d.name->text);
 
-        decl = makeDecl(node->name, node->typeexpr->type);
-        map_push(&c->declmap, node->name, decl);
+        decl = make_decl(node->d.name, node->d.typeexpr->type);
+        map_push(&c->declmap, node->d.name, decl);
         break;
     case ND_VARDECL:
-        if (is_redefinition(&c->declmap, node->name))
-            error("redefinition of '%s'", node->name->text);
+        if (is_redefinition(&c->declmap, node->d.name))
+            error("redefinition of '%s'", node->d.name->text);
 
         // infer type from expression
-        if (node->expr) {
-            walk(c, node->expr);
-            type = node->expr->type;
+        if (node->d.expr) {
+            walk(c, node->d.expr);
+            type = node->d.expr->type;
         }
         // else, try explicit type spec
-        else if (node->typeexpr) {
-            walk(c, node->typeexpr);
-            type = node->typeexpr->type;
+        else if (node->d.typeexpr) {
+            walk(c, node->d.typeexpr);
+            type = node->d.typeexpr->type;
         } else {
             assert(0 && "unreachable");
         }
 
         if (!type) {
             // inference failure
-            error("cannot infer type of '%s'", node->name->text);
+            error("cannot infer type of '%s'", node->d.name->text);
         }
 
-        decl = makeDecl(node->name, type);
-        map_push(&c->declmap, node->name, decl);
+        decl = make_decl(node->d.name, type);
+        map_push(&c->declmap, node->d.name, decl);
         break;
     case ND_DECLSTMT:
-        walk(c, node->decl);
+        walk(c, node->s.decl);
         break;
     case ND_ASSIGNSTMT:
         /* RHS first */
-        walk(c, node->rhs);
-        walk(c, node->lhs);
+        walk(c, node->e.rhs);
+        walk(c, node->e.lhs);
         break;
     case ND_COMPOUNDSTMT:
         push_scope(c);
@@ -473,19 +468,19 @@ static void walk(Context *c, Node *node)
         pop_scope(c);
         break;
     case ND_RETURNSTMT: {
-        walk(c, node->expr);
+        walk(c, node->s.stmt_expr);
 
         Name *retname = get_name(c->nt, retid, strlen(retid));
         if (retname) {
             Type *rettype = map_find(&c->typemap, retname)->value;
             assert(rettype->kind == T_ALIAS);
 
-            // Empty return statements ('return')
-            if (!node->expr) {
+            // empty return statements ('return')
+            if (!node->s.stmt_expr) {
                 error("function should return a value\n");
-            } else if (node->expr->type != rettype->canon_type) {
+            } else if (node->s.stmt_expr->type != rettype->canon_type) {
                 error("wrong return type %s, expected %s\n",
-                      node->expr->type->name->text,
+                      node->s.stmt_expr->type->name->text,
                       rettype->canon_type->name->text);
             }
 
@@ -493,10 +488,9 @@ static void walk(Context *c, Node *node)
             // statement has been seen, push a bogus declaration with a
             // user-undefinable name to declmap.  This declaration will be
             // removed when the function scope ends.
-            Decl *bogus = makeDecl(retname, rettype->canon_type);
+            Decl *bogus = make_decl(retname, rettype->canon_type);
             map_push(&c->declmap, retname, bogus);
         } else {
-            // No return type
             error("function does not return a value\n");
         }
         break;
@@ -511,7 +505,7 @@ static void walk(Context *c, Node *node)
 static Type *setup_type_from_str(Context *c, char *s)
 {
     Name *n = push_name(c->nt, s, strlen(s));
-    Type *t = makeType(n, T_CANON, NULL);
+    Type *t = make_type(n, T_CANON, NULL);
     return map_push(&c->typemap, n, t)->value;
 }
 

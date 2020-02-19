@@ -20,10 +20,10 @@ fn main() {
     b = a
     c = &b
 
-    // f(3, 4)
-    // f(3, 4,)
-    // f(3, 4, ,) // [error: "expected.*expression"]
-    // f(3, 4, 2 + 5)
+    f(3, 4)
+    f(3, 4,)
+    f(3, 4, ,) // [error: "expected.*expression"]
+    f(3, 4, 2 + 5)
 }
 
 // fn f(a: int) int { // [error: "expected.*'->'.*got 'int'"]

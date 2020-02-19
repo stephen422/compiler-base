@@ -108,13 +108,13 @@ sds tokenString(Lexer *lex, const Token tok);
 void tokenPrint(Lexer *l, const Token t);
 
 sds srcLocString(const SrcLoc loc);
-SrcLoc locate(Lexer *l, size_t pos);
+SrcLoc lexer_locate(Lexer *l, size_t pos);
 
 int lexerInit(Lexer *l, const char *filename);
 int lexerInitText(Lexer *l, const char *text, size_t len);
 int lexerNext(Lexer *l);
 void lexerCleanup(Lexer *l);
 
-int isKeyword(Token tok);
+int is_keyword(Token tok);
 
 #endif
