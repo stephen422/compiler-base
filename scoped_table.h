@@ -59,13 +59,13 @@ typename ScopedTable<T>::Symbol *ScopedTable<T>::find(Name *name) const {
 }
 
 template <typename T>
-void ScopedTable<T>::scopeOpen() {
+void ScopedTable<T>::scope_open() {
     scope_stack.push_back(nullptr);
     scope_level++;
 }
 
 template <typename T>
-void ScopedTable<T>::scopeClose() {
+void ScopedTable<T>::scope_close() {
     Symbol *p = scope_stack.back();
     while (p) {
         int index = hash(p->name) % symbol_table_bucket_count;

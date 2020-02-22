@@ -76,36 +76,34 @@ struct AstNode {
         (void)sema; // squelch unused warning
     }
     // Name binding pass.
-    virtual void nameBindPre(Sema &sema) { (void)sema; }
-    virtual void nameBindPost(Sema &sema) { (void)sema; }
+    virtual void name_bind_pre(Sema &sema) { (void)sema; }
+    virtual void name_bind_post(Sema &sema) { (void)sema; }
 
     // Convenience ostream for AST printing.
     // Handles indentation, tree drawing, etc.
     std::ostream &out() const {
-        if (depth > 0) {
-            std::cout << std::string(depth - 2, ' ');
+        if (indent > 0) {
+            std::cout << std::string(indent - 2, ' ');
             std::cout << "`-";
         }
         return std::cout;
     }
 
     // RAII trick to handle indentation.
+    static int indent;
     struct PrintScope {
-        PrintScope() { depth += 2; }
-        ~PrintScope() { depth -= 2; }
+        PrintScope() { indent += 2; }
+        ~PrintScope() { indent -= 2; }
     };
 
     AstKind kind = AstKind::none; // node kind
     size_t pos = 0;               // start pos of this AST in the source text
-    // Indentation of the current node when dumping AST.
-    // static because all nodes share this.
-    static int depth;
 };
 
 // These are free-standing functions that simply do the virtual call into the
 // polymorphic compiler pass functions.
-inline void nameBindPre(Sema &sema, AstNode *node) { node->nameBindPre(sema); }
-inline void nameBindPost(Sema &sema, AstNode *node) { node->nameBindPost(sema); }
+inline void name_bind_pre(Sema &sema, AstNode *node) { node->name_bind_pre(sema); }
+inline void name_bind_post(Sema &sema, AstNode *node) { node->name_bind_post(sema); }
 
 // ========
 //   File
@@ -170,8 +168,8 @@ struct CompoundStmt : public Stmt {
     CompoundStmt() : Stmt(AstKind::compound_stmt) {}
     void print() const override;
     void walk(Sema &sema) override;
-    void nameBindPre(Sema &sema) override;
-    void nameBindPost(Sema &sema) override;
+    void name_bind_pre(Sema &sema) override;
+    void name_bind_post(Sema &sema) override;
 
     std::vector<Stmt *> stmts;
 };
@@ -232,7 +230,7 @@ struct DeclRefExpr : public UnaryExpr {
         : UnaryExpr(AstKind::decl_ref_expr, nullptr), name(name) {}
     void print() const override;
     void walk(Sema &sema) override;
-    void nameBindPost(Sema &sema) override;
+    void name_bind_post(Sema &sema) override;
 };
 
 struct FuncCallExpr : public UnaryExpr {
@@ -256,14 +254,18 @@ struct ParenExpr : public UnaryExpr {
     void print() const override;
 };
 
+// 'struct.mem'
 struct MemberExpr : public Expr {
-    Expr *struct_expr = nullptr;
-    Name *member_name = nullptr;
+    Expr *struct_expr = nullptr; // 'struct' part
+    Name *member_name = nullptr; // 'mem' part
+    Decl *decl = nullptr;        // decl of 'mem'
 
     MemberExpr(Expr *e, Name *m)
         : Expr(AstKind::member_expr), struct_expr(e), member_name(m) {}
     void print() const override;
-    void nameBindPost(Sema &sema) override;
+
+    // XXX: disabled, check comment in sema.cc.
+    // void name_bind_post(Sema &sema) override;
 };
 
 // XXX: can I call this an expression?
@@ -278,7 +280,7 @@ struct TypeExpr : public Expr {
     TypeExpr() : Expr(AstKind::type_expr) {}
     void print() const override;
     void walk(Sema &sema) override;
-    void nameBindPost(Sema &sema) override;
+    void name_bind_post(Sema &sema) override;
 };
 
 struct BinaryExpr : public Expr {
@@ -329,7 +331,7 @@ struct VarDeclNode : public DeclNode {
           assign_expr(std::move(expr)) {}
     void print() const override;
     void walk(Sema &sema) override;
-    void nameBindPost(Sema &sema) override;
+    void name_bind_post(Sema &sema) override;
 
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
@@ -347,8 +349,8 @@ struct StructDeclNode : public DeclNode {
         : DeclNode(AstKind::struct_decl), name(n), members(m) {}
     void print() const override;
     void walk(Sema &sema) override;
-    void nameBindPre(Sema &sema) override;
-    void nameBindPost(Sema &sema) override;
+    void name_bind_pre(Sema &sema) override;
+    void name_bind_post(Sema &sema) override;
 
     Name *name = nullptr;            // name of the struct
     StructDecl *struct_decl = nullptr; // decl info

@@ -43,9 +43,8 @@ Type *getReferenceType(Sema &sema, Type *type) {
 // AST Traversal
 //
 
-void walkAST(Sema &sema, AstNode *node,
-             std::function<void(Sema &sema, AstNode *)> pre_fn,
-             std::function<void(Sema &sema, AstNode *)> post_fn) {
+void walk_ast(Sema &sema, AstNode *node, void (*pre_fn)(Sema &sema, AstNode *),
+              void (*post_fn)(Sema &sema, AstNode *)) {
     assert(node);
 
     pre_fn(sema, node);
@@ -53,74 +52,74 @@ void walkAST(Sema &sema, AstNode *node,
     switch (node->kind) {
     case AstKind::file:
         for (auto tl : static_cast<File *>(node)->toplevels)
-            walkAST(sema, tl, pre_fn, post_fn);
+            walk_ast(sema, tl, pre_fn, post_fn);
         break;
     case AstKind::decl_stmt:
-        walkAST(sema, static_cast<DeclStmt *>(node)->decl, pre_fn, post_fn);
+        walk_ast(sema, static_cast<DeclStmt *>(node)->decl, pre_fn, post_fn);
         break;
     case AstKind::expr_stmt:
-        walkAST(sema, static_cast<ExprStmt *>(node)->expr, pre_fn, post_fn);
+        walk_ast(sema, static_cast<ExprStmt *>(node)->expr, pre_fn, post_fn);
         break;
     case AstKind::assign_stmt:
-        walkAST(sema, static_cast<AssignStmt *>(node)->lhs, pre_fn, post_fn);
-        walkAST(sema, static_cast<AssignStmt *>(node)->rhs, pre_fn, post_fn);
+        walk_ast(sema, static_cast<AssignStmt *>(node)->lhs, pre_fn, post_fn);
+        walk_ast(sema, static_cast<AssignStmt *>(node)->rhs, pre_fn, post_fn);
         break;
     case AstKind::return_stmt: {
         ReturnStmt *ret = static_cast<ReturnStmt *>(node);
         if (ret)
             // ret->expr might be nullptr if no return statment was ever
             // processed.
-            walkAST(sema, ret->expr, pre_fn, post_fn);
+            walk_ast(sema, ret->expr, pre_fn, post_fn);
         break;
     }
     case AstKind::compound_stmt:
         for (auto stmt : static_cast<CompoundStmt *>(node)->stmts)
-            walkAST(sema, stmt, pre_fn, post_fn);
+            walk_ast(sema, stmt, pre_fn, post_fn);
         break;
     case AstKind::var_decl: {
         auto var = static_cast<VarDeclNode *>(node);
         if (var->assign_expr)
-            walkAST(sema, var->assign_expr, pre_fn, post_fn);
+            walk_ast(sema, var->assign_expr, pre_fn, post_fn);
         else if (var->type_expr)
-            walkAST(sema, var->type_expr, pre_fn, post_fn);
+            walk_ast(sema, var->type_expr, pre_fn, post_fn);
         else
             assert(false && "unreachable");
         break;
     }
     case AstKind::struct_decl:
         for (auto m : static_cast<StructDeclNode *>(node)->members)
-            walkAST(sema, m, pre_fn, post_fn);
+            walk_ast(sema, m, pre_fn, post_fn);
         break;
     case AstKind::func_decl: {
         // TODO: ret_type insertion between ret_type_expr and body?
         auto func = static_cast<FuncDeclNode *>(node);
         if (func->ret_type_expr)
-            walkAST(sema, func->ret_type_expr, pre_fn, post_fn);
+            walk_ast(sema, func->ret_type_expr, pre_fn, post_fn);
         for (auto p : func->params)
-            walkAST(sema, p, pre_fn, post_fn);
-        walkAST(sema, func->body, pre_fn, post_fn);
+            walk_ast(sema, p, pre_fn, post_fn);
+        walk_ast(sema, func->body, pre_fn, post_fn);
         break;
     }
     case AstKind::unary_expr: {
         // TODO: proper UnaryKind subtypes
         if (static_cast<UnaryExpr *>(node)->operand)
-            walkAST(sema, static_cast<UnaryExpr *>(node)->operand, pre_fn,
+            walk_ast(sema, static_cast<UnaryExpr *>(node)->operand, pre_fn,
                     post_fn);
         break;
     }
     case AstKind::func_call_expr:
         for (auto arg : static_cast<FuncCallExpr *>(node)->args)
-            walkAST(sema, arg, pre_fn, post_fn);
+            walk_ast(sema, arg, pre_fn, post_fn);
         break;
     case AstKind::type_expr: {
         auto type_expr = static_cast<TypeExpr *>(node);
         if (type_expr->subexpr)
-            walkAST(sema, type_expr->subexpr, pre_fn, post_fn);
+            walk_ast(sema, type_expr->subexpr, pre_fn, post_fn);
         break;
     }
     case AstKind::binary_expr:
-        walkAST(sema, static_cast<BinaryExpr *>(node)->lhs, pre_fn, post_fn);
-        walkAST(sema, static_cast<BinaryExpr *>(node)->rhs, pre_fn, post_fn);
+        walk_ast(sema, static_cast<BinaryExpr *>(node)->lhs, pre_fn, post_fn);
+        walk_ast(sema, static_cast<BinaryExpr *>(node)->rhs, pre_fn, post_fn);
         break;
     default:
         // BadExprs, Literals, etc.
@@ -134,11 +133,11 @@ void walkAST(Sema &sema, AstNode *node,
 // Name binding pass
 //
 
-void CompoundStmt::nameBindPre(Sema &sema) { sema.decl_table.scopeOpen(); }
+void CompoundStmt::name_bind_pre(Sema &sema) { sema.decl_table.scope_open(); }
 
-void CompoundStmt::nameBindPost(Sema &sema) { sema.decl_table.scopeClose(); }
+void CompoundStmt::name_bind_post(Sema &sema) { sema.decl_table.scope_close(); }
 
-void VarDeclNode::nameBindPost(Sema &sema) {
+void VarDeclNode::name_bind_post(Sema &sema) {
     // check for redefinition
     auto found = sema.decl_table.find(name);
     if (found && found->scope_level <= sema.decl_table.scope_level) {
@@ -157,18 +156,18 @@ void VarDeclNode::nameBindPost(Sema &sema) {
     }
 }
 
-void StructDeclNode::nameBindPre(Sema &sema) {
+void StructDeclNode::name_bind_pre(Sema &sema) {
     // Don't check for redefinition here, just discard everything if it turns
     // out to be so in post.
     auto decl = makeDecl(sema, StructDecl{name});
     struct_decl = declCast<StructDecl>(decl);
     // Decl table is going to be used for checking redefinition.
-    sema.decl_table.scopeOpen();
+    sema.decl_table.scope_open();
     sema.context.struct_decl_stack.push_back(struct_decl);
 }
 
-void StructDeclNode::nameBindPost(Sema &sema) {
-    // FIXME: repetition with VarDecl::nameBindPost
+void StructDeclNode::name_bind_post(Sema &sema) {
+    // FIXME: repetition with VarDecl::name_bind_post
     // check for redefinition
     auto found = sema.type_table.find(name);
     if (found && found->scope_level <= sema.type_table.scope_level) {
@@ -178,10 +177,10 @@ void StructDeclNode::nameBindPost(Sema &sema) {
         sema.type_table.insert({name, type});
     }
     sema.context.struct_decl_stack.pop_back();
-    sema.decl_table.scopeClose();
+    sema.decl_table.scope_close();
 }
 
-void DeclRefExpr::nameBindPost(Sema &sema) {
+void DeclRefExpr::name_bind_post(Sema &sema) {
     auto sym = sema.decl_table.find(name);
     if (sym) {
         decl = sym->value;
@@ -190,24 +189,38 @@ void DeclRefExpr::nameBindPost(Sema &sema) {
     }
 }
 
-static bool isMemberAccessible(Expr *expr) {
+// It's hard to namebind MemberExprs at this stage, because we don't know if
+// the operand of the dot(.) is actually member-accessible unless we do full
+// type checking (e.g. func().mem), except the most trival cases (e.g. id.mem).
+// So it may be better to defer this to the type checking phase.
+// TODO check this in the future.
+#if 0
+static bool is_member_accessible(Expr *expr) {
     if (expr->kind == AstKind::paren_expr) {
-        return isMemberAccessible(static_cast<ParenExpr *>(expr)->operand);
+        return is_member_accessible(static_cast<ParenExpr *>(expr)->operand);
     }
+    // Note that MemberExpr may or may not be member-accessible, unless it
+    // typechecks to be an actual aggregate type.  But we can't filter out
+    // those cases in a stage this early.
     return expr->kind == AstKind::decl_ref_expr ||
            expr->kind == AstKind::member_expr;
 }
-void MemberExpr::nameBindPost(Sema &sema) {
+
+void MemberExpr::name_bind_post(Sema &sema) {
     // Here we check if the operand expression was member-accessible, e.g.
     // error on '(a + b).m'.
-    if (!isMemberAccessible(struct_expr)) {
-        // TODO: ParenExpr
+    if (!is_member_accessible(struct_expr)) {
         sema.error(pos, fmt::format("cannot member access type 'TODO({})'",
                                     struct_expr->kind));
+        return;
     }
-}
 
-void TypeExpr::nameBindPost(Sema &sema) {
+    // Now we know that 'struct_expr' is something that contains a Decl*.
+    // But how do we get it out? TODO.
+}
+#endif
+
+void TypeExpr::name_bind_post(Sema &sema) {
     auto sym = sema.type_table.find(name);
     if (sym) {
         type = &sym->value;
@@ -357,7 +370,7 @@ void DeclRefExpr::walk(Sema &sema) {
 }
 
 void FuncCallExpr::walk(Sema &sema) {
-    assert(false && "not implemented");
+    assert(!"not implemented");
 }
 
 void TypeExpr::walk(Sema &sema) {
@@ -417,13 +430,13 @@ Sema::Sema(Parser &p) : Sema(p.lexer.source(), p.names) {
 }
 
 void Sema::scope_open() {
-    decl_table.scopeOpen();
-    type_table.scopeOpen();
+    decl_table.scope_open();
+    type_table.scope_open();
 }
 
 void Sema::scope_close() {
-    decl_table.scopeClose();
-    type_table.scopeClose();
+    decl_table.scope_close();
+    type_table.scope_close();
 }
 
 void Sema::report() const {

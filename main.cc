@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
     auto ast = p_sema.parse();
     ast.root->print();
     Sema s{p_sema};
-    walkAST(s, ast.root, nameBindPre, nameBindPost);
+    walk_ast(s, ast.root, name_bind_pre, name_bind_post);
     // sema(s, ast);
     // if (!s.verify()) {
     //     fmt::print("==== Declaration table ====\n");

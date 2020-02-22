@@ -19,7 +19,7 @@ struct Name {
     std::string text;
 
     Name(const std::string &s) : text(s) {}
-    std::string toString() const;
+    std::string toString() const { return text; }
 };
 
 // 'NameTable' is a hash table of Names queried by their string value.  It
@@ -108,8 +108,7 @@ struct Context {
 constexpr int symbol_table_bucket_count = 512;
 
 // Scoped symbol table.
-template <typename T> class ScopedTable {
-public:
+template <typename T> struct ScopedTable {
     struct Symbol {
         Symbol(Name *n, const T &v) : name(n), value(v) {}
 
@@ -127,9 +126,9 @@ public:
     void print() const;
 
     // Start a new scope.
-    void scopeOpen();
+    void scope_open();
     // Close current cope.
-    void scopeClose();
+    void scope_close();
 
     std::array<Symbol *, symbol_table_bucket_count> keys;
     std::vector<Symbol *> scope_stack = {};
@@ -174,9 +173,8 @@ struct Ast;
 struct AstNode;
 
 // Do a semantic analysis on the given AST.
-void walkAST(Sema &sema, AstNode *node,
-             std::function<void(Sema &sema, AstNode *)> pre_fn,
-             std::function<void(Sema &sema, AstNode *)> post_fn);
+void walk_ast(Sema &sema, AstNode *node, void (*pre_fn)(Sema &sema, AstNode *),
+              void (*post_fn)(Sema &sema, AstNode *));
 void sema(Sema &sema, Ast &ast);
 
 } // namespace cmp

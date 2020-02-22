@@ -5,11 +5,7 @@
 
 namespace cmp {
 
-int AstNode::depth = 0;
-
-std::string Name::toString() const {
-    return text;
-}
+int AstNode::indent = 0;
 
 // TODO: max is currently not being used.
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes) {
