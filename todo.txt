@@ -1,23 +1,12 @@
-Idea: "Programmable lifetime"
+!!! Idea: "Programmable lifetime"
 
 Let the programmer tell the compiler explicitly where a specific type of object
 lives and dies in the code.
 
-- Symbol table: how do I organize this?
-  Some kind of a scoped table with scopeOpen/Close() functions.
-  But, the contents of the table should not just go away with scopeClose()
-  because they may be needed in a later pass.
-  So we may need something like a tree of tables whose structure directly
-  mirrors the lexical structure of the source.
+- Simple CLI for displaying symantic informations about a decl on a specific
+  file:line location, e.g.
 
-  --> VERIFY!!! Can't the decls be just stored in the AST node? What about types?
-  It's clear that after the name binding pass, everything should be stored in
-  the AST node and directly accessible as the consequence of the binding.
-
-  Maybe a simple solution is to make a global Decl memory arena that stores all
-  the declarations, and make the scoped symbol table work with references to
-  those stored objects, and bind those references to AST nodes at the name
-  binding pass.
+      ./qc -sema 'test_sema.txt:17:a'
 
 - What do I index the symbol table with?
   Name? How do we name types?
@@ -25,16 +14,6 @@ lives and dies in the code.
   ref/array types?
   - But then we would waste heap memory unless we store the whole Type object
     in AST nodes.  Small sizeof(Type) would become a requirement.
-
-- What about use of declarations that are declared in other files/modules? We
-  need multiple passes for this one.  In this case, *every* identifier can
-  potential be a use of a external declaration, and we cannot emit any
-  use-before-declaration error in the first pass.
-
-  A: This can be prevented by mandating explicit syntax for use of external
-  declarations, e.g. 'module.variable', similar to what Go does.  Simple 'a'
-  can only refer to either (1) local variables/function args, or (2) file-local
-  constants.
 
 - We do declaration/name binding and type checking in one pass. These should
   be separated into different passes.
@@ -50,3 +29,32 @@ lives and dies in the code.
 
   Maybe we can only check the decl table for each variable use, and name bind
   them later in a separate pass. But I'm not sure that's got any advantage.
+
+
+============================== SOLVED / DEPRECATED =============================
+
+- What about use of declarations that are declared in other files/modules? We
+  need multiple passes for this one.  In this case, *every* identifier can
+  potential be a use of a external declaration, and we cannot emit any
+  use-before-declaration error in the first pass.
+
+  A: This can be prevented by mandating explicit syntax for use of external
+  declarations, e.g. 'module.variable', similar to what Go does.  Simple 'a'
+  can only refer to either (1) local variables/function args, or (2) file-local
+  constants.
+
+- Symbol table: how do I organize this?
+  Some kind of a scoped table with scope_open/scope_close() functions.
+  But, the contents of the table should not just go away with scope_close()
+  because they may be needed in a later pass.
+  So we may need something like a tree of tables whose structure directly
+  mirrors the lexical structure of the source.
+
+  --> VERIFY!!! Can't the decls be just stored in the AST node? What about types?
+  It's clear that after the name binding pass, everything should be stored in
+  the AST node and directly accessible as the consequence of the binding.
+
+  Maybe a simple solution is to make a global Decl memory arena that stores all
+  the declarations, and make the scoped symbol table work with references to
+  those stored objects, and bind those references to AST nodes at the name
+  binding pass.

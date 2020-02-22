@@ -1,8 +1,9 @@
 // TODO:
+// check function returns
 
 struct Car {
     a: int,
-    b: int,
+    wheel: int,
     a: int, // [error: "redefinition.*'a'"]
 }
 
@@ -14,6 +15,10 @@ fn main() {
     car.a = 5
     (car).a = 5
     (3 + 4).a = 5
+
+    new_kid // [error: "undeclared.*'new_kid'"]
+
+    f(hi, a)
 
     *a // [error: "dereference"] // TODO: report 'int'
 }

@@ -105,9 +105,8 @@ struct Context {
     bool seen_return = false;
 };
 
-constexpr int symbol_table_bucket_count = 512;
-
 // Scoped symbol table.
+const int SYMBOL_TABLE_BUCKET_COUNT = 512;
 template <typename T> struct ScopedTable {
     struct Symbol {
         Symbol(Name *n, const T &v) : name(n), value(v) {}
@@ -130,7 +129,7 @@ template <typename T> struct ScopedTable {
     // Close current cope.
     void scope_close();
 
-    std::array<Symbol *, symbol_table_bucket_count> keys;
+    std::array<Symbol *, SYMBOL_TABLE_BUCKET_COUNT> keys;
     std::vector<Symbol *> scope_stack = {};
     int scope_level = 0;
 };
