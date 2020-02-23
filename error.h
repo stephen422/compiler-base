@@ -11,7 +11,7 @@ struct Error {
     std::string message;
 
     Error(SourceLoc loc, const std::string &msg) : loc(loc), message(msg) {}
-    std::string toString() const;
+    std::string str() const;
 };
 
 bool verify(const std::string &filename, const std::vector<Error> &errors,

@@ -20,7 +20,7 @@ struct SourceLoc {
     int line;
     int col;
 
-    std::string toString() const;
+    std::string str() const;
 };
 
 /// Source content handler for file reading, position reporting and so

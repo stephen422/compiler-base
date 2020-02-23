@@ -7,7 +7,7 @@
 
 namespace cmp {
 
-std::string SourceLoc::toString() const {
+std::string SourceLoc::str() const {
     return fmt::format("{}:{}:{}", filename, line, col);
 }
 

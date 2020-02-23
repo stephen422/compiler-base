@@ -235,6 +235,7 @@ struct DeclRefExpr : public UnaryExpr {
 
 struct FuncCallExpr : public UnaryExpr {
     Name *func_name = nullptr;
+    Decl *decl = nullptr;
     std::vector<Expr *> args;
 
     FuncCallExpr(Name *name, const std::vector<Expr *> &args)
@@ -242,6 +243,7 @@ struct FuncCallExpr : public UnaryExpr {
           args(args) {}
     void print() const override;
     void walk(Sema &sema) override;
+    void name_bind_pre(Sema &sema) override;
 };
 
 struct ParenExpr : public UnaryExpr {

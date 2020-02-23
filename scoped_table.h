@@ -31,13 +31,13 @@ ScopedTable<T>::~ScopedTable() {
 }
 
 template <typename T>
-T *ScopedTable<T>::insert(std::pair<Name *, const T &> pair) {
+T *ScopedTable<T>::insert(Name *name, const T &value) {
     // memory for T is stored inside the symbol
     // FIXME: bad allocator
-    Symbol *head = new Symbol(pair.first, pair.second);
+    Symbol *head = new Symbol(name, value);
 
     // insert into the bucket
-    int index = hash(pair.first) % SYMBOL_TABLE_BUCKET_COUNT;
+    int index = hash(name) % SYMBOL_TABLE_BUCKET_COUNT;
     Symbol **p = &keys[index];
     head->next = *p;
     *p = head;
@@ -86,13 +86,13 @@ void ScopedTable<T>::print() const {
             continue;
         std::cout << "[" << i << "]";
         for (; p; p = p->next)
-            fmt::print("{{{}}}", p->value.toString());
+            fmt::print("{{{}}}", p->value.str());
         std::cout << std::endl;
     }
     for (size_t i = 0; i < scope_stack.size(); i++) {
         std::cout << "Scope " << i << ":";
         for (Symbol *p = scope_stack[i]; p; p = p->cross)
-            fmt::print("{{{}}}", p->value.toString());
+            fmt::print("{{{}}}", p->value.str());
         std::cout << std::endl;
     }
 }

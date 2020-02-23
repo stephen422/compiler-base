@@ -23,7 +23,7 @@ bool is_identifier_or_keyword(const Token tok) {
            (tok.kind > TokenKind::KWSTART && tok.kind < TokenKind::KWEND);
 }
 
-std::string Token::toString() const {
+std::string Token::str() const {
     if (kind == TokenKind::newline)
         return std::string{"\\n"};
     return std::string{text};

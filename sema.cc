@@ -7,25 +7,32 @@
 
 namespace cmp {
 
-std::string Type::toString() const { return name->text; }
+std::string Type::str() const { return name->text; }
 
-Decl *makeDecl(Sema &sema, Decl &&arg) {
-    Decl *decl = new Decl{arg};
+Decl *make_decl(Sema &sema, const VarDecl &var_decl) {
+    Decl *decl = new Decl{var_decl};
     sema.decl_pool.push_back(decl);
     return decl;
 }
 
-std::string VarDecl::toString() const {
-    return name->text;
+Decl *make_decl(Sema &sema, const StructDecl &struct_decl) {
+    Decl *decl = new Decl{struct_decl};
+    sema.decl_pool.push_back(decl);
+    return decl;
 }
 
-std::string StructDecl::toString() const {
-    return name->text;
-}
+// TODO: Decl::str()
+// std::string VarDecl::str() const {
+//     return name->text;
+// }
+// 
+// std::string StructDecl::str() const {
+//     return name->text;
+// }
 
 void Sema::error(size_t pos, const std::string &msg) {
     Error e{source.locate(pos), msg};
-    fmt::print("{}\n", e.toString());
+    fmt::print("{}\n", e.str());
 }
 
 // Get or make a reference type of a given type.
@@ -36,7 +43,7 @@ Type *getReferenceType(Sema &sema, Type *type) {
     Type ref_type{Type::Kind::ref, name, type};
     if (auto found = sema.type_table.find(name))
         return &found->value;
-    return sema.type_table.insert({name, ref_type});
+    return sema.type_table.insert(name, ref_type);
 }
 
 //
@@ -141,12 +148,13 @@ void VarDeclNode::name_bind_post(Sema &sema) {
     // check for redefinition
     auto found = sema.decl_table.find(name);
     if (found && found->scope_level <= sema.decl_table.scope_level) {
-        sema.error(pos, fmt::format("redefinition of '{}'", name->toString()));
+        sema.error(pos, fmt::format("redefinition of '{}'", name->str()));
     } else {
         // new variable declaration
-        auto decl = makeDecl(sema, VarDecl{name});
-        sema.decl_table.insert({name, decl});
-        var_decl = declCast<VarDecl>(decl);
+        auto decl = make_decl(sema, VarDecl{name});
+        sema.decl_table.insert(name, decl);
+        // var_decl = decl_cast<VarDecl>(decl);
+        var_decl = &decl->var_decl;
 
         if (is_member) {
             assert(sema.context.struct_decl_stack.size() >= 1);
@@ -159,8 +167,9 @@ void VarDeclNode::name_bind_post(Sema &sema) {
 void StructDeclNode::name_bind_pre(Sema &sema) {
     // Don't check for redefinition here, just discard everything if it turns
     // out to be so in post.
-    auto decl = makeDecl(sema, StructDecl{name});
-    struct_decl = declCast<StructDecl>(decl);
+    auto decl = make_decl(sema, StructDecl{name});
+    // struct_decl = decl_cast<StructDecl>(decl);
+    struct_decl = &decl->struct_decl;
     // Decl table is going to be used for checking redefinition.
     sema.decl_table.scope_open();
     sema.context.struct_decl_stack.push_back(struct_decl);
@@ -171,10 +180,10 @@ void StructDeclNode::name_bind_post(Sema &sema) {
     // check for redefinition
     auto found = sema.type_table.find(name);
     if (found && found->scope_level <= sema.type_table.scope_level) {
-        sema.error(pos, fmt::format("redefinition of '{}'", name->toString()));
+        sema.error(pos, fmt::format("redefinition of '{}'", name->str()));
     } else {
         Type type{Type::Kind::value, name, nullptr};
-        sema.type_table.insert({name, type});
+        sema.type_table.insert(name, type);
     }
     sema.context.struct_decl_stack.pop_back();
     sema.decl_table.scope_close();
@@ -185,8 +194,18 @@ void DeclRefExpr::name_bind_post(Sema &sema) {
     if (sym) {
         decl = sym->value;
     } else {
-        sema.error(pos, fmt::format("use of undeclared identifier '{}'", name->toString()));
+        sema.error(pos, fmt::format("use of undeclared identifier '{}'", name->str()));
     }
+}
+
+void FuncCallExpr::name_bind_pre(Sema &sema) {
+    auto sym = sema.decl_table.find(func_name);
+    if (sym) {
+        decl = sym->value;
+    } else {
+        sema.error(pos, fmt::format("undeclared function '{}'", func_name->str()));
+    }
+    (void)sema;
 }
 
 // It's hard to namebind MemberExprs at this stage, because we don't know if
@@ -225,7 +244,7 @@ void TypeExpr::name_bind_post(Sema &sema) {
     if (sym) {
         type = &sym->value;
     } else {
-        sema.error(pos, fmt::format("use of undeclared type '{}'", name->toString()));
+        sema.error(pos, fmt::format("use of undeclared type '{}'", name->str()));
     }
 }
 
@@ -249,8 +268,8 @@ void AssignStmt::walk(Sema &sema) {
     }
     if (lhs->type != rhs->type) {
         sema.type_table.print();
-        fmt::print("LHS: {}\n", lhs->type->toString());
-        fmt::print("RHS: {}\n", rhs->type->toString());
+        fmt::print("LHS: {}\n", lhs->type->str());
+        fmt::print("RHS: {}\n", rhs->type->str());
         sema.error(rhs->pos, "type mismatch: ");
     }
 }
@@ -365,11 +384,13 @@ void DeclRefExpr::walk(Sema &sema) {
     if (sym) {
         // Type inferrence
         // FIXME
-        type = declCast<VarDecl>(sym->value)->type;
+        // type = decl_cast<VarDecl>(sym->value)->type;
+        type = sym->value->var_decl.type;
     }
 }
 
 void FuncCallExpr::walk(Sema &sema) {
+    (void)sema;
     assert(!"not implemented");
 }
 
@@ -382,7 +403,7 @@ void TypeExpr::walk(Sema &sema) {
     if (!sym) {
         // If this is a value type, we should check use before declaration.
         if (!ref) {
-            sema.error(pos, fmt::format("unknown type '{}'", name->toString()));
+            sema.error(pos, fmt::format("unknown type '{}'", name->str()));
         }
         // If not, this is an instantiation of a derivative type, and should be
         // put into the table.
@@ -390,7 +411,7 @@ void TypeExpr::walk(Sema &sema) {
             assert(subexpr);
             // FIXME: scope_level
             Type ref_type{Type::Kind::ref, name, subexpr->type};
-            type = sema.type_table.insert({name, ref_type});
+            type = sema.type_table.insert(name, ref_type);
         }
     }
 
@@ -411,10 +432,10 @@ void BinaryExpr::walk(Sema &sema) {
 Sema::Sema(const Source &s, NameTable &n) : source(s), names(n) {
     Name *int_name = names.get_or_add("int");
     Type int_type{int_name};
-    this->int_type = type_table.insert({int_name, int_type});
+    this->int_type = type_table.insert(int_name, int_type);
     Name *char_name = names.get_or_add("char");
     Type char_type{char_name};
-    this->char_type = type_table.insert({char_name, char_type});
+    this->char_type = type_table.insert(char_name, char_type);
 }
 
 Sema::~Sema() {
@@ -441,7 +462,7 @@ void Sema::scope_close() {
 
 void Sema::report() const {
     for (auto e : errors)
-        fmt::print("{}\n", e.toString());
+        fmt::print("{}\n", e.str());
 }
 
 // See comments for cmp::verify().

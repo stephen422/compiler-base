@@ -9,7 +9,7 @@ void test_lexer(Lexer &lexer) {
 
     while ((token = lexer.lex()).kind != TokenKind::eos) {
         if (token.kind == TokenKind::none) {
-            fmt::print(stderr, "lex error: [{}]: Unrecognized token kind\n", token.toString());
+            fmt::print(stderr, "lex error: [{}]: Unrecognized token kind\n", token.str());
             break;
         }
         fmt::print("[{}], token");

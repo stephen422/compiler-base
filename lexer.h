@@ -127,7 +127,7 @@ struct Token {
     Token(TokenKind kind, size_t pos) : kind(kind), pos(pos), text() {}
     Token(TokenKind kind, size_t pos, std::string_view text)
         : kind(kind), pos(pos), text(text) {}
-    std::string toString() const;
+    std::string str() const;
 };
 
 bool is_identifier_or_keyword(const Token tok);

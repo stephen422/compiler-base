@@ -4,7 +4,6 @@
 #include "error.h"
 #include "fmt/core.h"
 #include "fmt/format.h"
-#include <iostream>
 #include <variant>
 #include <vector>
 
@@ -19,15 +18,14 @@ struct Name {
     std::string text;
 
     Name(const std::string &s) : text(s) {}
-    std::string toString() const { return text; }
+    std::string str() const { return text; }
 };
 
 // 'NameTable' is a hash table of Names queried by their string value.  It
 // serves to reduce the number of string hashing operation, since we can look
 // up the symbol table using Name instead of raw char * throughout the semantic
 // analysis.
-class NameTable {
-public:
+struct NameTable {
     Name *get_or_add(const std::string &s) {
         Name *found = get(s);
         if (found) {
@@ -62,7 +60,7 @@ struct Type {
 
     Type(Name *n) : kind(Kind::value), name(n) {}
     Type(Kind k, Name *n, Type *v) : kind(k), name(n), target_type(v) {}
-    std::string toString() const;
+    std::string str() const;
 };
 
 // Declaration of a variable. Includes struct field variables.
@@ -71,7 +69,6 @@ struct VarDecl {
     Type *type = nullptr;
 
     VarDecl(Name *n) : name(n) {}
-    std::string toString() const;
 };
 
 // Declaration of a struct.
@@ -81,7 +78,6 @@ struct StructDecl {
     std::vector<VarDecl *> fields;
 
     StructDecl(Name *n) : name(n) {}
-    std::string toString() const;
 };
 
 // 'Decl' represents declaration of a variable, a function, or a type.
@@ -90,12 +86,30 @@ struct StructDecl {
 // redefinition.
 // TODO: Clarify the definition. Should type names have a Decl too?  What is
 // the 'type' member of a TypeDecl?
-using Decl = std::variant<VarDecl, StructDecl>;
+// using Decl = std::variant<VarDecl, StructDecl>;
+struct Decl {
+    enum { DECL_VAR, DECL_STRUCT } type;
+    union {
+        VarDecl var_decl;
+        StructDecl struct_decl;
+    };
+    Decl(const VarDecl &v) : type(DECL_VAR), var_decl(v) {}
+    Decl(const StructDecl &s) : type(DECL_STRUCT), struct_decl(s) {}
+    ~Decl() {
+        if (type == DECL_VAR) {
+            var_decl.~VarDecl();
+        } else {
+            struct_decl.~StructDecl();
+        }
+    }
+    std::string str() const;
+};
 
 // Convenience cast function. Note that this works on a *pointer* to the Decl.
-template <typename T> T *declCast(Decl *d) { return &std::get<T>(*d); }
+// template <typename T> T *decl_cast(Decl *d) { return &std::get<T>(*d); }
 // Allocator function.
-Decl *makeDecl(Sema &sema, Decl &&arg);
+Decl *make_decl(Sema &sema, const VarDecl &var_decl);
+Decl *make_decl(Sema &sema, const StructDecl &struct_decl);
 
 struct Context {
     std::vector<StructDecl *> struct_decl_stack; // current enclosing struct decl
@@ -120,7 +134,7 @@ template <typename T> struct ScopedTable {
 
     ScopedTable();
     ~ScopedTable();
-    T *insert(std::pair<Name *, const T &> pair);
+    T *insert(Name *name, const T &value);
     Symbol *find(Name *name) const;
     void print() const;
 
