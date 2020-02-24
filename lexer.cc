@@ -29,6 +29,8 @@ std::string Token::str() const {
     return std::string{text};
 }
 
+// Advances 'look', not 'curr'. 'curr' is used as a manual marking position for
+// each token start.
 void Lexer::step() {
     if (look < eos()) {
         // Register newline first
@@ -49,12 +51,12 @@ Token Lexer::lex_ident_or_keyword() {
         auto text = p.first;
         auto kind = p.second;
 
-        // If the leftover source text is shorter than the keyword, skip it.
+        // If the remaining source text is shorter than the keyword, skip it.
         if (static_cast<size_t>(eos() - curr) < text.length()) {
             continue;
         }
 
-        std::string_view sv{curr, text.length()};
+        std::string_view sv{curr, static_cast<size_t>(look - curr)};
         if (sv == text) {
             return make_token_with_literal(kind);
         }

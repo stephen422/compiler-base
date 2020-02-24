@@ -89,13 +89,13 @@ private:
     AstNode *parseToplevel();
 
     // Statement parsers.
-    Stmt *parseStmt();
-    Stmt *parseExprOrAssignStmt();
+    Stmt *parse_stmt();
+    Stmt *parse_expr_or_assign_stmt();
     Stmt *parse_return_stmt();
     DeclStmt *parse_decl_stmt();
     CompoundStmt *parse_compound_stmt();
-    bool isEndOfStmt() const;
-    bool isEOS();
+    bool is_end_of_stmt() const;
+    bool is_eos();
 
     // Declaration parsers
     DeclNode *parseDecl();
@@ -106,7 +106,7 @@ private:
     bool isStartOfDecl() const;
 
     // Expression parsers
-    Expr *parseExpr();
+    Expr *parse_expr();
     Expr *parseUnaryExpr();
     UnaryExpr *parseLiteralExpr();
     Expr *parseFuncCallOrDeclRefExpr();
@@ -128,10 +128,10 @@ private:
     bool expect(TokenKind kind, const std::string &msg);
 
     // Skip until a specific token(s) show up.
-    void skipUntil(TokenKind kind);
-    void skipUntilAny(const std::vector<TokenKind> &kinds);
-    void skipUntilEndOfLine();
-    void skipNewlines();
+    void skip_until(TokenKind kind);
+    void skip_until_any(const std::vector<TokenKind> &kinds);
+    void skip_until_end_of_line();
+    void skip_newlines();
 
     template <typename T, typename... Args> T *makeNode(Args &&... args) {
         nodes.emplace_back(new T{std::forward<Args>(args)...});

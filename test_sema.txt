@@ -19,11 +19,11 @@ func main() {
     new_kid // [error: "undeclared.*'new_kid'"]
 
     car(3) // [error: "'car'.*not a function]
-    f(hi, a)
+    func_in_the_back(hi, a)
 
     *a // [error: "dereference"] // TODO: report 'int'
 }
 
-func f(a: int, b: int) {
+func func_in_the_back(a: int, b: int) {
     return a + b
 }

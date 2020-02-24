@@ -66,12 +66,12 @@ bool Parser::expect(TokenKind kind, const std::string &msg = "") {
     return true;
 }
 
-bool Parser::isEndOfStmt() const {
+bool Parser::is_end_of_stmt() const {
     return tok.kind == TokenKind::newline || tok.kind == TokenKind::comment;
 }
 
-bool Parser::isEOS() {
-    skipNewlines();
+bool Parser::is_eos() {
+    skip_newlines();
     return tok.kind == TokenKind::eos;
 }
 
@@ -80,7 +80,7 @@ bool Parser::isEOS() {
 // Stmt:
 //     Decl
 //     Expr
-Stmt *Parser::parseStmt() {
+Stmt *Parser::parse_stmt() {
     Stmt *stmt = nullptr;
 
     if (tok.kind == TokenKind::kw_return) {
@@ -88,9 +88,9 @@ Stmt *Parser::parseStmt() {
     } else if (isStartOfDecl()) {
         stmt = parse_decl_stmt();
     } else {
-        stmt = parseExprOrAssignStmt();
+        stmt = parse_expr_or_assign_stmt();
     }
-    skipNewlines();
+    skip_newlines();
 
     return stmt;
 }
@@ -102,10 +102,11 @@ Stmt *Parser::parse_return_stmt() {
 
     // optional
     Expr *expr = nullptr;
-    if (!isEndOfStmt())
-        expr = parseExpr();
-    if (!isEndOfStmt()) {
-        skipUntilEndOfLine();
+    if (!is_end_of_stmt()) {
+        expr = parse_expr();
+    }
+    if (!is_end_of_stmt()) {
+        skip_until_end_of_line();
         return makeNodeWithPos<BadStmt>(pos);
     }
     return makeNodeWithPos<ReturnStmt>(pos, expr);
@@ -114,35 +115,35 @@ Stmt *Parser::parse_return_stmt() {
 // let a = ...
 DeclStmt *Parser::parse_decl_stmt() {
     auto decl = parseDecl();
-    if (!isEndOfStmt()) {
+    if (!is_end_of_stmt()) {
         if (decl->kind != AstKind::bad_decl)
             expect(TokenKind::newline);
         // try to recover
-        skipUntilEndOfLine();
+        skip_until_end_of_line();
     }
     return makeNode<DeclStmt>(decl);
 }
 
-Stmt *Parser::parseExprOrAssignStmt() {
+Stmt *Parser::parse_expr_or_assign_stmt() {
     auto pos = tok.pos;
 
-    auto lhs = parseExpr();
+    auto lhs = parse_expr();
     // ExprStmt: expression ends with a newline
-    if (isEndOfStmt()) {
-        skipUntilEndOfLine();
+    if (is_end_of_stmt()) {
+        skip_until_end_of_line();
         return makeNode<ExprStmt>(lhs);
     }
 
     // AssignStmt: expression is followed by equals
     // (anything else is treated as an error)
     if (!expect(TokenKind::equals)) {
-        skipUntilEndOfLine();
+        skip_until_end_of_line();
         return makeNodeWithPos<BadStmt>(pos);
     }
 
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
-    auto rhs = parseExpr();
+    auto rhs = parse_expr();
     return makeNodeWithPos<AssignStmt>(pos, lhs, rhs);
 }
 
@@ -157,10 +158,10 @@ CompoundStmt *Parser::parse_compound_stmt() {
     auto compound = makeNode<CompoundStmt>();
 
     while (true) {
-        skipNewlines();
+        skip_newlines();
         if (tok.kind == TokenKind::rbrace)
             break;
-        auto stmt = parseStmt();
+        auto stmt = parse_stmt();
         compound->stmts.push_back(stmt);
     }
 
@@ -184,7 +185,7 @@ DeclNode *Parser::parseVarDecl(bool is_member) {
     }
     if (tok.kind == TokenKind::equals) {
         next();
-        auto assign_expr = parseExpr();
+        auto assign_expr = parse_expr();
         if (v)
             static_cast<VarDeclNode *>(v)->assign_expr = assign_expr;
         else
@@ -205,7 +206,7 @@ std::vector<DeclNode *> Parser::parseVarDeclList(bool is_member) {
 
     while (true) {
         DeclNode *decl = nullptr;
-        skipNewlines();
+        skip_newlines();
         if (tok.kind != TokenKind::ident)
             break;
 
@@ -218,14 +219,14 @@ std::vector<DeclNode *> Parser::parseVarDeclList(bool is_member) {
             // i.e. comma, newline, or (2) used to enclose a decl list, i.e.
             // parentheses and braces.  This works for both function argument
             // lists and struct member lists.
-            skipUntilAny({TokenKind::comma, TokenKind::newline,
+            skip_until_any({TokenKind::comma, TokenKind::newline,
                           TokenKind::rparen, TokenKind::rbrace});
         }
         if (tok.kind == TokenKind::comma) {
             next();
         }
     }
-    skipNewlines();
+    skip_newlines();
 
     return decls;
 }
@@ -241,7 +242,7 @@ StructDeclNode *Parser::parseStructDecl() {
     next();
 
     if (!expect(TokenKind::lbrace))
-        skipUntilEndOfLine();
+        skip_until_end_of_line();
     auto fields = parseVarDeclList(true);
     expect(TokenKind::rbrace, "unterminated struct declaration");
     // TODO: recover
@@ -271,7 +272,7 @@ FuncDeclNode *Parser::parseFuncDecl() {
     }
     if (tok.kind != TokenKind::lbrace) {
         errorExpected("'->' or '{'");
-        skipUntil(TokenKind::lbrace);
+        skip_until(TokenKind::lbrace);
     }
     // function body
     func->body = parse_compound_stmt();
@@ -344,7 +345,7 @@ Expr *Parser::parseFuncCallOrDeclRefExpr() {
         expect(TokenKind::lparen);
         std::vector<Expr *> args;
         while (tok.kind != TokenKind::rparen) {
-            args.push_back(parseExpr());
+            args.push_back(parse_expr());
             if (tok.kind == TokenKind::comma)
                 next();
         }
@@ -407,6 +408,7 @@ Expr *Parser::parseTypeExpr() {
 Expr *Parser::parseUnaryExpr() {
     auto pos = tok.pos;
 
+    fmt::print("{}: token=[{}], kind={}\n", __func__, tok.str(), tok.kind);
     switch (tok.kind) {
     case TokenKind::number:
     case TokenKind::string:
@@ -428,7 +430,7 @@ Expr *Parser::parseUnaryExpr() {
     }
     case TokenKind::lparen: {
         expect(TokenKind::lparen);
-        auto inside_expr = parseExpr();
+        auto inside_expr = parse_expr();
         expect(TokenKind::rparen);
         return makeNodeWithPos<ParenExpr>(pos, inside_expr);
     }
@@ -518,7 +520,7 @@ Expr *Parser::parseMemberExprMaybe(Expr *expr) {
     return result;
 }
 
-Expr *Parser::parseExpr() {
+Expr *Parser::parse_expr() {
     auto unary = parseUnaryExpr();
     if (!unary)
         return nullptr;
@@ -544,12 +546,12 @@ bool Parser::verify() const {
     return cmp::verify(lexer.source().filename, errors, beacons);
 }
 
-void Parser::skipUntil(TokenKind kind) {
+void Parser::skip_until(TokenKind kind) {
   while (tok.kind != kind)
     next();
 }
 
-void Parser::skipUntilAny(const std::vector<TokenKind> &kinds) {
+void Parser::skip_until_any(const std::vector<TokenKind> &kinds) {
   while (true) {
     for (auto kind : kinds) {
       if (tok.kind == kind)
@@ -559,21 +561,21 @@ void Parser::skipUntilAny(const std::vector<TokenKind> &kinds) {
   }
 }
 
-void Parser::skipUntilEndOfLine() {
-    while (!isEndOfStmt())
+void Parser::skip_until_end_of_line() {
+    while (!is_end_of_stmt())
         next();
 }
 
 // The language is newline-aware, but newlines are mostly meaningless unless
 // they are at the end of a statement or a declaration.  In those cases we use
 // this to skip over them.
-void Parser::skipNewlines() {
+void Parser::skip_newlines() {
     while (tok.kind == TokenKind::newline || tok.kind == TokenKind::comment)
         next();
 }
 
 AstNode *Parser::parseToplevel() {
-    skipNewlines();
+    skip_newlines();
 
     switch (tok.kind) {
     case TokenKind::kw_func:
@@ -588,7 +590,7 @@ AstNode *Parser::parseToplevel() {
 File *Parser::parseFile() {
     auto file = makeNode<File>();
     // FIXME
-    while (!isEOS()) {
+    while (!is_eos()) {
         auto toplevel = parseToplevel();
         file->toplevels.push_back(toplevel);
     }
