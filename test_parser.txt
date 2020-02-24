@@ -6,7 +6,7 @@
 // struct declaration
 // struct fields
 
-fn main() {
+func main() {
     let a = 3 + 4
     let b: int
     let b: int = 3 + 4
@@ -35,10 +35,10 @@ fn main() {
     car.driver.age
 }
 
-fn f(a: int) int { // [error: "expected '->'.*found 'int'"]
+func f(a: int) int { // [error: "expected '->'.*found 'int'"]
 }
 
-fn f(a: int, b int, c: int) -> int { // [error: "expected.*':'"]
+func f(a: int, b int, c: int) -> int { // [error: "expected.*':'"]
     return * // [error: "expected.*expression"]
 }
 

@@ -48,7 +48,7 @@ enum class TokenKind {
     character,
     comment,
     KWSTART,
-    kw_fn,
+    kw_func,
     kw_struct,
     kw_let,
     kw_var,
@@ -101,7 +101,7 @@ const std::pair<std::string_view, TokenKind> symbol_map[] {
 };
 
 const std::pair<std::string_view, TokenKind> keyword_map[] {
-    {"fn", TokenKind::kw_fn},
+    {"func", TokenKind::kw_func},
     {"struct", TokenKind::kw_struct},
     {"let", TokenKind::kw_let},
     {"var", TokenKind::kw_var},

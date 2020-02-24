@@ -252,7 +252,7 @@ StructDeclNode *Parser::parseStructDecl() {
 FuncDeclNode *Parser::parseFuncDecl() {
     auto pos = tok.pos;
 
-    expect(TokenKind::kw_fn);
+    expect(TokenKind::kw_func);
 
     Name *name = names.get_or_add(std::string{tok.text});
     auto func = makeNode<FuncDeclNode>(name);
@@ -576,7 +576,7 @@ AstNode *Parser::parseToplevel() {
     skipNewlines();
 
     switch (tok.kind) {
-    case TokenKind::kw_fn:
+    case TokenKind::kw_func:
         return parseFuncDecl();
     case TokenKind::kw_struct:
         return parseStructDecl();

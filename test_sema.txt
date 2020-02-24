@@ -7,7 +7,7 @@ struct Car {
     engine: int, // [error: "redefinition.*'engine'"]
 }
 
-fn main() {
+func main() {
     let a: int = 3 + 4
     let a = 4 // [error: "redefinition.*'a'"]
     let car: Car
@@ -24,6 +24,6 @@ fn main() {
     *a // [error: "dereference"] // TODO: report 'int'
 }
 
-fn f(a: int, b: int) {
+func f(a: int, b: int) {
     return a + b
 }
