@@ -2,9 +2,9 @@
 // check function returns
 
 struct Car {
-    a: int,
+    engine: int,
     wheel: int,
-    a: int, // [error: "redefinition.*'a'"]
+    engine: int, // [error: "redefinition.*'engine'"]
 }
 
 fn main() {
@@ -18,7 +18,12 @@ fn main() {
 
     new_kid // [error: "undeclared.*'new_kid'"]
 
+    car(3) // [error: "'car'.*not a function]
     f(hi, a)
 
     *a // [error: "dereference"] // TODO: report 'int'
+}
+
+fn f(a: int, b: int) {
+    return a + b
 }

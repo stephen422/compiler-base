@@ -6,6 +6,7 @@
 #include "fmt/format.h"
 #include <variant>
 #include <vector>
+#include <assert.h>
 
 namespace cmp {
 
@@ -80,6 +81,15 @@ struct StructDecl {
     StructDecl(Name *n) : name(n) {}
 };
 
+// Declaration of a function.
+struct FuncDecl {
+    Name *name = nullptr;
+    Type *return_type = nullptr;
+    std::vector<VarDecl *> args;
+
+    FuncDecl(Name *n) : name(n) {}
+};
+
 // 'Decl' represents declaration of a variable, a function, or a type.
 // All Decls are stored in a global pool.  Scoped Decl tables act on the
 // references of these pooled Decls to determine undeclared-use or
@@ -87,19 +97,31 @@ struct StructDecl {
 // TODO: Clarify the definition. Should type names have a Decl too?  What is
 // the 'type' member of a TypeDecl?
 // using Decl = std::variant<VarDecl, StructDecl>;
+enum DeclKind { DECL_VAR, DECL_STRUCT, DECL_FUNC };
 struct Decl {
-    enum { DECL_VAR, DECL_STRUCT } type;
+    DeclKind kind;
     union {
         VarDecl var_decl;
         StructDecl struct_decl;
+        FuncDecl func_decl;
     };
-    Decl(const VarDecl &v) : type(DECL_VAR), var_decl(v) {}
-    Decl(const StructDecl &s) : type(DECL_STRUCT), struct_decl(s) {}
+
+    Decl(const VarDecl &v) : kind(DECL_VAR), var_decl(v) {}
+    Decl(const StructDecl &s) : kind(DECL_STRUCT), struct_decl(s) {}
+    Decl(const FuncDecl &f) : kind(DECL_FUNC), func_decl(f) {}
     ~Decl() {
-        if (type == DECL_VAR) {
+        switch (kind) {
+        case DECL_VAR:
             var_decl.~VarDecl();
-        } else {
+            break;
+        case DECL_STRUCT:
             struct_decl.~StructDecl();
+            break;
+        case DECL_FUNC:
+            func_decl.~FuncDecl();
+            break;
+        default:
+            assert(false);
         }
     }
     std::string str() const;
@@ -108,8 +130,8 @@ struct Decl {
 // Convenience cast function. Note that this works on a *pointer* to the Decl.
 // template <typename T> T *decl_cast(Decl *d) { return &std::get<T>(*d); }
 // Allocator function.
-Decl *make_decl(Sema &sema, const VarDecl &var_decl);
-Decl *make_decl(Sema &sema, const StructDecl &struct_decl);
+Decl *make_decl(Sema *sema, const VarDecl &var_decl);
+Decl *make_decl(Sema *sema, const StructDecl &struct_decl);
 
 struct Context {
     std::vector<StructDecl *> struct_decl_stack; // current enclosing struct decl
@@ -186,8 +208,8 @@ struct Ast;
 struct AstNode;
 
 // Do a semantic analysis on the given AST.
-void walk_ast(Sema &sema, AstNode *node, void (*pre_fn)(Sema &sema, AstNode *),
-              void (*post_fn)(Sema &sema, AstNode *));
+void walk_ast(Sema *sema, AstNode *node, void (*pre_fn)(Sema *sema, AstNode *),
+              void (*post_fn)(Sema *sema, AstNode *));
 void sema(Sema &sema, Ast &ast);
 
 } // namespace cmp

@@ -9,15 +9,15 @@ namespace cmp {
 
 std::string Type::str() const { return name->text; }
 
-Decl *make_decl(Sema &sema, const VarDecl &var_decl) {
+Decl *make_decl(Sema *sema, const VarDecl &var_decl) {
     Decl *decl = new Decl{var_decl};
-    sema.decl_pool.push_back(decl);
+    sema->decl_pool.push_back(decl);
     return decl;
 }
 
-Decl *make_decl(Sema &sema, const StructDecl &struct_decl) {
+Decl *make_decl(Sema *sema, const StructDecl &struct_decl) {
     Decl *decl = new Decl{struct_decl};
-    sema.decl_pool.push_back(decl);
+    sema->decl_pool.push_back(decl);
     return decl;
 }
 
@@ -50,8 +50,8 @@ Type *getReferenceType(Sema &sema, Type *type) {
 // AST Traversal
 //
 
-void walk_ast(Sema &sema, AstNode *node, void (*pre_fn)(Sema &sema, AstNode *),
-              void (*post_fn)(Sema &sema, AstNode *)) {
+void walk_ast(Sema *sema, AstNode *node, void (*pre_fn)(Sema *sema, AstNode *),
+              void (*post_fn)(Sema *sema, AstNode *)) {
     assert(node);
 
     pre_fn(sema, node);
@@ -140,78 +140,82 @@ void walk_ast(Sema &sema, AstNode *node, void (*pre_fn)(Sema &sema, AstNode *),
 // Name binding pass
 //
 
-void CompoundStmt::name_bind_pre(Sema &sema) { sema.decl_table.scope_open(); }
+void CompoundStmt::name_bind_pre(Sema *sema) { sema->decl_table.scope_open(); }
 
-void CompoundStmt::name_bind_post(Sema &sema) { sema.decl_table.scope_close(); }
+void CompoundStmt::name_bind_post(Sema *sema) { sema->decl_table.scope_close(); }
 
-void VarDeclNode::name_bind_post(Sema &sema) {
+void VarDeclNode::name_bind_post(Sema *sema) {
     // check for redefinition
-    auto found = sema.decl_table.find(name);
-    if (found && found->scope_level <= sema.decl_table.scope_level) {
-        sema.error(pos, fmt::format("redefinition of '{}'", name->str()));
+    auto found = sema->decl_table.find(name);
+    if (found && found->scope_level <= sema->decl_table.scope_level) {
+        sema->error(pos, fmt::format("redefinition of '{}'", name->str()));
     } else {
         // new variable declaration
         auto decl = make_decl(sema, VarDecl{name});
-        sema.decl_table.insert(name, decl);
+        sema->decl_table.insert(name, decl);
         // var_decl = decl_cast<VarDecl>(decl);
         var_decl = &decl->var_decl;
 
         if (is_member) {
-            assert(sema.context.struct_decl_stack.size() >= 1);
-            auto current_struct = sema.context.struct_decl_stack.back();
+            assert(sema->context.struct_decl_stack.size() >= 1);
+            auto current_struct = sema->context.struct_decl_stack.back();
             current_struct->fields.push_back(var_decl);
         }
     }
 }
 
-void StructDeclNode::name_bind_pre(Sema &sema) {
+void StructDeclNode::name_bind_pre(Sema *sema) {
     // Don't check for redefinition here, just discard everything if it turns
     // out to be so in post.
     auto decl = make_decl(sema, StructDecl{name});
     // struct_decl = decl_cast<StructDecl>(decl);
     struct_decl = &decl->struct_decl;
     // Decl table is going to be used for checking redefinition.
-    sema.decl_table.scope_open();
-    sema.context.struct_decl_stack.push_back(struct_decl);
+    sema->decl_table.scope_open();
+    sema->context.struct_decl_stack.push_back(struct_decl);
 }
 
-void StructDeclNode::name_bind_post(Sema &sema) {
+void StructDeclNode::name_bind_post(Sema *sema) {
     // FIXME: repetition with VarDecl::name_bind_post
     // check for redefinition
-    auto found = sema.type_table.find(name);
-    if (found && found->scope_level <= sema.type_table.scope_level) {
-        sema.error(pos, fmt::format("redefinition of '{}'", name->str()));
+    auto found = sema->type_table.find(name);
+    if (found && found->scope_level <= sema->type_table.scope_level) {
+        sema->error(pos, fmt::format("redefinition of '{}'", name->str()));
     } else {
         Type type{Type::Kind::value, name, nullptr};
-        sema.type_table.insert(name, type);
+        sema->type_table.insert(name, type);
     }
-    sema.context.struct_decl_stack.pop_back();
-    sema.decl_table.scope_close();
+    sema->context.struct_decl_stack.pop_back();
+    sema->decl_table.scope_close();
 }
 
-void DeclRefExpr::name_bind_post(Sema &sema) {
-    auto sym = sema.decl_table.find(name);
+void DeclRefExpr::name_bind_post(Sema *sema) {
+    auto sym = sema->decl_table.find(name);
     if (sym) {
         decl = sym->value;
     } else {
-        sema.error(pos, fmt::format("use of undeclared identifier '{}'", name->str()));
+        sema->error(pos, fmt::format("use of undeclared identifier '{}'", name->str()));
     }
 }
 
-void FuncCallExpr::name_bind_pre(Sema &sema) {
-    auto sym = sema.decl_table.find(func_name);
+void FuncCallExpr::name_bind_pre(Sema *sema) {
+    auto sym = sema->decl_table.find(func_name);
     if (sym) {
-        decl = sym->value;
+        if (sym->value->kind == DECL_FUNC) {
+            func_decl = &sym->value->func_decl;
+        } else {
+            sema->error(
+                pos, fmt::format("'{}' is not a function", func_name->str()));
+        }
     } else {
-        sema.error(pos, fmt::format("undeclared function '{}'", func_name->str()));
+        sema->error(pos, fmt::format("undeclared function '{}'", func_name->str()));
     }
-    (void)sema;
 }
 
 // It's hard to namebind MemberExprs at this stage, because we don't know if
 // the operand of the dot(.) is actually member-accessible unless we do full
-// type checking (e.g. func().mem), except the most trival cases (e.g. id.mem).
-// So it may be better to defer this to the type checking phase.
+// type checking (e.g. func().mem), except the most trival cases (e.g.
+// struct.mem).  So it may be better to defer this to the type checking stage.
 // TODO check this in the future.
 #if 0
 static bool is_member_accessible(Expr *expr) {
@@ -239,12 +243,12 @@ void MemberExpr::name_bind_post(Sema &sema) {
 }
 #endif
 
-void TypeExpr::name_bind_post(Sema &sema) {
-    auto sym = sema.type_table.find(name);
+void TypeExpr::name_bind_post(Sema *sema) {
+    auto sym = sema->type_table.find(name);
     if (sym) {
         type = &sym->value;
     } else {
-        sema.error(pos, fmt::format("use of undeclared type '{}'", name->str()));
+        sema->error(pos, fmt::format("use of undeclared type '{}'", name->str()));
     }
 }
 

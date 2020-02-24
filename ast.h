@@ -76,8 +76,8 @@ struct AstNode {
         (void)sema; // squelch unused warning
     }
     // Name binding pass.
-    virtual void name_bind_pre(Sema &sema) { (void)sema; }
-    virtual void name_bind_post(Sema &sema) { (void)sema; }
+    virtual void name_bind_pre(Sema *sema) { (void)sema; }
+    virtual void name_bind_post(Sema *sema) { (void)sema; }
 
     // Convenience ostream for AST printing.
     // Handles indentation, tree drawing, etc.
@@ -102,8 +102,8 @@ struct AstNode {
 
 // These are free-standing functions that simply do the virtual call into the
 // polymorphic compiler pass functions.
-inline void name_bind_pre(Sema &sema, AstNode *node) { node->name_bind_pre(sema); }
-inline void name_bind_post(Sema &sema, AstNode *node) { node->name_bind_post(sema); }
+inline void name_bind_pre(Sema *sema, AstNode *node) { node->name_bind_pre(sema); }
+inline void name_bind_post(Sema *sema, AstNode *node) { node->name_bind_post(sema); }
 
 // ========
 //   File
@@ -168,8 +168,8 @@ struct CompoundStmt : public Stmt {
     CompoundStmt() : Stmt(AstKind::compound_stmt) {}
     void print() const override;
     void walk(Sema &sema) override;
-    void name_bind_pre(Sema &sema) override;
-    void name_bind_post(Sema &sema) override;
+    void name_bind_pre(Sema *sema) override;
+    void name_bind_post(Sema *sema) override;
 
     std::vector<Stmt *> stmts;
 };
@@ -220,9 +220,9 @@ struct StringLiteral : public UnaryExpr {
     void walk(Sema &sema) override;
 };
 
+// A unary expression that references a declaration object, e.g. a variable or
+// a function.
 struct DeclRefExpr : public UnaryExpr {
-    // The integer value of this pointer serves as a unique ID to be used for
-    // indexing the symbol table in the name binding phase.
     Name *name = nullptr;
     Decl *decl = nullptr;
 
@@ -230,12 +230,12 @@ struct DeclRefExpr : public UnaryExpr {
         : UnaryExpr(AstKind::decl_ref_expr, nullptr), name(name) {}
     void print() const override;
     void walk(Sema &sema) override;
-    void name_bind_post(Sema &sema) override;
+    void name_bind_post(Sema *sema) override;
 };
 
 struct FuncCallExpr : public UnaryExpr {
     Name *func_name = nullptr;
-    Decl *decl = nullptr;
+    FuncDecl *func_decl = nullptr;
     std::vector<Expr *> args;
 
     FuncCallExpr(Name *name, const std::vector<Expr *> &args)
@@ -243,7 +243,7 @@ struct FuncCallExpr : public UnaryExpr {
           args(args) {}
     void print() const override;
     void walk(Sema &sema) override;
-    void name_bind_pre(Sema &sema) override;
+    void name_bind_pre(Sema *sema) override;
 };
 
 struct ParenExpr : public UnaryExpr {
@@ -282,7 +282,7 @@ struct TypeExpr : public Expr {
     TypeExpr() : Expr(AstKind::type_expr) {}
     void print() const override;
     void walk(Sema &sema) override;
-    void name_bind_post(Sema &sema) override;
+    void name_bind_post(Sema *sema) override;
 };
 
 struct BinaryExpr : public Expr {
@@ -333,7 +333,7 @@ struct VarDeclNode : public DeclNode {
           assign_expr(std::move(expr)) {}
     void print() const override;
     void walk(Sema &sema) override;
-    void name_bind_post(Sema &sema) override;
+    void name_bind_post(Sema *sema) override;
 
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
@@ -351,8 +351,8 @@ struct StructDeclNode : public DeclNode {
         : DeclNode(AstKind::struct_decl), name(n), members(m) {}
     void print() const override;
     void walk(Sema &sema) override;
-    void name_bind_pre(Sema &sema) override;
-    void name_bind_post(Sema &sema) override;
+    void name_bind_pre(Sema *sema) override;
+    void name_bind_post(Sema *sema) override;
 
     Name *name = nullptr;            // name of the struct
     StructDecl *struct_decl = nullptr; // decl info
