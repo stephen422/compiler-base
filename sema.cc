@@ -21,6 +21,12 @@ Decl *make_decl(Sema *sema, const StructDecl &struct_decl) {
     return decl;
 }
 
+Decl *make_decl(Sema *sema, const FuncDecl &func_decl) {
+    Decl *decl = new Decl{func_decl};
+    sema->decl_pool.push_back(decl);
+    return decl;
+}
+
 // TODO: Decl::str()
 // std::string VarDecl::str() const {
 //     return name->text;
@@ -102,7 +108,7 @@ void walk_ast(Sema *sema, AstNode *node, void (*pre_fn)(Sema *sema, AstNode *),
         auto func = static_cast<FuncDeclNode *>(node);
         if (func->ret_type_expr)
             walk_ast(sema, func->ret_type_expr, pre_fn, post_fn);
-        for (auto p : func->params)
+        for (auto p : func->args)
             walk_ast(sema, p, pre_fn, post_fn);
         walk_ast(sema, func->body, pre_fn, post_fn);
         break;
@@ -144,48 +150,71 @@ void CompoundStmt::name_bind_pre(Sema *sema) { sema->decl_table.scope_open(); }
 
 void CompoundStmt::name_bind_post(Sema *sema) { sema->decl_table.scope_close(); }
 
+// FIXME: should this be pre or post for VarDecl?
 void VarDeclNode::name_bind_post(Sema *sema) {
-    // check for redefinition
     auto found = sema->decl_table.find(name);
-    if (found && found->scope_level <= sema->decl_table.scope_level) {
+    if (found && found->value->kind == DECL_VAR &&
+        found->scope_level <= sema->type_table.scope_level) {
         sema->error(pos, fmt::format("redefinition of '{}'", name->str()));
-    } else {
-        // new variable declaration
-        auto decl = make_decl(sema, VarDecl{name});
-        sema->decl_table.insert(name, decl);
-        // var_decl = decl_cast<VarDecl>(decl);
-        var_decl = &decl->var_decl;
+        return;
+    }
 
-        if (is_member) {
-            assert(sema->context.struct_decl_stack.size() >= 1);
-            auto current_struct = sema->context.struct_decl_stack.back();
-            current_struct->fields.push_back(var_decl);
-        }
+    auto decl = make_decl(sema, VarDecl{name});
+    sema->decl_table.insert(name, decl);
+    var_decl = &decl->var_decl;
+
+    // Note that member declarations are also parsed as VarDecls.
+    if (is_member) {
+        assert(!sema->context.struct_decl_stack.empty());
+        auto current_struct = sema->context.struct_decl_stack.back();
+        current_struct->fields.push_back(var_decl);
     }
 }
 
+// We need to push StructDecl at pre, so that the inner member declarations
+// have access and can modify this decl.
 void StructDeclNode::name_bind_pre(Sema *sema) {
-    // Don't check for redefinition here, just discard everything if it turns
-    // out to be so in post.
+    auto found = sema->decl_table.find(name);
+    if (found && found->value->kind == DECL_STRUCT &&
+        found->scope_level <= sema->decl_table.scope_level) {
+        sema->error(pos, fmt::format("redefinition of '{}'", name->str()));
+        // TODO: return false so that traversal is early-exited
+        return;
+    }
+
     auto decl = make_decl(sema, StructDecl{name});
-    // struct_decl = decl_cast<StructDecl>(decl);
+    sema->decl_table.insert(name, decl);
     struct_decl = &decl->struct_decl;
-    // Decl table is going to be used for checking redefinition.
+
+    // Decl table is going to be used for checking member redefinition.
     sema->decl_table.scope_open();
     sema->context.struct_decl_stack.push_back(struct_decl);
 }
 
 void StructDeclNode::name_bind_post(Sema *sema) {
-    // FIXME: repetition with VarDecl::name_bind_post
-    // check for redefinition
-    auto found = sema->type_table.find(name);
-    if (found && found->scope_level <= sema->type_table.scope_level) {
-        sema->error(pos, fmt::format("redefinition of '{}'", name->str()));
-    } else {
-        Type type{Type::Kind::value, name, nullptr};
-        sema->type_table.insert(name, type);
-    }
     sema->context.struct_decl_stack.pop_back();
+    sema->decl_table.scope_close();
+}
+
+void FuncDeclNode::name_bind_pre(Sema *sema) {
+    auto found = sema->decl_table.find(name);
+    if (found && found->value->kind == DECL_FUNC &&
+        found->scope_level <= sema->type_table.scope_level) {
+        sema->error(pos, fmt::format("redefinition of '{}'", name->str()));
+        // TODO: return false so that traversal is early-exited
+        return;
+    }
+
+    auto decl = make_decl(sema, FuncDecl{name});
+    sema->decl_table.insert(name, decl);
+    func_decl = &decl->func_decl;
+
+    sema->decl_table.scope_open();
+    // sema->context.struct_decl_stack.push_back(struct_decl);
+}
+
+void FuncDeclNode::name_bind_post(Sema *sema) {
+    // sema->context.struct_decl_stack.pop_back();
     sema->decl_table.scope_close();
 }
 
@@ -334,7 +363,7 @@ void FuncDeclNode::walk(Sema &sema) {
         // sema.getContext().ret_type = ret_type_expr->type;
     }
 
-    for (auto &p : params)
+    for (auto &p : args)
         p->walk(sema);
 
     body->walk(sema);

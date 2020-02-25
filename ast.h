@@ -75,7 +75,9 @@ struct AstNode {
     virtual void walk(Sema &sema) {
         (void)sema; // squelch unused warning
     }
-    // Name binding pass.
+    // Name binding pass. Handles variable/function/struct declaration,
+    // redefinition/undeclared-use checks, number of function arguments checks,
+    // etc.
     virtual void name_bind_pre(Sema *sema) { (void)sema; }
     virtual void name_bind_post(Sema *sema) { (void)sema; }
 
@@ -354,9 +356,9 @@ struct StructDeclNode : public DeclNode {
     void name_bind_pre(Sema *sema) override;
     void name_bind_post(Sema *sema) override;
 
-    Name *name = nullptr;            // name of the struct
+    Name *name = nullptr;              // name of the struct
     StructDecl *struct_decl = nullptr; // decl info
-    std::vector<DeclNode *> members; // member variables
+    std::vector<DeclNode *> members;   // member variables
 };
 
 // Function declaration.  There is no separate function definition: functions
@@ -365,9 +367,12 @@ struct FuncDeclNode : public DeclNode {
     FuncDeclNode(Name *n) : DeclNode(AstKind::func_decl), name(n) {}
     void print() const override;
     void walk(Sema &sema) override;
+    void name_bind_pre(Sema *sema) override;
+    void name_bind_post(Sema *sema) override;
 
     Name *name = nullptr;          // name of the function
-    std::vector<DeclNode *> params;    // list of parameters
+    FuncDecl *func_decl = nullptr; // decl info
+    std::vector<DeclNode *> args;  // list of parameters
     CompoundStmt *body = nullptr;  // body statements
     Expr *ret_type_expr = nullptr; // return type expression
 };

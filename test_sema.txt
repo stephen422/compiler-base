@@ -1,10 +1,13 @@
 // TODO:
-// check function returns
+// function return check
 
 struct Car {
     engine: int,
     wheel: int,
     engine: int, // [error: "redefinition.*'engine'"]
+}
+
+func front_func(a: int, b: int, c: int) {
 }
 
 func main() {
@@ -19,11 +22,12 @@ func main() {
     new_kid // [error: "undeclared.*'new_kid'"]
 
     car(3) // [error: "'car'.*not a function]
-    func_in_the_back(hi, a)
+    front_func(a)
+    back_func(hi, a) // TODO: multi-pass name binding
 
     *a // [error: "dereference"] // TODO: report 'int'
 }
 
-func func_in_the_back(a: int, b: int) {
+func back_func(a: int, b: int) {
     return a + b
 }

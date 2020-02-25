@@ -132,6 +132,7 @@ struct Decl {
 // Allocator function.
 Decl *make_decl(Sema *sema, const VarDecl &var_decl);
 Decl *make_decl(Sema *sema, const StructDecl &struct_decl);
+Decl *make_decl(Sema *sema, const FuncDecl &func_decl);
 
 struct Context {
     std::vector<StructDecl *> struct_decl_stack; // current enclosing struct decl

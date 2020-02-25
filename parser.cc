@@ -262,7 +262,7 @@ FuncDeclNode *Parser::parseFuncDecl() {
 
     // argument list
     expect(TokenKind::lparen);
-    func->params = parseVarDeclList(false);
+    func->args = parseVarDeclList(false);
     expect(TokenKind::rparen);
 
     // return type (-> ...)

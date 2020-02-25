@@ -92,7 +92,7 @@ void StructDeclNode::print() const {
 void FuncDeclNode::print() const {
     out() << "[FuncDecl] " << name->text << "\n";
     PrintScope start;
-    for (auto &p : params)
+    for (auto &p : args)
         p->print();
     if (ret_type_expr)
         ret_type_expr->print();
