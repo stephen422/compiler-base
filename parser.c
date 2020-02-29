@@ -10,7 +10,7 @@
 #include <string.h>
 #include <sys/types.h>
 
-static Node *parseExpr(Parser *p);
+static Expr *parseExpr(Parser *p);
 static int is_decl_start(Parser *p);
 static Node *parse_decl(Parser *p);
 
@@ -29,7 +29,7 @@ static Node *makeNode(Parser *p, NodeKind k, Token tok)
         fprintf(stderr, "alloc error\n");
         exit(1);
     }
-    node->kind = k;
+    node->base.kind = k;
     node->token = tok;
     sb_push(p->nodep_buf, node);
     return node;
@@ -42,7 +42,7 @@ static Node *makeFile(Parser *p, Node **nodes)
 	return node;
 }
 
-static Node *makeExprStmt(Parser *p, Node *expr)
+static Node *makeExprStmt(Parser *p, Expr *expr)
 {
 	Node *node = makeNode(p, ND_EXPRSTMT, p->tok);
 	node->s.stmt_expr = expr;
@@ -55,7 +55,7 @@ static Node *makeDecl_stmt(Parser *p, Node *decl) {
 	return node;
 }
 
-static Node *makeAssignStmt(Parser *p, Node *lhs, Node *rhs)
+static Node *makeAssignStmt(Parser *p, Expr *lhs, Expr *rhs)
 {
 	Node *node = makeNode(p, ND_ASSIGNSTMT, p->tok);
 	node->e.lhs = lhs;
@@ -63,7 +63,7 @@ static Node *makeAssignStmt(Parser *p, Node *lhs, Node *rhs)
 	return node;
 }
 
-static Node *makeRetstmt(Parser *p, Node *expr) {
+static Node *makeRetstmt(Parser *p, Expr *expr) {
 	Node *node = makeNode(p, ND_RETURNSTMT, p->tok);
 	node->s.stmt_expr = expr;
 	return node;
@@ -75,45 +75,45 @@ static Node *makeCompoundstmt(Parser *p)
 	return node;
 }
 
-static Node *makeUnaryexpr(Parser *p, NodeKind t, Node *expr)
+static Expr *makeUnaryexpr(Parser *p, NodeKind t, Expr *expr)
 {
 	Node *node = makeNode(p, t, p->tok);
 	node->e.target = expr;
-	return node;
+	return &node->e;
 }
 
-static Node *make_binexpr(Parser *p, Node *lhs, Token op, Node *rhs)
+static Expr *make_binexpr(Parser *p, Expr *lhs, Token op, Expr *rhs)
 {
 	Node *node = makeNode(p, ND_BINEXPR, p->tok);
 	node->e.lhs = lhs;
 	node->e.op = op;
 	node->e.rhs = rhs;
-	return node;
+	return &node->e;
 }
 
-static Node *makeTypeExpr(Parser *p, Name *name, int ref, Node *base)
+static TypeExpr *makeTypeExpr(Parser *p, Name *name, int ref, TypeExpr *subtype)
 {
 	Node *node = makeNode(p, ND_TYPEEXPR, p->tok);
 	node->t.name = name;
 	node->t.ref = ref;
-	node->t.base = base;
-	return node;
+	node->t.subtype = subtype;
+	return &node->t;
 }
 
-static Node *make_badtypeexpr(Parser *p)
+static TypeExpr *make_badtypeexpr(Parser *p)
 {
 	Node *node = makeNode(p, ND_BADTYPEEXPR, p->tok);
-	return node;
+	return &node->t;
 }
 
-static Node *make_idexpr(Parser *p, Name *name)
+static Expr *make_idexpr(Parser *p, Name *name)
 {
 	Node *node = makeNode(p, ND_IDEXPR, p->tok);
 	node->e.name = name;
-	return node;
+	return &node->e;
 }
 
-static Node *make_vardecl(Parser *p, Node *typeexpr, int mutable, Name *name, Node *expr)
+static Node *make_vardecl(Parser *p, TypeExpr *typeexpr, int mutable, Name *name, Expr *expr)
 {
 	Node *node = makeNode(p, ND_VARDECL, p->tok);
 	node->d.typeexpr = typeexpr;
@@ -123,7 +123,7 @@ static Node *make_vardecl(Parser *p, Node *typeexpr, int mutable, Name *name, No
 	return node;
 }
 
-static Node *make_paramdecl(Parser *p, Name *name, Node *typeexpr)
+static Node *make_paramdecl(Parser *p, Name *name, TypeExpr *typeexpr)
 {
 	Node *node = makeNode(p, ND_PARAMDECL, p->tok);
 	node->d.name = name;
@@ -164,7 +164,7 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
 
 	iprintf(indent, "");
 
-	switch (node->kind) {
+	switch (node->base.kind) {
 	case ND_FILE:
 		printf("[File]\n");
 		indent += 2;
@@ -178,33 +178,33 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
 	case ND_DECLSTMT:
 		printf("[DeclStmt]\n");
 		indent += 2;
-		print_ast_indent(p, node->s.decl, indent);
+		print_ast_indent(p, (Node *)node->s.decl, indent);
 		indent -= 2;
 		break;
 	case ND_EXPRSTMT:
 		printf("[ExprStmt]\n");
 		indent += 2;
-		print_ast_indent(p, node->s.stmt_expr, indent);
+		print_ast_indent(p, (Node *)node->s.stmt_expr, indent);
 		indent -= 2;
 		break;
 	case ND_ASSIGNSTMT:
 		printf("[AssignStmt]\n");
 		indent += 2;
-		print_ast_indent(p, node->e.lhs, indent);
-		print_ast_indent(p, node->e.rhs, indent);
+		print_ast_indent(p, (Node *)node->e.lhs, indent);
+		print_ast_indent(p, (Node *)node->e.rhs, indent);
 		indent -= 2;
 		break;
 	case ND_RETURNSTMT:
 		printf("[ReturnStmt]\n");
 		indent += 2;
-		print_ast_indent(p, node->s.stmt_expr, indent);
+		print_ast_indent(p, (Node *)node->s.stmt_expr, indent);
 		indent -= 2;
 		break;
 	case ND_COMPOUNDSTMT:
 		printf("[CompoundStmt]\n");
 		indent += 2;
 		for (int i = 0; i < sb_count(node->nodes); i++) {
-			print_ast_indent(p, node->nodes[i], indent);
+			print_ast_indent(p, (Node *)node->nodes[i], indent);
 		}
 		indent -= 2;
 		break;
@@ -228,29 +228,29 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
         case ND_REFEXPR:
 		printf("[RefExpr]\n");
 		indent += 2;
-		print_ast_indent(p, node->e.target, indent);
+		print_ast_indent(p, (Node *)node->e.target, indent);
 		indent -= 2;
                 break;
 	case ND_DEREFEXPR:
 		printf("[DerefExpr]\n");
 		indent += 2;
-		print_ast_indent(p, node->e.target, indent);
+		print_ast_indent(p, (Node *)node->e.target, indent);
 		indent -= 2;
 		break;
 	case ND_BINEXPR:
 		printf("[BinaryExpr]\n");
 		indent += 2;
-		print_ast_indent(p, node->e.lhs, indent);
+		print_ast_indent(p, (Node *)node->e.lhs, indent);
                 tokenPrint(&p->lexer, node->e.op);
-		print_ast_indent(p, node->e.rhs, indent);
+		print_ast_indent(p, (Node *)node->e.rhs, indent);
 		indent -= 2;
 		break;
 	case ND_VARDECL:
 		printf("[VarDecl] '%s' %s\n", node->d.name->text,
-			   node->d.typeexpr ? node->d.typeexpr->t.name->text : "(null)");
+			   node->d.typeexpr ? node->d.typeexpr->name->text : "(null)");
 		indent += 2;
 		iprintf(indent, "mutable: %d\n", node->d.mutable);
-		print_ast_indent(p, node->d.expr, indent);
+		print_ast_indent(p, (Node *)node->d.expr, indent);
 		indent -= 2;
 		break;
 	case ND_PARAMDECL:
@@ -260,13 +260,13 @@ static void print_ast_indent(Parser *p, const Node *node, int indent)
 		printf("[FuncDecl] '%s'\n", node->d.name->text);
 		indent += 2;
 		for (int i = 0; i < sb_count(node->paramdecls); i++) {
-			print_ast_indent(p, node->paramdecls[i], indent);
+			print_ast_indent(p, (Node *)node->paramdecls[i], indent);
 		}
-		print_ast_indent(p, node->body, indent);
+		print_ast_indent(p, (Node *)node->body, indent);
 		indent -= 2;
 		break;
 	default:
-		fprintf(stderr, "%s: unrecognized node type %d\n", __func__, node->kind);
+		fprintf(stderr, "%s: unrecognized node type %d\n", __func__, node->base.kind);
 		break;
 	}
 }
@@ -456,11 +456,11 @@ static void skipToEndOfLine(Parser *p) {
 // predetermine whether a statement is just an expression or an assignment
 // until we see the '='.  We therefore first parse the expression (LHS) and
 // then call this to transform that node into an assignment if needed.
-static Node *parseAssignOrExprStmt(Parser *p, Node *expr) {
+static Node *parseAssignOrExprStmt(Parser *p, Expr *expr) {
     Node *stmt = NULL;
     if (p->tok.type == TOK_EQUALS) {
         next(p);
-        Node *rhs = parseExpr(p);
+        Expr *rhs = parseExpr(p);
         stmt = makeAssignStmt(p, expr, rhs);
     } else {
         stmt = makeExprStmt(p, expr);
@@ -473,7 +473,7 @@ static Node *parseAssignOrExprStmt(Parser *p, Node *expr) {
 static Node *parseReturnStmt(Parser *p) {
     expect(p, TOK_RETURN);
 
-    Node *expr = parseExpr(p);
+    Expr *expr = parseExpr(p);
     if (!expr)
         error_expected(p, "expression");
 
@@ -508,7 +508,7 @@ static Node *parseStmt(Parser *p)
     }
 
     // all productions from now on start with an expression
-    Node *expr = parseExpr(p);
+    Expr *expr = parseExpr(p);
     if (expr)
         return parseAssignOrExprStmt(p, expr);
 
@@ -531,11 +531,12 @@ static Node *parseCompoundStmt(Parser *p)
     return compound;
 }
 
-static Node *parse_litexpr(Parser *p)
+static Expr *parse_litexpr(Parser *p)
 {
-	Node *expr = makeNode(p, ND_LITEXPR, p->tok);
-	next(p);
-	return expr;
+    // XXX
+    Expr *expr = (Expr *)makeNode(p, ND_LITEXPR, p->tok);
+    next(p);
+    return expr;
 }
 
 static int is_typename(Token tok)
@@ -549,8 +550,8 @@ static int is_typename(Token tok)
     }
 }
 
-static Node *parse_typeexpr(Parser *p) {
-    Node *subtype;
+static TypeExpr *parse_typeexpr(Parser *p) {
+    TypeExpr *subtype;
     Name *name;
     int ref;
 
@@ -559,12 +560,12 @@ static Node *parse_typeexpr(Parser *p) {
         ref = 1;
 
         subtype = parse_typeexpr(p);
-        if (subtype->kind == ND_BADTYPEEXPR)
+        if (astbase(subtype)->kind == ND_BADTYPEEXPR)
             return subtype;
-        printf("subtype kind=%d\n", subtype->kind);
+        printf("subtype kind=%d\n", astbase(subtype)->kind);
 
-        assert(subtype->t.name);
-        name = push_refname(&p->nametable, subtype->t.name);
+        assert(subtype->name);
+        name = push_refname(&p->nametable, subtype->name);
     } else {
         ref = 0;
         subtype = NULL;
@@ -586,15 +587,15 @@ static Node *parse_typeexpr(Parser *p) {
     return makeTypeExpr(p, name, ref, subtype);
 }
 
-static Node *parse_idexpr(Parser *p)
+static Expr *parse_idexpr(Parser *p)
 {
 	Name *name = push_name_from_token(p, p->tok);
 	next(p);
 	return make_idexpr(p, name);
 }
 
-static Node *parseUnaryExpr(Parser *p) {
-    Node *expr = NULL;
+static Expr *parseUnaryExpr(Parser *p) {
+    Expr *expr = NULL;
 
     switch (p->tok.type) {
     case TOK_IDENT:
@@ -645,7 +646,7 @@ static int get_precedence(const Token op)
 //	 UnaryExpr (op BinaryExpr)*
 //
 // Return the pointer to the node respresenting the reduced binary expression.
-static Node *parse_binexpr_rhs(Parser *p, Node *lhs, int precedence) {
+static Expr *parse_binexpr_rhs(Parser *p, Expr *lhs, int precedence) {
     while (1) {
         int this_prec = get_precedence(p->tok);
 
@@ -662,7 +663,7 @@ static Node *parse_binexpr_rhs(Parser *p, Node *lhs, int precedence) {
         // Parse the next term.  We do not know yet if this term should bind to
         // LHS or RHS; e.g. "a * b + c" or "a + b * c".  To know this, we should
         // look ahead for the operator that follows this term.
-        Node *rhs = parseUnaryExpr(p);
+        Expr *rhs = parseUnaryExpr(p);
         if (!rhs)
             error(p, "expected expression");
         int next_prec = get_precedence(p->tok);
@@ -683,6 +684,7 @@ static Node *parse_binexpr_rhs(Parser *p, Node *lhs, int precedence) {
 
 // Parse a function call expression.
 static Node *parseFuncCallExpr(Parser *p) {
+    (void)p;
     // TODO
     return NULL;
 }
@@ -700,8 +702,8 @@ static Node *parseFuncCallExpr(Parser *p) {
 // This grammar requires two or more lookahead, because a single token
 // lookahead would not tell us whether it is a single-ID expression or a call
 // expression.
-static Node *parseExpr(Parser *p) {
-    Node *expr = parseUnaryExpr(p);
+static Expr *parseExpr(Parser *p) {
+    Expr *expr = parseUnaryExpr(p);
     expr = parse_binexpr_rhs(p, expr, 0);
     return expr;
 }
@@ -714,7 +716,7 @@ static Node *parse_paramdecl(Parser *p)
     if (p->tok.type != TOK_COLON)
         expect(p, TOK_COLON);
     next(p);
-    Node *typeexpr = parse_typeexpr(p);
+    TypeExpr *typeexpr = parse_typeexpr(p);
 
     return make_paramdecl(p, name, typeexpr);
 }
@@ -746,16 +748,16 @@ static Node *parse_vardecl(Parser *p)
         next(p);
         if (!mut)
             error(p, "initial value required");
-        Node *typeexpr = parse_typeexpr(p);
+        TypeExpr *typeexpr = parse_typeexpr(p);
         return make_vardecl(p, typeexpr, mut, name, NULL);
     } else if (p->tok.type == TOK_EQUALS) {
         next(p);
-        Node *assign = parseExpr(p);
+        Expr *assign = parseExpr(p);
         return make_vardecl(p, NULL, mut, name, assign);
     } else {
         error_expected(p, "':' or '='");
         skipToEndOfLine(p);
-        Node *typeexpr = make_badtypeexpr(p);
+        TypeExpr *typeexpr = make_badtypeexpr(p);
         return make_vardecl(p, typeexpr, mut, name, NULL);
     }
 }

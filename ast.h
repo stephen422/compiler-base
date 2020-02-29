@@ -7,6 +7,7 @@
 typedef struct Name Name;
 typedef struct NameTable NameTable;
 typedef struct Type Type;
+typedef struct AstBase AstBase;
 typedef struct Expr Expr;
 typedef struct TypeExpr TypeExpr;
 typedef struct DeclNode DeclNode;
@@ -35,54 +36,65 @@ enum NodeKind {
     ND_FILE,
 };
 
+struct AstBase {
+    NodeKind kind;
+};
+
 struct Expr {
     Name *name;
-    Node *target; // ref, deref
+    Type *type;
+    Expr *target; // ref, deref
     Token op;
-    Node *lhs;
-    Node *rhs;
+    Expr *lhs;
+    Expr *rhs;
     Node **args;
 };
 
 struct TypeExpr {
+    Type *type;
     Name *name;
-    Node *base;
+    TypeExpr *subtype;
     int ref;
 };
 
 struct DeclNode {
     Name *name;
-    Node *typeexpr;
-    Node *expr; // init expr for VarDecl
+    Type *type;
+    TypeExpr *typeexpr;
+    Expr *expr; // init expr for VarDecl
     int ref;
     int mutable;
 };
 
 struct Stmt {
-    Node *stmt_expr;
+    Expr *stmt_expr;
     Node *decl;
     Node *nodes; // compoundstmt
 };
 
 struct Node {
-    NodeKind kind;
+    AstBase base;
+
+    union {
+        Expr e;
+        DeclNode d;
+        Stmt s;
+        TypeExpr t;
+    };
+
     Token token;
 
-    Type *type;
-
     Node **nodes; // file
-
-    Expr e;
-    DeclNode d;
-    Stmt s;
-    TypeExpr t;
 
     // funcdecl
     Node *body;
     Node **paramdecls;
-    Node *rettypeexpr;
+    TypeExpr *rettypeexpr;
 };
 
+static const Node _n;
+#define astbase(pn)  \
+    ((AstBase *)((char *)(pn) - ((char *)(&_n.e) - (char *)(&_n))))
 /* ASTContext wraps the root node of AST with metadata such as the name table.
  * It does not own any of the metadata, and should consist only of pointers to
  * the structures.  It is intended to be passed around by value.
