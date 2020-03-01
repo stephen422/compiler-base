@@ -335,7 +335,7 @@ static void walk(Context *c, Node *node)
         for (int i = 0; i < sb_count(node->paramdecls); i++) {
             walk(c, node->paramdecls[i]);
         }
-        walk(c, (Node *)node->rettypeexpr);
+        walk(c, astsuper(node->rettypeexpr));
 
         // Push an alias type with a user-undefinable name ("*ret") to the type
         // map.  This alias is used to identify the return type of the current
@@ -394,12 +394,12 @@ static void walk(Context *c, Node *node)
         node->e.type = c->i32_type;
         break;
     case ND_REFEXPR:
-        walk(c, (Node *)node->e.target);
+        walk(c, astsuper(node->e.target));
 
         node->e.type = reftype(c, node->e.target->type);
         break;
     case ND_DEREFEXPR: {
-        walk(c, (Node *)node->e.target);
+        walk(c, astsuper(node->e.target));
 
         Type *operand_type = node->e.target->type;
         if (operand_type->kind != T_REF) {
@@ -409,8 +409,8 @@ static void walk(Context *c, Node *node)
         break;
     }
     case ND_BINEXPR:
-        walk(c, (Node *)node->e.lhs);
-        walk(c, (Node *)node->e.rhs);
+        walk(c, astsuper(node->e.lhs));
+        walk(c, astsuper(node->e.rhs));
 
         assert(node->e.lhs->type);
         assert(node->e.rhs->type);
@@ -422,10 +422,10 @@ static void walk(Context *c, Node *node)
         node->e.type = node->e.lhs->type;
         break;
     case ND_EXPRSTMT:
-        walk(c, (Node *)node->s.stmt_expr);
+        walk(c, astsuper(node->s.stmt_expr));
         break;
     case ND_PARAMDECL:
-        walk(c, (Node *)node->d.typeexpr);
+        walk(c, astsuper(node->d.typeexpr));
 
         if (is_redefinition(&c->declmap, node->d.name))
             error("redefinition of '%s'", node->d.name->text);
@@ -441,12 +441,12 @@ static void walk(Context *c, Node *node)
 
         // infer type from expression
         if (d->expr) {
-            walk(c, (Node *)d->expr);
+            walk(c, astsuper(d->expr));
             type = d->expr->type;
         }
         // else, try explicit type spec
         else if (d->typeexpr) {
-            walk(c, (Node *)d->typeexpr);
+            walk(c, astsuper(d->typeexpr));
             type = d->typeexpr->type;
         } else {
             assert(0 && "unreachable");
@@ -461,12 +461,12 @@ static void walk(Context *c, Node *node)
         map_push(&c->declmap, d->name, decl);
         break;
     case ND_DECLSTMT:
-        walk(c, node->s.decl);
+        walk(c, astsuper(node->s.decl));
         break;
     case ND_ASSIGNSTMT:
         /* RHS first */
-        walk(c, (Node *)node->e.rhs);
-        walk(c, (Node *)node->e.lhs);
+        walk(c, astsuper(node->e.rhs));
+        walk(c, astsuper(node->e.lhs));
         break;
     case ND_COMPOUNDSTMT:
         push_scope(c);
@@ -476,7 +476,7 @@ static void walk(Context *c, Node *node)
         pop_scope(c);
         break;
     case ND_RETURNSTMT: {
-        walk(c, (Node *)node->s.stmt_expr);
+        walk(c, astsuper(node->s.stmt_expr));
 
         Name *retname = get_name(c->nt, retid, strlen(retid));
         if (retname) {

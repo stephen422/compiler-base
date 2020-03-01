@@ -51,8 +51,8 @@ struct Expr {
 };
 
 struct TypeExpr {
-    Type *type;
     Name *name;
+    Type *type;
     TypeExpr *subtype;
     int ref;
 };
@@ -68,8 +68,8 @@ struct DeclNode {
 
 struct Stmt {
     Expr *stmt_expr;
-    Node *decl;
-    Node *nodes; // compoundstmt
+    DeclNode *decl;
+    Stmt *nodes; // compoundstmt
 };
 
 struct Node {
@@ -95,6 +95,8 @@ struct Node {
 static const Node _n;
 #define astbase(pn)  \
     ((AstBase *)((char *)(pn) - ((char *)(&_n.e) - (char *)(&_n))))
+#define astsuper(pn) ((Node *)astbase(pn))
+
 /* ASTContext wraps the root node of AST with metadata such as the name table.
  * It does not own any of the metadata, and should consist only of pointers to
  * the structures.  It is intended to be passed around by value.

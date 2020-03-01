@@ -20,7 +20,7 @@ static Name *push_name_from_token(Parser *p, Token tok)
 }
 
 // FIXME: 'tok' is not really being used.
-static Node *makeNode(Parser *p, NodeKind k, Token tok)
+static Node *make_node(Parser *p, NodeKind k, Token tok)
 {
     // TODO: maybe store all nodes in a contiguous buffer for better locality?
     // Should be careful about node pointers going stale though
@@ -37,54 +37,54 @@ static Node *makeNode(Parser *p, NodeKind k, Token tok)
 
 static Node *makeFile(Parser *p, Node **nodes)
 {
-	Node *node = makeNode(p, ND_FILE, p->tok);
+	Node *node = make_node(p, ND_FILE, p->tok);
 	node->nodes = nodes;
 	return node;
 }
 
-static Node *makeExprStmt(Parser *p, Expr *expr)
+static Node *make_exprstmt(Parser *p, Expr *expr)
 {
-	Node *node = makeNode(p, ND_EXPRSTMT, p->tok);
+	Node *node = make_node(p, ND_EXPRSTMT, p->tok);
 	node->s.stmt_expr = expr;
 	return node;
 }
 
-static Node *makeDecl_stmt(Parser *p, Node *decl) {
-	Node *node = makeNode(p, ND_DECLSTMT, p->tok);
+static Node *make_declstmt(Parser *p, Node *decl) {
+	Node *node = make_node(p, ND_DECLSTMT, p->tok);
 	node->s.decl = decl;
 	return node;
 }
 
 static Node *makeAssignStmt(Parser *p, Expr *lhs, Expr *rhs)
 {
-	Node *node = makeNode(p, ND_ASSIGNSTMT, p->tok);
+	Node *node = make_node(p, ND_ASSIGNSTMT, p->tok);
 	node->e.lhs = lhs;
 	node->e.rhs = rhs;
 	return node;
 }
 
 static Node *makeRetstmt(Parser *p, Expr *expr) {
-	Node *node = makeNode(p, ND_RETURNSTMT, p->tok);
+	Node *node = make_node(p, ND_RETURNSTMT, p->tok);
 	node->s.stmt_expr = expr;
 	return node;
 }
 
 static Node *makeCompoundstmt(Parser *p)
 {
-	Node *node = makeNode(p, ND_COMPOUNDSTMT, p->tok);
+	Node *node = make_node(p, ND_COMPOUNDSTMT, p->tok);
 	return node;
 }
 
 static Expr *makeUnaryexpr(Parser *p, NodeKind t, Expr *expr)
 {
-	Node *node = makeNode(p, t, p->tok);
+	Node *node = make_node(p, t, p->tok);
 	node->e.target = expr;
 	return &node->e;
 }
 
 static Expr *make_binexpr(Parser *p, Expr *lhs, Token op, Expr *rhs)
 {
-	Node *node = makeNode(p, ND_BINEXPR, p->tok);
+	Node *node = make_node(p, ND_BINEXPR, p->tok);
 	node->e.lhs = lhs;
 	node->e.op = op;
 	node->e.rhs = rhs;
@@ -93,7 +93,7 @@ static Expr *make_binexpr(Parser *p, Expr *lhs, Token op, Expr *rhs)
 
 static TypeExpr *makeTypeExpr(Parser *p, Name *name, int ref, TypeExpr *subtype)
 {
-	Node *node = makeNode(p, ND_TYPEEXPR, p->tok);
+	Node *node = make_node(p, ND_TYPEEXPR, p->tok);
 	node->t.name = name;
 	node->t.ref = ref;
 	node->t.subtype = subtype;
@@ -102,20 +102,20 @@ static TypeExpr *makeTypeExpr(Parser *p, Name *name, int ref, TypeExpr *subtype)
 
 static TypeExpr *make_badtypeexpr(Parser *p)
 {
-	Node *node = makeNode(p, ND_BADTYPEEXPR, p->tok);
+	Node *node = make_node(p, ND_BADTYPEEXPR, p->tok);
 	return &node->t;
 }
 
 static Expr *make_idexpr(Parser *p, Name *name)
 {
-	Node *node = makeNode(p, ND_IDEXPR, p->tok);
+	Node *node = make_node(p, ND_IDEXPR, p->tok);
 	node->e.name = name;
 	return &node->e;
 }
 
 static Node *make_vardecl(Parser *p, TypeExpr *typeexpr, int mutable, Name *name, Expr *expr)
 {
-	Node *node = makeNode(p, ND_VARDECL, p->tok);
+	Node *node = make_node(p, ND_VARDECL, p->tok);
 	node->d.typeexpr = typeexpr;
 	node->d.mutable = mutable;
 	node->d.name = name;
@@ -125,7 +125,7 @@ static Node *make_vardecl(Parser *p, TypeExpr *typeexpr, int mutable, Name *name
 
 static Node *make_paramdecl(Parser *p, Name *name, TypeExpr *typeexpr)
 {
-	Node *node = makeNode(p, ND_PARAMDECL, p->tok);
+	Node *node = make_node(p, ND_PARAMDECL, p->tok);
 	node->d.name = name;
 	node->d.typeexpr = typeexpr;
 	return node;
@@ -133,7 +133,7 @@ static Node *make_paramdecl(Parser *p, Name *name, TypeExpr *typeexpr)
 
 static Node *make_funcdecl(Parser *p, Name *name)
 {
-	Node *node = makeNode(p, ND_FUNCDECL, p->tok);
+	Node *node = make_node(p, ND_FUNCDECL, p->tok);
 	node->d.name = name;
 	return node;
 }
@@ -463,7 +463,7 @@ static Node *parseAssignOrExprStmt(Parser *p, Expr *expr) {
         Expr *rhs = parseExpr(p);
         stmt = makeAssignStmt(p, expr, rhs);
     } else {
-        stmt = makeExprStmt(p, expr);
+        stmt = make_exprstmt(p, expr);
     }
     expectEndOfLine(p);
     skipToEndOfLine(p);
@@ -502,7 +502,7 @@ static Node *parseStmt(Parser *p)
 
     if (is_decl_start(p)) {
         Node *decl = parse_decl(p);
-        stmt = makeDecl_stmt(p, decl);
+        stmt = make_declstmt(p, decl);
         expectEndOfLine(p);
         return stmt;
     }
@@ -534,7 +534,7 @@ static Node *parseCompoundStmt(Parser *p)
 static Expr *parse_litexpr(Parser *p)
 {
     // XXX
-    Expr *expr = (Expr *)makeNode(p, ND_LITEXPR, p->tok);
+    Expr *expr = (Expr *)make_node(p, ND_LITEXPR, p->tok);
     next(p);
     return expr;
 }
