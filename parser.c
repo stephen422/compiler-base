@@ -12,7 +12,7 @@
 
 static Expr *parseExpr(Parser *p);
 static int is_decl_start(Parser *p);
-static Node *parse_decl(Parser *p);
+static DeclNode *parse_decl(Parser *p);
 
 static Name *push_name_from_token(Parser *p, Token tok)
 {
@@ -49,10 +49,11 @@ static Node *make_exprstmt(Parser *p, Expr *expr)
 	return node;
 }
 
-static Node *make_declstmt(Parser *p, Node *decl) {
-	Node *node = make_node(p, ND_DECLSTMT, p->tok);
-	node->s.decl = decl;
-	return node;
+static Node *make_declstmt(Parser *p, DeclNode *decl)
+{
+    Node *node = make_node(p, ND_DECLSTMT, p->tok);
+    node->s.decl = decl;
+    return node;
 }
 
 static Node *makeAssignStmt(Parser *p, Expr *lhs, Expr *rhs)
@@ -113,14 +114,14 @@ static Expr *make_idexpr(Parser *p, Name *name)
 	return &node->e;
 }
 
-static Node *make_vardecl(Parser *p, TypeExpr *typeexpr, int mutable, Name *name, Expr *expr)
+static DeclNode *make_vardecl(Parser *p, TypeExpr *typeexpr, int mutable, Name *name, Expr *expr)
 {
 	Node *node = make_node(p, ND_VARDECL, p->tok);
 	node->d.typeexpr = typeexpr;
 	node->d.mutable = mutable;
 	node->d.name = name;
 	node->d.expr = expr;
-	return node;
+	return &node->d;
 }
 
 static Node *make_paramdecl(Parser *p, Name *name, TypeExpr *typeexpr)
@@ -398,7 +399,8 @@ static sds errorString(const Error e)
     return s;
 }
 
-void parserReportErrors(const Parser *p) {
+void parserReportErrors(const Parser *p)
+{
     for (int i = 0; i < sb_len(p->errors); i++) {
         SrcLoc loc = p->errors[i].loc;
         const char *msg = p->errors[i].msg;
@@ -410,7 +412,8 @@ void parserReportErrors(const Parser *p) {
 
 // Emit general 'expected ..., got ...' message, with the 'expected' part
 // customized.
-static void error_expected(Parser *p, const char *s) {
+static void error_expected(Parser *p, const char *s)
+{
     sds ts = tokenString(&p->lexer, p->tok);
     // if it's a comment, don't print the actual comment, as it can mess with
     // beacon regex matching.
@@ -501,7 +504,7 @@ static Node *parseStmt(Parser *p)
     }
 
     if (is_decl_start(p)) {
-        Node *decl = parse_decl(p);
+        DeclNode *decl = parse_decl(p);
         stmt = make_declstmt(p, decl);
         expectEndOfLine(p);
         return stmt;
@@ -736,7 +739,7 @@ static Node **parse_paramdecllist(Parser *p)
     return list;
 }
 
-static Node *parse_vardecl(Parser *p)
+static DeclNode *parse_vardecl(Parser *p)
 {
     int mut = (p->tok.type == TOK_VAR);
     next(p);
@@ -778,9 +781,9 @@ static int is_decl_start(Parser *p) {
 // Decl:
 //	 VarDecl
 //	 FuncDecl
-static Node *parse_decl(Parser *p)
+static DeclNode *parse_decl(Parser *p)
 {
-    Node *decl;
+    DeclNode *decl;
 
     switch (p->tok.type) {
     case TOK_LET:

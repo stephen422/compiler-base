@@ -93,7 +93,7 @@ struct Node {
 };
 
 static const Node _n;
-#define astbase(pn)  \
+#define astbase(pn)                                                            \
     ((AstBase *)((char *)(pn) - ((char *)(&_n.e) - (char *)(&_n))))
 #define astsuper(pn) ((Node *)astbase(pn))
 
