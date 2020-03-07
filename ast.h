@@ -7,7 +7,6 @@
 typedef struct Name Name;
 typedef struct NameTable NameTable;
 typedef struct Type Type;
-typedef struct AstBase AstBase;
 typedef struct Expr Expr;
 typedef struct TypeExpr TypeExpr;
 typedef struct DeclNode DeclNode;
@@ -36,66 +35,53 @@ enum NodeKind {
     ND_FILE,
 };
 
-struct AstBase {
-    NodeKind kind;
-};
-
 struct Expr {
     Name *name;
-    Type *type;
-    Expr *target; // ref, deref
+    Node *target; // ref, deref
     Token op;
-    Expr *lhs;
-    Expr *rhs;
+    Node *lhs;
+    Node *rhs;
     Node **args;
 };
 
 struct TypeExpr {
     Name *name;
-    Type *type;
-    TypeExpr *subtype;
+    Node *base;
     int ref;
 };
 
 struct DeclNode {
     Name *name;
-    Type *type;
-    TypeExpr *typeexpr;
-    Expr *expr; // init expr for VarDecl
+    Node *typeexpr;
+    Node *expr; // init expr for VarDecl
     int ref;
     int mutable;
 };
 
 struct Stmt {
-    Expr *stmt_expr;
-    DeclNode *decl;
-    Stmt *nodes; // compoundstmt
+    Node *stmt_expr;
+    Node *decl;
+    Node *nodes; // compoundstmt
 };
 
 struct Node {
-    AstBase base;
-
-    union {
-        Expr e;
-        DeclNode d;
-        Stmt s;
-        TypeExpr t;
-    };
-
+    NodeKind kind;
     Token token;
 
+    Type *type;
+
     Node **nodes; // file
+
+    Expr e;
+    DeclNode d;
+    Stmt s;
+    TypeExpr t;
 
     // funcdecl
     Node *body;
     Node **paramdecls;
-    TypeExpr *rettypeexpr;
+    Node *rettypeexpr;
 };
-
-static const Node _n;
-#define astbase(pn)                                                            \
-    ((AstBase *)((char *)(pn) - ((char *)(&_n.e) - (char *)(&_n))))
-#define astsuper(pn) ((Node *)astbase(pn))
 
 /* ASTContext wraps the root node of AST with metadata such as the name table.
  * It does not own any of the metadata, and should consist only of pointers to
