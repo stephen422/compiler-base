@@ -72,10 +72,12 @@ struct Node {
 
     Node **nodes; // file
 
-    Expr e;
-    DeclNode d;
-    Stmt s;
-    TypeExpr t;
+    union {
+        Expr e;
+        DeclNode d;
+        Stmt s;
+        TypeExpr t;
+    };
 
     // funcdecl
     Node *body;

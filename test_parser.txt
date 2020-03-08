@@ -22,7 +22,7 @@ fn main() {
 
     f(3, 4)
     f(3, 4,)
-    f(3, 4, ,) // [error: "expected.*expression"]
+    f(3, 4, ,)
     f(3, 4, 2 + 5)
 }
 
