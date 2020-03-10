@@ -4,9 +4,10 @@
 #include "error.h"
 #include "fmt/core.h"
 #include "fmt/format.h"
+#include <assert.h>
+#include <unordered_map>
 #include <variant>
 #include <vector>
-#include <assert.h>
 
 namespace cmp {
 
