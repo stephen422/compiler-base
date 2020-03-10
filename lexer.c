@@ -314,16 +314,19 @@ SrcLoc lexer_locate(Lexer *l, size_t pos)
     return (SrcLoc){l->filename, line + 1, col};
 }
 
-sds srcLocString(const SrcLoc loc)
+char *srclocstr(SrcLoc loc, char *buf, size_t len)
 {
-    sds s = sdscatprintf(sdsempty(), "%s:%d:%d", loc.filename, loc.line, loc.col);
-    return s;
+    snprintf(buf, len, "%s:%d:%d", loc.filename, loc.line, loc.col);
+    return buf;
 }
 
-sds tokenString(Lexer *lex, const Token tok) {
-    size_t len = tok.range.end - tok.range.start;
-    sds s = sdsnewlen(lex->src + tok.range.start, len);
-    return s;
+char *tokenstr(Lexer *lex, Token tok, char *buf, size_t len)
+{
+    size_t tlen = tok.range.end - tok.range.start;
+    size_t nzlen = (len - 1) < tlen ? (len - 1) : tlen;
+    strncpy(buf, lex->src + tok.range.start, nzlen);
+    buf[nzlen] = '\0';
+    return buf;
 }
 
 void tokenPrint(Lexer *l, const Token tok) {

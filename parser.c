@@ -150,7 +150,9 @@ static void iprintf(int indent, const char *fmt, ...) {
 // Print current parsing position. Mainly used for debugging.
 static void printLocation(Parser *p)
 {
-    sds s = srcLocString(lexer_locate(&p->lexer, p->tok.range.start));
+    char buf[ERRLEN];
+
+    sds s = srclocstr(lexer_locate(&p->lexer, p->tok.range.start), buf, sizeof(buf));
     printf("loc: %s\n", s);
     sdsfree(s);
 }
@@ -345,25 +347,26 @@ static SrcLoc locate(Parser *p)
 // In the process, if an error beacon is found in the comment, add the error to
 // the parser error list so that it can be compared to the actual errors later
 // in the verifying phase.
-static void next(Parser *p) {
+static void next(Parser *p)
+{
     if (p->lexer.tok.type != TOK_EOF) {
         lexerNext(&p->lexer);
         p->tok = p->lexer.tok;
 
         if (p->tok.type == TOK_COMMENT) {
-            sds text = tokenString(&p->lexer, p->tok);
-            char *found = strstr(text, "[error:");
+            char buf[TOKLEN];
+            tokenstr(&p->lexer, p->tok, buf, sizeof(buf));
+            char *found = strstr(buf, "[error:");
             if (found) {
                 Parser p0;
                 parserInitText(&p0, found, strlen(found));
-                Error e = parseErrorBeacon(&p0);
+                Error e = parse_beacon(&p0);
                 parserCleanup(&p0);
 
                 // override loc
                 e.loc = lexer_locate(&p->lexer, p->tok.range.start);
                 sb_push(p->beacons, e);
             }
-            sdsfree(text);
         }
 
         // Push keywords that we come by into the name table.
@@ -391,14 +394,15 @@ static void error(Parser *p, const char *fmt, ...)
 	addError(p, loc, msg);
 }
 
-static sds errorString(const Error e)
+static char *errorstr(const Error e, char *buf, size_t len)
 {
-    sds s = srcLocString(e.loc);
-    s = sdscatprintf(s, ": parse error: %s", e.msg);
-    return s;
+    snprintf(buf, len, "%s:%d:%d: error: %s", e.loc.filename, e.loc.line,
+                     e.loc.col, e.msg);
+    return buf;
 }
 
-void parserReportErrors(const Parser *p) {
+void parserReportErrors(const Parser *p)
+{
     for (int i = 0; i < sb_len(p->errors); i++) {
         SrcLoc loc = p->errors[i].loc;
         const char *msg = p->errors[i].msg;
@@ -411,12 +415,13 @@ void parserReportErrors(const Parser *p) {
 // Emit general 'expected ..., got ...' message, with the 'expected' part
 // customized.
 static void error_expected(Parser *p, const char *s) {
-    sds ts = tokenString(&p->lexer, p->tok);
+    char buf[TOKLEN];
+
+    tokenstr(&p->lexer, p->tok, buf, sizeof(buf));
     // if it's a comment, don't print the actual comment, as it can mess with
     // beacon regex matching.
     error(p, "expected %s, got '%s'", s,
-          p->tok.type == TOK_COMMENT ? "comment" : ts);
-    sdsfree(ts);
+          p->tok.type == TOK_COMMENT ? "comment" : buf);
 }
 
 static Token expect(Parser *p, TokenType t) {
@@ -442,12 +447,14 @@ static void expectEndOfLine(Parser *p) {
     next(p);
 }
 
-static void skipInvisibles(Parser *p) {
+static void skipInvisibles(Parser *p)
+{
     while (p->tok.type == TOK_NEWLINE || p->tok.type == TOK_COMMENT)
         next(p);
 }
 
-static void skipToEndOfLine(Parser *p) {
+static void skipToEndOfLine(Parser *p)
+{
     while (p->tok.type != TOK_NEWLINE)
         next(p);
 }
@@ -456,7 +463,8 @@ static void skipToEndOfLine(Parser *p) {
 // predetermine whether a statement is just an expression or an assignment
 // until we see the '='.  We therefore first parse the expression (LHS) and
 // then call this to transform that node into an assignment if needed.
-static Node *parseAssignOrExprStmt(Parser *p, Node *expr) {
+static Node *parseAssignOrExprStmt(Parser *p, Node *expr)
+{
     Node *stmt = NULL;
     if (p->tok.type == TOK_EQUALS) {
         next(p);
@@ -573,9 +581,11 @@ static Node *parse_typeexpr(Parser *p) {
             error_expected(p, "type name");
             return make_badtypeexpr(p);
         } else if (!is_typename(p->tok)) {
-            sds ts = tokenString(&p->lexer, p->tok);
-            error(p, "invalid type name '%s'", ts);
-            sdsfree(ts);
+            char buf[TOKLEN];
+
+            tokenstr(&p->lexer, p->tok, buf, sizeof(buf));
+            error(p, "invalid type name '%s'", buf);
+
             return make_badtypeexpr(p);
         }
 
@@ -851,6 +861,8 @@ static Node *parseTopLevel(Parser *p)
 }
 
 void parserVerify(const Parser *p) {
+    char ebuf[ERRLEN];
+    char bbuf[ERRLEN];
     int success = 1;
     printf("\033[0;32mtest\033[0m %s:\n", p->lexer.filename);
 
@@ -865,11 +877,9 @@ void parserVerify(const Parser *p) {
             if (regcomp(&preg, rs, REG_NOSUB) == 0) {
                 int match = regexec(&preg, p->errors[i].msg, 0, NULL, 0);
                 if (match != 0) {
-                    sds es = errorString(p->errors[i]);
-                    sds bs = errorString(p->beacons[j]);
-                    printf("< %s\n> %s\n", es, bs);
-                    sdsfree(es);
-                    sdsfree(bs);
+                    errorstr(p->errors[i], ebuf, sizeof(ebuf));
+                    errorstr(p->beacons[j], bbuf, sizeof(bbuf));
+                    printf("< %s\n> %s\n", ebuf, bbuf);
                 }
                 regfree(&preg);
             } else {
@@ -882,17 +892,15 @@ void parserVerify(const Parser *p) {
                     p->errors[i].loc.line < p->beacons[j].loc.line) ||
                    i < sb_count(p->errors)) {
             success = 0;
-            sds es = errorString(p->errors[i]);
-            printf("< %s\n", es);
-            sdsfree(es);
+            errorstr(p->errors[i], ebuf, sizeof(ebuf));
+            printf("< %s\n", ebuf);
             i++;
         } else if ((bothInRange &&
                     p->errors[i].loc.line > p->beacons[j].loc.line) ||
                    j < sb_count(p->beacons)) {
             success = 0;
-            sds bs = errorString(p->beacons[j]);
-            printf("> %s\n", bs);
-            sdsfree(bs);
+            errorstr(p->beacons[j], bbuf, sizeof(bbuf));
+            printf("> %s\n", bbuf);
             j++;
         }
     }
@@ -901,14 +909,16 @@ void parserVerify(const Parser *p) {
 }
 
 // Parse a single error beacon ([error: "regex"]).
-Error parseErrorBeacon(Parser *p) {
+Error parse_beacon(Parser *p) {
+    char buf[TOKLEN];
+    char *msg;
+
     expect(p, TOK_LBRACKET);
     expect(p, TOK_ERROR);
     expect(p, TOK_COLON);
 
-    sds s = tokenString(&p->lexer, p->tok);
-    char *msg = strdup(s);
-    sdsfree(s);
+    tokenstr(&p->lexer, p->tok, buf, sizeof(buf));
+    msg = strdup(buf);
 
     next(p);
 

@@ -63,6 +63,7 @@ typedef enum TokenType {
     NUM_TOKENTYPES
 } TokenType;
 
+#define TOKLEN 100
 char *token_names[NUM_TOKENTYPES];
 
 struct token_map {
@@ -104,10 +105,10 @@ typedef struct Lexer {
     long srclen;        // length of src excluding \0
 } Lexer;
 
-sds tokenString(Lexer *lex, const Token tok);
+sds tokenstr(Lexer *lex, Token tok, char *buf, size_t len);
 void tokenPrint(Lexer *l, const Token t);
 
-sds srcLocString(const SrcLoc loc);
+char *srclocstr(SrcLoc loc, char *buf, size_t len);
 SrcLoc lexer_locate(Lexer *l, size_t pos);
 
 int lexerInit(Lexer *l, const char *filename);

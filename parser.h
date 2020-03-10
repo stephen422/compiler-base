@@ -6,6 +6,8 @@
 #include "ast.h"
 #include "sema.h"
 
+#define ERRLEN 1024
+
 // These are meant to be passed around by value.
 typedef struct {
 	SrcLoc loc;
@@ -27,7 +29,7 @@ void parserInit(Parser *p, const char *filename);
 void parserInitText(Parser *p, const char *text, size_t len);
 void parserCleanup(Parser *p);
 Node *parse(Parser *p);
-Error parseErrorBeacon(Parser *p);
+Error parse_beacon(Parser *p);
 void parserReportErrors(const Parser *p);
 void parserVerify(const Parser *p);
 void printAst(Parser *p, const Node *node);
