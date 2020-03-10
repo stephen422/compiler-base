@@ -150,11 +150,8 @@ static void iprintf(int indent, const char *fmt, ...) {
 // Print current parsing position. Mainly used for debugging.
 static void printLocation(Parser *p)
 {
-    char buf[ERRLEN];
-
-    sds s = srclocstr(lexer_locate(&p->lexer, p->tok.range.start), buf, sizeof(buf));
-    printf("loc: %s\n", s);
-    sdsfree(s);
+    SrcLoc loc = lexer_locate(&p->lexer, p->tok.range.start);
+    printf("loc: %s:%d:%d\n", loc.filename, loc.line, loc.col);
 }
 
 static void print_ast_indent(Parser *p, const Node *node, int indent)

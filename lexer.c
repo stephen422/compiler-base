@@ -314,12 +314,6 @@ SrcLoc lexer_locate(Lexer *l, size_t pos)
     return (SrcLoc){l->filename, line + 1, col};
 }
 
-char *srclocstr(SrcLoc loc, char *buf, size_t len)
-{
-    snprintf(buf, len, "%s:%d:%d", loc.filename, loc.line, loc.col);
-    return buf;
-}
-
 char *tokenstr(Lexer *lex, Token tok, char *buf, size_t len)
 {
     size_t tlen = tok.range.end - tok.range.start;
