@@ -89,6 +89,7 @@ struct FuncDecl {
     std::vector<VarDecl *> args;
 
     FuncDecl(Name *n) : name(n) {}
+    size_t args_count() const { return args.size(); }
 };
 
 // 'Decl' represents declaration of a variable, a function, or a type.
@@ -138,6 +139,7 @@ Decl *make_decl(Sema *sema, const FuncDecl &func_decl);
 struct Context {
     // Current enclosing struct decl.
     std::vector<TypeDecl *> struct_decl_stack;
+    std::vector<FuncDecl *> func_decl_stack;
     // Return type of this function.
     Type *ret_type = nullptr;
     // Seen one or more return statement in this function.

@@ -170,7 +170,7 @@ CompoundStmt *Parser::parse_compound_stmt() {
 }
 
 // Doesn't include 'let' or 'var'.
-DeclNode *Parser::parseVarDecl(bool is_member) {
+DeclNode *Parser::parseVarDecl(VarDeclNode::Kind kind) {
     auto pos = tok.pos;
 
     Name *name = names.get_or_add(std::string{tok.text});
@@ -181,7 +181,7 @@ DeclNode *Parser::parseVarDecl(bool is_member) {
     if (tok.kind == TokenKind::colon) {
         next();
         auto type_expr = parseTypeExpr();
-        v = makeNodeWithPos<VarDeclNode>(pos, name, is_member, type_expr, nullptr);
+        v = makeNodeWithPos<VarDeclNode>(pos, name, kind, type_expr, nullptr);
     }
     if (tok.kind == TokenKind::equals) {
         next();
@@ -189,7 +189,7 @@ DeclNode *Parser::parseVarDecl(bool is_member) {
         if (v)
             static_cast<VarDeclNode *>(v)->assign_expr = assign_expr;
         else
-            v = makeNodeWithPos<VarDeclNode>(pos, name, is_member, nullptr, assign_expr);
+            v = makeNodeWithPos<VarDeclNode>(pos, name, kind, nullptr, assign_expr);
     }
     if (!v) {
         errorExpected("'=' or ':' after var name");
@@ -201,7 +201,7 @@ DeclNode *Parser::parseVarDecl(bool is_member) {
 // Parses function argument lists and struct declaration member lists (if
 // 'isStruct' == true).
 // Doesn't parse the enclosing parentheses or braces.
-std::vector<DeclNode *> Parser::parseVarDeclList(bool is_member) {
+std::vector<DeclNode *> Parser::parseVarDeclList(VarDeclNode::Kind kind) {
     std::vector<DeclNode *> decls;
 
     while (true) {
@@ -210,7 +210,7 @@ std::vector<DeclNode *> Parser::parseVarDeclList(bool is_member) {
         if (tok.kind != TokenKind::ident)
             break;
 
-        decl = parseVarDecl(is_member);
+        decl = parseVarDecl(kind);
         decls.push_back(decl);
 
         if (decl->kind == AstKind::bad_decl) {
@@ -243,7 +243,7 @@ StructDeclNode *Parser::parseStructDecl() {
 
     if (!expect(TokenKind::lbrace))
         skip_until_end_of_line();
-    auto fields = parseVarDeclList(true);
+    auto fields = parseVarDeclList(VarDeclNode::struct_);
     expect(TokenKind::rbrace, "unterminated struct declaration");
     // TODO: recover
 
@@ -262,7 +262,7 @@ FuncDeclNode *Parser::parseFuncDecl() {
 
     // argument list
     expect(TokenKind::lparen);
-    func->args = parseVarDeclList(false);
+    func->args = parseVarDeclList(VarDeclNode::func);
     expect(TokenKind::rparen);
 
     // return type (-> ...)
@@ -296,7 +296,7 @@ DeclNode *Parser::parseDecl() {
     switch (tok.kind) {
     case TokenKind::kw_let:
         next();
-        return parseVarDecl(false);
+        return parseVarDecl(VarDeclNode::local);
     // TODO: 'var'
     default:
         assert(false && "not a start of a declaration");

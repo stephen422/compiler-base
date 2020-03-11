@@ -171,10 +171,14 @@ void VarDeclNode::name_bind_post(Sema *sema)
     var_decl = &decl->var_decl;
 
     // Note that member declarations are also parsed as VarDecls.
-    if (is_member) {
+    if (kind == Kind::struct_) {
         assert(!sema->context.struct_decl_stack.empty());
-        auto current_struct = sema->context.struct_decl_stack.back();
-        current_struct->fields.push_back(var_decl);
+        auto curr_struct = sema->context.struct_decl_stack.back();
+        curr_struct->fields.push_back(var_decl);
+    } else if (kind == Kind::func) {
+        assert(!sema->context.func_decl_stack.empty());
+        auto curr_func = sema->context.func_decl_stack.back();
+        curr_func->args.push_back(var_decl);
     }
 }
 
@@ -220,13 +224,13 @@ void FuncDeclNode::name_bind_pre(Sema *sema)
     sema->decl_table.insert(name, decl);
     func_decl = &decl->func_decl;
 
-    sema->decl_table.scope_open();
-    // sema->context.struct_decl_stack.push_back(struct_decl);
+    sema->decl_table.scope_open(); // for argument variables
+    sema->context.func_decl_stack.push_back(func_decl);
 }
 
 void FuncDeclNode::name_bind_post(Sema *sema)
 {
-    // sema->context.struct_decl_stack.pop_back();
+    sema->context.func_decl_stack.pop_back();
     sema->decl_table.scope_close();
 }
 
@@ -254,6 +258,19 @@ void FuncCallExpr::name_bind_pre(Sema *sema)
     } else {
         sema->error(pos,
                     fmt::format("undeclared function '{}'", func_name->str()));
+    }
+}
+
+void FuncCallExpr::name_bind_post(Sema *sema)
+{
+    assert(func_decl);
+
+    // check if argument count matches
+    if (func_decl->args_count() != args.size()) {
+        sema->error(pos,
+                    fmt::format("function '{}' accepts {} arguments, got {}",
+                                func_name->str(), func_decl->args_count(),
+                                args.size()));
     }
 }
 

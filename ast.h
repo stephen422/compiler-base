@@ -246,6 +246,7 @@ struct FuncCallExpr : public UnaryExpr {
     void print() const override;
     void walk(Sema &sema) override;
     void name_bind_pre(Sema *sema) override;
+    void name_bind_post(Sema *sema) override;
 };
 
 struct ParenExpr : public UnaryExpr {
@@ -330,21 +331,23 @@ struct DeclNode : public AstNode {
 
 // Variable declaration.
 struct VarDeclNode : public DeclNode {
-    VarDeclNode(Name *n, bool mem, Expr *t, Expr *expr)
-        : DeclNode(AstKind::var_decl), name(n), is_member(mem), type_expr(t),
-          assign_expr(std::move(expr)) {}
-    void print() const override;
-    void walk(Sema &sema) override;
-    void name_bind_post(Sema *sema) override;
-
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
     Name *name = nullptr;        // name of the variable
     VarDecl *var_decl = nullptr; // decl info
-    bool is_member = false;      // member of a struct?
+    enum Kind { local, struct_, func } kind = local;
     Expr *type_expr = nullptr;   // type node of the variable
                                  // (inferred later if null)
     Expr *assign_expr = nullptr; // initial assignment value
+
+    VarDeclNode(Name *n, Kind k, Expr *t, Expr *expr)
+        : DeclNode(AstKind::var_decl), name(n), kind(k), type_expr(t),
+          assign_expr(std::move(expr))
+    {
+    }
+    void print() const override;
+    void walk(Sema &sema) override;
+    void name_bind_post(Sema *sema) override;
 };
 
 // Struct declaration.
