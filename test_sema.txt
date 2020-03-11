@@ -23,7 +23,7 @@ func main() {
 
     car(3) // [error: "'car'.*not a function]
     front_func(a)
-    back_func(hi, a) // TODO: multi-pass name binding
+    back_func(a, a) // TODO: multi-pass name binding
 
     *a // [error: "dereference"] // TODO: report 'int'
 }

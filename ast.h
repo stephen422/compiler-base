@@ -357,7 +357,7 @@ struct StructDeclNode : public DeclNode {
     void name_bind_post(Sema *sema) override;
 
     Name *name = nullptr;              // name of the struct
-    StructDecl *struct_decl = nullptr; // decl info
+    TypeDecl *struct_decl = nullptr; // decl info
     std::vector<DeclNode *> members;   // member variables
 };
 

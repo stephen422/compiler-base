@@ -56,7 +56,7 @@ struct Sema;
 //
 // TODO: switch to union?
 struct Type {
-    enum class Kind { value, ref, array } kind;
+    enum Kind { value, ref, array } kind;
     Name *name = nullptr;       // name of this type
     Type *target_type = nullptr; // the type this reference refers to
 
@@ -74,12 +74,12 @@ struct VarDecl {
 };
 
 // Declaration of a struct.
-struct StructDecl {
+struct TypeDecl {
     Name *name = nullptr;
     Type *type = nullptr;
     std::vector<VarDecl *> fields;
 
-    StructDecl(Name *n) : name(n) {}
+    TypeDecl(Name *n) : name(n) {}
 };
 
 // Declaration of a function.
@@ -98,25 +98,25 @@ struct FuncDecl {
 // TODO: Clarify the definition. Should type names have a Decl too?  What is
 // the 'type' member of a TypeDecl?
 // using Decl = std::variant<VarDecl, StructDecl>;
-enum DeclKind { DECL_VAR, DECL_STRUCT, DECL_FUNC };
+enum DeclKind { DECL_VAR, DECL_TYPE, DECL_FUNC };
 struct Decl {
     DeclKind kind;
     union {
         VarDecl var_decl;
-        StructDecl struct_decl;
+        TypeDecl type_decl;
         FuncDecl func_decl;
     };
 
     Decl(const VarDecl &v) : kind(DECL_VAR), var_decl(v) {}
-    Decl(const StructDecl &s) : kind(DECL_STRUCT), struct_decl(s) {}
+    Decl(const TypeDecl &t) : kind(DECL_TYPE), type_decl(t) {}
     Decl(const FuncDecl &f) : kind(DECL_FUNC), func_decl(f) {}
     ~Decl() {
         switch (kind) {
         case DECL_VAR:
             var_decl.~VarDecl();
             break;
-        case DECL_STRUCT:
-            struct_decl.~StructDecl();
+        case DECL_TYPE:
+            type_decl.~TypeDecl();
             break;
         case DECL_FUNC:
             func_decl.~FuncDecl();
@@ -132,14 +132,15 @@ struct Decl {
 // template <typename T> T *decl_cast(Decl *d) { return &std::get<T>(*d); }
 // Allocator function.
 Decl *make_decl(Sema *sema, const VarDecl &var_decl);
-Decl *make_decl(Sema *sema, const StructDecl &struct_decl);
+Decl *make_decl(Sema *sema, const TypeDecl &type_decl);
 Decl *make_decl(Sema *sema, const FuncDecl &func_decl);
 
 struct Context {
-    std::vector<StructDecl *> struct_decl_stack; // current enclosing struct decl
-    // Return type of this function
+    // Current enclosing struct decl.
+    std::vector<TypeDecl *> struct_decl_stack;
+    // Return type of this function.
     Type *ret_type = nullptr;
-    // Seen one or more return statement in this function
+    // Seen one or more return statement in this function.
     bool seen_return = false;
 };
 

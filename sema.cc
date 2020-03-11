@@ -9,19 +9,22 @@ namespace cmp {
 
 std::string Type::str() const { return name->text; }
 
-Decl *make_decl(Sema *sema, const VarDecl &var_decl) {
+Decl *make_decl(Sema *sema, const VarDecl &var_decl)
+{
     Decl *decl = new Decl{var_decl};
     sema->decl_pool.push_back(decl);
     return decl;
 }
 
-Decl *make_decl(Sema *sema, const StructDecl &struct_decl) {
-    Decl *decl = new Decl{struct_decl};
+Decl *make_decl(Sema *sema, const TypeDecl &type_decl)
+{
+    Decl *decl = new Decl{type_decl};
     sema->decl_pool.push_back(decl);
     return decl;
 }
 
-Decl *make_decl(Sema *sema, const FuncDecl &func_decl) {
+Decl *make_decl(Sema *sema, const FuncDecl &func_decl)
+{
     Decl *decl = new Decl{func_decl};
     sema->decl_pool.push_back(decl);
     return decl;
@@ -148,10 +151,14 @@ void walk_ast(Sema *sema, AstNode *node, void (*pre_fn)(Sema *sema, AstNode *),
 
 void CompoundStmt::name_bind_pre(Sema *sema) { sema->decl_table.scope_open(); }
 
-void CompoundStmt::name_bind_post(Sema *sema) { sema->decl_table.scope_close(); }
+void CompoundStmt::name_bind_post(Sema *sema)
+{
+    sema->decl_table.scope_close();
+}
 
 // FIXME: should this be pre or post for VarDecl?
-void VarDeclNode::name_bind_post(Sema *sema) {
+void VarDeclNode::name_bind_post(Sema *sema)
+{
     auto found = sema->decl_table.find(name);
     if (found && found->value->kind == DECL_VAR &&
         found->scope_level <= sema->type_table.scope_level) {
@@ -173,30 +180,34 @@ void VarDeclNode::name_bind_post(Sema *sema) {
 
 // We need to push StructDecl at pre, so that the inner member declarations
 // have access and can modify this decl.
-void StructDeclNode::name_bind_pre(Sema *sema) {
+void StructDeclNode::name_bind_pre(Sema *sema)
+{
     auto found = sema->decl_table.find(name);
-    if (found && found->value->kind == DECL_STRUCT &&
+    if (found && found->value->kind == DECL_TYPE &&
         found->scope_level <= sema->decl_table.scope_level) {
         sema->error(pos, fmt::format("redefinition of '{}'", name->str()));
         // TODO: return false so that traversal is early-exited
         return;
     }
 
-    auto decl = make_decl(sema, StructDecl{name});
+    auto decl = make_decl(sema, TypeDecl{name});
     sema->decl_table.insert(name, decl);
-    struct_decl = &decl->struct_decl;
+    struct_decl = &decl->type_decl;
 
-    // Decl table is going to be used for checking member redefinition.
+    // Decl table is used for checking redefinition when parsing the member
+    // list.
     sema->decl_table.scope_open();
     sema->context.struct_decl_stack.push_back(struct_decl);
 }
 
-void StructDeclNode::name_bind_post(Sema *sema) {
+void StructDeclNode::name_bind_post(Sema *sema)
+{
     sema->context.struct_decl_stack.pop_back();
     sema->decl_table.scope_close();
 }
 
-void FuncDeclNode::name_bind_pre(Sema *sema) {
+void FuncDeclNode::name_bind_pre(Sema *sema)
+{
     auto found = sema->decl_table.find(name);
     if (found && found->value->kind == DECL_FUNC &&
         found->scope_level <= sema->type_table.scope_level) {
@@ -213,21 +224,25 @@ void FuncDeclNode::name_bind_pre(Sema *sema) {
     // sema->context.struct_decl_stack.push_back(struct_decl);
 }
 
-void FuncDeclNode::name_bind_post(Sema *sema) {
+void FuncDeclNode::name_bind_post(Sema *sema)
+{
     // sema->context.struct_decl_stack.pop_back();
     sema->decl_table.scope_close();
 }
 
-void DeclRefExpr::name_bind_post(Sema *sema) {
+void DeclRefExpr::name_bind_post(Sema *sema)
+{
     auto sym = sema->decl_table.find(name);
     if (sym) {
         decl = sym->value;
     } else {
-        sema->error(pos, fmt::format("use of undeclared identifier '{}'", name->str()));
+        sema->error(
+            pos, fmt::format("use of undeclared identifier '{}'", name->str()));
     }
 }
 
-void FuncCallExpr::name_bind_pre(Sema *sema) {
+void FuncCallExpr::name_bind_pre(Sema *sema)
+{
     auto sym = sema->decl_table.find(func_name);
     if (sym) {
         if (sym->value->kind == DECL_FUNC) {
@@ -237,7 +252,8 @@ void FuncCallExpr::name_bind_pre(Sema *sema) {
                 pos, fmt::format("'{}' is not a function", func_name->str()));
         }
     } else {
-        sema->error(pos, fmt::format("undeclared function '{}'", func_name->str()));
+        sema->error(pos,
+                    fmt::format("undeclared function '{}'", func_name->str()));
     }
 }
 
@@ -272,12 +288,14 @@ void MemberExpr::name_bind_post(Sema &sema) {
 }
 #endif
 
-void TypeExpr::name_bind_post(Sema *sema) {
-    auto sym = sema->type_table.find(name);
+void TypeExpr::name_bind_post(Sema *sema)
+{
+    auto sym = sema->decl_table.find(name);
     if (sym) {
-        type = &sym->value;
+        // type = &sym->value;
     } else {
-        sema->error(pos, fmt::format("use of undeclared type '{}'", name->str()));
+        sema->error(pos,
+                    fmt::format("use of undeclared type '{}'", name->str()));
     }
 }
 
@@ -462,13 +480,18 @@ void BinaryExpr::walk(Sema &sema) {
     type = lhs->type;
 }
 
-Sema::Sema(const Source &s, NameTable &n) : source(s), names(n) {
+Sema::Sema(const Source &s, NameTable &n) : source(s), names(n)
+{
+    // set up built-in types
     Name *int_name = names.get_or_add("int");
-    Type int_type{int_name};
-    this->int_type = type_table.insert(int_name, int_type);
+    auto int_type = make_decl(this, TypeDecl{int_name});
+    decl_table.insert(int_name, int_type);
+    // int_type = type_table.insert(int_name, Type{int_name});
+
     Name *char_name = names.get_or_add("char");
-    Type char_type{char_name};
-    this->char_type = type_table.insert(char_name, char_type);
+    auto char_type = make_decl(this, TypeDecl{char_name});
+    decl_table.insert(char_name, char_type);
+    // char_type = type_table.insert(char_name, Type{char_name});
 }
 
 Sema::~Sema() {
