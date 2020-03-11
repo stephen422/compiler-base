@@ -213,8 +213,8 @@ struct Ast;
 struct AstNode;
 
 // Do a semantic analysis on the given AST.
-void walk_ast(Sema *sema, AstNode *node, void (*pre_fn)(Sema *sema, AstNode *),
-              void (*post_fn)(Sema *sema, AstNode *));
+void walk_ast(Sema *sema, AstNode *node, bool (*pre_fn)(Sema *sema, AstNode *),
+              bool (*post_fn)(Sema *sema, AstNode *));
 void sema(Sema &sema, Ast &ast);
 
 } // namespace cmp
