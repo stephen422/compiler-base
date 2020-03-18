@@ -1,5 +1,5 @@
 // TODO:
-// function return check
+// function return check -> needs control flow analysis
 
 struct Car {
     engine: int,
@@ -7,7 +7,7 @@ struct Car {
     engine: int, // [error: "redefinition.*'engine'"]
 }
 
-func front_func(a: int, b: int, c: int) {
+func front_func(a: int, b: int, c: int) -> int {
 }
 
 func main() {
@@ -22,7 +22,7 @@ func main() {
     new_kid // [error: "undeclared.*'new_kid'"]
 
     car(3) // [error: "'car'.*not a function]
-    front_func(a)
+    front_func(1 + 2)
     back_func(a, a) // TODO: multi-pass name binding
 
     *a // [error: "dereference"] // TODO: report 'int'

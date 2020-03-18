@@ -7,8 +7,8 @@ using namespace cmp;
 void test_lexer(Lexer &lexer) {
     Token token;
 
-    while ((token = lexer.lex()).kind != TokenKind::eos) {
-        if (token.kind == TokenKind::none) {
+    while ((token = lexer.lex()).kind != Tok::eos) {
+        if (token.kind == Tok::none) {
             fmt::print(stderr, "lex error: [{}]: Unrecognized token kind\n", token.str());
             break;
         }

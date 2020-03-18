@@ -289,10 +289,9 @@ bool FuncCallExpr::name_bind_post(Sema *sema)
 
     // check if argument count matches
     if (func_decl->args_count() != args.size()) {
-        sema->error(pos,
-                    fmt::format("function '{}' accepts {} arguments, got {}",
-                                func_name->str(), func_decl->args_count(),
-                                args.size()));
+        sema->error(pos, fmt::format("'{}' accepts {} arguments, got {}",
+                                     func_name->str(), func_decl->args_count(),
+                                     args.size()));
     }
 
     return true;

@@ -10,7 +10,7 @@
 
 namespace cmp {
 
-enum class TokenKind {
+enum class Tok {
     eos,
     newline,
     arrow,
@@ -66,66 +66,66 @@ enum class TokenKind {
 
 // This is under linear search, so it is better to place more frequently used
 // symbols at the top.
-const std::pair<std::string_view, TokenKind> symbol_map[] {
-    {"\"", TokenKind::doublequote},
-    {"\n", TokenKind::newline},
-    {"->", TokenKind::arrow},
-    {"'", TokenKind::quote},
-    {"(", TokenKind::lparen},
-    {")", TokenKind::rparen},
-    {"{", TokenKind::lbrace},
-    {"}", TokenKind::rbrace},
-    {"[", TokenKind::lbracket},
-    {"]", TokenKind::rbracket},
-    {"<", TokenKind::lesserthan},
-    {">", TokenKind::greaterthan},
-    {".", TokenKind::dot},
-    {",", TokenKind::comma},
-    {":", TokenKind::colon},
-    {";", TokenKind::semicolon},
-    {"=", TokenKind::equals},
-    {"+", TokenKind::plus},
-    {"-", TokenKind::minus},
-    {"*", TokenKind::star},
-    {"&", TokenKind::ampersand},
-    {"^", TokenKind::caret},
-    {"~", TokenKind::tilde},
-    {"/", TokenKind::slash},
-    {"\\", TokenKind::backslash},
-    {"|", TokenKind::pipe},
-    {"!", TokenKind::bang},
-    {"?", TokenKind::question},
-    {"#", TokenKind::hash},
-    {"-", TokenKind::dash},
-    {"comment", TokenKind::comment},
+const std::pair<std::string_view, Tok> symbol_map[] {
+    {"\"", Tok::doublequote},
+    {"\n", Tok::newline},
+    {"->", Tok::arrow},
+    {"'", Tok::quote},
+    {"(", Tok::lparen},
+    {")", Tok::rparen},
+    {"{", Tok::lbrace},
+    {"}", Tok::rbrace},
+    {"[", Tok::lbracket},
+    {"]", Tok::rbracket},
+    {"<", Tok::lesserthan},
+    {">", Tok::greaterthan},
+    {".", Tok::dot},
+    {",", Tok::comma},
+    {":", Tok::colon},
+    {";", Tok::semicolon},
+    {"=", Tok::equals},
+    {"+", Tok::plus},
+    {"-", Tok::minus},
+    {"*", Tok::star},
+    {"&", Tok::ampersand},
+    {"^", Tok::caret},
+    {"~", Tok::tilde},
+    {"/", Tok::slash},
+    {"\\", Tok::backslash},
+    {"|", Tok::pipe},
+    {"!", Tok::bang},
+    {"?", Tok::question},
+    {"#", Tok::hash},
+    {"-", Tok::dash},
+    {"comment", Tok::comment},
 };
 
-const std::pair<std::string_view, TokenKind> keyword_map[] {
-    {"func", TokenKind::kw_func},
-    {"struct", TokenKind::kw_struct},
-    {"let", TokenKind::kw_let},
-    {"var", TokenKind::kw_var},
-    {"mut", TokenKind::kw_mut},
-    {"if", TokenKind::kw_if},
-    {"else", TokenKind::kw_else},
-    {"int", TokenKind::kw_int},
-    {"i64", TokenKind::kw_i64},
-    {"return", TokenKind::kw_return},
-    {"error", TokenKind::kw_error},
+const std::pair<std::string_view, Tok> keyword_map[] {
+    {"func", Tok::kw_func},
+    {"struct", Tok::kw_struct},
+    {"let", Tok::kw_let},
+    {"var", Tok::kw_var},
+    {"mut", Tok::kw_mut},
+    {"if", Tok::kw_if},
+    {"else", Tok::kw_else},
+    {"int", Tok::kw_int},
+    {"i64", Tok::kw_i64},
+    {"return", Tok::kw_return},
+    {"error", Tok::kw_error},
 };
 
-std::string tokenTypeToString(TokenKind kind);
+std::string tokenTypeToString(Tok kind);
 
 // Token contains the kind, a view of the text data, and the source position of
 // a token.
 struct Token {
-    TokenKind kind;
+    Tok kind;
     size_t pos;
     std::string_view text;
 
-    Token() : kind(TokenKind::none), pos(0), text() {}
-    Token(TokenKind kind, size_t pos) : kind(kind), pos(pos), text() {}
-    Token(TokenKind kind, size_t pos, std::string_view text)
+    Token() : kind(Tok::none), pos(0), text() {}
+    Token(Tok kind, size_t pos) : kind(kind), pos(pos), text() {}
+    Token(Tok kind, size_t pos, std::string_view text)
         : kind(kind), pos(pos), text(text) {}
     std::string str() const;
 };
@@ -170,8 +170,8 @@ private:
         return std::cend(sv) - 1;
     }
     size_t pos() const { return curr - std::cbegin(sv); }
-    Token make_token(TokenKind kind);
-    Token make_token_with_literal(TokenKind kind);
+    Token make_token(Tok kind);
+    Token make_token_with_literal(Tok kind);
     template <typename F> void skip_while(F &&lambda);
     void skip_whitespace();
     void error(const std::string &msg);

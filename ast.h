@@ -17,6 +17,7 @@ enum class AstKind {
     expr_stmt,
     assign_stmt,
     return_stmt,
+    if_stmt,
     compound_stmt,
     bad_stmt,
     var_decl,
@@ -173,9 +174,16 @@ struct AssignStmt : public Stmt {
 };
 
 struct ReturnStmt : public Stmt {
-    ReturnStmt(Expr *expr) : Stmt(AstKind::return_stmt), expr(std::move(expr)) {}
+    ReturnStmt(Expr *e) : Stmt(AstKind::return_stmt), expr(e) {}
     void print() const override;
     void walk(Sema &sema) override;
+
+    Expr *expr;
+};
+
+struct IfStmt : public Stmt {
+    IfStmt(Expr *e) : Stmt(AstKind::if_stmt), expr(e) {}
+    void print() const override;
 
     Expr *expr;
 };

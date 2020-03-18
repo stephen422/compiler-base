@@ -92,6 +92,7 @@ private:
     Stmt *parse_stmt();
     Stmt *parse_expr_or_assign_stmt();
     Stmt *parse_return_stmt();
+    Stmt *parse_if_stmt();
     DeclStmt *parse_decl_stmt();
     CompoundStmt *parse_compound_stmt();
     bool is_end_of_stmt() const;
@@ -125,11 +126,11 @@ private:
     void next();
 
     // Expect and consume functions.
-    bool expect(TokenKind kind, const std::string &msg);
+    bool expect(Tok kind, const std::string &msg);
 
     // Skip until a specific token(s) show up.
-    void skip_until(TokenKind kind);
-    void skip_until_any(const std::vector<TokenKind> &kinds);
+    void skip_until(Tok kind);
+    void skip_until_any(const std::vector<Tok> &kinds);
     void skip_until_end_of_line();
     void skip_newlines();
 

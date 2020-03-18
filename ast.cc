@@ -60,6 +60,13 @@ void ReturnStmt::print() const {
         expr->print();
 }
 
+void IfStmt::print() const {
+    out() << "[IfStmt]\n";
+    // PrintScope start;
+    // if (expr)
+    //     expr->print();
+}
+
 void CompoundStmt::print() const {
     out() << "[CompoudStmt]\n";
     PrintScope start;
