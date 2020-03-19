@@ -141,7 +141,7 @@ private:
 
     template <typename T, typename... Args>
     T *make_node_pos(size_t pos, Args &&... args) {
-        auto node = makeNode<T>(std::forward<Args>(args)...);
+        auto node = make_node<T>(std::forward<Args>(args)...);
         node->pos = pos;
         return node;
     }

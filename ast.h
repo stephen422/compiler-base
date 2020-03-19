@@ -181,13 +181,6 @@ struct ReturnStmt : public Stmt {
     Expr *expr;
 };
 
-struct IfStmt : public Stmt {
-    IfStmt(Expr *e) : Stmt(AstKind::if_stmt), expr(e) {}
-    void print() const override;
-
-    Expr *expr;
-};
-
 struct CompoundStmt : public Stmt {
     CompoundStmt() : Stmt(AstKind::compound_stmt) {}
     void print() const override;
@@ -196,6 +189,14 @@ struct CompoundStmt : public Stmt {
     bool name_bind_post(Sema *sema) override;
 
     std::vector<Stmt *> stmts;
+};
+
+struct IfStmt : public Stmt {
+    IfStmt(Expr *e, CompoundStmt *c) : Stmt(AstKind::if_stmt), cond(e), cstmt(c) {}
+    void print() const override;
+
+    Expr *cond;
+    CompoundStmt *cstmt;
 };
 
 struct BadStmt : public Stmt {

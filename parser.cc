@@ -119,17 +119,10 @@ Stmt *Parser::parse_if_stmt() {
 
     expect(Tok::kw_if);
 
-    Expr *cond_expr = parse_expr();
+    Expr *cond = parse_expr();
+    CompoundStmt *cstmt = parse_compound_stmt();
 
-    expect(Tok::lbrace);
-    expect(Tok::newline);
-
-    // statements
-
-    expect(Tok::rbrace);
-    expect(Tok::newline);
-
-    return make_node_pos<IfStmt>(pos, cond_expr);
+    return make_node_pos<IfStmt>(pos, cond, cstmt);
 }
 
 // let a = ...
@@ -144,6 +137,11 @@ DeclStmt *Parser::parse_decl_stmt() {
     return make_node<DeclStmt>(decl);
 }
 
+// When seeing an expression, we don't know yet if it is a simple expression
+// statement or an assignment statement until we see the '=' token and the RHS.
+// This function handles both cases.
+//
+// TODO: function call?
 Stmt *Parser::parse_expr_or_assign_stmt() {
     auto pos = tok.pos;
 
