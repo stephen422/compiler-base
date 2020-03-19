@@ -134,13 +134,13 @@ private:
     void skip_until_end_of_line();
     void skip_newlines();
 
-    template <typename T, typename... Args> T *makeNode(Args &&... args) {
+    template <typename T, typename... Args> T *make_node(Args &&... args) {
         nodes.emplace_back(new T{std::forward<Args>(args)...});
         return static_cast<T *>(nodes.back().get());
     }
 
     template <typename T, typename... Args>
-    T *makeNodeWithPos(size_t pos, Args &&... args) {
+    T *make_node_pos(size_t pos, Args &&... args) {
         auto node = makeNode<T>(std::forward<Args>(args)...);
         node->pos = pos;
         return node;

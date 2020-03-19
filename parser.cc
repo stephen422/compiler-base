@@ -109,9 +109,9 @@ Stmt *Parser::parse_return_stmt() {
     }
     if (!is_end_of_stmt()) {
         skip_until_end_of_line();
-        return makeNodeWithPos<BadStmt>(pos);
+        return make_node_pos<BadStmt>(pos);
     }
-    return makeNodeWithPos<ReturnStmt>(pos, expr);
+    return make_node_pos<ReturnStmt>(pos, expr);
 }
 
 Stmt *Parser::parse_if_stmt() {
@@ -129,7 +129,7 @@ Stmt *Parser::parse_if_stmt() {
     expect(Tok::rbrace);
     expect(Tok::newline);
 
-    return makeNodeWithPos<IfStmt>(pos, cond_expr);
+    return make_node_pos<IfStmt>(pos, cond_expr);
 }
 
 // let a = ...
@@ -141,7 +141,7 @@ DeclStmt *Parser::parse_decl_stmt() {
         // try to recover
         skip_until_end_of_line();
     }
-    return makeNode<DeclStmt>(decl);
+    return make_node<DeclStmt>(decl);
 }
 
 Stmt *Parser::parse_expr_or_assign_stmt() {
@@ -151,20 +151,20 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
     // ExprStmt: expression ends with a newline
     if (is_end_of_stmt()) {
         skip_until_end_of_line();
-        return makeNode<ExprStmt>(lhs);
+        return make_node<ExprStmt>(lhs);
     }
 
     // AssignStmt: expression is followed by equals
     // (anything else is treated as an error)
     if (!expect(Tok::equals)) {
         skip_until_end_of_line();
-        return makeNodeWithPos<BadStmt>(pos);
+        return make_node_pos<BadStmt>(pos);
     }
 
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
     auto rhs = parse_expr();
-    return makeNodeWithPos<AssignStmt>(pos, lhs, rhs);
+    return make_node_pos<AssignStmt>(pos, lhs, rhs);
 }
 
 // Compound statement is a scoped block that consists of multiple statements.
@@ -175,7 +175,7 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
 //     { Stmt* }
 CompoundStmt *Parser::parse_compound_stmt() {
     expect(Tok::lbrace);
-    auto compound = makeNode<CompoundStmt>();
+    auto compound = make_node<CompoundStmt>();
 
     while (true) {
         skip_newlines();
@@ -201,7 +201,7 @@ DeclNode *Parser::parseVarDecl(VarDeclNode::Kind kind) {
     if (tok.kind == Tok::colon) {
         next();
         auto type_expr = parseTypeExpr();
-        v = makeNodeWithPos<VarDeclNode>(pos, name, kind, type_expr, nullptr);
+        v = make_node_pos<VarDeclNode>(pos, name, kind, type_expr, nullptr);
     }
     if (tok.kind == Tok::equals) {
         next();
@@ -209,11 +209,11 @@ DeclNode *Parser::parseVarDecl(VarDeclNode::Kind kind) {
         if (v)
             static_cast<VarDeclNode *>(v)->assign_expr = assign_expr;
         else
-            v = makeNodeWithPos<VarDeclNode>(pos, name, kind, nullptr, assign_expr);
+            v = make_node_pos<VarDeclNode>(pos, name, kind, nullptr, assign_expr);
     }
     if (!v) {
         errorExpected("'=' or ':' after var name");
-        v = makeNodeWithPos<BadDeclNode>(pos);
+        v = make_node_pos<BadDeclNode>(pos);
     }
     return v;
 }
@@ -267,7 +267,7 @@ StructDeclNode *Parser::parseStructDecl() {
     expect(Tok::rbrace, "unterminated struct declaration");
     // TODO: recover
 
-    return makeNodeWithPos<StructDeclNode>(pos, name, fields);
+    return make_node_pos<StructDeclNode>(pos, name, fields);
 }
 
 FuncDeclNode *Parser::parseFuncDecl() {
@@ -276,7 +276,7 @@ FuncDeclNode *Parser::parseFuncDecl() {
     expect(Tok::kw_func);
 
     Name *name = names.get_or_add(std::string{tok.text});
-    auto func = makeNode<FuncDeclNode>(name);
+    auto func = make_node<FuncDeclNode>(name);
     func->pos = tok.pos;
     next();
 
@@ -332,11 +332,11 @@ UnaryExpr *Parser::parseLiteralExpr() {
     case Tok::number: {
         std::string s{tok.text};
         int value = std::stoi(s);
-        expr = makeNode<IntegerLiteral>(value);
+        expr = make_node<IntegerLiteral>(value);
         break;
     }
     case Tok::string:
-        expr = makeNode<StringLiteral>(tok.text);
+        expr = make_node<StringLiteral>(tok.text);
         break;
     default:
         assert(false && "non-integer literals not implemented");
@@ -370,9 +370,9 @@ Expr *Parser::parseFuncCallOrDeclRefExpr() {
                 next();
         }
         expect(Tok::rparen);
-        return makeNodeWithPos<FuncCallExpr>(pos, name, args);
+        return make_node_pos<FuncCallExpr>(pos, name, args);
     } else {
-        return makeNodeWithPos<DeclRefExpr>(pos, name);
+        return make_node_pos<DeclRefExpr>(pos, name);
     }
 }
 
@@ -388,7 +388,7 @@ bool Parser::isStartOfTypeExpr() const {
 //     '&' TypeExpr
 //     'mut'? ident
 Expr *Parser::parseTypeExpr() {
-    auto typeexpr = makeNode<TypeExpr>();
+    auto typeexpr = make_node<TypeExpr>();
 
     typeexpr->pos = tok.pos;
 
@@ -409,7 +409,7 @@ Expr *Parser::parseTypeExpr() {
         if (!is_identifier_or_keyword(tok)) {
             // FIXME: type name? expression?
             errorExpected("type name");
-            return makeNodeWithPos<BadExpr>(typeexpr->pos);
+            return make_node_pos<BadExpr>(typeexpr->pos);
         }
         typeexpr->ref = false;
         typeexpr->subexpr = nullptr;
@@ -417,7 +417,7 @@ Expr *Parser::parseTypeExpr() {
         next();
     } else {
         errorExpected("type expression");
-        return makeNodeWithPos<BadExpr>(typeexpr->pos);
+        return make_node_pos<BadExpr>(typeexpr->pos);
     }
 
     typeexpr->name = names.get_or_add(text);
@@ -440,18 +440,18 @@ Expr *Parser::parseUnaryExpr() {
     case Tok::star: {
         next();
         auto expr = parseUnaryExpr();
-        return makeNodeWithPos<UnaryExpr>(pos, AstKind::deref_expr, expr);
+        return make_node_pos<UnaryExpr>(pos, AstKind::deref_expr, expr);
     }
     case Tok::ampersand: {
         next();
         auto expr = parseUnaryExpr();
-        return makeNodeWithPos<UnaryExpr>(pos, AstKind::address_expr, expr);
+        return make_node_pos<UnaryExpr>(pos, AstKind::address_expr, expr);
     }
     case Tok::lparen: {
         expect(Tok::lparen);
         auto inside_expr = parse_expr();
         expect(Tok::rparen);
-        return makeNodeWithPos<ParenExpr>(pos, inside_expr);
+        return make_node_pos<ParenExpr>(pos, inside_expr);
     }
     // TODO: prefix (++), postfix, sign (+/-)
     default:
@@ -459,7 +459,7 @@ Expr *Parser::parseUnaryExpr() {
         // means no other expression could be matched either, so just do a
         // really generic report.
         errorExpected("an expression");
-        return makeNodeWithPos<BadExpr>(pos);
+        return make_node_pos<BadExpr>(pos);
     }
 }
 
@@ -515,7 +515,7 @@ Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence = 0) {
 
         // Create a new root with the old root as its LHS, and the recursion
         // result as RHS.  This implements left associativity.
-        root = makeNode<BinaryExpr>(root, op, rhs);
+        root = make_node<BinaryExpr>(root, op, rhs);
     }
 
     return root;
@@ -533,7 +533,7 @@ Expr *Parser::parseMemberExprMaybe(Expr *expr) {
         Name *member_name = names.get_or_add(std::string{tok.text});
         next();
 
-        result = makeNodeWithPos<MemberExpr>(result->pos, result, member_name);
+        result = make_node_pos<MemberExpr>(result->pos, result, member_name);
     }
 
     return result;
@@ -609,7 +609,7 @@ AstNode *Parser::parseToplevel() {
 }
 
 File *Parser::parseFile() {
-    auto file = makeNode<File>();
+    auto file = make_node<File>();
     // FIXME
     while (!is_eos()) {
         auto toplevel = parseToplevel();
