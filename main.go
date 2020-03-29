@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"compiler-base-go/lexer"
+	"github.com/stephen422/compiler-base/lexer"
 )
 
 func main() {
