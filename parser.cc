@@ -66,6 +66,8 @@ bool Parser::expect(Tok kind, const std::string &msg = "") {
     return true;
 }
 
+// Assumes that comments can only come at the end of a line, i.e. it considers
+// only the line '//' comments.
 bool Parser::is_end_of_stmt() const {
     return tok.kind == Tok::newline || tok.kind == Tok::comment;
 }
@@ -109,8 +111,11 @@ Stmt *Parser::parse_return_stmt() {
     }
     if (!is_end_of_stmt()) {
         skip_until_end_of_line();
+        expect(Tok::newline);
         return make_node_pos<BadStmt>(pos);
     }
+    skip_until_end_of_line();
+    expect(Tok::newline);
     return make_node_pos<ReturnStmt>(pos, expr);
 }
 
@@ -142,13 +147,15 @@ DeclStmt *Parser::parse_decl_stmt() {
 // This function handles both cases.
 //
 // TODO: function call?
-Stmt *Parser::parse_expr_or_assign_stmt() {
+Stmt *Parser::parse_expr_or_assign_stmt()
+{
     auto pos = tok.pos;
 
     auto lhs = parse_expr();
     // ExprStmt: expression ends with a newline
     if (is_end_of_stmt()) {
         skip_until_end_of_line();
+        expect(Tok::newline);
         return make_node<ExprStmt>(lhs);
     }
 
@@ -156,8 +163,10 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
     // (anything else is treated as an error)
     if (!expect(Tok::equals)) {
         skip_until_end_of_line();
+        expect(Tok::newline);
         return make_node_pos<BadStmt>(pos);
     }
+
 
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
@@ -578,8 +587,9 @@ void Parser::skip_until_any(const std::vector<Tok> &kinds) {
   }
 }
 
-void Parser::skip_until_end_of_line() {
-    while (!is_end_of_stmt())
+void Parser::skip_until_end_of_line()
+{
+    while (tok.kind != Tok::newline)
         next();
 }
 
