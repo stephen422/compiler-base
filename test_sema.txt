@@ -30,6 +30,9 @@ func main() {
     if a {
         let in_if = 42
         in_if
+    } else if a {
+        in_if // [error: "undeclared.*'in_if']
+    } else {
     }
     in_if // [error: "undeclared.*'in_if']
 }

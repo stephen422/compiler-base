@@ -146,7 +146,7 @@ IfStmt *Parser::parse_if_stmt() {
         }
     }
 
-    return make_node_pos<IfStmt>(pos, cond, cstmt);
+    return make_node_pos<IfStmt>(pos, cond, cstmt, elseif, cstmt_false);
 }
 
 // let a = ...

@@ -190,8 +190,9 @@ struct CompoundStmt : public Stmt {
 };
 
 struct IfStmt : public Stmt {
-    IfStmt(Expr *e, CompoundStmt *c)
-        : Stmt(AstKind::if_stmt), cond(e), cstmt_true(c) {}
+    IfStmt(Expr *e, CompoundStmt *ct, IfStmt *ei, CompoundStmt *cf)
+        : Stmt(AstKind::if_stmt), cond(e), cstmt_true(ct), elseif(ei),
+          cstmt_false(cf) {}
     void print() const override;
 
     Expr *cond;               // conditional expr

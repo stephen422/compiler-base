@@ -66,6 +66,16 @@ void IfStmt::print() const {
     PrintScope start;
     cond->print();
     cstmt_true->print();
+
+    if (elseif || cstmt_false) {
+        out() << "[Else]\n";
+        PrintScope start2;
+        if (elseif) {
+            elseif->print();
+        } else if (cstmt_false) {
+            cstmt_false->print();
+        }
+    }
 }
 
 void CompoundStmt::print() const {

@@ -91,10 +91,18 @@ void walk_ast(Sema *sema, AstNode *node, bool (*pre_fn)(Sema *sema, AstNode *),
         for (auto stmt : static_cast<CompoundStmt *>(node)->stmts)
             walk_ast(sema, stmt, pre_fn, post_fn);
         break;
-    case AstKind::if_stmt:
-        walk_ast(sema, static_cast<IfStmt *>(node)->cond, pre_fn, post_fn);
-        walk_ast(sema, static_cast<IfStmt *>(node)->cstmt_true, pre_fn, post_fn);
+    case AstKind::if_stmt: {
+        auto *ifstmt = static_cast<IfStmt *>(node);
+        walk_ast(sema, ifstmt->cond, pre_fn, post_fn);
+        walk_ast(sema, ifstmt->cstmt_true, pre_fn, post_fn);
+
+        if (ifstmt->elseif) {
+            walk_ast(sema, ifstmt->elseif, pre_fn, post_fn);
+        } else if (ifstmt->cstmt_false) {
+            walk_ast(sema, ifstmt->cstmt_false, pre_fn, post_fn);
+        }
         break;
+    }
     case AstKind::var_decl: {
         auto var = static_cast<VarDeclNode *>(node);
         if (var->assign_expr)
