@@ -11,8 +11,7 @@ std::string SourceLoc::str() const {
     return fmt::format("{}:{}:{}", filename, line, col);
 }
 
-Source::Source(const Path &p) : filename(p.path)
-{
+Source::Source(const Path &p) : filename(p.path) {
     std::ifstream in{filename, std::ios::binary};
     if (!in) {
         fmt::print(stderr, "error: {}: {}\n", filename, strerror(errno));

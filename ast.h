@@ -113,12 +113,10 @@ struct AstNode {
 
 // These are free-standing functions that simply do the virtual call into the
 // polymorphic compiler pass functions.
-inline bool name_bind_pre(Sema *sema, AstNode *node)
-{
+inline bool name_bind_pre(Sema *sema, AstNode *node) {
     return node->name_bind_pre(sema);
 }
-inline bool name_bind_post(Sema *sema, AstNode *node)
-{
+inline bool name_bind_post(Sema *sema, AstNode *node) {
     return node->name_bind_post(sema);
 }
 

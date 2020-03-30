@@ -147,8 +147,7 @@ DeclStmt *Parser::parse_decl_stmt() {
 // This function handles both cases.
 //
 // TODO: function call?
-Stmt *Parser::parse_expr_or_assign_stmt()
-{
+Stmt *Parser::parse_expr_or_assign_stmt() {
     auto pos = tok.pos;
 
     auto lhs = parse_expr();
@@ -166,7 +165,6 @@ Stmt *Parser::parse_expr_or_assign_stmt()
         expect(Tok::newline);
         return make_node_pos<BadStmt>(pos);
     }
-
 
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
@@ -587,8 +585,7 @@ void Parser::skip_until_any(const std::vector<Tok> &kinds) {
   }
 }
 
-void Parser::skip_until_end_of_line()
-{
+void Parser::skip_until_end_of_line() {
     while (tok.kind != Tok::newline)
         next();
 }

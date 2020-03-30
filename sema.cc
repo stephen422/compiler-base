@@ -9,22 +9,19 @@ namespace cmp {
 
 std::string Type::str() const { return name->text; }
 
-Decl *make_decl(Sema *sema, const VarDecl &var_decl)
-{
+Decl *make_decl(Sema *sema, const VarDecl &var_decl) {
     Decl *decl = new Decl{var_decl};
     sema->decl_pool.push_back(decl);
     return decl;
 }
 
-Decl *make_decl(Sema *sema, const TypeDecl &type_decl)
-{
+Decl *make_decl(Sema *sema, const TypeDecl &type_decl) {
     Decl *decl = new Decl{type_decl};
     sema->decl_pool.push_back(decl);
     return decl;
 }
 
-Decl *make_decl(Sema *sema, const FuncDecl &func_decl)
-{
+Decl *make_decl(Sema *sema, const FuncDecl &func_decl) {
     Decl *decl = new Decl{func_decl};
     sema->decl_pool.push_back(decl);
     return decl;
@@ -151,21 +148,18 @@ void walk_ast(Sema *sema, AstNode *node, bool (*pre_fn)(Sema *sema, AstNode *),
 // Name binding pass
 //
 
-bool CompoundStmt::name_bind_pre(Sema *sema)
-{
+bool CompoundStmt::name_bind_pre(Sema *sema) {
     sema->decl_table.scope_open();
     return true;
 }
 
-bool CompoundStmt::name_bind_post(Sema *sema)
-{
+bool CompoundStmt::name_bind_post(Sema *sema) {
     sema->decl_table.scope_close();
     return true;
 }
 
 // FIXME: should this be pre or post for VarDecl?
-bool VarDeclNode::name_bind_post(Sema *sema)
-{
+bool VarDeclNode::name_bind_post(Sema *sema) {
     auto found = sema->decl_table.find(name);
     if (found && found->value->kind == DECL_VAR &&
         found->scope_level <= sema->type_table.scope_level) {
@@ -193,8 +187,7 @@ bool VarDeclNode::name_bind_post(Sema *sema)
 
 // We need to push StructDecl at pre, so that the inner member declarations
 // have access and can modify this decl.
-bool StructDeclNode::name_bind_pre(Sema *sema)
-{
+bool StructDeclNode::name_bind_pre(Sema *sema) {
     auto found = sema->decl_table.find(name);
     if (found && found->value->kind == DECL_TYPE &&
         found->scope_level <= sema->decl_table.scope_level) {
@@ -214,16 +207,14 @@ bool StructDeclNode::name_bind_pre(Sema *sema)
     return true;
 }
 
-bool StructDeclNode::name_bind_post(Sema *sema)
-{
+bool StructDeclNode::name_bind_post(Sema *sema) {
     sema->context.struct_decl_stack.pop_back();
     sema->decl_table.scope_close();
 
     return true;
 }
 
-bool FuncDeclNode::name_bind_pre(Sema *sema)
-{
+bool FuncDeclNode::name_bind_pre(Sema *sema) {
     auto found = sema->decl_table.find(name);
     if (found && found->value->kind == DECL_FUNC &&
         found->scope_level <= sema->type_table.scope_level) {
@@ -242,16 +233,14 @@ bool FuncDeclNode::name_bind_pre(Sema *sema)
     return true;
 }
 
-bool FuncDeclNode::name_bind_post(Sema *sema)
-{
+bool FuncDeclNode::name_bind_post(Sema *sema) {
     sema->context.func_decl_stack.pop_back();
     sema->decl_table.scope_close();
 
     return true;
 }
 
-bool DeclRefExpr::name_bind_post(Sema *sema)
-{
+bool DeclRefExpr::name_bind_post(Sema *sema) {
     auto sym = sema->decl_table.find(name);
     if (sym) {
         decl = sym->value;
@@ -263,8 +252,7 @@ bool DeclRefExpr::name_bind_post(Sema *sema)
     return true;
 }
 
-bool FuncCallExpr::name_bind_pre(Sema *sema)
-{
+bool FuncCallExpr::name_bind_pre(Sema *sema) {
     auto sym = sema->decl_table.find(func_name);
     if (sym) {
         if (sym->value->kind == DECL_FUNC) {
@@ -283,8 +271,7 @@ bool FuncCallExpr::name_bind_pre(Sema *sema)
     return true;
 }
 
-bool FuncCallExpr::name_bind_post(Sema *sema)
-{
+bool FuncCallExpr::name_bind_post(Sema *sema) {
     assert(func_decl);
 
     // check if argument count matches
@@ -328,8 +315,7 @@ void MemberExpr::name_bind_post(Sema &sema) {
 }
 #endif
 
-bool TypeExpr::name_bind_post(Sema *sema)
-{
+bool TypeExpr::name_bind_post(Sema *sema) {
     auto sym = sema->decl_table.find(name);
     if (sym) {
         // type = &sym->value;
@@ -523,8 +509,7 @@ void BinaryExpr::walk(Sema &sema) {
     type = lhs->type;
 }
 
-Sema::Sema(const Source &s, NameTable &n) : source(s), names(n)
-{
+Sema::Sema(const Source &s, NameTable &n) : source(s), names(n) {
     // set up built-in types
     Name *int_name = names.get_or_add("int");
     auto int_type = make_decl(this, TypeDecl{int_name});
