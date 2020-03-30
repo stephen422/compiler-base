@@ -60,8 +60,9 @@ void walk_ast(Sema *sema, AstNode *node, bool (*pre_fn)(Sema *sema, AstNode *),
               bool (*post_fn)(Sema *sema, AstNode *)) {
     assert(node);
 
-    if (!pre_fn(sema, node))
+    if (!pre_fn(sema, node)) {
         return;
+    }
 
     switch (node->kind) {
     case AstKind::file:
@@ -120,28 +121,32 @@ void walk_ast(Sema *sema, AstNode *node, bool (*pre_fn)(Sema *sema, AstNode *),
     case AstKind::func_decl: {
         // TODO: ret_type insertion between ret_type_expr and body?
         auto func = static_cast<FuncDeclNode *>(node);
-        if (func->ret_type_expr)
+        if (func->ret_type_expr) {
             walk_ast(sema, func->ret_type_expr, pre_fn, post_fn);
-        for (auto p : func->args)
+        }
+        for (auto p : func->args) {
             walk_ast(sema, p, pre_fn, post_fn);
+        }
         walk_ast(sema, func->body, pre_fn, post_fn);
         break;
     }
     case AstKind::unary_expr: {
-        // TODO: proper UnaryKind subtypes
-        if (static_cast<UnaryExpr *>(node)->operand)
+        if (static_cast<UnaryExpr *>(node)->operand) {
             walk_ast(sema, static_cast<UnaryExpr *>(node)->operand, pre_fn,
-                    post_fn);
+                     post_fn);
+        }
         break;
     }
     case AstKind::func_call_expr:
-        for (auto arg : static_cast<FuncCallExpr *>(node)->args)
+        for (auto arg : static_cast<FuncCallExpr *>(node)->args) {
             walk_ast(sema, arg, pre_fn, post_fn);
+        }
         break;
     case AstKind::type_expr: {
         auto type_expr = static_cast<TypeExpr *>(node);
-        if (type_expr->subexpr)
+        if (type_expr->subexpr) {
             walk_ast(sema, type_expr->subexpr, pre_fn, post_fn);
+        }
         break;
     }
     case AstKind::binary_expr:
@@ -153,8 +158,9 @@ void walk_ast(Sema *sema, AstNode *node, bool (*pre_fn)(Sema *sema, AstNode *),
         break;
     }
 
-    if (!post_fn(sema, node))
+    if (!post_fn(sema, node)) {
         return; // XXX: pointless
+    }
 }
 
 //
