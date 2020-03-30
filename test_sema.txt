@@ -27,6 +27,13 @@ func main() {
 
     *a // [error: "dereference"] // TODO: report 'int'
 
+    {
+        // declaration in a block
+        let in_block = 0
+        in_block
+    }
+    in_block // [error: "undeclared.*'in_block']
+
     if a {
         let in_if = 42
         in_if

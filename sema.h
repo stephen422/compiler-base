@@ -132,9 +132,9 @@ struct Decl {
 // Convenience cast function. Note that this works on a *pointer* to the Decl.
 // template <typename T> T *decl_cast(Decl *d) { return &std::get<T>(*d); }
 // Allocator function.
-Decl *make_decl(Sema *sema, const VarDecl &var_decl);
-Decl *make_decl(Sema *sema, const TypeDecl &type_decl);
-Decl *make_decl(Sema *sema, const FuncDecl &func_decl);
+Decl *make_decl(Sema &sema, const VarDecl &var_decl);
+Decl *make_decl(Sema &sema, const TypeDecl &type_decl);
+Decl *make_decl(Sema &sema, const FuncDecl &func_decl);
 
 struct Context {
     // Current enclosing struct decl.
@@ -213,8 +213,8 @@ struct Ast;
 struct AstNode;
 
 // Do a semantic analysis on the given AST.
-void walk_ast(Sema *sema, AstNode *node, bool (*pre_fn)(Sema *sema, AstNode *),
-              bool (*post_fn)(Sema *sema, AstNode *));
+void walkAST(Sema &sema, AstNode *node, bool (*pre_fn)(Sema &sema, AstNode *),
+              bool (*post_fn)(Sema &sema, AstNode *));
 void sema(Sema &sema, Ast &ast);
 
 } // namespace cmp

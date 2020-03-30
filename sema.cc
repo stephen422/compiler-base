@@ -9,21 +9,21 @@ namespace cmp {
 
 std::string Type::str() const { return name->text; }
 
-Decl *make_decl(Sema *sema, const VarDecl &var_decl) {
+Decl *make_decl(Sema &sema, const VarDecl &var_decl) {
     Decl *decl = new Decl{var_decl};
-    sema->decl_pool.push_back(decl);
+    sema.decl_pool.push_back(decl);
     return decl;
 }
 
-Decl *make_decl(Sema *sema, const TypeDecl &type_decl) {
+Decl *make_decl(Sema &sema, const TypeDecl &type_decl) {
     Decl *decl = new Decl{type_decl};
-    sema->decl_pool.push_back(decl);
+    sema.decl_pool.push_back(decl);
     return decl;
 }
 
-Decl *make_decl(Sema *sema, const FuncDecl &func_decl) {
+Decl *make_decl(Sema &sema, const FuncDecl &func_decl) {
     Decl *decl = new Decl{func_decl};
-    sema->decl_pool.push_back(decl);
+    sema.decl_pool.push_back(decl);
     return decl;
 }
 
@@ -56,8 +56,8 @@ Type *getReferenceType(Sema &sema, Type *type) {
 // AST Traversal
 //
 
-void walk_ast(Sema *sema, AstNode *node, bool (*pre_fn)(Sema *sema, AstNode *),
-              bool (*post_fn)(Sema *sema, AstNode *)) {
+void walkAST(Sema &sema, AstNode *node, bool (*pre_fn)(Sema &sema, AstNode *),
+              bool (*post_fn)(Sema &sema, AstNode *)) {
     assert(node);
 
     if (!pre_fn(sema, node)) {
@@ -67,91 +67,91 @@ void walk_ast(Sema *sema, AstNode *node, bool (*pre_fn)(Sema *sema, AstNode *),
     switch (node->kind) {
     case AstKind::file:
         for (auto tl : static_cast<File *>(node)->toplevels)
-            walk_ast(sema, tl, pre_fn, post_fn);
+            walkAST(sema, tl, pre_fn, post_fn);
         break;
     case AstKind::decl_stmt:
-        walk_ast(sema, static_cast<DeclStmt *>(node)->decl, pre_fn, post_fn);
+        walkAST(sema, static_cast<DeclStmt *>(node)->decl, pre_fn, post_fn);
         break;
     case AstKind::expr_stmt:
-        walk_ast(sema, static_cast<ExprStmt *>(node)->expr, pre_fn, post_fn);
+        walkAST(sema, static_cast<ExprStmt *>(node)->expr, pre_fn, post_fn);
         break;
     case AstKind::assign_stmt:
-        walk_ast(sema, static_cast<AssignStmt *>(node)->lhs, pre_fn, post_fn);
-        walk_ast(sema, static_cast<AssignStmt *>(node)->rhs, pre_fn, post_fn);
+        walkAST(sema, static_cast<AssignStmt *>(node)->lhs, pre_fn, post_fn);
+        walkAST(sema, static_cast<AssignStmt *>(node)->rhs, pre_fn, post_fn);
         break;
     case AstKind::return_stmt: {
         ReturnStmt *ret = static_cast<ReturnStmt *>(node);
         if (ret) {
             // ret->expr might be nullptr if no return statment was ever
             // processed.
-            walk_ast(sema, ret->expr, pre_fn, post_fn);
+            walkAST(sema, ret->expr, pre_fn, post_fn);
         }
         break;
     }
     case AstKind::compound_stmt:
         for (auto stmt : static_cast<CompoundStmt *>(node)->stmts)
-            walk_ast(sema, stmt, pre_fn, post_fn);
+            walkAST(sema, stmt, pre_fn, post_fn);
         break;
     case AstKind::if_stmt: {
         auto *ifstmt = static_cast<IfStmt *>(node);
-        walk_ast(sema, ifstmt->cond, pre_fn, post_fn);
-        walk_ast(sema, ifstmt->cstmt_true, pre_fn, post_fn);
+        walkAST(sema, ifstmt->cond, pre_fn, post_fn);
+        walkAST(sema, ifstmt->cstmt_true, pre_fn, post_fn);
 
         if (ifstmt->elseif) {
-            walk_ast(sema, ifstmt->elseif, pre_fn, post_fn);
+            walkAST(sema, ifstmt->elseif, pre_fn, post_fn);
         } else if (ifstmt->cstmt_false) {
-            walk_ast(sema, ifstmt->cstmt_false, pre_fn, post_fn);
+            walkAST(sema, ifstmt->cstmt_false, pre_fn, post_fn);
         }
         break;
     }
     case AstKind::var_decl: {
         auto var = static_cast<VarDeclNode *>(node);
         if (var->assign_expr)
-            walk_ast(sema, var->assign_expr, pre_fn, post_fn);
+            walkAST(sema, var->assign_expr, pre_fn, post_fn);
         else if (var->type_expr)
-            walk_ast(sema, var->type_expr, pre_fn, post_fn);
+            walkAST(sema, var->type_expr, pre_fn, post_fn);
         else
             assert(false && "unreachable");
         break;
     }
     case AstKind::struct_decl:
         for (auto m : static_cast<StructDeclNode *>(node)->members)
-            walk_ast(sema, m, pre_fn, post_fn);
+            walkAST(sema, m, pre_fn, post_fn);
         break;
     case AstKind::func_decl: {
         // TODO: ret_type insertion between ret_type_expr and body?
         auto func = static_cast<FuncDeclNode *>(node);
         if (func->ret_type_expr) {
-            walk_ast(sema, func->ret_type_expr, pre_fn, post_fn);
+            walkAST(sema, func->ret_type_expr, pre_fn, post_fn);
         }
         for (auto p : func->args) {
-            walk_ast(sema, p, pre_fn, post_fn);
+            walkAST(sema, p, pre_fn, post_fn);
         }
-        walk_ast(sema, func->body, pre_fn, post_fn);
+        walkAST(sema, func->body, pre_fn, post_fn);
         break;
     }
     case AstKind::unary_expr: {
         if (static_cast<UnaryExpr *>(node)->operand) {
-            walk_ast(sema, static_cast<UnaryExpr *>(node)->operand, pre_fn,
+            walkAST(sema, static_cast<UnaryExpr *>(node)->operand, pre_fn,
                      post_fn);
         }
         break;
     }
     case AstKind::func_call_expr:
         for (auto arg : static_cast<FuncCallExpr *>(node)->args) {
-            walk_ast(sema, arg, pre_fn, post_fn);
+            walkAST(sema, arg, pre_fn, post_fn);
         }
         break;
     case AstKind::type_expr: {
         auto type_expr = static_cast<TypeExpr *>(node);
         if (type_expr->subexpr) {
-            walk_ast(sema, type_expr->subexpr, pre_fn, post_fn);
+            walkAST(sema, type_expr->subexpr, pre_fn, post_fn);
         }
         break;
     }
     case AstKind::binary_expr:
-        walk_ast(sema, static_cast<BinaryExpr *>(node)->lhs, pre_fn, post_fn);
-        walk_ast(sema, static_cast<BinaryExpr *>(node)->rhs, pre_fn, post_fn);
+        walkAST(sema, static_cast<BinaryExpr *>(node)->lhs, pre_fn, post_fn);
+        walkAST(sema, static_cast<BinaryExpr *>(node)->rhs, pre_fn, post_fn);
         break;
     default:
         // BadExprs, Literals, etc.
@@ -167,37 +167,37 @@ void walk_ast(Sema *sema, AstNode *node, bool (*pre_fn)(Sema *sema, AstNode *),
 // Name binding pass
 //
 
-bool CompoundStmt::name_bind_pre(Sema *sema) {
-    sema->decl_table.scope_open();
+bool CompoundStmt::name_bind_pre(Sema &sema) {
+    sema.decl_table.scope_open();
     return true;
 }
 
-bool CompoundStmt::name_bind_post(Sema *sema) {
-    sema->decl_table.scope_close();
+bool CompoundStmt::name_bind_post(Sema &sema) {
+    sema.decl_table.scope_close();
     return true;
 }
 
 // FIXME: should this be pre or post for VarDecl?
-bool VarDeclNode::name_bind_post(Sema *sema) {
-    auto found = sema->decl_table.find(name);
+bool VarDeclNode::name_bind_post(Sema &sema) {
+    auto found = sema.decl_table.find(name);
     if (found && found->value->kind == DECL_VAR &&
-        found->scope_level <= sema->type_table.scope_level) {
-        sema->error(pos, fmt::format("redefinition of '{}'", name->str()));
+        found->scope_level <= sema.type_table.scope_level) {
+        sema.error(pos, fmt::format("redefinition of '{}'", name->str()));
         return false;
     }
 
     auto decl = make_decl(sema, VarDecl{name});
-    sema->decl_table.insert(name, decl);
+    sema.decl_table.insert(name, decl);
     var_decl = &decl->var_decl;
 
     // Note that member declarations are also parsed as VarDecls.
     if (kind == Kind::struct_) {
-        assert(!sema->context.struct_decl_stack.empty());
-        auto curr_struct = sema->context.struct_decl_stack.back();
+        assert(!sema.context.struct_decl_stack.empty());
+        auto curr_struct = sema.context.struct_decl_stack.back();
         curr_struct->fields.push_back(var_decl);
     } else if (kind == Kind::func) {
-        assert(!sema->context.func_decl_stack.empty());
-        auto curr_func = sema->context.func_decl_stack.back();
+        assert(!sema.context.func_decl_stack.empty());
+        auto curr_func = sema.context.func_decl_stack.back();
         curr_func->args.push_back(var_decl);
     }
 
@@ -206,83 +206,83 @@ bool VarDeclNode::name_bind_post(Sema *sema) {
 
 // We need to push StructDecl at pre, so that the inner member declarations
 // have access and can modify this decl.
-bool StructDeclNode::name_bind_pre(Sema *sema) {
-    auto found = sema->decl_table.find(name);
+bool StructDeclNode::name_bind_pre(Sema &sema) {
+    auto found = sema.decl_table.find(name);
     if (found && found->value->kind == DECL_TYPE &&
-        found->scope_level <= sema->decl_table.scope_level) {
-        sema->error(pos, fmt::format("redefinition of '{}'", name->str()));
+        found->scope_level <= sema.decl_table.scope_level) {
+        sema.error(pos, fmt::format("redefinition of '{}'", name->str()));
         return false;
     }
 
     auto decl = make_decl(sema, TypeDecl{name});
-    sema->decl_table.insert(name, decl);
+    sema.decl_table.insert(name, decl);
     struct_decl = &decl->type_decl;
 
     // Decl table is used for checking redefinition when parsing the member
     // list.
-    sema->decl_table.scope_open();
-    sema->context.struct_decl_stack.push_back(struct_decl);
+    sema.decl_table.scope_open();
+    sema.context.struct_decl_stack.push_back(struct_decl);
 
     return true;
 }
 
-bool StructDeclNode::name_bind_post(Sema *sema) {
-    sema->context.struct_decl_stack.pop_back();
-    sema->decl_table.scope_close();
+bool StructDeclNode::name_bind_post(Sema &sema) {
+    sema.context.struct_decl_stack.pop_back();
+    sema.decl_table.scope_close();
 
     return true;
 }
 
-bool FuncDeclNode::name_bind_pre(Sema *sema) {
-    auto found = sema->decl_table.find(name);
+bool FuncDeclNode::name_bind_pre(Sema &sema) {
+    auto found = sema.decl_table.find(name);
     if (found && found->value->kind == DECL_FUNC &&
-        found->scope_level <= sema->type_table.scope_level) {
-        sema->error(pos, fmt::format("redefinition of '{}'", name->str()));
+        found->scope_level <= sema.type_table.scope_level) {
+        sema.error(pos, fmt::format("redefinition of '{}'", name->str()));
         // TODO: return false so that traversal is early-exited
         return false;
     }
 
     auto decl = make_decl(sema, FuncDecl{name});
-    sema->decl_table.insert(name, decl);
+    sema.decl_table.insert(name, decl);
     func_decl = &decl->func_decl;
 
-    sema->decl_table.scope_open(); // for argument variables
-    sema->context.func_decl_stack.push_back(func_decl);
+    sema.decl_table.scope_open(); // for argument variables
+    sema.context.func_decl_stack.push_back(func_decl);
 
     return true;
 }
 
-bool FuncDeclNode::name_bind_post(Sema *sema) {
-    sema->context.func_decl_stack.pop_back();
-    sema->decl_table.scope_close();
+bool FuncDeclNode::name_bind_post(Sema &sema) {
+    sema.context.func_decl_stack.pop_back();
+    sema.decl_table.scope_close();
 
     return true;
 }
 
-bool DeclRefExpr::name_bind_post(Sema *sema) {
-    auto sym = sema->decl_table.find(name);
+bool DeclRefExpr::name_bind_post(Sema &sema) {
+    auto sym = sema.decl_table.find(name);
     if (sym) {
         decl = sym->value;
     } else {
-        sema->error(
+        sema.error(
             pos, fmt::format("use of undeclared identifier '{}'", name->str()));
     }
 
     return true;
 }
 
-bool FuncCallExpr::name_bind_pre(Sema *sema) {
-    auto sym = sema->decl_table.find(func_name);
+bool FuncCallExpr::name_bind_pre(Sema &sema) {
+    auto sym = sema.decl_table.find(func_name);
     if (sym) {
         if (sym->value->kind == DECL_FUNC) {
             func_decl = &sym->value->func_decl;
         } else {
-            sema->error(
+            sema.error(
                 pos, fmt::format("'{}' is not a function", func_name->str()));
             return false;
         }
     } else {
-        sema->error(pos,
+        sema.error(pos,
                     fmt::format("undeclared function '{}'", func_name->str()));
         return false;
     }
@@ -290,12 +290,12 @@ bool FuncCallExpr::name_bind_pre(Sema *sema) {
     return true;
 }
 
-bool FuncCallExpr::name_bind_post(Sema *sema) {
+bool FuncCallExpr::name_bind_post(Sema &sema) {
     assert(func_decl);
 
     // check if argument count matches
     if (func_decl->args_count() != args.size()) {
-        sema->error(pos, fmt::format("'{}' accepts {} arguments, got {}",
+        sema.error(pos, fmt::format("'{}' accepts {} arguments, got {}",
                                      func_name->str(), func_decl->args_count(),
                                      args.size()));
     }
@@ -334,12 +334,12 @@ void MemberExpr::name_bind_post(Sema &sema) {
 }
 #endif
 
-bool TypeExpr::name_bind_post(Sema *sema) {
-    auto sym = sema->decl_table.find(name);
+bool TypeExpr::name_bind_post(Sema &sema) {
+    auto sym = sema.decl_table.find(name);
     if (sym) {
         // type = &sym->value;
     } else {
-        sema->error(pos,
+        sema.error(pos,
                     fmt::format("use of undeclared type '{}'", name->str()));
         return false;
     }
@@ -531,12 +531,12 @@ void BinaryExpr::walk(Sema &sema) {
 Sema::Sema(const Source &s, NameTable &n) : source(s), names(n) {
     // set up built-in types
     Name *int_name = names.get_or_add("int");
-    auto int_type = make_decl(this, TypeDecl{int_name});
+    auto int_type = make_decl(*this, TypeDecl{int_name});
     decl_table.insert(int_name, int_type);
     // int_type = type_table.insert(int_name, Type{int_name});
 
     Name *char_name = names.get_or_add("char");
-    auto char_type = make_decl(this, TypeDecl{char_name});
+    auto char_type = make_decl(*this, TypeDecl{char_name});
     decl_table.insert(char_name, char_type);
     // char_type = type_table.insert(char_name, Type{char_name});
 }
