@@ -65,7 +65,7 @@ void IfStmt::print() const {
     out() << "[IfStmt]\n";
     PrintScope start;
     cond->print();
-    cstmt->print();
+    cstmt_true->print();
 }
 
 void CompoundStmt::print() const {

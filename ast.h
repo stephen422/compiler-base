@@ -190,12 +190,16 @@ struct CompoundStmt : public Stmt {
 };
 
 struct IfStmt : public Stmt {
-    IfStmt(Expr *e, CompoundStmt *c) : Stmt(AstKind::if_stmt), cond(e), cstmt(c) {}
+    IfStmt(Expr *e, CompoundStmt *c)
+        : Stmt(AstKind::if_stmt), cond(e), cstmt_true(c) {}
     void print() const override;
-    // bool name_bind_pre(Sema *sema) override;
 
-    Expr *cond;
-    CompoundStmt *cstmt;
+    Expr *cond;               // conditional expr
+    CompoundStmt *cstmt_true; // body for true cond
+    // Views 'else if' clauses as a separate if statement for the false case.
+    // 'elseif' and 'cstmt_false' cannot be non-null at the same time.
+    IfStmt *elseif = nullptr;
+    CompoundStmt *cstmt_false = nullptr;
 };
 
 struct BadStmt : public Stmt {

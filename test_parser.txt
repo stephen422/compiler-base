@@ -35,6 +35,9 @@ func main() {
     car.driver.age
 
     if 1 {
+    } else if 2 {
+    } else {
+        stray_stmt
     }
 }
 

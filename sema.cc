@@ -80,10 +80,11 @@ void walk_ast(Sema *sema, AstNode *node, bool (*pre_fn)(Sema *sema, AstNode *),
         break;
     case AstKind::return_stmt: {
         ReturnStmt *ret = static_cast<ReturnStmt *>(node);
-        if (ret)
+        if (ret) {
             // ret->expr might be nullptr if no return statment was ever
             // processed.
             walk_ast(sema, ret->expr, pre_fn, post_fn);
+        }
         break;
     }
     case AstKind::compound_stmt:
@@ -92,7 +93,7 @@ void walk_ast(Sema *sema, AstNode *node, bool (*pre_fn)(Sema *sema, AstNode *),
         break;
     case AstKind::if_stmt:
         walk_ast(sema, static_cast<IfStmt *>(node)->cond, pre_fn, post_fn);
-        walk_ast(sema, static_cast<IfStmt *>(node)->cstmt, pre_fn, post_fn);
+        walk_ast(sema, static_cast<IfStmt *>(node)->cstmt_true, pre_fn, post_fn);
         break;
     case AstKind::var_decl: {
         auto var = static_cast<VarDeclNode *>(node);

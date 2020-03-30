@@ -119,13 +119,32 @@ Stmt *Parser::parse_return_stmt() {
     return make_node_pos<ReturnStmt>(pos, expr);
 }
 
-Stmt *Parser::parse_if_stmt() {
+// Simplest way to represent the if-elseif-else chain is to view the else-if
+// clause as simply a separate if statement that is embedded under the else
+// statement.
+IfStmt *Parser::parse_if_stmt() {
     auto pos = tok.pos;
 
     expect(Tok::kw_if);
 
     Expr *cond = parse_expr();
     CompoundStmt *cstmt = parse_compound_stmt();
+
+    IfStmt *elseif = nullptr;
+    CompoundStmt *cstmt_false = nullptr;
+
+    if (tok.kind == Tok::kw_else) {
+        next();
+
+        if (tok.kind == Tok::kw_if) {
+            elseif = parse_if_stmt();
+        } else if (tok.kind == Tok::lbrace) {
+            cstmt_false = parse_compound_stmt();
+        } else {
+            expect(Tok::lbrace);
+            skip_to_next_line();
+        }
+    }
 
     return make_node_pos<IfStmt>(pos, cond, cstmt);
 }
@@ -588,6 +607,13 @@ void Parser::skip_until_any(const std::vector<Tok> &kinds) {
 void Parser::skip_until_end_of_line() {
     while (tok.kind != Tok::newline)
         next();
+}
+
+// Used when the current statement turns out to be broken and we just want to
+// skip this whole line.
+void Parser::skip_to_next_line() {
+    skip_until_end_of_line();
+    expect(Tok::newline);
 }
 
 // The language is newline-aware, but newlines are mostly meaningless unless

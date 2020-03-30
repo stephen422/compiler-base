@@ -28,7 +28,10 @@ func main() {
     *a // [error: "dereference"] // TODO: report 'int'
 
     if a {
+        let in_if = 42
+        in_if
     }
+    in_if // [error: "undeclared.*'in_if']
 }
 
 func back_func(a: int, b: int) {

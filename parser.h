@@ -92,7 +92,7 @@ private:
     Stmt *parse_stmt();
     Stmt *parse_expr_or_assign_stmt();
     Stmt *parse_return_stmt();
-    Stmt *parse_if_stmt();
+    IfStmt *parse_if_stmt();
     DeclStmt *parse_decl_stmt();
     CompoundStmt *parse_compound_stmt();
     bool is_end_of_stmt() const;
@@ -132,6 +132,7 @@ private:
     void skip_until(Tok kind);
     void skip_until_any(const std::vector<Tok> &kinds);
     void skip_until_end_of_line();
+    void skip_to_next_line();
     void skip_newlines();
 
     template <typename T, typename... Args> T *make_node(Args &&... args) {
