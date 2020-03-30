@@ -94,6 +94,7 @@ void walkAST(Sema &sema, AstNode *node, bool (*pre_fn)(Sema &sema, AstNode *),
         break;
     case AstKind::if_stmt: {
         auto *ifstmt = static_cast<IfStmt *>(node);
+
         walkAST(sema, ifstmt->cond, pre_fn, post_fn);
         walkAST(sema, ifstmt->cstmt_true, pre_fn, post_fn);
 
@@ -106,17 +107,19 @@ void walkAST(Sema &sema, AstNode *node, bool (*pre_fn)(Sema &sema, AstNode *),
     }
     case AstKind::var_decl: {
         auto var = static_cast<VarDeclNode *>(node);
-        if (var->assign_expr)
+        if (var->assign_expr) {
             walkAST(sema, var->assign_expr, pre_fn, post_fn);
-        else if (var->type_expr)
+        } else if (var->type_expr) {
             walkAST(sema, var->type_expr, pre_fn, post_fn);
-        else
+        } else {
             assert(false && "unreachable");
+        }
         break;
     }
     case AstKind::struct_decl:
-        for (auto m : static_cast<StructDeclNode *>(node)->members)
+        for (auto m : static_cast<StructDeclNode *>(node)->members) {
             walkAST(sema, m, pre_fn, post_fn);
+        }
         break;
     case AstKind::func_decl: {
         // TODO: ret_type insertion between ret_type_expr and body?
