@@ -3,6 +3,8 @@
 Let the programmer tell the compiler explicitly where a specific type of object
 lives and dies in the code.
 
+- Better AST printing (e.g. 'else' clause for if-stmt)
+
 Q. What's the advantage of separating type table from decl table?
 
 - Symbol table: 'name' duplicated in 'Symbol' and the value type
