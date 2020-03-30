@@ -56,15 +56,16 @@ void AssignStmt::print() const {
 void ReturnStmt::print() const {
     out() << "[ReturnStmt]\n";
     PrintScope start;
-    if (expr)
+    if (expr) {
         expr->print();
+    }
 }
 
 void IfStmt::print() const {
     out() << "[IfStmt]\n";
-    // PrintScope start;
-    // if (expr)
-    //     expr->print();
+    PrintScope start;
+    cond->print();
+    cstmt->print();
 }
 
 void CompoundStmt::print() const {

@@ -26,6 +26,9 @@ func main() {
     back_func(a, a) // TODO: multi-pass name binding
 
     *a // [error: "dereference"] // TODO: report 'int'
+
+    if a {
+    }
 }
 
 func back_func(a: int, b: int) {

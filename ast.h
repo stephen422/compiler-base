@@ -192,6 +192,7 @@ struct CompoundStmt : public Stmt {
 struct IfStmt : public Stmt {
     IfStmt(Expr *e, CompoundStmt *c) : Stmt(AstKind::if_stmt), cond(e), cstmt(c) {}
     void print() const override;
+    // bool name_bind_pre(Sema *sema) override;
 
     Expr *cond;
     CompoundStmt *cstmt;
