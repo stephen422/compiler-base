@@ -89,12 +89,12 @@ private:
     AstNode *parseToplevel();
 
     // Statement parsers.
-    Stmt *parse_stmt();
+    Stmt *parseStmt();
     Stmt *parse_expr_or_assign_stmt();
     Stmt *parse_return_stmt();
     IfStmt *parse_if_stmt();
     DeclStmt *parse_decl_stmt();
-    CompoundStmt *parse_compound_stmt();
+    CompoundStmt *parseCompoundStmt();
     bool is_end_of_stmt() const;
     bool is_eos();
 

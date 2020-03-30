@@ -82,10 +82,12 @@ bool Parser::is_eos() {
 // Stmt:
 //     Decl
 //     Expr
-Stmt *Parser::parse_stmt() {
+Stmt *Parser::parseStmt() {
     Stmt *stmt = nullptr;
 
-    if (tok.kind == Tok::kw_return) {
+    if (tok.kind == Tok::lbrace) {
+        stmt = parseCompoundStmt();
+    } else if (tok.kind == Tok::kw_return) {
         stmt = parse_return_stmt();
     } else if (tok.kind == Tok::kw_if) {
         stmt = parse_if_stmt();
@@ -128,7 +130,7 @@ IfStmt *Parser::parse_if_stmt() {
     expect(Tok::kw_if);
 
     Expr *cond = parse_expr();
-    CompoundStmt *cstmt = parse_compound_stmt();
+    CompoundStmt *cstmt = parseCompoundStmt();
 
     IfStmt *elseif = nullptr;
     CompoundStmt *cstmt_false = nullptr;
@@ -139,14 +141,14 @@ IfStmt *Parser::parse_if_stmt() {
         if (tok.kind == Tok::kw_if) {
             elseif = parse_if_stmt();
         } else if (tok.kind == Tok::lbrace) {
-            cstmt_false = parse_compound_stmt();
+            cstmt_false = parseCompoundStmt();
         } else {
             expect(Tok::lbrace);
 
             // do our best to recover
             parse_expr();
             if (tok.kind == Tok::lbrace) {
-                cstmt_false = parse_compound_stmt();
+                cstmt_false = parseCompoundStmt();
             } else {
                 skip_to_next_line();
             }
@@ -204,7 +206,7 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
 //
 // CompoundStmt:
 //     { Stmt* }
-CompoundStmt *Parser::parse_compound_stmt() {
+CompoundStmt *Parser::parseCompoundStmt() {
     expect(Tok::lbrace);
     auto compound = make_node<CompoundStmt>();
 
@@ -212,7 +214,7 @@ CompoundStmt *Parser::parse_compound_stmt() {
         skip_newlines();
         if (tok.kind == Tok::rbrace)
             break;
-        auto stmt = parse_stmt();
+        auto stmt = parseStmt();
         compound->stmts.push_back(stmt);
     }
 
@@ -326,7 +328,7 @@ FuncDeclNode *Parser::parseFuncDecl() {
         skip_until(Tok::lbrace);
     }
     // function body
-    func->body = parse_compound_stmt();
+    func->body = parseCompoundStmt();
     func->pos = pos;
 
     return func;
