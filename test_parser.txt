@@ -36,7 +36,7 @@ func main() {
 
     if 1 {
     } else if 2 {
-    } else {
+    } else 3 { // [error: "expected.*'\{'"]
         stray_stmt
     }
 }

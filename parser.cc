@@ -142,7 +142,14 @@ IfStmt *Parser::parse_if_stmt() {
             cstmt_false = parse_compound_stmt();
         } else {
             expect(Tok::lbrace);
-            skip_to_next_line();
+
+            // do our best to recover
+            parse_expr();
+            if (tok.kind == Tok::lbrace) {
+                cstmt_false = parse_compound_stmt();
+            } else {
+                skip_to_next_line();
+            }
         }
     }
 
