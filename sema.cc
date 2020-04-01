@@ -69,93 +69,93 @@ void walkAST(Sema &sema, AstNode *node, bool (*pre_fn)(Sema &sema, AstNode *),
         for (auto tl : static_cast<File *>(node)->toplevels)
             walkAST(sema, tl, pre_fn, post_fn);
         break;
-    case AstKind::decl_stmt:
-        walkAST(sema, static_cast<DeclStmt *>(node)->decl, pre_fn, post_fn);
-        break;
-    case AstKind::expr_stmt:
-        walkAST(sema, static_cast<ExprStmt *>(node)->expr, pre_fn, post_fn);
-        break;
-    case AstKind::assign_stmt:
-        walkAST(sema, static_cast<AssignStmt *>(node)->lhs, pre_fn, post_fn);
-        walkAST(sema, static_cast<AssignStmt *>(node)->rhs, pre_fn, post_fn);
-        break;
-    case AstKind::return_stmt: {
-        ReturnStmt *ret = static_cast<ReturnStmt *>(node);
-        if (ret) {
-            // ret->expr might be nullptr if no return statment was ever
-            // processed.
-            walkAST(sema, ret->expr, pre_fn, post_fn);
-        }
-        break;
-    }
-    case AstKind::compound_stmt:
-        for (auto stmt : static_cast<CompoundStmt *>(node)->stmts)
-            walkAST(sema, stmt, pre_fn, post_fn);
-        break;
-    case AstKind::if_stmt: {
-        auto *ifstmt = static_cast<IfStmt *>(node);
+    // case AstKind::decl_stmt:
+    //     walkAST(sema, static_cast<DeclStmt *>(node)->decl, pre_fn, post_fn);
+    //     break;
+    // case AstKind::expr_stmt:
+    //     walkAST(sema, static_cast<ExprStmt *>(node)->expr, pre_fn, post_fn);
+    //     break;
+    // case AstKind::assign_stmt:
+    //     walkAST(sema, static_cast<AssignStmt *>(node)->lhs, pre_fn, post_fn);
+    //     walkAST(sema, static_cast<AssignStmt *>(node)->rhs, pre_fn, post_fn);
+    //     break;
+    // case AstKind::return_stmt: {
+    //     ReturnStmt *ret = static_cast<ReturnStmt *>(node);
+    //     if (ret) {
+    //         // ret->expr might be nullptr if no return statment was ever
+    //         // processed.
+    //         walkAST(sema, ret->expr, pre_fn, post_fn);
+    //     }
+    //     break;
+    // }
+    // case AstKind::compound_stmt:
+    //     for (auto stmt : static_cast<CompoundStmt *>(node)->stmts)
+    //         walkAST(sema, stmt, pre_fn, post_fn);
+    //     break;
+    // case AstKind::if_stmt: {
+    //     auto *ifstmt = static_cast<IfStmt *>(node);
 
-        walkAST(sema, ifstmt->cond, pre_fn, post_fn);
-        walkAST(sema, ifstmt->cstmt_true, pre_fn, post_fn);
+    //     walkAST(sema, ifstmt->cond, pre_fn, post_fn);
+    //     walkAST(sema, ifstmt->cstmt_true, pre_fn, post_fn);
 
-        if (ifstmt->elseif) {
-            walkAST(sema, ifstmt->elseif, pre_fn, post_fn);
-        } else if (ifstmt->cstmt_false) {
-            walkAST(sema, ifstmt->cstmt_false, pre_fn, post_fn);
-        }
-        break;
-    }
-    case AstKind::var_decl: {
-        auto var = static_cast<VarDeclNode *>(node);
-        if (var->assign_expr) {
-            walkAST(sema, var->assign_expr, pre_fn, post_fn);
-        } else if (var->type_expr) {
-            walkAST(sema, var->type_expr, pre_fn, post_fn);
-        } else {
-            assert(false && "unreachable");
-        }
-        break;
-    }
-    case AstKind::struct_decl:
-        for (auto m : static_cast<StructDeclNode *>(node)->members) {
-            walkAST(sema, m, pre_fn, post_fn);
-        }
-        break;
-    case AstKind::func_decl: {
-        // TODO: ret_type insertion between ret_type_expr and body?
-        auto func = static_cast<FuncDeclNode *>(node);
-        if (func->ret_type_expr) {
-            walkAST(sema, func->ret_type_expr, pre_fn, post_fn);
-        }
-        for (auto p : func->args) {
-            walkAST(sema, p, pre_fn, post_fn);
-        }
-        walkAST(sema, func->body, pre_fn, post_fn);
-        break;
-    }
-    case AstKind::unary_expr: {
-        if (static_cast<UnaryExpr *>(node)->operand) {
-            walkAST(sema, static_cast<UnaryExpr *>(node)->operand, pre_fn,
-                     post_fn);
-        }
-        break;
-    }
-    case AstKind::func_call_expr:
-        for (auto arg : static_cast<FuncCallExpr *>(node)->args) {
-            walkAST(sema, arg, pre_fn, post_fn);
-        }
-        break;
-    case AstKind::type_expr: {
-        auto type_expr = static_cast<TypeExpr *>(node);
-        if (type_expr->subexpr) {
-            walkAST(sema, type_expr->subexpr, pre_fn, post_fn);
-        }
-        break;
-    }
-    case AstKind::binary_expr:
-        walkAST(sema, static_cast<BinaryExpr *>(node)->lhs, pre_fn, post_fn);
-        walkAST(sema, static_cast<BinaryExpr *>(node)->rhs, pre_fn, post_fn);
-        break;
+    //     if (ifstmt->elseif) {
+    //         walkAST(sema, ifstmt->elseif, pre_fn, post_fn);
+    //     } else if (ifstmt->cstmt_false) {
+    //         walkAST(sema, ifstmt->cstmt_false, pre_fn, post_fn);
+    //     }
+    //     break;
+    // }
+    // case AstKind::var_decl: {
+    //     auto var = static_cast<VarDeclNode *>(node);
+    //     if (var->assign_expr) {
+    //         walkAST(sema, var->assign_expr, pre_fn, post_fn);
+    //     } else if (var->type_expr) {
+    //         walkAST(sema, var->type_expr, pre_fn, post_fn);
+    //     } else {
+    //         assert(false && "unreachable");
+    //     }
+    //     break;
+    // }
+    // case AstKind::struct_decl:
+    //     for (auto m : static_cast<StructDeclNode *>(node)->members) {
+    //         walkAST(sema, m, pre_fn, post_fn);
+    //     }
+    //     break;
+    // case AstKind::func_decl: {
+    //     // TODO: ret_type insertion between ret_type_expr and body?
+    //     auto func = static_cast<FuncDeclNode *>(node);
+    //     if (func->ret_type_expr) {
+    //         walkAST(sema, func->ret_type_expr, pre_fn, post_fn);
+    //     }
+    //     for (auto p : func->args) {
+    //         walkAST(sema, p, pre_fn, post_fn);
+    //     }
+    //     walkAST(sema, func->body, pre_fn, post_fn);
+    //     break;
+    // }
+    // case AstKind::unary_expr: {
+    //     if (static_cast<UnaryExpr *>(node)->operand) {
+    //         walkAST(sema, static_cast<UnaryExpr *>(node)->operand, pre_fn,
+    //                  post_fn);
+    //     }
+    //     break;
+    // }
+    // case AstKind::func_call_expr:
+    //     for (auto arg : static_cast<FuncCallExpr *>(node)->args) {
+    //         walkAST(sema, arg, pre_fn, post_fn);
+    //     }
+    //     break;
+    // case AstKind::type_expr: {
+    //     auto type_expr = static_cast<TypeExpr *>(node);
+    //     if (type_expr->subexpr) {
+    //         walkAST(sema, type_expr->subexpr, pre_fn, post_fn);
+    //     }
+    //     break;
+    // }
+    // case AstKind::binary_expr:
+    //     walkAST(sema, static_cast<BinaryExpr *>(node)->lhs, pre_fn, post_fn);
+    //     walkAST(sema, static_cast<BinaryExpr *>(node)->rhs, pre_fn, post_fn);
+    //     break;
     default:
         // BadExprs, Literals, etc.
         break;
@@ -447,26 +447,26 @@ void UnaryExpr::walk(Sema &sema) {
     // DeclRefs and Literals have their own walk(), so no need to handle
     // them in this switch.
     switch (kind) {
-    case AstKind::paren_expr:
-        operand->walk(sema);
-        type = operand->type;
-        break;
-    case AstKind::deref_expr:
-        operand->walk(sema);
-        if (operand->type->kind != Type::Kind::ref)
-            sema.error(pos, "cannot dereference a non-reference");
-        type = operand->type->target_type;
-        break;
-    case AstKind::address_expr:
-        operand->walk(sema);
-        assert(operand->kind == AstKind::unary_expr);
-        if (operand->kind != AstKind::deref_expr) {
-            // TODO: LValue & RValue
-            sema.error(pos,
-                       "cannot take address of a non-variable (TODO: rvalue)");
-        }
-        type = getReferenceType(sema, operand->type);
-        break;
+    // case AstKind::paren_expr:
+    //     operand->walk(sema);
+    //     type = operand->type;
+    //     break;
+    // case AstKind::deref_expr:
+    //     operand->walk(sema);
+    //     if (operand->type->kind != Type::Kind::ref)
+    //         sema.error(pos, "cannot dereference a non-reference");
+    //     type = operand->type->target_type;
+    //     break;
+    // case AstKind::address_expr:
+    //     operand->walk(sema);
+    //     assert(operand->kind == AstKind::unary_expr);
+    //     if (operand->kind != AstKind::deref_expr) {
+    //         // TODO: LValue & RValue
+    //         sema.error(pos,
+    //                    "cannot take address of a non-variable (TODO: rvalue)");
+    //     }
+    //     type = getReferenceType(sema, operand->type);
+    //     break;
     default:
         assert(!"unreachable");
     }

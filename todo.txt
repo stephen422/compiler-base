@@ -5,6 +5,8 @@ lives and dies in the code.
 
 Q. What's the advantage of separating type table from decl table?
 
+- Clarify UnaryExpr: should FuncCallExprs really be UnaryExpr?
+
 - Symbol table: 'name' duplicated in 'Symbol' and the value type
 
 - Simple CLI for displaying symantic informations about a decl on a specific

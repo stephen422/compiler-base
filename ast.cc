@@ -124,14 +124,14 @@ void BinaryExpr::print() const {
 void UnaryExpr::print() const {
     out() << "[UnaryExpr] ";
 
-    switch (kind) {
-    case AstKind::deref_expr: {
+    switch (unary_kind) {
+    case UnaryExprKind::deref: {
         std::cout << "Deref\n";
         PrintScope start;
         operand->print();
         break;
     }
-    case AstKind::address_expr: {
+    case UnaryExprKind::address: {
         std::cout << "Address\n";
         PrintScope start;
         operand->print();

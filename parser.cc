@@ -164,7 +164,7 @@ IfStmt *Parser::parse_if_stmt() {
 DeclStmt *Parser::parse_decl_stmt() {
     auto decl = parseDecl();
     if (!is_end_of_stmt()) {
-        if (decl->kind != AstKind::bad_decl)
+        if (decl->decl_kind != DeclNodeKind::bad)
             expect(Tok::newline);
         // try to recover
         skip_until_end_of_line();
@@ -268,7 +268,7 @@ std::vector<DeclNode *> Parser::parseVarDeclList(VarDeclNode::Kind kind) {
         decl = parseVarDecl(kind);
         decls.push_back(decl);
 
-        if (decl->kind == AstKind::bad_decl) {
+        if (decl->decl_kind == DeclNodeKind::bad) {
             // Determining where each decl ends in a list is a little tricky.
             // Here, we stop for any token that is either (1) separator tokens,
             // i.e. comma, newline, or (2) used to enclose a decl list, i.e.
@@ -434,7 +434,7 @@ Expr *Parser::parseTypeExpr() {
         next();
         typeexpr->ref = true;
         typeexpr->subexpr = parseTypeExpr();
-        if (typeexpr->subexpr->kind == AstKind::type_expr)
+        if (typeexpr->subexpr->expr_kind == ExprKind::type)
             text = "&" + static_cast<TypeExpr *>(typeexpr->subexpr)->name->text;
     } else if (is_identifier_or_keyword(tok)) {
         if (tok.kind == Tok::kw_mut) {
@@ -475,12 +475,12 @@ Expr *Parser::parseUnaryExpr() {
     case Tok::star: {
         next();
         auto expr = parseUnaryExpr();
-        return make_node_pos<UnaryExpr>(pos, AstKind::deref_expr, expr);
+        return make_node_pos<UnaryExpr>(pos, UnaryExprKind::deref, expr);
     }
     case Tok::ampersand: {
         next();
         auto expr = parseUnaryExpr();
-        return make_node_pos<UnaryExpr>(pos, AstKind::address_expr, expr);
+        return make_node_pos<UnaryExpr>(pos, UnaryExprKind::address, expr);
     }
     case Tok::lparen: {
         expect(Tok::lparen);
