@@ -60,6 +60,8 @@ bool Parser::expect(Tok kind, const std::string &msg = "") {
             s = fmt::format("expected '{}', found '{}'",
                             tokenTypeToString(kind), tok.text);
         error(s);
+        // Don't make progress if the match failed.
+        // Note: the Go compiler does otherwise. Is that necessary?
         return false;
     }
     next();
@@ -170,9 +172,9 @@ DeclStmt *Parser::parse_decl_stmt() {
     return make_node<DeclStmt>(decl);
 }
 
-// When seeing an expression, we don't know yet if it is a simple expression
+// Upon seeing an expression, we don't know yet if it is a simple expression
 // statement or an assignment statement until we see the '=' token and the RHS.
-// This function handles both cases.
+// This function handles both cases in one go.
 //
 // TODO: function call?
 Stmt *Parser::parse_expr_or_assign_stmt() {
