@@ -35,15 +35,10 @@ int main(int argc, char **argv) {
     Parser p_sema{src_sema};
     auto ast = p_sema.parse();
     ast.root->print();
-    Sema s{p_sema};
-    walkAST(s, ast.root, name_bind_pre, name_bind_post);
-    // sema(s, ast);
-    // if (!s.verify()) {
-    //     fmt::print("==== Declaration table ====\n");
-    //     s.decl_table.print();
-    //     // fmt::print("==== Type table ====\n");
-    //     // s.type_table.print();
-    // }
+    AstVisitor av;
+    walk_file(av, static_cast<File *>(ast.root));
+    // Sema s{p_sema};
+    // walkAST(s, ast.root, name_bind_pre, name_bind_post);
 #endif
     return EXIT_SUCCESS;
 }

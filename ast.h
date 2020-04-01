@@ -416,7 +416,26 @@ struct BadDeclNode : public DeclNode {
     void print() const override;
 };
 
-void test(Sema &sema);
+// AST visitor
+
+struct AstVisitor {
+    void visit_file(const File *f);
+    void visit_toplevel(const AstNode *a);
+    void visit_stmt(const Stmt *s);
+    void visit_compound_stmt(const CompoundStmt *cs);
+    void visit_if_stmt(const IfStmt *is);
+    void visit_expr(const Expr *e);
+    void visit_decl(const DeclNode *d);
+    void visit_struct_decl(const StructDeclNode *s);
+    void visit_func_decl(const FuncDeclNode *f);
+    void visit_var_decl(const VarDeclNode *vd);
+};
+
+void walk_file(AstVisitor &v, const File *f);
+void walk_compound_stmt(AstVisitor &v, const CompoundStmt *cs);
+void walk_var_decl(AstVisitor &v, const VarDeclNode *var);
+void walk_struct_decl(AstVisitor &v, const StructDeclNode *s);
+void walk_func_decl(AstVisitor &v, const FuncDeclNode *f);
 
 } // namespace cmp
 
