@@ -328,8 +328,9 @@ struct TypeExpr : public Expr {
     Type *type = nullptr;    // type declaration
     bool mut = false;        // mutable?
     bool ref = false;        // is this a reference type?
-    Expr *subexpr = nullptr; // 'T' part of '&T'.  It is Expr mainly so that
-                             // BadExpr can be stored here.
+    Expr *subexpr =
+        nullptr; // 'T' part of '&T'.  It is Expr rather than TypeExpr mainly so
+                 // that BadExpr can be stored here.  XXX dirty.
 
     TypeExpr() : Expr(ExprKind::type) {}
     void print() const override;
@@ -416,8 +417,9 @@ struct BadDeclNode : public DeclNode {
     void print() const override;
 };
 
-// AST visitor
-
+// AST visitor.
+// Custom visitors, e.g. name binders or type checkers, are expected to inherit
+// from this class and override the node visitor functions as necessary.
 struct AstVisitor {
     void visit_file(const File *f);
     void visit_toplevel(const AstNode *a);
@@ -429,15 +431,18 @@ struct AstVisitor {
     void visit_return_stmt(const ReturnStmt *rs);
     void visit_compound_stmt(const CompoundStmt *cs);
     void visit_if_stmt(const IfStmt *is);
-    void visit_bad_stmt(const BadStmt *bs);
 
     void visit_expr(const Expr *e);
+    void visit_unary_expr(const UnaryExpr *u);
+    void visit_func_call_expr(const FuncCallExpr *f);
+    void visit_binary_expr(const BinaryExpr *b);
+    void visit_member_expr(const MemberExpr *m);
+    void visit_type_expr(const TypeExpr *t);
+
     void visit_decl(const DeclNode *d);
     void visit_var_decl(const VarDeclNode *v);
     void visit_struct_decl(const StructDeclNode *s);
     void visit_func_decl(const FuncDeclNode *f);
-    void visit_bad_decl(const BadDeclNode *b);
-    void visit_type_expr(const TypeExpr *t);
 };
 
 void walk_file(AstVisitor &v, const File *f);
@@ -447,6 +452,10 @@ void walk_assign_stmt(AstVisitor &v, const AssignStmt *as);
 void walk_return_stmt(AstVisitor &v, const ReturnStmt *rs);
 void walk_compound_stmt(AstVisitor &v, const CompoundStmt *cs);
 void walk_if_stmt(AstVisitor &v, const IfStmt *is);
+void walk_func_call_expr(AstVisitor &v, const FuncCallExpr *f);
+void walk_binary_expr(AstVisitor &v, const BinaryExpr *b);
+void walk_member_expr(AstVisitor &v, const MemberExpr *m);
+void walk_type_expr(AstVisitor &v, const TypeExpr *t);
 void walk_var_decl(AstVisitor &v, const VarDeclNode *var);
 void walk_struct_decl(AstVisitor &v, const StructDeclNode *s);
 void walk_func_decl(AstVisitor &v, const FuncDeclNode *f);

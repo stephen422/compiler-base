@@ -240,7 +240,7 @@ void AstVisitor::visit_stmt(const Stmt *s) {
         visit_if_stmt(static_cast<const IfStmt *>(s));
         break;
     case StmtKind::bad:
-        visit_bad_stmt(static_cast<const BadStmt *>(s));
+        // do nothing
         break;
     default:
         assert(false);
@@ -270,10 +270,6 @@ void AstVisitor::visit_if_stmt(const IfStmt *is) {
     fmt::print("visiting if_stmt\n");
     walk_if_stmt(*this, is);
 }
-void AstVisitor::visit_bad_stmt(const BadStmt *bs) {
-    fmt::print("visiting bad_stmt\n");
-    // do nothing
-}
 void AstVisitor::visit_decl(const DeclNode *d) {
     switch (d->decl_kind) {
     case DeclNodeKind::var:
@@ -286,6 +282,7 @@ void AstVisitor::visit_decl(const DeclNode *d) {
         visit_func_decl(static_cast<const FuncDeclNode *>(d));
         break;
     case DeclNodeKind::bad:
+        // do nothing
         break;
     default:
         assert(false);
@@ -303,20 +300,65 @@ void AstVisitor::visit_func_decl(const FuncDeclNode *f) {
     fmt::print("visiting func decl\n");
     walk_func_decl(*this, f);
 }
-void AstVisitor::visit_bad_decl(const BadDeclNode *b) {
-    fmt::print("visiting bad decl\n");
-    // do nothing
-}
 void AstVisitor::visit_expr(const Expr *e) {
-    // TODO: switch-case
-    switch (e->kind) {
+    // Rather than just calling walk_expr() here, we do a switch-case, because
+    // the visiting logic in a specialized visitor is likely to differ for each
+    // type of Expr and thus be implemented using a switch-case anyway.
+    switch (e->expr_kind) {
+    case ExprKind::unary:
+        visit_unary_expr(static_cast<const UnaryExpr *>(e));
+        break;
+    case ExprKind::binary:
+        visit_binary_expr(static_cast<const BinaryExpr *>(e));
+        break;
+    case ExprKind::member:
+        visit_member_expr(static_cast<const MemberExpr *>(e));
+        break;
+    case ExprKind::type:
+        visit_type_expr(static_cast<const TypeExpr *>(e));
+        break;
+    case ExprKind::bad:
+        // do nothing
+        break;
     default:
+        assert(false);
         break;
     }
 }
-void AstVisitor::visit_type_expr(const TypeExpr *t) {
-    fmt::print("visiting type expr\n");
+void AstVisitor::visit_unary_expr(const UnaryExpr *u) {
+    switch (u->unary_kind) {
+    case UnaryExprKind::integer_literal:
+        break;
+    case UnaryExprKind::string_literal:
+        break;
+    case UnaryExprKind::decl_ref:
+        break;
+    case UnaryExprKind::func_call:
+        visit_func_call_expr(static_cast<const FuncCallExpr *>(u));
+        break;
+    case UnaryExprKind::paren:
+        break;
+    case UnaryExprKind::address:
+        break;
+    case UnaryExprKind::deref:
+        break;
+    default:
+        assert(false);
+        break;
+    }
     // TODO
+}
+void AstVisitor::visit_func_call_expr(const FuncCallExpr *f) {
+    walk_func_call_expr(*this, f);
+}
+void AstVisitor::visit_binary_expr(const BinaryExpr *b) {
+    walk_binary_expr(*this, b);
+}
+void AstVisitor::visit_member_expr(const MemberExpr *m) {
+    walk_member_expr(*this, m);
+}
+void AstVisitor::visit_type_expr(const TypeExpr *t) {
+    walk_type_expr(*this, t);
 }
 
 //
@@ -385,6 +427,23 @@ void walk_compound_stmt(AstVisitor &v, const CompoundStmt *cs) {
 }
 void walk_if_stmt(AstVisitor &v, const IfStmt *is) {
     v.visit_expr(is->cond);
+}
+void walk_func_call_expr(AstVisitor &v, const FuncCallExpr *f) {
+    for (auto arg : f->args) {
+        v.visit_expr(arg);
+    }
+}
+void walk_binary_expr(AstVisitor &v, const BinaryExpr *b) {
+    v.visit_expr(b->lhs);
+    v.visit_expr(b->rhs);
+}
+void walk_member_expr(AstVisitor &v, const MemberExpr *m) {
+    v.visit_expr(m->struct_expr);
+}
+void walk_type_expr(AstVisitor &v, const TypeExpr *t) {
+    if (t->subexpr) {
+        v.visit_expr(t->subexpr);
+    }
 }
 
 } // namespace cmp
