@@ -567,8 +567,9 @@ void Sema::scope_close() {
 }
 
 void Sema::report() const {
-    for (auto e : errors)
+    for (auto e : errors) {
         fmt::print("{}\n", e.str());
+    }
 }
 
 // See comments for cmp::verify().
@@ -577,5 +578,10 @@ bool Sema::verify() const {
 }
 
 void sema(Sema &sema, Ast &ast) { ast.root->walk(sema); }
+
+void NameBinder::visit_compound_stmt(const CompoundStmt *cs) {
+    fmt::print("namebinding compound_stmt\n");
+    walk_compound_stmt(*this, cs);
+}
 
 } // namespace cmp

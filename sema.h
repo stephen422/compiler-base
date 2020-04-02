@@ -184,8 +184,10 @@ void walkAST(Sema &sema, AstNode *node, bool (*pre_fn)(Sema &sema, AstNode *),
               bool (*post_fn)(Sema &sema, AstNode *));
 void sema(Sema &sema, Ast &ast);
 
-//class NameBinder : public AstVisitor {
-//};
+class NameBinder : public AstVisitor<NameBinder> {
+public:
+    void visit_compound_stmt(const CompoundStmt *cs);
+};
 
 } // namespace cmp
 
