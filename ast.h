@@ -16,7 +16,7 @@ enum class AstKind {
     expr,
 };
 
-// Forward-declare stuff so that we don't depend on sema.h.
+// Forward-declare stuff so that we don't have to include sema.h.
 struct AstNode;
 struct File;
 struct Toplevel;
@@ -460,7 +460,7 @@ struct BadDeclNode : public DeclNode {
 //
 // Curiously-recurring template pattern (CRTP) is used to enable calling the
 // visitor function of the derived class from the default visitor defined in
-// this class.
+// this class.  See commit log b7e6113.
 //
 template <typename Derived>
 class AstVisitor {
@@ -470,7 +470,6 @@ class AstVisitor {
     constexpr Derived *dis() { return static_cast<Derived *>(this); }
 
 public:
-
     void visit_file(const File *f);
     void visit_toplevel(const AstNode *a);
 
@@ -615,9 +614,9 @@ void AstVisitor<Derived>::visit_func_decl(const FuncDeclNode *f) {
 }
 template <typename Derived>
 void AstVisitor<Derived>::visit_expr(const Expr *e) {
-    // Rather than just calling walk_expr() here, we do a switch-case, because
-    // the visiting logic in a specialized visitor is likely to differ for each
-    // type of Expr and thus be implemented using a switch-case anyway.
+    // Rather than calling walk_expr() here, we do a switch-case, because the
+    // visiting logic in a specialized visitor is likely to be different for
+    // each type of Expr and thus be implemented using a switch-case anyway.
     switch (e->expr_kind) {
     case ExprKind::unary:
         dis()->visit_unary_expr(static_cast<const UnaryExpr *>(e));
@@ -680,13 +679,16 @@ void AstVisitor<Derived>::visit_type_expr(const TypeExpr *t) {
 }
 
 //
-// Walker functions.
+// AST walker functions.
 //
 // These functions exist to separate the traversal logic from the actual work
 // done on each node in the 'visit_...' functions.  This way, the visitor
 // functions only have to worry about whether to do work before or after
-// walking the subnodes, by simply putting the walker function in the right
+// walking the subnodes, by simply positioning the walker function in the right
 // place.
+//
+// Polymorphism is required because they should be able to call different
+// derived visitor methods.
 //
 // Note: The functions here combined can be seen as what the 'accept()'
 // function do in the visitor pattern. However, whereas the accept() function
