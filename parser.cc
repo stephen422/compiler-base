@@ -434,8 +434,9 @@ Expr *Parser::parseTypeExpr() {
         next();
         typeexpr->ref = true;
         typeexpr->subexpr = parseTypeExpr();
-        if (typeexpr->subexpr->expr_kind == ExprKind::type)
+        if (typeexpr->subexpr->expr_kind == ExprKind::type) {
             text = "&" + static_cast<TypeExpr *>(typeexpr->subexpr)->name->text;
+        }
     } else if (is_identifier_or_keyword(tok)) {
         if (tok.kind == Tok::kw_mut) {
             expect(Tok::kw_mut);
