@@ -445,20 +445,20 @@ struct AstVisitor {
     void visit_func_decl(const FuncDeclNode *f);
 };
 
-void walk_file(AstVisitor &v, const File *f);
-void walk_decl_stmt(AstVisitor &v, const DeclStmt *ds);
-void walk_expr_stmt(AstVisitor &v, const ExprStmt *es);
-void walk_assign_stmt(AstVisitor &v, const AssignStmt *as);
-void walk_return_stmt(AstVisitor &v, const ReturnStmt *rs);
-void walk_compound_stmt(AstVisitor &v, const CompoundStmt *cs);
-void walk_if_stmt(AstVisitor &v, const IfStmt *is);
-void walk_func_call_expr(AstVisitor &v, const FuncCallExpr *f);
-void walk_binary_expr(AstVisitor &v, const BinaryExpr *b);
-void walk_member_expr(AstVisitor &v, const MemberExpr *m);
-void walk_type_expr(AstVisitor &v, const TypeExpr *t);
-void walk_var_decl(AstVisitor &v, const VarDeclNode *var);
-void walk_struct_decl(AstVisitor &v, const StructDeclNode *s);
-void walk_func_decl(AstVisitor &v, const FuncDeclNode *f);
+template <typename Visitor> void walk_file(Visitor &v, const File *f);
+template <typename Visitor> void walk_decl_stmt(Visitor &v, const DeclStmt *ds);
+template <typename Visitor> void walk_expr_stmt(Visitor &v, const ExprStmt *es);
+template <typename Visitor> void walk_assign_stmt(Visitor &v, const AssignStmt *as);
+template <typename Visitor> void walk_return_stmt(Visitor &v, const ReturnStmt *rs);
+template <typename Visitor> void walk_compound_stmt(Visitor &v, const CompoundStmt *cs);
+template <typename Visitor> void walk_if_stmt(Visitor &v, const IfStmt *is);
+template <typename Visitor> void walk_func_call_expr(Visitor &v, const FuncCallExpr *f);
+template <typename Visitor> void walk_binary_expr(Visitor &v, const BinaryExpr *b);
+template <typename Visitor> void walk_member_expr(Visitor &v, const MemberExpr *m);
+template <typename Visitor> void walk_type_expr(Visitor &v, const TypeExpr *t);
+template <typename Visitor> void walk_var_decl(Visitor &v, const VarDeclNode *var);
+template <typename Visitor> void walk_struct_decl(Visitor &v, const StructDeclNode *s);
+template <typename Visitor> void walk_func_decl(Visitor &v, const FuncDeclNode *f);
 
 } // namespace cmp
 

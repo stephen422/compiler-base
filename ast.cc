@@ -375,30 +375,31 @@ void AstVisitor::visit_type_expr(const TypeExpr *t) {
 // is declared as virtual in the pattern proper, these are not polymorphic.
 // TODO: Document why.
 //
-// TODO: templatize.
-//
 
-void walk_file(AstVisitor &v, const File *f) {
+template <typename Visitor> void walk_file(Visitor &v, const File *f) {
     for (auto a : f->toplevels) {
         v.visit_toplevel(a);
     }
 }
-void walk_var_decl(AstVisitor &v, const VarDeclNode *var) {
+template <typename Visitor>
+void walk_var_decl(Visitor &v, const VarDeclNode *var) {
     if (var->assign_expr) {
         v.visit_expr(var->assign_expr);
     } else if (var->type_expr) {
-        // XXX
+        // XXX again, Type'Expr'?
         v.visit_type_expr(static_cast<const TypeExpr *>(var->type_expr));
     } else {
         assert(false && "unreachable");
     }
 }
-void walk_struct_decl(AstVisitor &v, const StructDeclNode *s) {
+template <typename Visitor>
+void walk_struct_decl(Visitor &v, const StructDeclNode *s) {
     for (auto d : s->members) {
         v.visit_decl(d);
     }
 }
-void walk_func_decl(AstVisitor &v, const FuncDeclNode *f) {
+template <typename Visitor>
+void walk_func_decl(Visitor &v, const FuncDeclNode *f) {
     if (f->ret_type_expr) {
         v.visit_expr(f->ret_type_expr);
     }
@@ -407,40 +408,48 @@ void walk_func_decl(AstVisitor &v, const FuncDeclNode *f) {
     }
     v.visit_compound_stmt(f->body);
 }
-void walk_decl_stmt(AstVisitor &v, const DeclStmt *ds) {
+template <typename Visitor>
+void walk_decl_stmt(Visitor &v, const DeclStmt *ds) {
     v.visit_decl(ds->decl);
 }
-void walk_expr_stmt(AstVisitor &v, const ExprStmt *es) {
+template <typename Visitor>
+void walk_expr_stmt(Visitor &v, const ExprStmt *es) {
     v.visit_expr(es->expr);
 }
-void walk_assign_stmt(AstVisitor &v, const AssignStmt *as) {
+template <typename Visitor>
+void walk_assign_stmt(Visitor &v, const AssignStmt *as) {
     v.visit_expr(as->rhs);
     v.visit_expr(as->lhs);
 }
-void walk_return_stmt(AstVisitor &v, const ReturnStmt *rs) {
+template <typename Visitor>
+void walk_return_stmt(Visitor &v, const ReturnStmt *rs) {
     v.visit_expr(rs->expr);
 }
-void walk_compound_stmt(AstVisitor &v, const CompoundStmt *cs) {
+template <typename Visitor>
+void walk_compound_stmt(Visitor &v, const CompoundStmt *cs) {
     for (auto s : cs->stmts) {
         v.visit_stmt(s);
     }
 }
-void walk_if_stmt(AstVisitor &v, const IfStmt *is) {
+template <typename Visitor> void walk_if_stmt(Visitor &v, const IfStmt *is) {
     v.visit_expr(is->cond);
 }
-void walk_func_call_expr(AstVisitor &v, const FuncCallExpr *f) {
+template <typename Visitor>
+void walk_func_call_expr(Visitor &v, const FuncCallExpr *f) {
     for (auto arg : f->args) {
         v.visit_expr(arg);
     }
 }
-void walk_binary_expr(AstVisitor &v, const BinaryExpr *b) {
+template <typename Visitor>
+void walk_binary_expr(Visitor &v, const BinaryExpr *b) {
     v.visit_expr(b->lhs);
     v.visit_expr(b->rhs);
 }
-void walk_member_expr(AstVisitor &v, const MemberExpr *m) {
+template <typename Visitor>
+void walk_member_expr(Visitor &v, const MemberExpr *m) {
     v.visit_expr(m->struct_expr);
 }
-void walk_type_expr(AstVisitor &v, const TypeExpr *t) {
+template <typename Visitor> void walk_type_expr(Visitor &v, const TypeExpr *t) {
     if (t->subexpr) {
         v.visit_expr(t->subexpr);
     }
