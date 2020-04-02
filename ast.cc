@@ -346,7 +346,6 @@ void AstVisitor::visit_unary_expr(const UnaryExpr *u) {
         assert(false);
         break;
     }
-    // TODO
 }
 void AstVisitor::visit_func_call_expr(const FuncCallExpr *f) {
     walk_func_call_expr(*this, f);
@@ -376,7 +375,8 @@ void AstVisitor::visit_type_expr(const TypeExpr *t) {
 // TODO: Document why.
 //
 
-template <typename Visitor> void walk_file(Visitor &v, const File *f) {
+template <typename Visitor>
+void walk_file(Visitor &v, const File *f) {
     for (auto a : f->toplevels) {
         v.visit_toplevel(a);
     }
@@ -431,7 +431,8 @@ void walk_compound_stmt(Visitor &v, const CompoundStmt *cs) {
         v.visit_stmt(s);
     }
 }
-template <typename Visitor> void walk_if_stmt(Visitor &v, const IfStmt *is) {
+template <typename Visitor>
+void walk_if_stmt(Visitor &v, const IfStmt *is) {
     v.visit_expr(is->cond);
 }
 template <typename Visitor>
@@ -449,7 +450,8 @@ template <typename Visitor>
 void walk_member_expr(Visitor &v, const MemberExpr *m) {
     v.visit_expr(m->struct_expr);
 }
-template <typename Visitor> void walk_type_expr(Visitor &v, const TypeExpr *t) {
+template <typename Visitor>
+void walk_type_expr(Visitor &v, const TypeExpr *t) {
     if (t->subexpr) {
         v.visit_expr(t->subexpr);
     }

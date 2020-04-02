@@ -1,6 +1,7 @@
 #ifndef SEMA_H
 #define SEMA_H
 
+#include "ast.h"
 #include "error.h"
 #include "fmt/core.h"
 #include "fmt/format.h"
@@ -12,40 +13,6 @@
 namespace cmp {
 
 class Source;
-
-// 'Name' corresponds to a single unique identifier string in the source text.
-// There may be multiple occurrences of a string in the source text, but only
-// one instance of the matching Name can reside in the name table.
-struct Name {
-    std::string text;
-
-    Name(const std::string &s) : text(s) {}
-    std::string str() const { return text; }
-};
-
-// 'NameTable' is a hash table of Names queried by their string value.  It
-// serves to reduce the number of string hashing operation, since we can look
-// up the symbol table using Name instead of raw char * throughout the semantic
-// analysis.
-struct NameTable {
-    Name *get_or_add(const std::string &s) {
-        Name *found = get(s);
-        if (found) {
-            return found;
-        }
-        auto pair = map.insert({s, {s}});
-        return &pair.first->second;
-    }
-    Name *get(const std::string &s) {
-        auto found = map.find(s);
-        if (found == map.end()) {
-            return nullptr;
-        } else {
-            return &found->second;
-        }
-    }
-    std::unordered_map<std::string, Name> map;
-};
 
 struct Sema;
 
@@ -217,15 +184,9 @@ void walkAST(Sema &sema, AstNode *node, bool (*pre_fn)(Sema &sema, AstNode *),
               bool (*post_fn)(Sema &sema, AstNode *));
 void sema(Sema &sema, Ast &ast);
 
-} // namespace cmp
+//class NameBinder : public AstVisitor {
+//};
 
-// template <> struct fmt::formatter<std::variant<int, double>> {
-//     constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
-// 
-//     template <typename FormatContext>
-//     auto format(const std::variant<int, double> &d, FormatContext &ctx) {
-//         return format_to(ctx.out(), "this is a decl");
-//     }
-// };
+} // namespace cmp
 
 #endif

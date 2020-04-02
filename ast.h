@@ -1,7 +1,6 @@
 #ifndef AST_H
 #define AST_H
 
-#include "sema.h"
 #include "lexer.h"
 #include <iostream>
 #include <memory>
@@ -23,6 +22,47 @@ struct Stmt;
 struct Expr;
 struct DeclNode;
 struct FuncDeclNode;
+
+// Forward-declare stuff so that we don't depend on sema.h.
+struct Type;
+struct Decl;
+struct FuncDecl;
+struct VarDecl;
+struct TypeDecl;
+
+// 'Name' corresponds to a single unique identifier string in the source text.
+// There may be multiple occurrences of a string in the source text, but only
+// one instance of the matching Name can reside in the name table.
+struct Name {
+    std::string text;
+
+    Name(const std::string &s) : text(s) {}
+    std::string str() const { return text; }
+};
+
+// 'NameTable' is a hash table of Names queried by their string value.  It
+// serves to reduce the number of string hashing operation, since we can look
+// up the symbol table using Name instead of raw char * throughout the semantic
+// analysis.
+struct NameTable {
+    Name *get_or_add(const std::string &s) {
+        Name *found = get(s);
+        if (found) {
+            return found;
+        }
+        auto pair = map.insert({s, {s}});
+        return &pair.first->second;
+    }
+    Name *get(const std::string &s) {
+        auto found = map.find(s);
+        if (found == map.end()) {
+            return nullptr;
+        } else {
+            return &found->second;
+        }
+    }
+    std::unordered_map<std::string, Name> map;
+};
 
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
 
@@ -52,13 +92,11 @@ struct AstNode {
     // Name binding pass. Handles variable/function/struct declaration,
     // redefinition/undeclared-use checks, number of function arguments checks,
     // etc.
-    virtual bool name_bind_pre(Sema &sema)
-    {
+    virtual bool name_bind_pre(Sema &sema) {
         (void)sema;
         return true;
     }
-    virtual bool name_bind_post(Sema &sema)
-    {
+    virtual bool name_bind_post(Sema &sema) {
         (void)sema;
         return true;
     }
@@ -197,8 +235,6 @@ struct BadStmt : public Stmt {
 // ==============
 //   Expression
 // ==============
-
-struct Type;
 
 enum class ExprKind {
     unary,
