@@ -196,7 +196,10 @@ void BadDeclNode::print() const { out() << "[BadDecl]\n"; }
 void BadExpr::print() const { out() << "[BadExpr]\n"; }
 
 //
-// AST visitor functions
+// AST visitor functions.
+//
+// These are to be overridden by the specialized visitor classes. They provide
+// a default behavior of simply traversing the node, acting nothing upon them.
 //
 
 void AstVisitor::visit_file(const File *f) {
@@ -217,12 +220,60 @@ void AstVisitor::visit_toplevel(const AstNode *a) {
     }
 }
 void AstVisitor::visit_stmt(const Stmt *s) {
-    fmt::print("visiting stmt\n");
+    switch (s->stmt_kind) {
+    case StmtKind::decl:
+        visit_decl_stmt(static_cast<const DeclStmt *>(s));
+        break;
+    case StmtKind::expr:
+        visit_expr_stmt(static_cast<const ExprStmt *>(s));
+        break;
+    case StmtKind::assign:
+        visit_assign_stmt(static_cast<const AssignStmt *>(s));
+        break;
+    case StmtKind::return_:
+        visit_return_stmt(static_cast<const ReturnStmt *>(s));
+        break;
+    case StmtKind::compound:
+        visit_compound_stmt(static_cast<const CompoundStmt *>(s));
+        break;
+    case StmtKind::if_:
+        visit_if_stmt(static_cast<const IfStmt *>(s));
+        break;
+    case StmtKind::bad:
+        visit_bad_stmt(static_cast<const BadStmt *>(s));
+        break;
+    default:
+        assert(false);
+    }
+}
+void AstVisitor::visit_decl_stmt(const DeclStmt *ds) {
+    fmt::print("visiting decl_stmt\n");
+    walk_decl_stmt(*this, ds);
+}
+void AstVisitor::visit_expr_stmt(const ExprStmt *es) {
+    fmt::print("visiting expr_stmt\n");
+    walk_expr_stmt(*this, es);
+}
+void AstVisitor::visit_assign_stmt(const AssignStmt *as) {
+    fmt::print("visiting assign_stmt\n");
+    walk_assign_stmt(*this, as);
+}
+void AstVisitor::visit_return_stmt(const ReturnStmt *rs) {
+    fmt::print("visiting return_stmt\n");
+    walk_return_stmt(*this, rs);
 }
 void AstVisitor::visit_compound_stmt(const CompoundStmt *cs) {
+    fmt::print("visiting compound_stmt\n");
     walk_compound_stmt(*this, cs);
 }
-void AstVisitor::visit_if_stmt(const IfStmt *is) {}
+void AstVisitor::visit_if_stmt(const IfStmt *is) {
+    fmt::print("visiting if_stmt\n");
+    walk_if_stmt(*this, is);
+}
+void AstVisitor::visit_bad_stmt(const BadStmt *bs) {
+    fmt::print("visiting bad_stmt\n");
+    // do nothing
+}
 void AstVisitor::visit_decl(const DeclNode *d) {
     switch (d->decl_kind) {
     case DeclNodeKind::var:
@@ -241,8 +292,8 @@ void AstVisitor::visit_decl(const DeclNode *d) {
     }
 }
 void AstVisitor::visit_var_decl(const VarDeclNode *vd) {
-    fmt::print("visitng var_decl\n");
-    // nothing to walk
+    fmt::print("visiting var_decl\n");
+    // TODO
 }
 void AstVisitor::visit_struct_decl(const StructDeclNode *s) {
     fmt::print("visiting struct decl\n");
@@ -263,13 +314,15 @@ void AstVisitor::visit_expr(const Expr *e) {
 //
 // Walker functions.
 //
-// These functions exist to separate the logic of walking different AST nodes,
-// from the actual work done on each node in the 'visit_...' functions.
+// These functions exist to separate the traversal logic from the actual work
+// done on each node in the 'visit_...' functions.
 //
 // These functions combined can be seen as what the 'accept()' function do in
 // the visitor pattern. However, whereas the accept() function is declared as
 // virtual in the pattern proper, these are not polymorphic. TODO: Document
 // why.
+//
+// TODO: templatize.
 //
 
 void walk_file(AstVisitor &v, const File *f) {
@@ -293,6 +346,19 @@ void walk_struct_decl(AstVisitor &v, const StructDeclNode *s) {
 }
 void walk_func_decl(AstVisitor &v, const FuncDeclNode *f) {
     v.visit_compound_stmt(f->body);
+}
+void walk_decl_stmt(AstVisitor &v, const DeclStmt *ds) {
+    v.visit_decl(ds->decl);
+}
+void walk_expr_stmt(AstVisitor &v, const ExprStmt *es) {
+    v.visit_expr(es->expr);
+}
+void walk_assign_stmt(AstVisitor &v, const AssignStmt *as) {
+    v.visit_expr(as->rhs);
+    v.visit_expr(as->lhs);
+}
+void walk_return_stmt(AstVisitor &v, const ReturnStmt *rs) {
+    v.visit_expr(rs->expr);
 }
 void walk_compound_stmt(AstVisitor &v, const CompoundStmt *cs) {
     for (auto s : cs->stmts) {

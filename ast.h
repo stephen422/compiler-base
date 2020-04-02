@@ -421,9 +421,16 @@ struct BadDeclNode : public DeclNode {
 struct AstVisitor {
     void visit_file(const File *f);
     void visit_toplevel(const AstNode *a);
+
     void visit_stmt(const Stmt *s);
+    void visit_decl_stmt(const DeclStmt *ds);
+    void visit_expr_stmt(const ExprStmt *es);
+    void visit_assign_stmt(const AssignStmt *as);
+    void visit_return_stmt(const ReturnStmt *rs);
     void visit_compound_stmt(const CompoundStmt *cs);
     void visit_if_stmt(const IfStmt *is);
+    void visit_bad_stmt(const BadStmt *bs);
+
     void visit_expr(const Expr *e);
     void visit_decl(const DeclNode *d);
     void visit_struct_decl(const StructDeclNode *s);
@@ -432,7 +439,12 @@ struct AstVisitor {
 };
 
 void walk_file(AstVisitor &v, const File *f);
+void walk_decl_stmt(AstVisitor &v, const DeclStmt *ds);
+void walk_expr_stmt(AstVisitor &v, const ExprStmt *es);
+void walk_assign_stmt(AstVisitor &v, const AssignStmt *as);
+void walk_return_stmt(AstVisitor &v, const ReturnStmt *rs);
 void walk_compound_stmt(AstVisitor &v, const CompoundStmt *cs);
+void walk_if_stmt(AstVisitor &v, const IfStmt *is);
 void walk_var_decl(AstVisitor &v, const VarDeclNode *var);
 void walk_struct_decl(AstVisitor &v, const StructDeclNode *s);
 void walk_func_decl(AstVisitor &v, const FuncDeclNode *f);
