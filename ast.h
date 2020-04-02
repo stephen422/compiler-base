@@ -464,8 +464,13 @@ struct BadDeclNode : public DeclNode {
 //
 template <typename Derived>
 class AstVisitor {
+    // 'Derived this'. By calling visitors and walkers through the return
+    // pointer of this function, the base class can access the derived visitor
+    // implementations.
+    constexpr Derived *dis() { return static_cast<Derived *>(this); }
+
 public:
-    Derived *dis() { return static_cast<Derived *>(this); }
+
     void visit_file(const File *f);
     void visit_toplevel(const AstNode *a);
 
