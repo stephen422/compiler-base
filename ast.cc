@@ -291,9 +291,9 @@ void AstVisitor::visit_decl(const DeclNode *d) {
         assert(false);
     }
 }
-void AstVisitor::visit_var_decl(const VarDeclNode *vd) {
+void AstVisitor::visit_var_decl(const VarDeclNode *v) {
     fmt::print("visiting var_decl\n");
-    // TODO
+    walk_var_decl(*this, v);
 }
 void AstVisitor::visit_struct_decl(const StructDeclNode *s) {
     fmt::print("visiting struct decl\n");
@@ -303,6 +303,10 @@ void AstVisitor::visit_func_decl(const FuncDeclNode *f) {
     fmt::print("visiting func decl\n");
     walk_func_decl(*this, f);
 }
+void AstVisitor::visit_bad_decl(const BadDeclNode *b) {
+    fmt::print("visiting bad decl\n");
+    // do nothing
+}
 void AstVisitor::visit_expr(const Expr *e) {
     // TODO: switch-case
     switch (e->kind) {
@@ -310,17 +314,24 @@ void AstVisitor::visit_expr(const Expr *e) {
         break;
     }
 }
+void AstVisitor::visit_type_expr(const TypeExpr *t) {
+    fmt::print("visiting type expr\n");
+    // TODO
+}
 
 //
 // Walker functions.
 //
 // These functions exist to separate the traversal logic from the actual work
-// done on each node in the 'visit_...' functions.
+// done on each node in the 'visit_...' functions.  This way, the visitor
+// functions only have to worry about whether to do work before or after
+// walking the subnodes, by simply putting the walker function in the right
+// place.
 //
-// These functions combined can be seen as what the 'accept()' function do in
-// the visitor pattern. However, whereas the accept() function is declared as
-// virtual in the pattern proper, these are not polymorphic. TODO: Document
-// why.
+// Note: The functions here combined can be seen as what the 'accept()'
+// function do in the visitor pattern. However, whereas the accept() function
+// is declared as virtual in the pattern proper, these are not polymorphic.
+// TODO: Document why.
 //
 // TODO: templatize.
 //
@@ -332,9 +343,10 @@ void walk_file(AstVisitor &v, const File *f) {
 }
 void walk_var_decl(AstVisitor &v, const VarDeclNode *var) {
     if (var->assign_expr) {
-        // walkAST(sema, var->assign_expr, pre_fn, post_fn);
+        v.visit_expr(var->assign_expr);
     } else if (var->type_expr) {
-        // walkAST(sema, var->type_expr, pre_fn, post_fn);
+        // XXX
+        v.visit_type_expr(static_cast<const TypeExpr *>(var->type_expr));
     } else {
         assert(false && "unreachable");
     }
@@ -345,6 +357,12 @@ void walk_struct_decl(AstVisitor &v, const StructDeclNode *s) {
     }
 }
 void walk_func_decl(AstVisitor &v, const FuncDeclNode *f) {
+    if (f->ret_type_expr) {
+        v.visit_expr(f->ret_type_expr);
+    }
+    for (auto arg : f->args) {
+        v.visit_decl(arg);
+    }
     v.visit_compound_stmt(f->body);
 }
 void walk_decl_stmt(AstVisitor &v, const DeclStmt *ds) {

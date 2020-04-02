@@ -433,9 +433,11 @@ struct AstVisitor {
 
     void visit_expr(const Expr *e);
     void visit_decl(const DeclNode *d);
+    void visit_var_decl(const VarDeclNode *v);
     void visit_struct_decl(const StructDeclNode *s);
     void visit_func_decl(const FuncDeclNode *f);
-    void visit_var_decl(const VarDeclNode *vd);
+    void visit_bad_decl(const BadDeclNode *b);
+    void visit_type_expr(const TypeExpr *t);
 };
 
 void walk_file(AstVisitor &v, const File *f);
