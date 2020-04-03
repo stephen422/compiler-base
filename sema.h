@@ -98,10 +98,6 @@ struct Decl {
 
 // Convenience cast function. Note that this works on a *pointer* to the Decl.
 // template <typename T> T *decl_cast(Decl *d) { return &std::get<T>(*d); }
-// Allocator function.
-Decl *make_decl(Sema &sema, const VarDecl &var_decl);
-Decl *make_decl(Sema &sema, const TypeDecl &type_decl);
-Decl *make_decl(Sema &sema, const FuncDecl &func_decl);
 
 struct Context {
     // Current enclosing struct decl.

@@ -9,20 +9,9 @@ namespace cmp {
 
 std::string Type::str() const { return name->text; }
 
-Decl *make_decl(Sema &sema, const VarDecl &var_decl) {
-    Decl *decl = new Decl{var_decl};
-    sema.decl_pool.push_back(decl);
-    return decl;
-}
-
-Decl *make_decl(Sema &sema, const TypeDecl &type_decl) {
-    Decl *decl = new Decl{type_decl};
-    sema.decl_pool.push_back(decl);
-    return decl;
-}
-
-Decl *make_decl(Sema &sema, const FuncDecl &func_decl) {
-    Decl *decl = new Decl{func_decl};
+// Allocator function.
+template <typename T> Decl *make_decl(Sema &sema, const T &d) {
+    Decl *decl = new Decl{d};
     sema.decl_pool.push_back(decl);
     return decl;
 }
@@ -596,7 +585,6 @@ void NameBinder::visit_decl_ref_expr(DeclRefExpr *d) {
         sema.error(d->pos, fmt::format("use of undeclared identifier '{}'",
                                        d->name->str()));
     }
-    // return true;
 }
 
 void NameBinder::visit_func_call_expr(FuncCallExpr *f) {
@@ -608,13 +596,11 @@ void NameBinder::visit_func_call_expr(FuncCallExpr *f) {
             sema.error(f->pos,
                        fmt::format("'{}' is not a function", f->func_name->str()));
             return;
-            // return false;
         }
     } else {
         sema.error(f->pos,
                    fmt::format("undeclared function '{}'", f->func_name->str()));
         return;
-        // return false;
     }
 
     walk_func_call_expr(*this, f);
@@ -627,8 +613,6 @@ void NameBinder::visit_func_call_expr(FuncCallExpr *f) {
                                     f->func_name->str(), f->func_decl->args_count(),
                                     f->args.size()));
     }
-
-    // return true;
 }
 
 // TODO
@@ -641,11 +625,8 @@ void NameBinder::visit_type_expr(TypeExpr *t) {
     } else {
         sema.error(t->pos,
                    fmt::format("use of undeclared type '{}'", t->name->str()));
-        // return false;
         return;
     }
-
-    // return true;
 }
 
 void NameBinder::visit_var_decl(VarDeclNode *v) {
@@ -655,7 +636,6 @@ void NameBinder::visit_var_decl(VarDeclNode *v) {
     if (found && found->value->kind == DECL_VAR &&
         found->scope_level <= sema.type_table.scope_level) {
         sema.error(v->pos, fmt::format("redefinition of '{}'", v->name->str()));
-        // return false;
         return;
     }
 
@@ -673,8 +653,6 @@ void NameBinder::visit_var_decl(VarDeclNode *v) {
         auto curr_func = sema.context.func_decl_stack.back();
         curr_func->args.push_back(v->var_decl);
     }
-
-    // return true;
 }
 
 void NameBinder::visit_struct_decl(StructDeclNode *s) {
@@ -682,7 +660,6 @@ void NameBinder::visit_struct_decl(StructDeclNode *s) {
     if (found && found->value->kind == DECL_TYPE &&
         found->scope_level <= sema.decl_table.scope_level) {
         sema.error(s->pos, fmt::format("redefinition of '{}'", s->name->str()));
-        // return false;
         return;
     }
 
@@ -699,8 +676,6 @@ void NameBinder::visit_struct_decl(StructDeclNode *s) {
 
     sema.context.struct_decl_stack.pop_back();
     sema.decl_table.scope_close();
-
-    // return true;
 }
 
 void NameBinder::visit_func_decl(FuncDeclNode *f) {
@@ -708,8 +683,6 @@ void NameBinder::visit_func_decl(FuncDeclNode *f) {
     if (found && found->value->kind == DECL_FUNC &&
         found->scope_level <= sema.type_table.scope_level) {
         sema.error(f->pos, fmt::format("redefinition of '{}'", f->name->str()));
-        // TODO: return false so that traversal is early-exited
-        // return false;
         return;
     }
 
@@ -724,8 +697,6 @@ void NameBinder::visit_func_decl(FuncDeclNode *f) {
 
     sema.context.func_decl_stack.pop_back();
     sema.decl_table.scope_close();
-
-    // return true;
 }
 
 } // namespace cmp
