@@ -461,7 +461,6 @@ struct BadDeclNode : public DeclNode {
 // Curiously-recurring template pattern (CRTP) is used to enable calling the
 // visitor function of the derived class from the default visitor defined in
 // this class.  See commit log b7e6113.
-//
 template <typename Derived>
 class AstVisitor {
     // 'Derived this'. By calling visitors and walkers through the return
@@ -470,28 +469,28 @@ class AstVisitor {
     constexpr Derived *dis() { return static_cast<Derived *>(this); }
 
 public:
-    void visit_file(const File *f);
-    void visit_toplevel(const AstNode *a);
+    void visit_file(File *f);
+    void visit_toplevel(AstNode *a);
 
-    void visit_stmt(const Stmt *s);
-    void visit_decl_stmt(const DeclStmt *ds);
-    void visit_expr_stmt(const ExprStmt *es);
-    void visit_assign_stmt(const AssignStmt *as);
-    void visit_return_stmt(const ReturnStmt *rs);
-    void visit_compound_stmt(const CompoundStmt *cs);
-    void visit_if_stmt(const IfStmt *is);
+    void visit_stmt(Stmt *s);
+    void visit_decl_stmt(DeclStmt *ds);
+    void visit_expr_stmt(ExprStmt *es);
+    void visit_assign_stmt(AssignStmt *as);
+    void visit_return_stmt(ReturnStmt *rs);
+    void visit_compound_stmt(CompoundStmt *cs);
+    void visit_if_stmt(IfStmt *is);
 
-    void visit_expr(const Expr *e);
-    void visit_unary_expr(const UnaryExpr *u);
-    void visit_func_call_expr(const FuncCallExpr *f);
-    void visit_binary_expr(const BinaryExpr *b);
-    void visit_member_expr(const MemberExpr *m);
-    void visit_type_expr(const TypeExpr *t);
+    void visit_expr(Expr *e);
+    void visit_unary_expr(UnaryExpr *u);
+    void visit_func_call_expr(FuncCallExpr *f);
+    void visit_binary_expr(BinaryExpr *b);
+    void visit_member_expr(MemberExpr *m);
+    void visit_type_expr(TypeExpr *t);
 
-    void visit_decl(const DeclNode *d);
-    void visit_var_decl(const VarDeclNode *v);
-    void visit_struct_decl(const StructDeclNode *s);
-    void visit_func_decl(const FuncDeclNode *f);
+    void visit_decl(DeclNode *d);
+    void visit_var_decl(VarDeclNode *v);
+    void visit_struct_decl(StructDeclNode *s);
+    void visit_func_decl(FuncDeclNode *f);
 };
 
 //
@@ -502,18 +501,18 @@ public:
 //
 
 template <typename Derived>
-void AstVisitor<Derived>::visit_file(const File *f) {
+void AstVisitor<Derived>::visit_file(File *f) {
     fmt::print("visiting file\n");
     walk_file(*dis(), f);
 }
 template <typename Derived>
-void AstVisitor<Derived>::visit_toplevel(const AstNode *a) {
+void AstVisitor<Derived>::visit_toplevel(AstNode *a) {
     switch (a->kind) {
     case AstKind::stmt:
-        dis()->visit_stmt(static_cast<const Stmt *>(a));
+        dis()->visit_stmt(static_cast<Stmt *>(a));
         break;
     case AstKind::decl:
-        dis()->visit_decl(static_cast<const DeclNode *>(a));
+        dis()->visit_decl(static_cast<DeclNode *>(a));
         break;
     default:
         fmt::print("AstKind: {}\n", a->kind);
@@ -521,25 +520,25 @@ void AstVisitor<Derived>::visit_toplevel(const AstNode *a) {
     }
 }
 template <typename Derived>
-void AstVisitor<Derived>::visit_stmt(const Stmt *s) {
+void AstVisitor<Derived>::visit_stmt(Stmt *s) {
     switch (s->stmt_kind) {
     case StmtKind::decl:
-        dis()->visit_decl_stmt(static_cast<const DeclStmt *>(s));
+        dis()->visit_decl_stmt(static_cast<DeclStmt *>(s));
         break;
     case StmtKind::expr:
-        dis()->visit_expr_stmt(static_cast<const ExprStmt *>(s));
+        dis()->visit_expr_stmt(static_cast<ExprStmt *>(s));
         break;
     case StmtKind::assign:
-        dis()->visit_assign_stmt(static_cast<const AssignStmt *>(s));
+        dis()->visit_assign_stmt(static_cast<AssignStmt *>(s));
         break;
     case StmtKind::return_:
-        dis()->visit_return_stmt(static_cast<const ReturnStmt *>(s));
+        dis()->visit_return_stmt(static_cast<ReturnStmt *>(s));
         break;
     case StmtKind::compound:
-        dis()->visit_compound_stmt(static_cast<const CompoundStmt *>(s));
+        dis()->visit_compound_stmt(static_cast<CompoundStmt *>(s));
         break;
     case StmtKind::if_:
-        dis()->visit_if_stmt(static_cast<const IfStmt *>(s));
+        dis()->visit_if_stmt(static_cast<IfStmt *>(s));
         break;
     case StmtKind::bad:
         // do nothing
@@ -549,46 +548,46 @@ void AstVisitor<Derived>::visit_stmt(const Stmt *s) {
     }
 }
 template <typename Derived>
-void AstVisitor<Derived>::visit_decl_stmt(const DeclStmt *ds) {
+void AstVisitor<Derived>::visit_decl_stmt(DeclStmt *ds) {
     fmt::print("visiting decl_stmt\n");
     walk_decl_stmt(*dis(), ds);
 }
 template <typename Derived>
-void AstVisitor<Derived>::visit_expr_stmt(const ExprStmt *es) {
+void AstVisitor<Derived>::visit_expr_stmt(ExprStmt *es) {
     fmt::print("visiting expr_stmt\n");
     walk_expr_stmt(*dis(), es);
 }
 template <typename Derived>
-void AstVisitor<Derived>::visit_assign_stmt(const AssignStmt *as) {
+void AstVisitor<Derived>::visit_assign_stmt(AssignStmt *as) {
     fmt::print("visiting assign_stmt\n");
     walk_assign_stmt(*dis(), as);
 }
 template <typename Derived>
-void AstVisitor<Derived>::visit_return_stmt(const ReturnStmt *rs) {
+void AstVisitor<Derived>::visit_return_stmt(ReturnStmt *rs) {
     fmt::print("visiting return_stmt\n");
     walk_return_stmt(*dis(), rs);
 }
 template <typename Derived>
-void AstVisitor<Derived>::visit_compound_stmt(const CompoundStmt *cs) {
+void AstVisitor<Derived>::visit_compound_stmt(CompoundStmt *cs) {
     fmt::print("visiting compound_stmt\n");
     walk_compound_stmt(*dis(), cs);
 }
 template <typename Derived>
-void AstVisitor<Derived>::visit_if_stmt(const IfStmt *is) {
+void AstVisitor<Derived>::visit_if_stmt(IfStmt *is) {
     fmt::print("visiting if_stmt\n");
     walk_if_stmt(*dis(), is);
 }
 template <typename Derived>
-void AstVisitor<Derived>::visit_decl(const DeclNode *d) {
+void AstVisitor<Derived>::visit_decl(DeclNode *d) {
     switch (d->decl_kind) {
     case DeclNodeKind::var:
-        dis()->visit_var_decl(static_cast<const VarDeclNode *>(d));
+        dis()->visit_var_decl(static_cast<VarDeclNode *>(d));
         break;
     case DeclNodeKind::struct_:
-        dis()->visit_struct_decl(static_cast<const StructDeclNode *>(d));
+        dis()->visit_struct_decl(static_cast<StructDeclNode *>(d));
         break;
     case DeclNodeKind::func:
-        dis()->visit_func_decl(static_cast<const FuncDeclNode *>(d));
+        dis()->visit_func_decl(static_cast<FuncDeclNode *>(d));
         break;
     case DeclNodeKind::bad:
         // do nothing
@@ -598,37 +597,37 @@ void AstVisitor<Derived>::visit_decl(const DeclNode *d) {
     }
 }
 template <typename Derived>
-void AstVisitor<Derived>::visit_var_decl(const VarDeclNode *v) {
+void AstVisitor<Derived>::visit_var_decl(VarDeclNode *v) {
     fmt::print("visiting var_decl\n");
     walk_var_decl(*dis(), v);
 }
 template <typename Derived>
-void AstVisitor<Derived>::visit_struct_decl(const StructDeclNode *s) {
+void AstVisitor<Derived>::visit_struct_decl(StructDeclNode *s) {
     fmt::print("visiting struct decl\n");
     walk_struct_decl(*dis(), s);
 }
 template <typename Derived>
-void AstVisitor<Derived>::visit_func_decl(const FuncDeclNode *f) {
+void AstVisitor<Derived>::visit_func_decl(FuncDeclNode *f) {
     fmt::print("visiting func decl\n");
     walk_func_decl(*dis(), f);
 }
 template <typename Derived>
-void AstVisitor<Derived>::visit_expr(const Expr *e) {
+void AstVisitor<Derived>::visit_expr(Expr *e) {
     // Rather than calling walk_expr() here, we do a switch-case, because the
     // visiting logic in a specialized visitor is likely to be different for
     // each type of Expr and thus be implemented using a switch-case anyway.
     switch (e->expr_kind) {
     case ExprKind::unary:
-        dis()->visit_unary_expr(static_cast<const UnaryExpr *>(e));
+        dis()->visit_unary_expr(static_cast<UnaryExpr *>(e));
         break;
     case ExprKind::binary:
-        dis()->visit_binary_expr(static_cast<const BinaryExpr *>(e));
+        dis()->visit_binary_expr(static_cast<BinaryExpr *>(e));
         break;
     case ExprKind::member:
-        dis()->visit_member_expr(static_cast<const MemberExpr *>(e));
+        dis()->visit_member_expr(static_cast<MemberExpr *>(e));
         break;
     case ExprKind::type:
-        dis()->visit_type_expr(static_cast<const TypeExpr *>(e));
+        dis()->visit_type_expr(static_cast<TypeExpr *>(e));
         break;
     case ExprKind::bad:
         // do nothing
@@ -639,7 +638,7 @@ void AstVisitor<Derived>::visit_expr(const Expr *e) {
     }
 }
 template <typename Derived>
-void AstVisitor<Derived>::visit_unary_expr(const UnaryExpr *u) {
+void AstVisitor<Derived>::visit_unary_expr(UnaryExpr *u) {
     switch (u->unary_kind) {
     case UnaryExprKind::integer_literal:
         break;
@@ -648,7 +647,7 @@ void AstVisitor<Derived>::visit_unary_expr(const UnaryExpr *u) {
     case UnaryExprKind::decl_ref:
         break;
     case UnaryExprKind::func_call:
-        dis()->visit_func_call_expr(static_cast<const FuncCallExpr *>(u));
+        dis()->visit_func_call_expr(static_cast<FuncCallExpr *>(u));
         break;
     case UnaryExprKind::paren:
         break;
@@ -662,19 +661,19 @@ void AstVisitor<Derived>::visit_unary_expr(const UnaryExpr *u) {
     }
 }
 template <typename Derived>
-void AstVisitor<Derived>::visit_func_call_expr(const FuncCallExpr *f) {
+void AstVisitor<Derived>::visit_func_call_expr(FuncCallExpr *f) {
     walk_func_call_expr(*dis(), f);
 }
 template <typename Derived>
-void AstVisitor<Derived>::visit_binary_expr(const BinaryExpr *b) {
+void AstVisitor<Derived>::visit_binary_expr(BinaryExpr *b) {
     walk_binary_expr(*dis(), b);
 }
 template <typename Derived>
-void AstVisitor<Derived>::visit_member_expr(const MemberExpr *m) {
+void AstVisitor<Derived>::visit_member_expr(MemberExpr *m) {
     walk_member_expr(*dis(), m);
 }
 template <typename Derived>
-void AstVisitor<Derived>::visit_type_expr(const TypeExpr *t) {
+void AstVisitor<Derived>::visit_type_expr(TypeExpr *t) {
     walk_type_expr(*dis(), t);
 }
 
@@ -697,30 +696,30 @@ void AstVisitor<Derived>::visit_type_expr(const TypeExpr *t) {
 //
 
 template <typename Visitor>
-void walk_file(Visitor &v, const File *f) {
+void walk_file(Visitor &v, File *f) {
     for (auto a : f->toplevels) {
         v.visit_toplevel(a);
     }
 }
 template <typename Visitor>
-void walk_var_decl(Visitor &v, const VarDeclNode *var) {
+void walk_var_decl(Visitor &v, VarDeclNode *var) {
     if (var->assign_expr) {
         v.visit_expr(var->assign_expr);
     } else if (var->type_expr) {
         // XXX again, Type'Expr'?
-        v.visit_type_expr(static_cast<const TypeExpr *>(var->type_expr));
+        v.visit_type_expr(static_cast<TypeExpr *>(var->type_expr));
     } else {
         assert(false && "unreachable");
     }
 }
 template <typename Visitor>
-void walk_struct_decl(Visitor &v, const StructDeclNode *s) {
+void walk_struct_decl(Visitor &v, StructDeclNode *s) {
     for (auto d : s->members) {
         v.visit_decl(d);
     }
 }
 template <typename Visitor>
-void walk_func_decl(Visitor &v, const FuncDeclNode *f) {
+void walk_func_decl(Visitor &v, FuncDeclNode *f) {
     if (f->ret_type_expr) {
         v.visit_expr(f->ret_type_expr);
     }
@@ -730,49 +729,49 @@ void walk_func_decl(Visitor &v, const FuncDeclNode *f) {
     v.visit_compound_stmt(f->body);
 }
 template <typename Visitor>
-void walk_decl_stmt(Visitor &v, const DeclStmt *ds) {
+void walk_decl_stmt(Visitor &v, DeclStmt *ds) {
     v.visit_decl(ds->decl);
 }
 template <typename Visitor>
-void walk_expr_stmt(Visitor &v, const ExprStmt *es) {
+void walk_expr_stmt(Visitor &v, ExprStmt *es) {
     v.visit_expr(es->expr);
 }
 template <typename Visitor>
-void walk_assign_stmt(Visitor &v, const AssignStmt *as) {
+void walk_assign_stmt(Visitor &v, AssignStmt *as) {
     v.visit_expr(as->rhs);
     v.visit_expr(as->lhs);
 }
 template <typename Visitor>
-void walk_return_stmt(Visitor &v, const ReturnStmt *rs) {
+void walk_return_stmt(Visitor &v, ReturnStmt *rs) {
     v.visit_expr(rs->expr);
 }
 template <typename Visitor>
-void walk_compound_stmt(Visitor &v, const CompoundStmt *cs) {
+void walk_compound_stmt(Visitor &v, CompoundStmt *cs) {
     for (auto s : cs->stmts) {
         v.visit_stmt(s);
     }
 }
 template <typename Visitor>
-void walk_if_stmt(Visitor &v, const IfStmt *is) {
+void walk_if_stmt(Visitor &v, IfStmt *is) {
     v.visit_expr(is->cond);
 }
 template <typename Visitor>
-void walk_func_call_expr(Visitor &v, const FuncCallExpr *f) {
+void walk_func_call_expr(Visitor &v, FuncCallExpr *f) {
     for (auto arg : f->args) {
         v.visit_expr(arg);
     }
 }
 template <typename Visitor>
-void walk_binary_expr(Visitor &v, const BinaryExpr *b) {
+void walk_binary_expr(Visitor &v, BinaryExpr *b) {
     v.visit_expr(b->lhs);
     v.visit_expr(b->rhs);
 }
 template <typename Visitor>
-void walk_member_expr(Visitor &v, const MemberExpr *m) {
+void walk_member_expr(Visitor &v, MemberExpr *m) {
     v.visit_expr(m->struct_expr);
 }
 template <typename Visitor>
-void walk_type_expr(Visitor &v, const TypeExpr *t) {
+void walk_type_expr(Visitor &v, TypeExpr *t) {
     if (t->subexpr) {
         v.visit_expr(t->subexpr);
     }

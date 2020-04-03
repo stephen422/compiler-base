@@ -35,9 +35,9 @@ int main(int argc, char **argv) {
     Parser p_sema{src_sema};
     auto ast = p_sema.parse();
     ast.root->print();
-    NameBinder n;
+    Sema s{p_sema};
+    NameBinder n{s};
     n.visit_file(static_cast<File *>(ast.root));
-    // Sema s{p_sema};
     // walkAST(s, ast.root, name_bind_pre, name_bind_post);
 #endif
     return EXIT_SUCCESS;

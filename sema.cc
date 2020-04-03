@@ -37,7 +37,7 @@ Decl *make_decl(Sema &sema, const FuncDecl &func_decl) {
 // }
 
 void Sema::error(size_t pos, const std::string &msg) {
-    Error e{source.locate(pos), msg};
+    Error e(source.locate(pos), msg);
     fmt::print("{}\n", e.str());
 }
 
@@ -579,9 +579,40 @@ bool Sema::verify() const {
 
 void sema(Sema &sema, Ast &ast) { ast.root->walk(sema); }
 
-void NameBinder::visit_compound_stmt(const CompoundStmt *cs) {
+void NameBinder::visit_compound_stmt(CompoundStmt *cs) {
     fmt::print("namebinding compound_stmt\n");
+
+    sema.decl_table.scope_open();
     walk_compound_stmt(*this, cs);
+    sema.decl_table.scope_close();
+}
+
+void NameBinder::visit_var_decl(VarDeclNode *v) {
+    walk_var_decl(*this, v);
+
+    auto found = sema.decl_table.find(v->name);
+    if (found && found->value->kind == DECL_VAR &&
+        found->scope_level <= sema.type_table.scope_level) {
+        sema.error(v->pos, fmt::format("redefinition of '{}'", v->name->str()));
+        // return false;
+    }
+
+    auto decl = make_decl(sema, VarDecl{v->name});
+    sema.decl_table.insert(v->name, decl);
+    v->var_decl = &decl->var_decl;
+
+    // Note that member declarations are also parsed as VarDecls.
+    if (v->kind == VarDeclNode::Kind::struct_) {
+        assert(!sema.context.struct_decl_stack.empty());
+        auto curr_struct = sema.context.struct_decl_stack.back();
+        curr_struct->fields.push_back(v->var_decl);
+    } else if (v->kind == VarDeclNode::Kind::func) {
+        assert(!sema.context.func_decl_stack.empty());
+        auto curr_func = sema.context.func_decl_stack.back();
+        curr_func->args.push_back(v->var_decl);
+    }
+
+    // return true;
 }
 
 } // namespace cmp
