@@ -580,11 +580,69 @@ bool Sema::verify() const {
 void sema(Sema &sema, Ast &ast) { ast.root->walk(sema); }
 
 void NameBinder::visit_compound_stmt(CompoundStmt *cs) {
-    fmt::print("namebinding compound_stmt\n");
-
     sema.decl_table.scope_open();
     walk_compound_stmt(*this, cs);
     sema.decl_table.scope_close();
+}
+
+void NameBinder::visit_decl_ref_expr(DeclRefExpr *d) {
+    // XXX: should walk_decl_ref_expr() exist?  It's a chore to look up which
+    // one does and which doesn't.
+
+    auto sym = sema.decl_table.find(d->name);
+    if (sym) {
+        d->decl = sym->value;
+    } else {
+        sema.error(d->pos, fmt::format("use of undeclared identifier '{}'",
+                                       d->name->str()));
+    }
+    // return true;
+}
+
+void NameBinder::visit_func_call_expr(FuncCallExpr *f) {
+    auto sym = sema.decl_table.find(f->func_name);
+    if (sym) {
+        if (sym->value->kind == DECL_FUNC) {
+            f->func_decl = &sym->value->func_decl;
+        } else {
+            sema.error(f->pos,
+                       fmt::format("'{}' is not a function", f->func_name->str()));
+            // return false;
+        }
+    } else {
+        sema.error(f->pos,
+                   fmt::format("undeclared function '{}'", f->func_name->str()));
+        // return false;
+    }
+
+    walk_func_call_expr(*this, f);
+
+    assert(f->func_decl);
+
+    // check if argument count matches
+    if (f->func_decl->args_count() != f->args.size()) {
+        sema.error(f->pos, fmt::format("'{}' accepts {} arguments, got {}",
+                                    f->func_name->str(), f->func_decl->args_count(),
+                                    f->args.size()));
+    }
+
+    // return true;
+}
+
+// TODO
+void NameBinder::visit_type_expr(TypeExpr *t) {
+    walk_type_expr(*this, t);
+
+    auto sym = sema.decl_table.find(t->name);
+    if (sym) {
+        // type = &sym->value;
+    } else {
+        sema.error(t->pos,
+                   fmt::format("use of undeclared type '{}'", t->name->str()));
+        // return false;
+    }
+
+    // return true;
 }
 
 void NameBinder::visit_var_decl(VarDeclNode *v) {
@@ -611,6 +669,55 @@ void NameBinder::visit_var_decl(VarDeclNode *v) {
         auto curr_func = sema.context.func_decl_stack.back();
         curr_func->args.push_back(v->var_decl);
     }
+
+    // return true;
+}
+
+void NameBinder::visit_struct_decl(StructDeclNode *s) {
+    auto found = sema.decl_table.find(s->name);
+    if (found && found->value->kind == DECL_TYPE &&
+        found->scope_level <= sema.decl_table.scope_level) {
+        sema.error(s->pos, fmt::format("redefinition of '{}'", s->name->str()));
+        // return false;
+    }
+
+    auto decl = make_decl(sema, TypeDecl{s->name});
+    sema.decl_table.insert(s->name, decl);
+    s->struct_decl = &decl->type_decl;
+
+    // Decl table is used for checking redefinition when parsing the member
+    // list.
+    sema.decl_table.scope_open();
+    sema.context.struct_decl_stack.push_back(s->struct_decl);
+
+    walk_struct_decl(*this, s);
+
+    sema.context.struct_decl_stack.pop_back();
+    sema.decl_table.scope_close();
+
+    // return true;
+}
+
+void NameBinder::visit_func_decl(FuncDeclNode *f) {
+    auto found = sema.decl_table.find(f->name);
+    if (found && found->value->kind == DECL_FUNC &&
+        found->scope_level <= sema.type_table.scope_level) {
+        sema.error(f->pos, fmt::format("redefinition of '{}'", f->name->str()));
+        // TODO: return false so that traversal is early-exited
+        // return false;
+    }
+
+    auto decl = make_decl(sema, FuncDecl{f->name});
+    sema.decl_table.insert(f->name, decl);
+    f->func_decl = &decl->func_decl;
+
+    sema.decl_table.scope_open(); // for argument variables
+    sema.context.func_decl_stack.push_back(f->func_decl);
+
+    walk_func_decl(*this, f);
+
+    sema.context.func_decl_stack.pop_back();
+    sema.decl_table.scope_close();
 
     // return true;
 }

@@ -482,6 +482,7 @@ public:
 
     void visit_expr(Expr *e);
     void visit_unary_expr(UnaryExpr *u);
+    void visit_decl_ref_expr(DeclRefExpr *d);
     void visit_func_call_expr(FuncCallExpr *f);
     void visit_binary_expr(BinaryExpr *b);
     void visit_member_expr(MemberExpr *m);
@@ -641,24 +642,34 @@ template <typename Derived>
 void AstVisitor<Derived>::visit_unary_expr(UnaryExpr *u) {
     switch (u->unary_kind) {
     case UnaryExprKind::integer_literal:
+        // do nothing
         break;
     case UnaryExprKind::string_literal:
+        // do nothing
         break;
     case UnaryExprKind::decl_ref:
+        dis()->visit_decl_ref_expr(static_cast<DeclRefExpr *>(u));
         break;
     case UnaryExprKind::func_call:
         dis()->visit_func_call_expr(static_cast<FuncCallExpr *>(u));
         break;
     case UnaryExprKind::paren:
+        // do nothing
         break;
     case UnaryExprKind::address:
+        // do nothing
         break;
     case UnaryExprKind::deref:
+        // do nothing
         break;
     default:
         assert(false);
         break;
     }
+}
+template <typename Derived>
+void AstVisitor<Derived>::visit_decl_ref_expr(DeclRefExpr *d) {
+    // nothing to walk
 }
 template <typename Derived>
 void AstVisitor<Derived>::visit_func_call_expr(FuncCallExpr *f) {
