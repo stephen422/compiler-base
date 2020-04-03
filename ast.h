@@ -503,7 +503,6 @@ public:
 
 template <typename Derived>
 void AstVisitor<Derived>::visit_file(File *f) {
-    fmt::print("visiting file\n");
     walk_file(*dis(), f);
 }
 template <typename Derived>
@@ -550,32 +549,26 @@ void AstVisitor<Derived>::visit_stmt(Stmt *s) {
 }
 template <typename Derived>
 void AstVisitor<Derived>::visit_decl_stmt(DeclStmt *ds) {
-    fmt::print("visiting decl_stmt\n");
     walk_decl_stmt(*dis(), ds);
 }
 template <typename Derived>
 void AstVisitor<Derived>::visit_expr_stmt(ExprStmt *es) {
-    fmt::print("visiting expr_stmt\n");
     walk_expr_stmt(*dis(), es);
 }
 template <typename Derived>
 void AstVisitor<Derived>::visit_assign_stmt(AssignStmt *as) {
-    fmt::print("visiting assign_stmt\n");
     walk_assign_stmt(*dis(), as);
 }
 template <typename Derived>
 void AstVisitor<Derived>::visit_return_stmt(ReturnStmt *rs) {
-    fmt::print("visiting return_stmt\n");
     walk_return_stmt(*dis(), rs);
 }
 template <typename Derived>
 void AstVisitor<Derived>::visit_compound_stmt(CompoundStmt *cs) {
-    fmt::print("visiting compound_stmt\n");
     walk_compound_stmt(*dis(), cs);
 }
 template <typename Derived>
 void AstVisitor<Derived>::visit_if_stmt(IfStmt *is) {
-    fmt::print("visiting if_stmt\n");
     walk_if_stmt(*dis(), is);
 }
 template <typename Derived>
@@ -599,17 +592,14 @@ void AstVisitor<Derived>::visit_decl(DeclNode *d) {
 }
 template <typename Derived>
 void AstVisitor<Derived>::visit_var_decl(VarDeclNode *v) {
-    fmt::print("visiting var_decl\n");
     walk_var_decl(*dis(), v);
 }
 template <typename Derived>
 void AstVisitor<Derived>::visit_struct_decl(StructDeclNode *s) {
-    fmt::print("visiting struct decl\n");
     walk_struct_decl(*dis(), s);
 }
 template <typename Derived>
 void AstVisitor<Derived>::visit_func_decl(FuncDeclNode *f) {
-    fmt::print("visiting func decl\n");
     walk_func_decl(*dis(), f);
 }
 template <typename Derived>
@@ -765,6 +755,12 @@ void walk_compound_stmt(Visitor &v, CompoundStmt *cs) {
 template <typename Visitor>
 void walk_if_stmt(Visitor &v, IfStmt *is) {
     v.visit_expr(is->cond);
+    v.visit_compound_stmt(is->cstmt_true);
+    if (is->elseif) {
+        v.visit_if_stmt(is->elseif);
+    } else if (is->cstmt_false) {
+        v.visit_compound_stmt(is->cstmt_false);
+    }
 }
 template <typename Visitor>
 void walk_func_call_expr(Visitor &v, FuncCallExpr *f) {

@@ -607,11 +607,13 @@ void NameBinder::visit_func_call_expr(FuncCallExpr *f) {
         } else {
             sema.error(f->pos,
                        fmt::format("'{}' is not a function", f->func_name->str()));
+            return;
             // return false;
         }
     } else {
         sema.error(f->pos,
                    fmt::format("undeclared function '{}'", f->func_name->str()));
+        return;
         // return false;
     }
 
@@ -640,6 +642,7 @@ void NameBinder::visit_type_expr(TypeExpr *t) {
         sema.error(t->pos,
                    fmt::format("use of undeclared type '{}'", t->name->str()));
         // return false;
+        return;
     }
 
     // return true;
@@ -653,6 +656,7 @@ void NameBinder::visit_var_decl(VarDeclNode *v) {
         found->scope_level <= sema.type_table.scope_level) {
         sema.error(v->pos, fmt::format("redefinition of '{}'", v->name->str()));
         // return false;
+        return;
     }
 
     auto decl = make_decl(sema, VarDecl{v->name});
@@ -679,6 +683,7 @@ void NameBinder::visit_struct_decl(StructDeclNode *s) {
         found->scope_level <= sema.decl_table.scope_level) {
         sema.error(s->pos, fmt::format("redefinition of '{}'", s->name->str()));
         // return false;
+        return;
     }
 
     auto decl = make_decl(sema, TypeDecl{s->name});
@@ -705,6 +710,7 @@ void NameBinder::visit_func_decl(FuncDeclNode *f) {
         sema.error(f->pos, fmt::format("redefinition of '{}'", f->name->str()));
         // TODO: return false so that traversal is early-exited
         // return false;
+        return;
     }
 
     auto decl = make_decl(sema, FuncDecl{f->name});
