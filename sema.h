@@ -180,6 +180,9 @@ void walkAST(Sema &sema, AstNode *node, bool (*pre_fn)(Sema &sema, AstNode *),
               bool (*post_fn)(Sema &sema, AstNode *));
 void sema(Sema &sema, Ast &ast);
 
+// Name binding pass. Handles variable/function/struct declaration,
+// redefinition/undeclared-use checks, number of function arguments checks,
+// etc.
 class NameBinder : public AstVisitor<NameBinder> {
     Sema &sema;
 

@@ -159,142 +159,6 @@ void walkAST(Sema &sema, AstNode *node, bool (*pre_fn)(Sema &sema, AstNode *),
 // Name binding pass
 //
 
-bool CompoundStmt::name_bind_pre(Sema &sema) {
-    sema.decl_table.scope_open();
-    return true;
-}
-
-bool CompoundStmt::name_bind_post(Sema &sema) {
-    sema.decl_table.scope_close();
-    return true;
-}
-
-// FIXME: should this be pre or post for VarDecl?
-bool VarDeclNode::name_bind_post(Sema &sema) {
-    auto found = sema.decl_table.find(name);
-    if (found && found->value->kind == DECL_VAR &&
-        found->scope_level <= sema.type_table.scope_level) {
-        sema.error(pos, fmt::format("redefinition of '{}'", name->str()));
-        return false;
-    }
-
-    auto decl = make_decl(sema, VarDecl{name});
-    sema.decl_table.insert(name, decl);
-    var_decl = &decl->var_decl;
-
-    // Note that member declarations are also parsed as VarDecls.
-    if (kind == Kind::struct_) {
-        assert(!sema.context.struct_decl_stack.empty());
-        auto curr_struct = sema.context.struct_decl_stack.back();
-        curr_struct->fields.push_back(var_decl);
-    } else if (kind == Kind::func) {
-        assert(!sema.context.func_decl_stack.empty());
-        auto curr_func = sema.context.func_decl_stack.back();
-        curr_func->args.push_back(var_decl);
-    }
-
-    return true;
-}
-
-// We need to push StructDecl at pre, so that the inner member declarations
-// have access and can modify this decl.
-bool StructDeclNode::name_bind_pre(Sema &sema) {
-    auto found = sema.decl_table.find(name);
-    if (found && found->value->kind == DECL_TYPE &&
-        found->scope_level <= sema.decl_table.scope_level) {
-        sema.error(pos, fmt::format("redefinition of '{}'", name->str()));
-        return false;
-    }
-
-    auto decl = make_decl(sema, TypeDecl{name});
-    sema.decl_table.insert(name, decl);
-    struct_decl = &decl->type_decl;
-
-    // Decl table is used for checking redefinition when parsing the member
-    // list.
-    sema.decl_table.scope_open();
-    sema.context.struct_decl_stack.push_back(struct_decl);
-
-    return true;
-}
-
-bool StructDeclNode::name_bind_post(Sema &sema) {
-    sema.context.struct_decl_stack.pop_back();
-    sema.decl_table.scope_close();
-
-    return true;
-}
-
-bool FuncDeclNode::name_bind_pre(Sema &sema) {
-    auto found = sema.decl_table.find(name);
-    if (found && found->value->kind == DECL_FUNC &&
-        found->scope_level <= sema.type_table.scope_level) {
-        sema.error(pos, fmt::format("redefinition of '{}'", name->str()));
-        // TODO: return false so that traversal is early-exited
-        return false;
-    }
-
-    auto decl = make_decl(sema, FuncDecl{name});
-    sema.decl_table.insert(name, decl);
-    func_decl = &decl->func_decl;
-
-    sema.decl_table.scope_open(); // for argument variables
-    sema.context.func_decl_stack.push_back(func_decl);
-
-    return true;
-}
-
-bool FuncDeclNode::name_bind_post(Sema &sema) {
-    sema.context.func_decl_stack.pop_back();
-    sema.decl_table.scope_close();
-
-    return true;
-}
-
-bool DeclRefExpr::name_bind_post(Sema &sema) {
-    auto sym = sema.decl_table.find(name);
-    if (sym) {
-        decl = sym->value;
-    } else {
-        sema.error(
-            pos, fmt::format("use of undeclared identifier '{}'", name->str()));
-    }
-
-    return true;
-}
-
-bool FuncCallExpr::name_bind_pre(Sema &sema) {
-    auto sym = sema.decl_table.find(func_name);
-    if (sym) {
-        if (sym->value->kind == DECL_FUNC) {
-            func_decl = &sym->value->func_decl;
-        } else {
-            sema.error(
-                pos, fmt::format("'{}' is not a function", func_name->str()));
-            return false;
-        }
-    } else {
-        sema.error(pos,
-                    fmt::format("undeclared function '{}'", func_name->str()));
-        return false;
-    }
-
-    return true;
-}
-
-bool FuncCallExpr::name_bind_post(Sema &sema) {
-    assert(func_decl);
-
-    // check if argument count matches
-    if (func_decl->args_count() != args.size()) {
-        sema.error(pos, fmt::format("'{}' accepts {} arguments, got {}",
-                                     func_name->str(), func_decl->args_count(),
-                                     args.size()));
-    }
-
-    return true;
-}
-
 // It's hard to namebind MemberExprs at this stage, because we don't know if
 // the operand of the dot(.) is actually member-accessible unless we do full
 // type checking (e.g. func().mem), except the most trival cases (e.g.
@@ -325,19 +189,6 @@ void MemberExpr::name_bind_post(Sema &sema) {
     // But how do we get it out? TODO.
 }
 #endif
-
-bool TypeExpr::name_bind_post(Sema &sema) {
-    auto sym = sema.decl_table.find(name);
-    if (sym) {
-        // type = &sym->value;
-    } else {
-        sema.error(pos,
-                    fmt::format("use of undeclared type '{}'", name->str()));
-        return false;
-    }
-
-    return true;
-}
 
 void File::walk(Sema &sema) {
     for (auto &tl : toplevels)
@@ -634,7 +485,7 @@ void NameBinder::visit_var_decl(VarDeclNode *v) {
 
     auto found = sema.decl_table.find(v->name);
     if (found && found->value->kind == DECL_VAR &&
-        found->scope_level <= sema.type_table.scope_level) {
+        found->scope_level <= sema.decl_table.scope_level) {
         sema.error(v->pos, fmt::format("redefinition of '{}'", v->name->str()));
         return;
     }
@@ -643,7 +494,7 @@ void NameBinder::visit_var_decl(VarDeclNode *v) {
     sema.decl_table.insert(v->name, decl);
     v->var_decl = &decl->var_decl;
 
-    // Note that member declarations are also parsed as VarDecls.
+    // struct member declarations are also parsed as VarDecls.
     if (v->kind == VarDeclNode::Kind::struct_) {
         assert(!sema.context.struct_decl_stack.empty());
         auto curr_struct = sema.context.struct_decl_stack.back();
@@ -681,7 +532,7 @@ void NameBinder::visit_struct_decl(StructDeclNode *s) {
 void NameBinder::visit_func_decl(FuncDeclNode *f) {
     auto found = sema.decl_table.find(f->name);
     if (found && found->value->kind == DECL_FUNC &&
-        found->scope_level <= sema.type_table.scope_level) {
+        found->scope_level <= sema.decl_table.scope_level) {
         sema.error(f->pos, fmt::format("redefinition of '{}'", f->name->str()));
         return;
     }

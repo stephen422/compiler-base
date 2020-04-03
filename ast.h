@@ -89,18 +89,6 @@ struct AstNode {
     virtual void walk(Sema &sema) {
         (void)sema; // squelch unused warning
     }
-    // Name binding pass. Handles variable/function/struct declaration,
-    // redefinition/undeclared-use checks, number of function arguments checks,
-    // etc.
-    virtual bool name_bind_pre(Sema &sema) {
-        (void)sema;
-        return true;
-    }
-    virtual bool name_bind_post(Sema &sema) {
-        (void)sema;
-        return true;
-    }
-
     // Convenience ostream for AST printing.
     // Handles indentation, tree drawing, etc.
     std::ostream &out() const {
@@ -121,15 +109,6 @@ struct AstNode {
     AstKind kind;   // node kind
     size_t pos = 0; // start pos of this AST in the source text
 };
-
-// These are free-standing functions that simply do the virtual call into the
-// polymorphic compiler pass functions.
-inline bool name_bind_pre(Sema &sema, AstNode *node) {
-    return node->name_bind_pre(sema);
-}
-inline bool name_bind_post(Sema &sema, AstNode *node) {
-    return node->name_bind_post(sema);
-}
 
 // ========
 //   File
@@ -206,8 +185,6 @@ struct CompoundStmt : public Stmt {
     CompoundStmt() : Stmt(StmtKind::compound) {}
     void print() const override;
     void walk(Sema &sema) override;
-    bool name_bind_pre(Sema &sema) override;
-    bool name_bind_post(Sema &sema) override;
 
     std::vector<Stmt *> stmts;
 };
@@ -301,7 +278,6 @@ struct DeclRefExpr : public UnaryExpr {
         : UnaryExpr(UnaryExprKind::decl_ref, nullptr), name(name) {}
     void print() const override;
     void walk(Sema &sema) override;
-    bool name_bind_post(Sema &sema) override;
 };
 
 struct FuncCallExpr : public UnaryExpr {
@@ -314,8 +290,6 @@ struct FuncCallExpr : public UnaryExpr {
           args(args) {}
     void print() const override;
     void walk(Sema &sema) override;
-    bool name_bind_pre(Sema &sema) override;
-    bool name_bind_post(Sema &sema) override;
 };
 
 struct ParenExpr : public UnaryExpr {
@@ -353,9 +327,6 @@ struct MemberExpr : public Expr {
         : Expr(ExprKind::member), struct_expr(e),
           member_name(m) {}
     void print() const override;
-
-    // XXX: disabled, check comment in sema.cc.
-    // bool name_bind_post(Sema &sema) override;
 };
 
 // XXX: can I call this an expression?
@@ -371,7 +342,6 @@ struct TypeExpr : public Expr {
     TypeExpr() : Expr(ExprKind::type) {}
     void print() const override;
     void walk(Sema &sema) override;
-    bool name_bind_post(Sema &sema) override;
 };
 
 struct BadExpr : public Expr {
@@ -413,7 +383,6 @@ struct VarDeclNode : public DeclNode {
           type_expr(t), assign_expr(std::move(expr)) {}
     void print() const override;
     void walk(Sema &sema) override;
-    bool name_bind_post(Sema &sema) override;
 };
 
 // Struct declaration.
@@ -423,8 +392,6 @@ struct StructDeclNode : public DeclNode {
           members(m) {}
     void print() const override;
     void walk(Sema &sema) override;
-    bool name_bind_pre(Sema &sema) override;
-    bool name_bind_post(Sema &sema) override;
 
     Name *name = nullptr;              // name of the struct
     TypeDecl *struct_decl = nullptr; // decl info
@@ -438,8 +405,6 @@ struct FuncDeclNode : public DeclNode {
         : DeclNode(DeclNodeKind::func), name(n) {}
     void print() const override;
     void walk(Sema &sema) override;
-    bool name_bind_pre(Sema &sema) override;
-    bool name_bind_post(Sema &sema) override;
 
     Name *name = nullptr;          // name of the function
     FuncDecl *func_decl = nullptr; // decl info
