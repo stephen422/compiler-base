@@ -16,19 +16,25 @@ class Source;
 
 struct Sema;
 
+enum class TypeKind {
+    value,
+    ref,
+    array,
+};
+
 // 'Type' represents a type, whether it be built-in, user-defined, or a
 // reference to another type.  Type exists separately from the AST node
 // TypeExpr so that type comparisons can be made by simply comparing raw Type
 // pointers.
 //
-// TODO: switch to union?
+// TODO: switch to union/variant?
 struct Type {
-    enum Kind { value, ref, array } kind;
+    TypeKind kind;
     Name *name = nullptr;       // name of this type
     Type *target_type = nullptr; // the type this reference refers to
 
-    Type(Name *n) : kind(Kind::value), name(n) {}
-    Type(Kind k, Name *n, Type *v) : kind(k), name(n), target_type(v) {}
+    Type(Name *n) : kind(TypeKind::value), name(n) {}
+    Type(TypeKind k, Name *n, Type *v) : kind(k), name(n), target_type(v) {}
     std::string str() const;
 };
 
@@ -41,12 +47,12 @@ struct VarDecl {
 };
 
 // Declaration of a struct.
-struct TypeDecl {
+struct StructDecl {
     Name *name = nullptr;
     Type *type = nullptr;
     std::vector<VarDecl *> fields;
 
-    TypeDecl(Name *n) : name(n) {}
+    StructDecl(Name *n) : name(n) {}
 };
 
 // Declaration of a function.
@@ -64,19 +70,19 @@ struct FuncDecl {
 // references of these pooled Decls to determine undeclared-use or
 // redefinition.
 // TODO: Clarify the definition. Should type names have a Decl too?  What is
-// the 'type' member of a TypeDecl?
+// the 'type' member of a StructDecl?
 // using Decl = std::variant<VarDecl, StructDecl>;
 enum DeclKind { DECL_VAR, DECL_TYPE, DECL_FUNC };
 struct Decl {
     DeclKind kind;
     union {
         VarDecl var_decl;
-        TypeDecl type_decl;
+        StructDecl struct_decl;
         FuncDecl func_decl;
     };
 
     Decl(const VarDecl &v) : kind(DECL_VAR), var_decl(v) {}
-    Decl(const TypeDecl &t) : kind(DECL_TYPE), type_decl(t) {}
+    Decl(const StructDecl &s) : kind(DECL_TYPE), struct_decl(s) {}
     Decl(const FuncDecl &f) : kind(DECL_FUNC), func_decl(f) {}
     ~Decl() {
         switch (kind) {
@@ -84,7 +90,7 @@ struct Decl {
             var_decl.~VarDecl();
             break;
         case DECL_TYPE:
-            type_decl.~TypeDecl();
+            struct_decl.~StructDecl();
             break;
         case DECL_FUNC:
             func_decl.~FuncDecl();
@@ -101,7 +107,7 @@ struct Decl {
 
 struct Context {
     // Current enclosing struct decl.
-    std::vector<TypeDecl *> struct_decl_stack;
+    std::vector<StructDecl *> struct_decl_stack;
     std::vector<FuncDecl *> func_decl_stack;
     // Return type of this function.
     Type *ret_type = nullptr;
@@ -166,6 +172,13 @@ struct Sema {
     void scope_close();
     void report() const;
     bool verify() const;
+
+    // Allocator function for Decls
+    template <typename T> Decl *make_decl(const T &d) {
+        Decl *decl = new Decl{d};
+        decl_pool.push_back(decl);
+        return decl;
+    }
 };
 
 // Get a reference type of a given type.
@@ -189,6 +202,7 @@ class NameBinder : public AstVisitor<NameBinder> {
 public:
     NameBinder(Sema &s) : sema{s} {}
 
+    // Specialized visitor functions.
     void visit_compound_stmt(CompoundStmt *cs);
     void visit_decl_ref_expr(DeclRefExpr *d);
     void visit_func_call_expr(FuncCallExpr *f);
@@ -196,6 +210,18 @@ public:
     void visit_var_decl(VarDeclNode *v);
     void visit_struct_decl(StructDeclNode *s);
     void visit_func_decl(FuncDeclNode *f);
+};
+
+// Type checking pass.
+class TypeChecker : public AstVisitor<TypeChecker> {
+    Sema &sema;
+
+public:
+    TypeChecker(Sema &s) : sema{s} {}
+
+    // Specialized visitor functions.
+    void visit_var_decl(VarDeclNode *v);
+    void visit_struct_decl(StructDeclNode *s);
 };
 
 } // namespace cmp

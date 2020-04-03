@@ -28,7 +28,7 @@ struct Type;
 struct Decl;
 struct FuncDecl;
 struct VarDecl;
-struct TypeDecl;
+struct StructDecl;
 
 // 'Name' corresponds to a single unique identifier string in the source text.
 // There may be multiple occurrences of a string in the source text, but only
@@ -394,7 +394,7 @@ struct StructDeclNode : public DeclNode {
     void walk(Sema &sema) override;
 
     Name *name = nullptr;              // name of the struct
-    TypeDecl *struct_decl = nullptr; // decl info
+    StructDecl *struct_decl = nullptr; // decl info
     std::vector<DeclNode *> members;   // member variables
 };
 

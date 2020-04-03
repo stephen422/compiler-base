@@ -9,13 +9,6 @@ namespace cmp {
 
 std::string Type::str() const { return name->text; }
 
-// Allocator function.
-template <typename T> Decl *make_decl(Sema &sema, const T &d) {
-    Decl *decl = new Decl{d};
-    sema.decl_pool.push_back(decl);
-    return decl;
-}
-
 // TODO: Decl::str()
 // std::string VarDecl::str() const {
 //     return name->text;
@@ -35,7 +28,7 @@ void Sema::error(size_t pos, const std::string &msg) {
 Type *getReferenceType(Sema &sema, Type *type) {
     Name *name = sema.names.get_or_add("&" + type->name->text);
     // FIXME: scope_level
-    Type ref_type{Type::Kind::ref, name, type};
+    Type ref_type{TypeKind::ref, name, type};
     if (auto found = sema.type_table.find(name))
         return &found->value;
     return sema.type_table.insert(name, ref_type);
@@ -293,7 +286,7 @@ void UnaryExpr::walk(Sema &sema) {
     //     break;
     // case AstKind::deref_expr:
     //     operand->walk(sema);
-    //     if (operand->type->kind != Type::Kind::ref)
+    //     if (operand->type->kind != TypeKind::ref)
     //         sema.error(pos, "cannot dereference a non-reference");
     //     type = operand->type->target_type;
     //     break;
@@ -352,7 +345,7 @@ void TypeExpr::walk(Sema &sema) {
         else {
             assert(subexpr);
             // FIXME: scope_level
-            Type ref_type{Type::Kind::ref, name, subexpr->type};
+            Type ref_type{TypeKind::ref, name, subexpr->type};
             type = sema.type_table.insert(name, ref_type);
         }
     }
@@ -374,12 +367,12 @@ void BinaryExpr::walk(Sema &sema) {
 Sema::Sema(const Source &s, NameTable &n) : source(s), names(n) {
     // set up built-in types
     Name *int_name = names.get_or_add("int");
-    auto int_type = make_decl(*this, TypeDecl{int_name});
+    auto int_type = make_decl(StructDecl{int_name});
     decl_table.insert(int_name, int_type);
     // int_type = type_table.insert(int_name, Type{int_name});
 
     Name *char_name = names.get_or_add("char");
-    auto char_type = make_decl(*this, TypeDecl{char_name});
+    auto char_type = make_decl(StructDecl{char_name});
     decl_table.insert(char_name, char_type);
     // char_type = type_table.insert(char_name, Type{char_name});
 }
@@ -490,7 +483,7 @@ void NameBinder::visit_var_decl(VarDeclNode *v) {
         return;
     }
 
-    auto decl = make_decl(sema, VarDecl{v->name});
+    auto decl = sema.make_decl(VarDecl{v->name});
     sema.decl_table.insert(v->name, decl);
     v->var_decl = &decl->var_decl;
 
@@ -514,9 +507,9 @@ void NameBinder::visit_struct_decl(StructDeclNode *s) {
         return;
     }
 
-    auto decl = make_decl(sema, TypeDecl{s->name});
+    auto decl = sema.make_decl(StructDecl{s->name});
     sema.decl_table.insert(s->name, decl);
-    s->struct_decl = &decl->type_decl;
+    s->struct_decl = &decl->struct_decl;
 
     // Decl table is used for checking redefinition when parsing the member
     // list.
@@ -537,7 +530,7 @@ void NameBinder::visit_func_decl(FuncDeclNode *f) {
         return;
     }
 
-    auto decl = make_decl(sema, FuncDecl{f->name});
+    auto decl = sema.make_decl(FuncDecl{f->name});
     sema.decl_table.insert(f->name, decl);
     f->func_decl = &decl->func_decl;
 
