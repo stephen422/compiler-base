@@ -337,7 +337,7 @@ void TypeExpr::walk(Sema &sema) {
     Type *type = nullptr;
     if (!sym) {
         // If this is a value type, we should check use before declaration.
-        if (!ref) {
+        if (kind == TypeExprKind::value) {
             sema.error(pos, fmt::format("unknown type '{}'", name->str()));
         }
         // If not, this is an instantiation of a derivative type, and should be

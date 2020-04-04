@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "ast.h"
 #include "fmt/core.h"
 #include <cassert>
 #include <regex>
@@ -235,7 +236,7 @@ DeclNode *Parser::parseVarDecl(VarDeclNode::Kind kind) {
     // '=' comes either first, or after the ': type' part.
     if (tok.kind == Tok::colon) {
         next();
-        auto type_expr = parseTypeExpr();
+        auto type_expr = parse_type_expr();
         v = make_node_pos<VarDeclNode>(pos, name, kind, type_expr, nullptr);
     }
     if (tok.kind == Tok::equals) {
@@ -323,7 +324,7 @@ FuncDeclNode *Parser::parseFuncDecl() {
     // return type (-> ...)
     if (tok.kind == Tok::arrow) {
         next();
-        func->ret_type_expr = parseTypeExpr();
+        func->ret_type_expr = parse_type_expr();
     }
     if (tok.kind != Tok::lbrace) {
         errorExpected("'->' or '{'");
@@ -422,43 +423,45 @@ bool Parser::isStartOfTypeExpr() const {
 // TypeExpr:
 //     '&' TypeExpr
 //     'mut'? ident
-Expr *Parser::parseTypeExpr() {
-    auto typeexpr = make_node<TypeExpr>();
+Expr *Parser::parse_type_expr() {
+    auto pos = tok.pos;
 
-    typeexpr->pos = tok.pos;
+    // XXX OUTDATED: Encode each type into a unique Name, so that they are easy
+    // to find in the type table in the semantic analysis phase.
+    bool mut = false;
+    TypeExprKind kind = TypeExprKind::value;
+    Expr *subexpr = nullptr;
 
-    // Encode each type into a unique Name, so that they are easy to find in
-    // the type table in the semantic analysis phase.
     std::string text;
     if (tok.kind == Tok::ampersand) {
         next();
-        typeexpr->ref = true;
-        typeexpr->subexpr = parseTypeExpr();
-        if (typeexpr->subexpr->expr_kind == ExprKind::type) {
-            text = "&" + static_cast<TypeExpr *>(typeexpr->subexpr)->name->text;
+        kind = TypeExprKind::ref;
+        subexpr = parse_type_expr();
+        if (subexpr->expr_kind == ExprKind::type) {
+            text = "&" + static_cast<TypeExpr *>(subexpr)->name->text;
         }
     } else if (is_identifier_or_keyword(tok)) {
         if (tok.kind == Tok::kw_mut) {
             expect(Tok::kw_mut);
-            typeexpr->mut = true;
+            mut = true;
         }
         if (!is_identifier_or_keyword(tok)) {
             // FIXME: type name? expression?
             errorExpected("type name");
-            return make_node_pos<BadExpr>(typeexpr->pos);
+            return make_node_pos<BadExpr>(pos);
         }
-        typeexpr->ref = false;
-        typeexpr->subexpr = nullptr;
+        kind = TypeExprKind::value;
+        subexpr = nullptr;
         text = tok.text;
         next();
     } else {
         errorExpected("type expression");
-        return make_node_pos<BadExpr>(typeexpr->pos);
+        return make_node_pos<BadExpr>(pos);
     }
 
-    typeexpr->name = names.get_or_add(text);
+    Name *name = names.get_or_add(text);
 
-    return typeexpr;
+    return make_node_pos<TypeExpr>(pos, kind, name, subexpr);
 }
 
 Expr *Parser::parseUnaryExpr() {

@@ -330,16 +330,23 @@ struct MemberExpr : public Expr {
 };
 
 // XXX: can I call this an expression?
+enum class TypeExprKind {
+    value,
+    ref,
+    array,
+};
 struct TypeExpr : public Expr {
+    TypeExprKind kind;
     Name *name = nullptr;    // name of the type
     Type *type = nullptr;    // type declaration
     bool mut = false;        // mutable?
-    bool ref = false;        // is this a reference type?
     Expr *subexpr =
         nullptr; // 'T' part of '&T'.  It is Expr rather than TypeExpr mainly so
                  // that BadExpr can be stored here.  XXX dirty.
 
-    TypeExpr() : Expr(ExprKind::type) {}
+    // TODO: incomplete.
+    TypeExpr(TypeExprKind k, Name *n, Expr *se)
+        : Expr(ExprKind::type), kind(k), name(n), subexpr(se) {}
     void print() const override;
     void walk(Sema &sema) override;
 };
