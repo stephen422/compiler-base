@@ -381,6 +381,9 @@ Sema::~Sema() {
     for (auto d : decl_pool) {
         delete d;
     }
+    for (auto t : type_pool) {
+        delete t;
+    }
 }
 
 // FIXME: lifetime of p.lexer.source() and p.names?
@@ -541,6 +544,29 @@ void NameBinder::visit_func_decl(FuncDeclNode *f) {
 
     sema.context.func_decl_stack.pop_back();
     sema.decl_table.scope_close();
+}
+
+void TypeChecker::visit_struct_decl(StructDeclNode *s) {
+    // Typecheck members first
+    walk_struct_decl(*this, s);
+
+    auto type = sema.make_type(TypeKind::value, s->name, nullptr);
+    // XXX: no need to insert to type table?
+    s->struct_decl->type = type;
+}
+
+void TypeChecker::visit_var_decl(VarDeclNode *v) {
+    walk_var_decl(*this, v);
+
+    // If a variable declaration specifies the type or an assignment
+    // expression, type inference is trivial--just copy the inference result.
+    if (v->type_expr) {
+        v->var_decl->type = v->type_expr->type;
+    } else if (v->assign_expr) {
+        v->var_decl->type = v->assign_expr->type;
+    } else {
+        assert(false && "unreachable");
+    }
 }
 
 } // namespace cmp

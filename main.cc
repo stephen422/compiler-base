@@ -31,14 +31,23 @@ int main(int argc, char **argv) {
     if (!p_parser.verify())
         return EXIT_FAILURE;
 
-    Source src_sema{Path{"../test_sema.txt"}};
-    Parser p_sema{src_sema};
-    auto ast = p_sema.parse();
-    ast.root->print();
-    Sema s{p_sema};
-    NameBinder n{s};
+    // Source src_sema{Path{"../test_sema.txt"}};
+    // Parser p_sema{src_sema};
+    // auto ast = p_sema.parse();
+    // ast.root->print();
+    // Sema s{p_sema};
+    // NameBinder n{s};
+    // n.visit_file(static_cast<File *>(ast.root));
+
+    Source src_typeck{Path{"../test_typeck.txt"}};
+    Parser p_typeck{src_typeck};
+    auto ast = p_typeck.parse();
+    Sema s_typeck{p_typeck};
+    NameBinder n{s_typeck};
+    TypeChecker tc{s_typeck};
     n.visit_file(static_cast<File *>(ast.root));
-    // walkAST(s, ast.root, name_bind_pre, name_bind_post);
+    tc.visit_file(static_cast<File *>(ast.root));
+
 #endif
     return EXIT_SUCCESS;
 }

@@ -116,8 +116,8 @@ const std::pair<std::string_view, Tok> keyword_map[] {
 
 std::string tokenTypeToString(Tok kind);
 
-// Token contains the kind, a view of the text data, and the source position of
-// a token.
+// Token contains the kind, a view of the text data, and the position in the
+// source of a token.
 struct Token {
     Tok kind;
     size_t pos;

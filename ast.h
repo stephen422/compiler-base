@@ -372,30 +372,30 @@ struct VarDeclNode : public DeclNode {
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
     Name *name = nullptr;        // name of the variable
-    VarDecl *var_decl = nullptr; // decl info
+    VarDecl *var_decl = nullptr; // decl of the variable
     enum Kind { local, struct_, func } kind = local;
-    Expr *type_expr = nullptr;   // type node of the variable
-                                 // (inferred later if null)
+    // TypeExpr of the variable.  Declared as Expr to accommodate for BadExpr.
+    Expr *type_expr = nullptr;
     Expr *assign_expr = nullptr; // initial assignment value
 
     VarDeclNode(Name *n, Kind k, Expr *t, Expr *expr)
-        : DeclNode(DeclNodeKind::var), name(n), kind(k),
-          type_expr(t), assign_expr(std::move(expr)) {}
+        : DeclNode(DeclNodeKind::var), name(n), kind(k), type_expr(t),
+          assign_expr(std::move(expr)) {}
     void print() const override;
     void walk(Sema &sema) override;
 };
 
 // Struct declaration.
 struct StructDeclNode : public DeclNode {
+    Name *name = nullptr;              // name of the struct
+    StructDecl *struct_decl = nullptr; // decl info
+    std::vector<DeclNode *> members;   // member variables
+
     StructDeclNode(Name *n, std::vector<DeclNode *> m)
         : DeclNode(DeclNodeKind::struct_), name(n),
           members(m) {}
     void print() const override;
     void walk(Sema &sema) override;
-
-    Name *name = nullptr;              // name of the struct
-    StructDecl *struct_decl = nullptr; // decl info
-    std::vector<DeclNode *> members;   // member variables
 };
 
 // Function declaration.  There is no separate function definition: functions

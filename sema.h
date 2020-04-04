@@ -12,29 +12,27 @@
 
 namespace cmp {
 
-class Source;
-
-struct Sema;
-
+// 'Type' represents a type, whether it be built-in, user-defined, or a
+// reference to another type.  It exists separately from the AST node TypeExpr.
+// Similar to Names, Types are designed to be comparable by simply comparing
+// the value of raw Type pointers.
+//
+// TODO: switch to union/variant?
 enum class TypeKind {
     value,
     ref,
     array,
 };
-
-// 'Type' represents a type, whether it be built-in, user-defined, or a
-// reference to another type.  Type exists separately from the AST node
-// TypeExpr so that type comparisons can be made by simply comparing raw Type
-// pointers.
-//
-// TODO: switch to union/variant?
 struct Type {
     TypeKind kind;
-    Name *name = nullptr;       // name of this type
-    Type *target_type = nullptr; // the type this reference refers to
+    // Name of the type. TODO: include & or [] in the name?
+    Name *name = nullptr;
+    // The type that this type refers to.  If it is a non-reference type, this
+    // should be null.
+    Type *base_type = nullptr;
 
     Type(Name *n) : kind(TypeKind::value), name(n) {}
-    Type(TypeKind k, Name *n, Type *v) : kind(k), name(n), target_type(v) {}
+    Type(TypeKind k, Name *n, Type *v) : kind(k), name(n), base_type(v) {}
     std::string str() const;
 };
 
@@ -116,7 +114,7 @@ struct Context {
 };
 
 // Scoped symbol table.
-const int SYMBOL_TABLE_BUCKET_COUNT = 512;
+constexpr int SYMBOL_TABLE_BUCKET_COUNT = 512;
 template <typename T> struct ScopedTable {
     struct Symbol {
         Symbol(Name *n, const T &v) : name(n), value(v) {}
@@ -154,6 +152,7 @@ struct Sema {
     const Source &source;           // source text
     NameTable &names;               // name table
     std::vector<Decl *> decl_pool;  // memory pool for decls
+    std::vector<Type *> type_pool;  // memory pool for types
     ScopedTable<Decl *> decl_table; // scoped declaration table
     ScopedTable<Type> type_table;   // scoped type table
     Context context;
@@ -173,11 +172,16 @@ struct Sema {
     void report() const;
     bool verify() const;
 
-    // Allocator function for Decls
+    // Allocator function for Decls and Types.
     template <typename T> Decl *make_decl(const T &d) {
         Decl *decl = new Decl{d};
         decl_pool.push_back(decl);
         return decl;
+    }
+    template <typename... Args> Type *make_type(Args &&... args) {
+        Type *t = new Type{std::forward<Args>(args)...};
+        type_pool.push_back(t);
+        return t;
     }
 };
 
@@ -188,7 +192,6 @@ Type *getReferenceType(Sema &sema, Type *type);
 struct Ast;
 struct AstNode;
 
-// Do a semantic analysis on the given AST.
 void walkAST(Sema &sema, AstNode *node, bool (*pre_fn)(Sema &sema, AstNode *),
               bool (*post_fn)(Sema &sema, AstNode *));
 void sema(Sema &sema, Ast &ast);

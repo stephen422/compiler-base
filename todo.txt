@@ -7,6 +7,8 @@ Q. What's the advantage of separating type table from decl table?
 
 - namespace ast
 
+- Clean up struct Decl: use std::variant and declare as_func_decl() methods
+
 - Clarify UnaryExpr: should FuncCallExprs really be UnaryExpr?
 
 - Symbol table: 'name' duplicated in 'Symbol' and the value type

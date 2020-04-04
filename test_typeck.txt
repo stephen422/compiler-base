@@ -1,0 +1,10 @@
+// TODO:
+
+struct Car {
+    engine: int,
+    wheel: int,
+}
+
+func main() {
+    let car: Car
+}
