@@ -546,6 +546,15 @@ void NameBinder::visit_func_decl(FuncDeclNode *f) {
     sema.decl_table.scope_close();
 }
 
+void TypeChecker::visit_type_expr(TypeExpr *t) {
+    walk_type_expr(*this, t);
+
+    // First, find a type that has this exact name
+    if (t->kind == TypeExprKind::value) {
+        sema.error(t->pos, "hmmmm.....");
+    }
+}
+
 void TypeChecker::visit_struct_decl(StructDeclNode *s) {
     // Typecheck members first
     walk_struct_decl(*this, s);
@@ -559,7 +568,7 @@ void TypeChecker::visit_var_decl(VarDeclNode *v) {
     walk_var_decl(*this, v);
 
     // If a variable declaration specifies the type or an assignment
-    // expression, type inference is trivial--just copy the inference result.
+    // expression, we can just take their inference result.
     if (v->type_expr) {
         v->var_decl->type = v->type_expr->type;
     } else if (v->assign_expr) {

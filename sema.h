@@ -223,6 +223,7 @@ public:
     TypeChecker(Sema &s) : sema{s} {}
 
     // Specialized visitor functions.
+    void visit_type_expr(TypeExpr *t);
     void visit_var_decl(VarDeclNode *v);
     void visit_struct_decl(StructDeclNode *s);
 };
