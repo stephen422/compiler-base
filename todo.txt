@@ -5,6 +5,14 @@ lives and dies in the code.
 
 Q. What's the advantage of separating type table from decl table?
 
+- How to handle built-in types?
+  Push them to the decl_table at the global scope? But then, after the global
+  scope is deleted, their type objects may become unaccessible.
+  Does this matter?  What if we maintain the decl_table to be alive for the
+  whole lifetime of the compiler?
+  Or, we can make some dangling AST nodes with names of 'int', 'bool' and such
+  and hold the pointers to the Types in those.  But this seems messy.
+
 - namespace ast
 
 - Clean up struct Decl: use std::variant and declare as_func_decl() methods

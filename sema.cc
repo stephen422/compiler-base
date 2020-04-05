@@ -364,17 +364,19 @@ void BinaryExpr::walk(Sema &sema) {
     type = lhs->type;
 }
 
-Sema::Sema(const Source &s, NameTable &n) : source(s), names(n) {
-    // set up built-in types
-    Name *int_name = names.get_or_add("int");
-    auto int_type = make_decl(StructDecl{int_name});
-    decl_table.insert(int_name, int_type);
-    // int_type = type_table.insert(int_name, Type{int_name});
+void push_builtin_type_from_name(Sema &s, const std::string &str) {
+    Name *name = s.names.get_or_add(str);
+    auto decl = s.make_decl(StructDecl{name});
+    auto type = s.make_type(name);
+    decl->struct_decl.type = type;
+    s.decl_table.insert(name, decl);
+}
 
-    Name *char_name = names.get_or_add("char");
-    auto char_type = make_decl(StructDecl{char_name});
-    decl_table.insert(char_name, char_type);
-    // char_type = type_table.insert(char_name, Type{char_name});
+// Push Decls for the builtin types into the global scope of decl_table, so
+// that they are visible from any point in the AST.
+void setup_builtin_types(Sema &s) {
+    push_builtin_type_from_name(s, "int");
+    push_builtin_type_from_name(s, "char");
 }
 
 Sema::~Sema() {
@@ -462,14 +464,16 @@ void NameBinder::visit_func_call_expr(FuncCallExpr *f) {
     }
 }
 
-// TODO
 void NameBinder::visit_type_expr(TypeExpr *t) {
     walk_type_expr(*this, t);
 
+    // Name binding in TypeExprs only include searching for and linking
+    // existing Decls to the type names, not declaring new ones.  The
+    // declaration would be done in VarDecls and StructDecls, etc.
+
+    // XXX: only do this for value types?
     auto sym = sema.decl_table.find(t->name);
-    if (sym) {
-        // type = &sym->value;
-    } else {
+    if (!sym) {
         sema.error(t->pos,
                    fmt::format("use of undeclared type '{}'", t->name->str()));
         return;
@@ -551,7 +555,8 @@ void TypeChecker::visit_type_expr(TypeExpr *t) {
 
     // First, find a type that has this exact name
     if (t->kind == TypeExprKind::value) {
-        sema.error(t->pos, "hmmmm.....");
+        sema.error(t->pos, "lets push these to the table");
+        assert(t->type);
     }
 }
 

@@ -31,7 +31,7 @@ struct Type {
     // should be null.
     Type *base_type = nullptr;
 
-    Type(Name *n) : kind(TypeKind::value), name(n) {}
+    Type(Name *n) : Type(TypeKind::value, n, nullptr) {}
     Type(TypeKind k, Name *n, Type *v) : kind(k), name(n), base_type(v) {}
     std::string str() const;
 };
@@ -161,7 +161,7 @@ struct Sema {
     Type *int_type = nullptr;
     Type *char_type = nullptr;
 
-    Sema(const Source &src_, NameTable &nt);
+    Sema(const Source &s, NameTable &n) : source(s), names(n) {}
     Sema(Parser &p);
     Sema(const Sema &) = delete;
     Sema(Sema &&) = delete;
@@ -184,6 +184,8 @@ struct Sema {
         return t;
     }
 };
+
+void setup_builtin_types(Sema &s);
 
 // Get a reference type of a given type.
 // Constructs the type if it wasn't in the type table beforehand.

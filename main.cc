@@ -43,6 +43,7 @@ int main(int argc, char **argv) {
     Parser p_typeck{src_typeck};
     auto ast = p_typeck.parse();
     Sema s_typeck{p_typeck};
+    setup_builtin_types(s_typeck);
     NameBinder n{s_typeck};
     TypeChecker tc{s_typeck};
     n.visit_file(static_cast<File *>(ast.root));
