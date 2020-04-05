@@ -555,6 +555,13 @@ void NameBinder::visit_func_decl(FuncDeclNode *f) {
     sema.decl_table.scope_close();
 }
 
+void TypeChecker::visit_assign_stmt(AssignStmt *as) {
+    sema.error(as->pos, "type checking assign stmt");
+
+    assert(as->rhs->type);
+    assert(as->lhs->type);
+}
+
 void TypeChecker::visit_integer_literal(IntegerLiteral *i) {
     auto int_name = sema.names.get("int");
     auto int_decl = sema.decl_table.find(int_name)->value;

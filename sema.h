@@ -225,6 +225,7 @@ public:
     TypeChecker(Sema &s) : sema{s} {}
 
     // Specialized visitor functions.
+    void visit_assign_stmt(AssignStmt *as);
     void visit_integer_literal(IntegerLiteral *i);
     void visit_string_literal(StringLiteral *s);
     void visit_type_expr(TypeExpr *t);
