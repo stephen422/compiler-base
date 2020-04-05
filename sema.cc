@@ -555,6 +555,17 @@ void NameBinder::visit_func_decl(FuncDeclNode *f) {
     sema.decl_table.scope_close();
 }
 
+void TypeChecker::visit_integer_literal(IntegerLiteral *i) {
+    auto int_name = sema.names.get("int");
+    auto int_decl = sema.decl_table.find(int_name)->value;
+    i->type = int_decl->struct_decl.type;
+    assert(i->type);
+}
+
+void TypeChecker::visit_string_literal(StringLiteral *s) {
+    // TODO
+}
+
 void TypeChecker::visit_type_expr(TypeExpr *t) {
     walk_type_expr(*this, t);
 
