@@ -337,12 +337,18 @@ enum class TypeExprKind {
 };
 struct TypeExpr : public Expr {
     TypeExprKind kind;
-    Name *name = nullptr;    // name of the type
-    Type *type = nullptr;    // type declaration
-    bool mut = false;        // mutable?
-    Expr *subexpr =
-        nullptr; // 'T' part of '&T'.  It is Expr rather than TypeExpr mainly so
-                 // that BadExpr can be stored here.  XXX dirty.
+    // Name of the type. TODO: should this contain '&' and '[]'?
+    Name *name = nullptr;
+    // Decl object that represents this type.  Null if the type is not
+    // canonical, e.g. reference or an array.
+    Decl *decl = nullptr;
+    // Type object.
+    Type *type = nullptr; // type declaration
+    // Is this type mutable?
+    bool mut = false;
+    // 'T' part of '&T'.  It is Expr rather than TypeExpr mainly so that it can
+    // store BadExpr.  XXX dirty.
+    Expr *subexpr = nullptr;
 
     // TODO: incomplete.
     TypeExpr(TypeExprKind k, Name *n, Expr *se)

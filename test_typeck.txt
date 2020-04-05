@@ -7,4 +7,5 @@ struct Car {
 
 func main() {
     let car: Car
+    car = 3
 }

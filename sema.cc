@@ -427,8 +427,10 @@ void NameBinder::visit_decl_ref_expr(DeclRefExpr *d) {
     // XXX: should walk_decl_ref_expr() exist?  It's a chore to look up which
     // one does and which doesn't.
 
+    // TODO: only accept Decls with var type.
+    // TODO: functions as variables?
     auto sym = sema.decl_table.find(d->name);
-    if (sym) {
+    if (sym && sym->value->kind == DECL_VAR) {
         d->decl = sym->value;
     } else {
         sema.error(d->pos, fmt::format("use of undeclared identifier '{}'",
@@ -467,13 +469,16 @@ void NameBinder::visit_func_call_expr(FuncCallExpr *f) {
 void NameBinder::visit_type_expr(TypeExpr *t) {
     walk_type_expr(*this, t);
 
-    // Name binding in TypeExprs only include searching for and linking
-    // existing Decls to the type names, not declaring new ones.  The
-    // declaration would be done in VarDecls and StructDecls, etc.
+    // Name binding for TypeExprs only include linking existing Decls to the
+    // type names used in the expression, not declaring new ones.  The
+    // declaration would be done when visiting VarDecls and StructDecls, etc.
 
     // XXX: only do this for value types?
     auto sym = sema.decl_table.find(t->name);
-    if (!sym) {
+    if (sym && sym->value->kind == DECL_TYPE) {
+        assert(t->kind == TypeExprKind::value);
+        t->decl = sym->value;
+    } else {
         sema.error(t->pos,
                    fmt::format("use of undeclared type '{}'", t->name->str()));
         return;
@@ -555,8 +560,11 @@ void TypeChecker::visit_type_expr(TypeExpr *t) {
 
     // First, find a type that has this exact name
     if (t->kind == TypeExprKind::value) {
+        // t->decl should be non-null after the passing the name binding.
+        // And, since we are currently doing single-pass (TODO), its type
+        // should also be resolved by now.
+        assert(t->decl->struct_decl.type);
         sema.error(t->pos, "lets push these to the table");
-        assert(t->type);
     }
 }
 
