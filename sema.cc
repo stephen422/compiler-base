@@ -373,12 +373,13 @@ void NameBinder::visit_func_decl(FuncDeclNode *f) {
 }
 
 void TypeChecker::visit_assign_stmt(AssignStmt *as) {
-    sema.error(as->pos, "type checking assign stmt");
-
     walk_assign_stmt(*this, as);
 
-    assert(as->rhs->type);
-    assert(as->lhs->type);
+    if (as->rhs->type != as->lhs->type) {
+        sema.error(as->pos, fmt::format("cannot assign '{}' type to '{}'",
+                                        as->rhs->type->name->str(),
+                                        as->lhs->type->name->str()));
+    }
 }
 
 void TypeChecker::visit_integer_literal(IntegerLiteral *i) {
