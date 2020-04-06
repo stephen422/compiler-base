@@ -395,7 +395,6 @@ void TypeChecker::visit_string_literal(StringLiteral *s) {
 void TypeChecker::visit_decl_ref_expr(DeclRefExpr *d) {
     // Link the type already stored in the Decl object to the Expr's type.
     // @future: currently only handles VarDecls.
-    sema.error(d->pos, fmt::format("name: {}", d->decl->var_decl.name->str()));
     assert(d->decl->var_decl.type);
     d->type = d->decl->var_decl.type;
 }
@@ -408,12 +407,7 @@ void TypeChecker::visit_type_expr(TypeExpr *t) {
         // t->decl should be non-null after the passing the name binding.
         // And, since we are currently doing single-pass (TODO), its type
         // should also be resolved by now.
-        sema.error(t->pos,
-                   fmt::format("visit_type_expr: {} ({:x})", t->name->str(),
-                               reinterpret_cast<uint64_t>(t)));
         t->type = t->decl->struct_decl.type;
-        fmt::print("visit_type_expr: set Type at {:x}\n",
-                   reinterpret_cast<uint64_t>(t->type));
         assert(t->type);
     } else {
         assert(false && "whooops");
@@ -435,16 +429,7 @@ void TypeChecker::visit_var_decl(VarDeclNode *v) {
     // If a variable declaration specifies the type or an assignment
     // expression, we can just take their inference result.
     if (v->type_expr) {
-        sema.error(
-            v->pos,
-            fmt::format("visit_var_decl: {}: {} ({:x})",
-                        v->var_decl->name->str(),
-                        static_cast<TypeExpr *>(v->type_expr)->name->str(),
-                        reinterpret_cast<uint64_t>(
-                            static_cast<TypeExpr *>(v->type_expr))));
         v->var_decl->type = v->type_expr->type;
-        fmt::print("visit_var_decl: seeing Type at {:x}\n",
-                   reinterpret_cast<uint64_t>(v->type_expr->type));
         assert(v->var_decl->type);
     } else if (v->assign_expr) {
         v->var_decl->type = v->assign_expr->type;

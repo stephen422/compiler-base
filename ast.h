@@ -327,8 +327,6 @@ struct TypeExpr : public Expr {
     // Decl object that represents this type.  Null if the type is not
     // canonical, e.g. reference or an array.
     Decl *decl = nullptr;
-    // Type object.
-    Type *type = nullptr; // type declaration
     // Is this type mutable?
     bool mut = false;
     // 'T' part of '&T'.  It is Expr rather than TypeExpr mainly so that it can
