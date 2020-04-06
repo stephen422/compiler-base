@@ -375,6 +375,8 @@ void NameBinder::visit_func_decl(FuncDeclNode *f) {
 void TypeChecker::visit_assign_stmt(AssignStmt *as) {
     sema.error(as->pos, "type checking assign stmt");
 
+    walk_assign_stmt(*this, as);
+
     assert(as->rhs->type);
     assert(as->lhs->type);
 }
@@ -390,23 +392,38 @@ void TypeChecker::visit_string_literal(StringLiteral *s) {
     // TODO
 }
 
+void TypeChecker::visit_decl_ref_expr(DeclRefExpr *d) {
+    // Link the type already stored in the Decl object to the Expr's type.
+    // @future: currently only handles VarDecls.
+    sema.error(d->pos, fmt::format("name: {}", d->decl->var_decl.name->str()));
+    assert(d->decl->var_decl.type);
+    d->type = d->decl->var_decl.type;
+}
+
 void TypeChecker::visit_type_expr(TypeExpr *t) {
     walk_type_expr(*this, t);
 
-    // First, find a type that has this exact name
+    // first, find a type that has this exact name
     if (t->kind == TypeExprKind::value) {
         // t->decl should be non-null after the passing the name binding.
         // And, since we are currently doing single-pass (TODO), its type
         // should also be resolved by now.
-        assert(t->decl->struct_decl.type);
-        sema.error(t->pos, "lets push these to the table");
+        sema.error(t->pos,
+                   fmt::format("visit_type_expr: {} ({:x})", t->name->str(),
+                               reinterpret_cast<uint64_t>(t)));
+        t->type = t->decl->struct_decl.type;
+        fmt::print("visit_type_expr: set Type at {:x}\n",
+                   reinterpret_cast<uint64_t>(t->type));
+        assert(t->type);
+    } else {
+        assert(false && "whooops");
     }
 }
 
 void TypeChecker::visit_struct_decl(StructDeclNode *s) {
-    // Typecheck members first
     walk_struct_decl(*this, s);
 
+    // Create a new type for this struct.
     auto type = sema.make_type(TypeKind::value, s->name, nullptr);
     // XXX: no need to insert to type table?
     s->struct_decl->type = type;
@@ -418,7 +435,17 @@ void TypeChecker::visit_var_decl(VarDeclNode *v) {
     // If a variable declaration specifies the type or an assignment
     // expression, we can just take their inference result.
     if (v->type_expr) {
+        sema.error(
+            v->pos,
+            fmt::format("visit_var_decl: {}: {} ({:x})",
+                        v->var_decl->name->str(),
+                        static_cast<TypeExpr *>(v->type_expr)->name->str(),
+                        reinterpret_cast<uint64_t>(
+                            static_cast<TypeExpr *>(v->type_expr))));
         v->var_decl->type = v->type_expr->type;
+        fmt::print("visit_var_decl: seeing Type at {:x}\n",
+                   reinterpret_cast<uint64_t>(v->type_expr->type));
+        assert(v->var_decl->type);
     } else if (v->assign_expr) {
         v->var_decl->type = v->assign_expr->type;
     } else {

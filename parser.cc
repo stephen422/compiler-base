@@ -165,7 +165,7 @@ IfStmt *Parser::parse_if_stmt() {
 DeclStmt *Parser::parse_decl_stmt() {
     auto decl = parseDecl();
     if (!is_end_of_stmt()) {
-        if (decl->decl_kind != DeclNodeKind::bad)
+        if (decl->kind != DeclNodeKind::bad)
             expect(Tok::newline);
         // try to recover
         skip_until_end_of_line();
@@ -269,7 +269,7 @@ std::vector<DeclNode *> Parser::parseVarDeclList(VarDeclNode::Kind kind) {
         decl = parseVarDecl(kind);
         decls.push_back(decl);
 
-        if (decl->decl_kind == DeclNodeKind::bad) {
+        if (decl->kind == DeclNodeKind::bad) {
             // Determining where each decl ends in a list is a little tricky.
             // Here, we stop for any token that is either (1) separator tokens,
             // i.e. comma, newline, or (2) used to enclose a decl list, i.e.
@@ -437,7 +437,7 @@ Expr *Parser::parse_type_expr() {
         next();
         kind = TypeExprKind::ref;
         subexpr = parse_type_expr();
-        if (subexpr->expr_kind == ExprKind::type) {
+        if (subexpr->kind == ExprKind::type) {
             text = "&" + static_cast<TypeExpr *>(subexpr)->name->text;
         }
     } else if (is_identifier_or_keyword(tok)) {

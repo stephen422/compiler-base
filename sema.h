@@ -200,6 +200,8 @@ void walkAST(Sema &sema, AstNode *node, bool (*pre_fn)(Sema &sema, AstNode *),
 // Name binding pass. Handles variable/function/struct declaration,
 // redefinition/undeclared-use checks, number of function arguments checks,
 // etc.
+// Name binding pass can be thought of bascially linking a Name to a Decl.
+// TODO: doc more.
 class NameBinder : public AstVisitor<NameBinder> {
     Sema &sema;
 
@@ -227,6 +229,7 @@ public:
     void visit_assign_stmt(AssignStmt *as);
     void visit_integer_literal(IntegerLiteral *i);
     void visit_string_literal(StringLiteral *s);
+    void visit_decl_ref_expr(DeclRefExpr *d);
     void visit_type_expr(TypeExpr *t);
     void visit_var_decl(VarDeclNode *v);
     void visit_struct_decl(StructDeclNode *s);

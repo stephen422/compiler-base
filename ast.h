@@ -130,9 +130,9 @@ enum class StmtKind {
 };
 
 struct Stmt : public AstNode {
-    Stmt(StmtKind s) : AstNode(AstKind::stmt), stmt_kind(s) {}
+    Stmt(StmtKind s) : AstNode(AstKind::stmt), kind(s) {}
 
-    StmtKind stmt_kind;
+    StmtKind kind;
 };
 
 struct DeclStmt : public Stmt {
@@ -209,10 +209,15 @@ enum class ExprKind {
 };
 
 struct Expr : public AstNode {
-    Expr(ExprKind e) : AstNode(AstKind::expr), expr_kind(e) {}
-
-    ExprKind expr_kind;
+    ExprKind kind;
+    // Type of the expression.
+    // For expressions that have a Decl, e.g. DeclRefExpr and MemberExpr, their
+    // types are stored in decl->type.  For those cases, the value of this
+    // pointer should be maintained the same as decl->type, so that expr->type
+    // becomes the unified way to retrieve the type of an expression.
     Type *type = nullptr;
+
+    Expr(ExprKind e) : AstNode(AstKind::expr), kind(e) {}
 };
 
 enum class UnaryExprKind {
@@ -275,8 +280,7 @@ struct FuncCallExpr : public UnaryExpr {
 };
 
 struct ParenExpr : public UnaryExpr {
-    // Some unary expressions, such as Paren, can have an associated Decl (e.g.
-    // (a).m).  We thus have to carry a Decl* here.
+    // ParenExprs may also have an associated Decl (e.g. (a).m).
     Decl *decl = nullptr;
 
     ParenExpr(Expr *inside_expr)
@@ -355,9 +359,10 @@ enum class DeclNodeKind {
 
 // A declaration node.
 struct DeclNode : public AstNode {
-    DeclNodeKind decl_kind;
+    DeclNodeKind kind;
 
-    DeclNode(DeclNodeKind d) : AstNode(AstKind::decl), decl_kind(d) {}
+    DeclNode(DeclNodeKind d) : AstNode(AstKind::decl), kind(d) {}
+    // TODO: Unlike Expr, there is no Decl * here.  Do we need it?
 };
 
 // Variable declaration.
@@ -392,15 +397,15 @@ struct StructDeclNode : public DeclNode {
 // Function declaration.  There is no separate function definition: functions
 // should always be defined whenever they are declared.
 struct FuncDeclNode : public DeclNode {
-    FuncDeclNode(Name *n)
-        : DeclNode(DeclNodeKind::func), name(n) {}
-    void print() const override;
-
     Name *name = nullptr;          // name of the function
     FuncDecl *func_decl = nullptr; // decl info
     std::vector<DeclNode *> args;  // list of parameters
     CompoundStmt *body = nullptr;  // body statements
     Expr *ret_type_expr = nullptr; // return type expression
+
+    FuncDeclNode(Name *n)
+        : DeclNode(DeclNodeKind::func), name(n) {}
+    void print() const override;
 };
 
 struct BadDeclNode : public DeclNode {
@@ -478,7 +483,7 @@ void AstVisitor<Derived>::visit_toplevel(AstNode *a) {
 }
 template <typename Derived>
 void AstVisitor<Derived>::visit_stmt(Stmt *s) {
-    switch (s->stmt_kind) {
+    switch (s->kind) {
     case StmtKind::decl:
         dis()->visit_decl_stmt(static_cast<DeclStmt *>(s));
         break;
@@ -530,7 +535,7 @@ void AstVisitor<Derived>::visit_if_stmt(IfStmt *is) {
 }
 template <typename Derived>
 void AstVisitor<Derived>::visit_decl(DeclNode *d) {
-    switch (d->decl_kind) {
+    switch (d->kind) {
     case DeclNodeKind::var:
         dis()->visit_var_decl(static_cast<VarDeclNode *>(d));
         break;
@@ -564,7 +569,7 @@ void AstVisitor<Derived>::visit_expr(Expr *e) {
     // Rather than calling walk_expr() here, we do a switch-case, because the
     // visiting logic in a specialized visitor is likely to be different for
     // each type of Expr and thus be implemented using a switch-case anyway.
-    switch (e->expr_kind) {
+    switch (e->kind) {
     case ExprKind::unary:
         dis()->visit_unary_expr(static_cast<UnaryExpr *>(e));
         break;
