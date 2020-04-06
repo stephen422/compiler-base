@@ -201,9 +201,13 @@ struct BadStmt : public Stmt {
 // ==============
 
 enum class ExprKind {
+    integer_literal,
+    string_literal,
+    decl_ref,
+    func_call,
+    member,
     unary,
     binary,
-    member,
     type,
     bad,
 };
@@ -212,7 +216,7 @@ struct Expr : public AstNode {
     ExprKind kind;
     // Type of the expression.
     // For expressions that have a Decl, e.g. DeclRefExpr and MemberExpr, their
-    // types are stored in decl->type.  For those cases, the value of this
+    // types are stored in decl->type.  For these cases, the value of this
     // pointer should be maintained the same as decl->type, so that expr->type
     // becomes the unified way to retrieve the type of an expression.
     Type *type = nullptr;
@@ -221,15 +225,59 @@ struct Expr : public AstNode {
 };
 
 enum class UnaryExprKind {
-    integer_literal,
-    string_literal,
-    decl_ref,
-    func_call,
     paren,
     address,
     deref,
     plus, // TODO
     minus, // TODO
+};
+
+struct IntegerLiteral : public Expr {
+    int64_t value;
+
+    IntegerLiteral(int64_t v) : Expr(ExprKind::integer_literal), value(v) {}
+    void print() const override;
+};
+
+struct StringLiteral : public Expr {
+    const std::string_view value;
+
+    StringLiteral(std::string_view sv)
+        : Expr(ExprKind::string_literal), value(sv) {}
+    void print() const override;
+};
+
+// A unary expression that references a declaration object, e.g. a variable or
+// a function.
+struct DeclRefExpr : public Expr {
+    Name *name = nullptr;
+    Decl *decl = nullptr;
+
+    DeclRefExpr(Name *name)
+        : Expr(ExprKind::decl_ref), name(name) {}
+    void print() const override;
+};
+
+struct FuncCallExpr : public Expr {
+    Name *func_name = nullptr;
+    FuncDecl *func_decl = nullptr;
+    std::vector<Expr *> args;
+
+    FuncCallExpr(Name *name, const std::vector<Expr *> &args)
+        : Expr(ExprKind::func_call), func_name(name),
+          args(args) {}
+    void print() const override;
+};
+
+// 'struct.mem'
+struct MemberExpr : public Expr {
+    Expr *struct_expr = nullptr; // 'struct' part
+    Name *member_name = nullptr; // 'mem' part
+    Decl *decl = nullptr;        // decl of 'mem'
+
+    MemberExpr(Expr *e, Name *m)
+        : Expr(ExprKind::member), struct_expr(e), member_name(m) {}
+    void print() const override;
 };
 
 struct UnaryExpr : public Expr {
@@ -238,44 +286,6 @@ struct UnaryExpr : public Expr {
 
     UnaryExpr(UnaryExprKind k, Expr *oper)
         : Expr(ExprKind::unary), unary_kind(k), operand(oper) {}
-    void print() const override;
-};
-
-struct IntegerLiteral : public UnaryExpr {
-    int64_t value;
-
-    IntegerLiteral(int64_t v)
-        : UnaryExpr(UnaryExprKind::integer_literal, nullptr), value(v) {}
-    void print() const override;
-};
-
-struct StringLiteral : public UnaryExpr {
-    const std::string_view value;
-
-    StringLiteral(std::string_view sv)
-        : UnaryExpr(UnaryExprKind::string_literal, nullptr), value(sv) {}
-    void print() const override;
-};
-
-// A unary expression that references a declaration object, e.g. a variable or
-// a function.
-struct DeclRefExpr : public UnaryExpr {
-    Name *name = nullptr;
-    Decl *decl = nullptr;
-
-    DeclRefExpr(Name *name)
-        : UnaryExpr(UnaryExprKind::decl_ref, nullptr), name(name) {}
-    void print() const override;
-};
-
-struct FuncCallExpr : public UnaryExpr {
-    Name *func_name = nullptr;
-    FuncDecl *func_decl = nullptr;
-    std::vector<Expr *> args;
-
-    FuncCallExpr(Name *name, const std::vector<Expr *> &args)
-        : UnaryExpr(UnaryExprKind::func_call, nullptr), func_name(name),
-          args(args) {}
     void print() const override;
 };
 
@@ -299,18 +309,6 @@ struct BinaryExpr : public Expr {
         auto pair = get_ast_range({lhs, rhs});
         pos = pair.first;
     }
-    void print() const override;
-};
-
-// 'struct.mem'
-struct MemberExpr : public Expr {
-    Expr *struct_expr = nullptr; // 'struct' part
-    Name *member_name = nullptr; // 'mem' part
-    Decl *decl = nullptr;        // decl of 'mem'
-
-    MemberExpr(Expr *e, Name *m)
-        : Expr(ExprKind::member), struct_expr(e),
-          member_name(m) {}
     void print() const override;
 };
 
@@ -439,13 +437,13 @@ public:
     void visit_if_stmt(IfStmt *is);
 
     void visit_expr(Expr *e);
-    void visit_unary_expr(UnaryExpr *u);
     void visit_integer_literal(IntegerLiteral *i);
     void visit_string_literal(StringLiteral *s);
     void visit_decl_ref_expr(DeclRefExpr *d);
     void visit_func_call_expr(FuncCallExpr *f);
-    void visit_binary_expr(BinaryExpr *b);
     void visit_member_expr(MemberExpr *m);
+    void visit_unary_expr(UnaryExpr *u);
+    void visit_binary_expr(BinaryExpr *b);
     void visit_type_expr(TypeExpr *t);
 
     void visit_decl(DeclNode *d);
@@ -568,49 +566,32 @@ void AstVisitor<Derived>::visit_expr(Expr *e) {
     // visiting logic in a specialized visitor is likely to be different for
     // each type of Expr and thus be implemented using a switch-case anyway.
     switch (e->kind) {
+    case ExprKind::integer_literal:
+        dis()->visit_integer_literal(static_cast<IntegerLiteral *>(e));
+        break;
+    case ExprKind::string_literal:
+        dis()->visit_string_literal(static_cast<StringLiteral *>(e));
+        // do nothing
+        break;
+    case ExprKind::decl_ref:
+        dis()->visit_decl_ref_expr(static_cast<DeclRefExpr *>(e));
+        break;
+    case ExprKind::func_call:
+        dis()->visit_func_call_expr(static_cast<FuncCallExpr *>(e));
+        break;
+    case ExprKind::member:
+        dis()->visit_member_expr(static_cast<MemberExpr *>(e));
+        break;
     case ExprKind::unary:
         dis()->visit_unary_expr(static_cast<UnaryExpr *>(e));
         break;
     case ExprKind::binary:
         dis()->visit_binary_expr(static_cast<BinaryExpr *>(e));
         break;
-    case ExprKind::member:
-        dis()->visit_member_expr(static_cast<MemberExpr *>(e));
-        break;
     case ExprKind::type:
         dis()->visit_type_expr(static_cast<TypeExpr *>(e));
         break;
     case ExprKind::bad:
-        // do nothing
-        break;
-    default:
-        assert(false);
-        break;
-    }
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_unary_expr(UnaryExpr *u) {
-    switch (u->unary_kind) {
-    case UnaryExprKind::integer_literal:
-        dis()->visit_integer_literal(static_cast<IntegerLiteral *>(u));
-        break;
-    case UnaryExprKind::string_literal:
-        dis()->visit_string_literal(static_cast<StringLiteral *>(u));
-        // do nothing
-        break;
-    case UnaryExprKind::decl_ref:
-        dis()->visit_decl_ref_expr(static_cast<DeclRefExpr *>(u));
-        break;
-    case UnaryExprKind::func_call:
-        dis()->visit_func_call_expr(static_cast<FuncCallExpr *>(u));
-        break;
-    case UnaryExprKind::paren:
-        // do nothing
-        break;
-    case UnaryExprKind::address:
-        // do nothing
-        break;
-    case UnaryExprKind::deref:
         // do nothing
         break;
     default:
@@ -635,12 +616,29 @@ void AstVisitor<Derived>::visit_func_call_expr(FuncCallExpr *f) {
     walk_func_call_expr(*dis(), f);
 }
 template <typename Derived>
-void AstVisitor<Derived>::visit_binary_expr(BinaryExpr *b) {
-    walk_binary_expr(*dis(), b);
-}
-template <typename Derived>
 void AstVisitor<Derived>::visit_member_expr(MemberExpr *m) {
     walk_member_expr(*dis(), m);
+}
+template <typename Derived>
+void AstVisitor<Derived>::visit_unary_expr(UnaryExpr *u) {
+    switch (u->unary_kind) {
+    case UnaryExprKind::paren:
+        // do nothing
+        break;
+    case UnaryExprKind::address:
+        // do nothing
+        break;
+    case UnaryExprKind::deref:
+        // do nothing
+        break;
+    default:
+        assert(false);
+        break;
+    }
+}
+template <typename Derived>
+void AstVisitor<Derived>::visit_binary_expr(BinaryExpr *b) {
+    walk_binary_expr(*dis(), b);
 }
 template <typename Derived>
 void AstVisitor<Derived>::visit_type_expr(TypeExpr *t) {

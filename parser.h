@@ -109,7 +109,7 @@ private:
     // Expression parsers
     Expr *parse_expr();
     Expr *parseUnaryExpr();
-    UnaryExpr *parseLiteralExpr();
+    Expr *parseLiteralExpr();
     Expr *parseFuncCallOrDeclRefExpr();
     Expr *parse_type_expr();
     Expr *parseBinaryExprRhs(Expr *lhs, int precedence);

@@ -375,6 +375,11 @@ void NameBinder::visit_func_decl(FuncDeclNode *f) {
 void TypeChecker::visit_assign_stmt(AssignStmt *as) {
     walk_assign_stmt(*this, as);
 
+    // XXX: is this the best way to early-exit?
+    if (!as->rhs->type || !as->lhs->type)
+        return;
+
+    // Only allow exact equality for assignment for now (TODO).
     if (as->rhs->type != as->lhs->type) {
         sema.error(as->pos, fmt::format("cannot assign '{}' type to '{}'",
                                         as->rhs->type->name->str(),
@@ -398,6 +403,22 @@ void TypeChecker::visit_decl_ref_expr(DeclRefExpr *d) {
     // @future: currently only handles VarDecls.
     assert(d->decl->var_decl.type);
     d->type = d->decl->var_decl.type;
+}
+
+// MemberExprs cannot be namebinded completely without type checking (e.g.
+// func().mem).  So we defer their namebinding to the type checking phase,
+// which is done here.
+void TypeChecker::visit_member_expr(MemberExpr *m) {
+    // Propagate from left to right (struct->mem).
+    walk_member_expr(*this, m);
+
+    // TODO: First, decl-resolve the LHS (struct).
+    // Then, check Decl if it is a struct, and has a member with the same name.
+    // We need a way to polymorphically set the Decl member, no matter the
+    // kind.
+    if (m->struct_expr->kind == ExprKind::unary) {
+        sema.error(m->pos, "this is the case");
+    }
 }
 
 void TypeChecker::visit_type_expr(TypeExpr *t) {

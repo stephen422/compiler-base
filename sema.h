@@ -208,7 +208,6 @@ class NameBinder : public AstVisitor<NameBinder> {
 public:
     NameBinder(Sema &s) : sema{s} {}
 
-    // Specialized visitor functions.
     void visit_compound_stmt(CompoundStmt *cs);
     void visit_decl_ref_expr(DeclRefExpr *d);
     void visit_func_call_expr(FuncCallExpr *f);
@@ -225,11 +224,11 @@ class TypeChecker : public AstVisitor<TypeChecker> {
 public:
     TypeChecker(Sema &s) : sema{s} {}
 
-    // Specialized visitor functions.
     void visit_assign_stmt(AssignStmt *as);
     void visit_integer_literal(IntegerLiteral *i);
     void visit_string_literal(StringLiteral *s);
     void visit_decl_ref_expr(DeclRefExpr *d);
+    void visit_member_expr(MemberExpr *m);
     void visit_type_expr(TypeExpr *t);
     void visit_var_decl(VarDeclNode *v);
     void visit_struct_decl(StructDeclNode *s);

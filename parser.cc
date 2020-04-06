@@ -361,8 +361,8 @@ DeclNode *Parser::parseDecl() {
     return nullptr;
 }
 
-UnaryExpr *Parser::parseLiteralExpr() {
-    UnaryExpr *expr = nullptr;
+Expr *Parser::parseLiteralExpr() {
+    Expr *expr = nullptr;
     // TODO Literals other than integers?
     switch (tok.kind) {
     case Tok::number: {
