@@ -82,13 +82,6 @@ struct AstNode {
 
     // AST printing.
     virtual void print() const = 0;
-    // AST traversal.
-    // TODO: AST is traversed at least twice, i.e. once for semantic analysis
-    // and once for IR generation.  So there should be a generic way to
-    // traverse it; maybe pass in a lambda that does work for a single node?
-    virtual void walk(Sema &sema) {
-        (void)sema; // squelch unused warning
-    }
     // Convenience ostream for AST printing.
     // Handles indentation, tree drawing, etc.
     std::ostream &out() const {
@@ -118,7 +111,6 @@ struct AstNode {
 struct File : public AstNode {
     File() : AstNode(AstKind::file) {}
     void print() const override;
-    void walk(Sema &sema) override;
 
     std::vector<AstNode *> toplevels;
 };
@@ -146,7 +138,6 @@ struct Stmt : public AstNode {
 struct DeclStmt : public Stmt {
     DeclStmt(DeclNode *d) : Stmt(StmtKind::decl), decl(d) {}
     void print() const override;
-    void walk(Sema &sema) override;
 
     DeclNode *decl;
 };
@@ -154,7 +145,6 @@ struct DeclStmt : public Stmt {
 struct ExprStmt : public Stmt {
     ExprStmt(Expr *e) : Stmt(StmtKind::expr), expr(e) {}
     void print() const override;
-    void walk(Sema &sema) override;
 
     Expr *expr;
 };
@@ -167,7 +157,6 @@ struct ExprStmt : public Stmt {
 struct AssignStmt : public Stmt {
     AssignStmt(Expr *l, Expr *r) : Stmt(StmtKind::assign), lhs(l), rhs(r) {}
     void print() const override;
-    void walk(Sema &sema) override;
 
     Expr *lhs;
     Expr *rhs;
@@ -176,7 +165,6 @@ struct AssignStmt : public Stmt {
 struct ReturnStmt : public Stmt {
     ReturnStmt(Expr *e) : Stmt(StmtKind::return_), expr(e) {}
     void print() const override;
-    void walk(Sema &sema) override;
 
     Expr *expr;
 };
@@ -184,7 +172,6 @@ struct ReturnStmt : public Stmt {
 struct CompoundStmt : public Stmt {
     CompoundStmt() : Stmt(StmtKind::compound) {}
     void print() const override;
-    void walk(Sema &sema) override;
 
     std::vector<Stmt *> stmts;
 };
@@ -247,7 +234,6 @@ struct UnaryExpr : public Expr {
     UnaryExpr(UnaryExprKind k, Expr *oper)
         : Expr(ExprKind::unary), unary_kind(k), operand(oper) {}
     void print() const override;
-    void walk(Sema &sema) override;
 };
 
 struct IntegerLiteral : public UnaryExpr {
@@ -256,7 +242,6 @@ struct IntegerLiteral : public UnaryExpr {
     IntegerLiteral(int64_t v)
         : UnaryExpr(UnaryExprKind::integer_literal, nullptr), value(v) {}
     void print() const override;
-    void walk(Sema &sema) override;
 };
 
 struct StringLiteral : public UnaryExpr {
@@ -265,7 +250,6 @@ struct StringLiteral : public UnaryExpr {
     StringLiteral(std::string_view sv)
         : UnaryExpr(UnaryExprKind::string_literal, nullptr), value(sv) {}
     void print() const override;
-    void walk(Sema &sema) override;
 };
 
 // A unary expression that references a declaration object, e.g. a variable or
@@ -277,7 +261,6 @@ struct DeclRefExpr : public UnaryExpr {
     DeclRefExpr(Name *name)
         : UnaryExpr(UnaryExprKind::decl_ref, nullptr), name(name) {}
     void print() const override;
-    void walk(Sema &sema) override;
 };
 
 struct FuncCallExpr : public UnaryExpr {
@@ -289,7 +272,6 @@ struct FuncCallExpr : public UnaryExpr {
         : UnaryExpr(UnaryExprKind::func_call, nullptr), func_name(name),
           args(args) {}
     void print() const override;
-    void walk(Sema &sema) override;
 };
 
 struct ParenExpr : public UnaryExpr {
@@ -314,7 +296,6 @@ struct BinaryExpr : public Expr {
         pos = pair.first;
     }
     void print() const override;
-    void walk(Sema &sema) override;
 };
 
 // 'struct.mem'
@@ -354,7 +335,6 @@ struct TypeExpr : public Expr {
     TypeExpr(TypeExprKind k, Name *n, Expr *se)
         : Expr(ExprKind::type), kind(k), name(n), subexpr(se) {}
     void print() const override;
-    void walk(Sema &sema) override;
 };
 
 struct BadExpr : public Expr {
@@ -395,7 +375,6 @@ struct VarDeclNode : public DeclNode {
         : DeclNode(DeclNodeKind::var), name(n), kind(k), type_expr(t),
           assign_expr(std::move(expr)) {}
     void print() const override;
-    void walk(Sema &sema) override;
 };
 
 // Struct declaration.
@@ -408,7 +387,6 @@ struct StructDeclNode : public DeclNode {
         : DeclNode(DeclNodeKind::struct_), name(n),
           members(m) {}
     void print() const override;
-    void walk(Sema &sema) override;
 };
 
 // Function declaration.  There is no separate function definition: functions
@@ -417,7 +395,6 @@ struct FuncDeclNode : public DeclNode {
     FuncDeclNode(Name *n)
         : DeclNode(DeclNodeKind::func), name(n) {}
     void print() const override;
-    void walk(Sema &sema) override;
 
     Name *name = nullptr;          // name of the function
     FuncDecl *func_decl = nullptr; // decl info
