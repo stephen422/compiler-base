@@ -187,7 +187,7 @@ void push_builtin_type_from_name(Sema &s, const std::string &str) {
     Name *name = s.names.get_or_add(str);
     auto decl = s.make_decl(StructDecl{name});
     auto type = s.make_type(name);
-    decl->struct_decl.type = type;
+    decl->get_struct_decl()->type = type;
     s.decl_table.insert(name, decl);
 }
 
@@ -259,7 +259,7 @@ void NameBinder::visit_func_call_expr(FuncCallExpr *f) {
     auto sym = sema.decl_table.find(f->func_name);
     if (sym) {
         if (sym->value->kind == DECL_FUNC) {
-            f->func_decl = &sym->value->func_decl;
+            f->func_decl = sym->value->get_func_decl();
         } else {
             sema.error(f->pos,
                        fmt::format("'{}' is not a function", f->func_name->str()));
@@ -314,7 +314,7 @@ void NameBinder::visit_var_decl(VarDeclNode *v) {
 
     auto decl = sema.make_decl(VarDecl{v->name});
     sema.decl_table.insert(v->name, decl);
-    v->var_decl = &decl->var_decl;
+    v->var_decl = decl->get_var_decl();
 
     // struct member declarations are also parsed as VarDecls.
     if (v->kind == VarDeclNode::Kind::struct_) {
@@ -338,7 +338,7 @@ void NameBinder::visit_struct_decl(StructDeclNode *s) {
 
     auto decl = sema.make_decl(StructDecl{s->name});
     sema.decl_table.insert(s->name, decl);
-    s->struct_decl = &decl->struct_decl;
+    s->struct_decl = decl->get_struct_decl();
 
     // Decl table is used for checking redefinition when parsing the member
     // list.
@@ -361,7 +361,7 @@ void NameBinder::visit_func_decl(FuncDeclNode *f) {
 
     auto decl = sema.make_decl(FuncDecl{f->name});
     sema.decl_table.insert(f->name, decl);
-    f->func_decl = &decl->func_decl;
+    f->func_decl = decl->get_func_decl();
 
     sema.decl_table.scope_open(); // for argument variables
     sema.context.func_decl_stack.push_back(f->func_decl);
@@ -390,7 +390,7 @@ void TypeChecker::visit_assign_stmt(AssignStmt *as) {
 void TypeChecker::visit_integer_literal(IntegerLiteral *i) {
     auto int_name = sema.names.get("int");
     auto int_decl = sema.decl_table.find(int_name)->value;
-    i->type = int_decl->struct_decl.type;
+    i->type = int_decl->get_struct_decl()->type;
     assert(i->type);
 }
 
@@ -401,8 +401,8 @@ void TypeChecker::visit_string_literal(StringLiteral *s) {
 void TypeChecker::visit_decl_ref_expr(DeclRefExpr *d) {
     // Link the type already stored in the Decl object to the Expr's type.
     // @future: currently only handles VarDecls.
-    assert(d->decl->var_decl.type);
-    d->type = d->decl->var_decl.type;
+    assert(d->decl->get_var_decl()->type);
+    d->type = d->decl->get_var_decl()->type;
 }
 
 // MemberExprs cannot be namebinded completely without type checking (e.g.
@@ -416,8 +416,19 @@ void TypeChecker::visit_member_expr(MemberExpr *m) {
     // Then, check Decl if it is a struct, and has a member with the same name.
     // We need a way to polymorphically set the Decl member, no matter the
     // kind.
-    if (m->struct_expr->kind == ExprKind::unary) {
+    if (m->struct_expr->kind == ExprKind::decl_ref) {
+        auto d = static_cast<DeclRefExpr *>(m->struct_expr);
+
+        // TODO: Only DeclRefs of VarDecls are considered as of now.
+        assert(d->decl->kind == DECL_VAR);
+
+        // Make sure the LHS is actually a struct.
         sema.error(m->pos, "this is the case");
+    } else if (m->struct_expr->kind == ExprKind::func_call) {
+        // TODO
+        assert(false && "not implemented");
+    } else if (m->struct_expr->kind == ExprKind::member) {
+        // Chained member expression (a.b.c).
     }
 }
 
@@ -429,7 +440,7 @@ void TypeChecker::visit_type_expr(TypeExpr *t) {
         // t->decl should be non-null after the passing the name binding.
         // And, since we are currently doing single-pass (TODO), its type
         // should also be resolved by now.
-        t->type = t->decl->struct_decl.type;
+        t->type = t->decl->get_struct_decl()->type;
         assert(t->type);
     } else {
         assert(false && "whooops");

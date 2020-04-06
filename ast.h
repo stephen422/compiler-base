@@ -273,7 +273,7 @@ struct FuncCallExpr : public Expr {
 struct MemberExpr : public Expr {
     Expr *struct_expr = nullptr; // 'struct' part
     Name *member_name = nullptr; // 'mem' part
-    Decl *decl = nullptr;        // decl of 'mem'
+    VarDecl *var_decl = nullptr; // decl of 'mem'
 
     MemberExpr(Expr *e, Name *m)
         : Expr(ExprKind::member), struct_expr(e), member_name(m) {}
@@ -322,8 +322,7 @@ struct TypeExpr : public Expr {
     TypeExprKind kind;
     // Name of the type. TODO: should this contain '&' and '[]'?
     Name *name = nullptr;
-    // Decl object that represents this type.  Null if the type is not
-    // canonical, e.g. reference or an array.
+    // Decl object that represents this type.
     Decl *decl = nullptr;
     // Is this type mutable?
     bool mut = false;

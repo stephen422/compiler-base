@@ -19,7 +19,7 @@ namespace cmp {
 //
 // TODO: switch to union/variant?
 enum class TypeKind {
-    value,
+    value, // built-in, struct
     ref,
     array,
 };
@@ -98,6 +98,21 @@ struct Decl {
         }
     }
     std::string str() const;
+
+    // 'Unsafe' getter functions. Conveniently return pointers so that the
+    // convention of using '->' to access Decls is maintained.
+    VarDecl *get_var_decl() {
+        assert(kind == DECL_VAR);
+        return &var_decl;
+    }
+    StructDecl *get_struct_decl() {
+        assert(kind == DECL_TYPE);
+        return &struct_decl;
+    }
+    FuncDecl *get_func_decl() {
+        assert(kind == DECL_FUNC);
+        return &func_decl;
+    }
 };
 
 // Convenience cast function. Note that this works on a *pointer* to the Decl.
