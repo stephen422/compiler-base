@@ -292,6 +292,7 @@ struct UnaryExpr : public Expr {
 struct ParenExpr : public UnaryExpr {
     // ParenExprs may also have an associated Decl (e.g. (a).m).
     Decl *decl = nullptr;
+    // The 'inside' expression is stored in UnaryExpr::operand.
 
     ParenExpr(Expr *inside_expr)
         : UnaryExpr(UnaryExprKind::paren, inside_expr) {}
@@ -442,6 +443,7 @@ public:
     void visit_func_call_expr(FuncCallExpr *f);
     void visit_member_expr(MemberExpr *m);
     void visit_unary_expr(UnaryExpr *u);
+    void visit_paren_expr(ParenExpr *p);
     void visit_binary_expr(BinaryExpr *b);
     void visit_type_expr(TypeExpr *t);
 
@@ -622,7 +624,7 @@ template <typename Derived>
 void AstVisitor<Derived>::visit_unary_expr(UnaryExpr *u) {
     switch (u->unary_kind) {
     case UnaryExprKind::paren:
-        // do nothing
+        dis()->visit_paren_expr(static_cast<ParenExpr *>(u));
         break;
     case UnaryExprKind::address:
         // do nothing
@@ -634,6 +636,10 @@ void AstVisitor<Derived>::visit_unary_expr(UnaryExpr *u) {
         assert(false);
         break;
     }
+}
+template <typename Derived>
+void AstVisitor<Derived>::visit_paren_expr(ParenExpr *p) {
+    walk_paren_expr(*dis(), p);
 }
 template <typename Derived>
 void AstVisitor<Derived>::visit_binary_expr(BinaryExpr *b) {
@@ -733,6 +739,10 @@ void walk_func_call_expr(Visitor &v, FuncCallExpr *f) {
     for (auto arg : f->args) {
         v.visit_expr(arg);
     }
+}
+template <typename Visitor>
+void walk_paren_expr(Visitor &v, ParenExpr *p) {
+    v.visit_expr(p->operand);
 }
 template <typename Visitor>
 void walk_binary_expr(Visitor &v, BinaryExpr *b) {

@@ -376,17 +376,14 @@ void TypeChecker::visit_assign_stmt(AssignStmt *as) {
     walk_assign_stmt(*this, as);
 
     // XXX: is this the best way to early-exit?
-    if (!as->rhs->type || !as->lhs->type) {
-        fmt::print("lhs or rhs failed\n");
+    if (!as->rhs->type || !as->lhs->type)
         return;
-    }
 
     // Only allow exact equality for assignment for now (TODO).
-    if (as->rhs->type != as->lhs->type) {
+    if (as->rhs->type != as->lhs->type)
         sema.error(as->pos, fmt::format("cannot assign '{}' type to '{}'",
                                         as->rhs->type->name->str(),
                                         as->lhs->type->name->str()));
-    }
 }
 
 void TypeChecker::visit_integer_literal(IntegerLiteral *i) {
@@ -463,6 +460,28 @@ void TypeChecker::visit_member_expr(MemberExpr *m) {
         sema.error(m->pos, fmt::format("type '{}' is not a structure",
                                        m->struct_expr->type->name->str()));
     }
+}
+
+void TypeChecker::visit_paren_expr(ParenExpr *p) {
+    walk_paren_expr(*this, p);
+
+    if (!p->operand->type)
+        return;
+
+    p->type = p->operand->type;
+}
+
+void TypeChecker::visit_binary_expr(BinaryExpr *b) {
+    walk_binary_expr(*this, b);
+
+    if (!b->lhs->type || !b->rhs->type)
+        return;
+
+    if (b->lhs->type != b->rhs->type)
+        sema.error(
+            b->pos,
+            fmt::format("invalid operands to binary expression ('{}' and '{}')",
+                        b->lhs->type->name->str(), b->rhs->type->name->str()));
 }
 
 void TypeChecker::visit_type_expr(TypeExpr *t) {
