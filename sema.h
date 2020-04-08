@@ -30,10 +30,19 @@ struct Type {
     // The type that this type refers to.  If it is a non-reference type, this
     // should be null.
     Type *base_type = nullptr;
+    // Back-reference to the StructDecl whose type is this object.
+    StructDecl *struct_decl = nullptr;
 
-    Type(Name *n) : Type(TypeKind::value, n, nullptr) {}
-    Type(TypeKind k, Name *n, Type *v) : kind(k), name(n), base_type(v) {}
+    // Built-in types.
+    Type(Name *n) : Type(TypeKind::value, n, nullptr, nullptr) {}
+    Type(TypeKind k, Name *n, Type *v, StructDecl *s)
+        : kind(k), name(n), base_type(v), struct_decl(s) {}
     std::string str() const;
+
+    bool is_struct() const {
+        // TODO: should base_type be null too?
+        return struct_decl != nullptr;
+    }
 };
 
 // Declaration of a variable. Includes struct field variables.

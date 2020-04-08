@@ -9,7 +9,11 @@ struct Car {
 func main() {
     let car: Car
     car = 3 // [error: "cannot assign.*'int'.*'Car']
-    car.engine
+    3.engine // [error: "not a structure"]
+    car.wing // [error: "'wing'.*not.*member.*'Car']
+    // car.engine
+
+    car.engine = car
 
     (3 + 4).wheel = 5
 }

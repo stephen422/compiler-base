@@ -28,7 +28,7 @@ void Sema::error(size_t pos, const std::string &msg) {
 Type *getReferenceType(Sema &sema, Type *type) {
     Name *name = sema.names.get_or_add("&" + type->name->text);
     // FIXME: scope_level
-    Type ref_type{TypeKind::ref, name, type};
+    Type ref_type{TypeKind::ref, name, type, nullptr};
     if (auto found = sema.type_table.find(name))
         return &found->value;
     return sema.type_table.insert(name, ref_type);
@@ -412,23 +412,53 @@ void TypeChecker::visit_member_expr(MemberExpr *m) {
     // Propagate from left to right (struct->mem).
     walk_member_expr(*this, m);
 
-    // TODO: First, decl-resolve the LHS (struct).
-    // Then, check Decl if it is a struct, and has a member with the same name.
-    // We need a way to polymorphically set the Decl member, no matter the
-    // kind.
+    // If the LHS side failed to typecheck, we cannot proceed.
+    if (!m->struct_expr->type)
+        return;
+
+    // @Cleanup: if-else chain here seems bulky. Is there any other place that
+    // repeats this pattern?
     if (m->struct_expr->kind == ExprKind::decl_ref) {
         auto d = static_cast<DeclRefExpr *>(m->struct_expr);
 
-        // TODO: Only DeclRefs of VarDecls are considered as of now.
+        // XXX: Only DeclRefs of VarDecls are considered as of now.
         assert(d->decl->kind == DECL_VAR);
 
         // Make sure the LHS is actually a struct.
-        sema.error(m->pos, "this is the case");
+        // TODO: what about a reference to a struct?
+        auto lhs_type = d->decl->get_var_decl()->type;
+        if (lhs_type->is_struct()) {
+            // Search for a member with the same name.
+            for (auto mem_decl : lhs_type->struct_decl->fields)
+                if (m->member_name == mem_decl->name)
+                    m->var_decl = mem_decl;
+
+            if (!m->var_decl) {
+                // TODO: pos for member
+                sema.error(m->struct_expr->pos,
+                           fmt::format("'{}' is not a member of '{}'",
+                                       m->member_name->str(),
+                                       lhs_type->name->str()));
+                return;
+            }
+
+            // Since the VarDecls for the fields are already typechecked, just
+            // copying over the VarDecl pointer completes typecheck for this
+            // MemberExpr.
+            assert(m->var_decl->type);
+        } else {
+            sema.error(m->struct_expr->pos,
+                       fmt::format("type {} is not a structure",
+                                   lhs_type->name->str()));
+        }
     } else if (m->struct_expr->kind == ExprKind::func_call) {
-        // TODO
+        // TODO: f().mem
         assert(false && "not implemented");
     } else if (m->struct_expr->kind == ExprKind::member) {
         // Chained member expression (a.b.c).
+    } else {
+        sema.error(m->pos, fmt::format("type '{}' is not a structure",
+                                       m->struct_expr->type->name->str()));
     }
 }
 
@@ -451,7 +481,7 @@ void TypeChecker::visit_struct_decl(StructDeclNode *s) {
     walk_struct_decl(*this, s);
 
     // Create a new type for this struct.
-    auto type = sema.make_type(TypeKind::value, s->name, nullptr);
+    auto type = sema.make_type(TypeKind::value, s->name, nullptr, s->struct_decl);
     // XXX: no need to insert to type table?
     s->struct_decl->type = type;
 }
