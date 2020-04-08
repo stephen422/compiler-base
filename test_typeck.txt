@@ -11,9 +11,9 @@ func main() {
     car = 3 // [error: "cannot assign.*'int'.*'Car']
     3.engine // [error: "not a structure"]
     car.wing // [error: "'wing'.*not.*member.*'Car']
-    // car.engine
+    car.engine
 
     car.engine = car
 
-    (3 + 4).wheel = 5
+    // (3 + 4).wheel = 5
 }

@@ -376,8 +376,10 @@ void TypeChecker::visit_assign_stmt(AssignStmt *as) {
     walk_assign_stmt(*this, as);
 
     // XXX: is this the best way to early-exit?
-    if (!as->rhs->type || !as->lhs->type)
+    if (!as->rhs->type || !as->lhs->type) {
+        fmt::print("lhs or rhs failed\n");
         return;
+    }
 
     // Only allow exact equality for assignment for now (TODO).
     if (as->rhs->type != as->lhs->type) {
@@ -412,7 +414,7 @@ void TypeChecker::visit_member_expr(MemberExpr *m) {
     // Propagate from left to right (struct->mem).
     walk_member_expr(*this, m);
 
-    // If the LHS side failed to typecheck, we cannot proceed.
+    // If the struct side failed to typecheck, we cannot proceed.
     if (!m->struct_expr->type)
         return;
 
@@ -443,9 +445,10 @@ void TypeChecker::visit_member_expr(MemberExpr *m) {
             }
 
             // Since the VarDecls for the fields are already typechecked, just
-            // copying over the VarDecl pointer completes typecheck for this
+            // copying over the type of the VarDecl completes typecheck for this
             // MemberExpr.
             assert(m->var_decl->type);
+            m->type = m->var_decl->type;
         } else {
             sema.error(m->struct_expr->pos,
                        fmt::format("type {} is not a structure",
