@@ -246,7 +246,7 @@ void NameBinder::visit_decl_ref_expr(DeclRefExpr *d) {
     // TODO: only accept Decls with var type.
     // TODO: functions as variables?
     auto sym = sema.decl_table.find(d->name);
-    if (sym && std::holds_alternative<VarDecl *>(sym->value)) {
+    if (sym && decl_is<VarDecl *>(sym->value)) {
         d->decl = sym->value;
     } else {
         sema.error(d->pos, fmt::format("use of undeclared identifier '{}'",
@@ -257,8 +257,8 @@ void NameBinder::visit_decl_ref_expr(DeclRefExpr *d) {
 void NameBinder::visit_func_call_expr(FuncCallExpr *f) {
     auto sym = sema.decl_table.find(f->func_name);
     if (sym) {
-        if (std::holds_alternative<FuncDecl *>(sym->value)) {
-            f->func_decl = std::get<FuncDecl *>(sym->value);
+        if (decl_is<FuncDecl *>(sym->value)) {
+            f->func_decl = get<FuncDecl *>(sym->value);
         } else {
             sema.error(f->pos,
                        fmt::format("'{}' is not a function", f->func_name->str()));
@@ -298,7 +298,7 @@ void NameBinder::visit_type_expr(TypeExpr *t) {
 
     // XXX: only do this for value types?
     auto sym = sema.decl_table.find(t->name);
-    if (sym && std::holds_alternative<StructDecl *>(sym->value)) {
+    if (sym && decl_is<StructDecl *>(sym->value)) {
         assert(t->kind == TypeExprKind::value);
         t->decl = sym->value;
     } else {
@@ -312,7 +312,7 @@ void NameBinder::visit_var_decl(VarDeclNode *v) {
     walk_var_decl(*this, v);
 
     auto found = sema.decl_table.find(v->name);
-    if (found && std::holds_alternative<VarDecl *>(found->value) &&
+    if (found && decl_is<VarDecl *>(found->value) &&
         found->scope_level <= sema.decl_table.scope_level) {
         sema.error(v->pos, fmt::format("redefinition of '{}'", v->name->str()));
         return;
@@ -335,7 +335,7 @@ void NameBinder::visit_var_decl(VarDeclNode *v) {
 
 void NameBinder::visit_struct_decl(StructDeclNode *s) {
     auto found = sema.decl_table.find(s->name);
-    if (found && std::holds_alternative<StructDecl *>(found->value) &&
+    if (found && decl_is<StructDecl *>(found->value) &&
         found->scope_level <= sema.decl_table.scope_level) {
         sema.error(s->pos, fmt::format("redefinition of '{}'", s->name->str()));
         return;
@@ -357,7 +357,7 @@ void NameBinder::visit_struct_decl(StructDeclNode *s) {
 
 void NameBinder::visit_func_decl(FuncDeclNode *f) {
     auto found = sema.decl_table.find(f->name);
-    if (found && std::holds_alternative<FuncDecl *>(found->value) &&
+    if (found && decl_is<FuncDecl *>(found->value) &&
         found->scope_level <= sema.decl_table.scope_level) {
         sema.error(f->pos, fmt::format("redefinition of '{}'", f->name->str()));
         return;
@@ -392,7 +392,7 @@ void TypeChecker::visit_assign_stmt(AssignStmt *as) {
 void TypeChecker::visit_integer_literal(IntegerLiteral *i) {
     auto int_name = sema.names.get("int");
     auto int_decl =
-        std::get<StructDecl *>(sema.decl_table.find(int_name)->value);
+        get<StructDecl *>(sema.decl_table.find(int_name)->value);
     i->type = int_decl->type;
     assert(i->type);
 }
@@ -404,7 +404,7 @@ void TypeChecker::visit_string_literal(StringLiteral *s) {
 void TypeChecker::visit_decl_ref_expr(DeclRefExpr *d) {
     // Link the type already stored in the Decl object to the Expr's type.
     // @future: currently only handles VarDecls.
-    auto var_decl = std::get<VarDecl *>(d->decl);
+    auto var_decl = get<VarDecl *>(d->decl);
     assert(var_decl->type);
     d->type = var_decl->type;
 }
@@ -426,11 +426,11 @@ void TypeChecker::visit_member_expr(MemberExpr *m) {
         auto d = static_cast<DeclRefExpr *>(m->struct_expr);
 
         // XXX: Only DeclRefs of VarDecls are considered as of now.
-        assert(std::holds_alternative<VarDecl *>(d->decl));
+        assert(decl_is<VarDecl *>(d->decl));
 
         // Make sure the LHS is actually a struct.
         // TODO: what about a reference to a struct?
-        auto lhs_type = std::get<VarDecl *>(d->decl)->type;
+        auto lhs_type = get<VarDecl *>(d->decl)->type;
         if (lhs_type->is_struct()) {
             // Search for a member with the same name.
             for (auto mem_decl : lhs_type->struct_decl->fields)
@@ -497,7 +497,7 @@ void TypeChecker::visit_type_expr(TypeExpr *t) {
         // t->decl should be non-null after the passing the name binding.
         // And, since we are currently doing single-pass (TODO), its type
         // should also be resolved by now.
-        t->type = std::get<StructDecl *>(t->decl)->type;
+        t->type = get<StructDecl *>(t->decl)->type;
         assert(t->type);
     } else {
         assert(false && "whooops");

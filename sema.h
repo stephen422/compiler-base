@@ -80,8 +80,10 @@ struct FuncDecl {
 // the 'type' member of a StructDecl?
 using Decl = std::variant<VarDecl *, StructDecl *, FuncDecl *>;
 
-// Convenience cast function. Note that this works on a *pointer* to the Decl.
-// template <typename T> T *decl_cast(Decl *d) { return &std::get<T>(*d); }
+using std::get;
+template <typename T> bool decl_is(const Decl &decl) {
+    return std::holds_alternative<T>(decl);
+}
 
 struct Context {
     // Current enclosing struct decl.
