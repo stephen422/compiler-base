@@ -78,51 +78,7 @@ struct FuncDecl {
 // redefinition.
 // TODO: Clarify the definition. Should type names have a Decl too?  What is
 // the 'type' member of a StructDecl?
-// using Decl = std::variant<VarDecl, StructDecl>;
-enum DeclKind { DECL_VAR, DECL_TYPE, DECL_FUNC };
-struct Decl {
-    DeclKind kind;
-    union {
-        VarDecl var_decl;
-        StructDecl struct_decl;
-        FuncDecl func_decl;
-    };
-
-    Decl(const VarDecl &v) : kind(DECL_VAR), var_decl(v) {}
-    Decl(const StructDecl &s) : kind(DECL_TYPE), struct_decl(s) {}
-    Decl(const FuncDecl &f) : kind(DECL_FUNC), func_decl(f) {}
-    ~Decl() {
-        switch (kind) {
-        case DECL_VAR:
-            var_decl.~VarDecl();
-            break;
-        case DECL_TYPE:
-            struct_decl.~StructDecl();
-            break;
-        case DECL_FUNC:
-            func_decl.~FuncDecl();
-            break;
-        default:
-            assert(false);
-        }
-    }
-    std::string str() const;
-
-    // 'Unsafe' getter functions. Conveniently return pointers so that the
-    // convention of using '->' to access Decls is maintained.
-    VarDecl *get_var_decl() {
-        assert(kind == DECL_VAR);
-        return &var_decl;
-    }
-    StructDecl *get_struct_decl() {
-        assert(kind == DECL_TYPE);
-        return &struct_decl;
-    }
-    FuncDecl *get_func_decl() {
-        assert(kind == DECL_FUNC);
-        return &func_decl;
-    }
-};
+using Decl = std::variant<VarDecl *, StructDecl *, FuncDecl *>;
 
 // Convenience cast function. Note that this works on a *pointer* to the Decl.
 // template <typename T> T *decl_cast(Decl *d) { return &std::get<T>(*d); }
@@ -177,7 +133,7 @@ struct Sema {
     NameTable &names;               // name table
     std::vector<Decl *> decl_pool;  // memory pool for decls
     std::vector<Type *> type_pool;  // memory pool for types
-    ScopedTable<Decl *> decl_table; // scoped declaration table
+    ScopedTable<Decl> decl_table; // scoped declaration table
     ScopedTable<Type> type_table;   // scoped type table
     Context context;
     std::vector<Error> errors;  // error list
@@ -197,10 +153,13 @@ struct Sema {
     bool verify() const;
 
     // Allocator function for Decls and Types.
-    template <typename T> Decl *make_decl(const T &d) {
-        Decl *decl = new Decl{d};
-        decl_pool.push_back(decl);
-        return decl;
+    template <typename T, typename... Args> T *make_decl(T &&t) {
+        using DeclMemBlock = std::variant<VarDecl, StructDecl, FuncDecl>;
+        DeclMemBlock *mem_block = new DeclMemBlock(t);
+        // decl_pool.push_back(decl);
+        return &std::get<T>(*mem_block);
+        // Decl *decl = new Decl{d};
+        // return decl;
     }
     template <typename... Args> Type *make_type(Args &&... args) {
         Type *t = new Type{std::forward<Args>(args)...};
@@ -235,6 +194,7 @@ public:
     void visit_compound_stmt(CompoundStmt *cs);
     void visit_decl_ref_expr(DeclRefExpr *d);
     void visit_func_call_expr(FuncCallExpr *f);
+    void visit_paren_expr(ParenExpr *p);
     void visit_type_expr(TypeExpr *t);
     void visit_var_decl(VarDeclNode *v);
     void visit_struct_decl(StructDeclNode *s);

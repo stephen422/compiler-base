@@ -6,6 +6,7 @@
 #include <iostream>
 #include <memory>
 #include <unordered_map>
+#include <variant> // FIXME
 
 namespace cmp {
 
@@ -25,10 +26,10 @@ struct Expr;
 struct DeclNode;
 struct FuncDeclNode;
 struct Type;
-struct Decl;
 struct FuncDecl;
 struct VarDecl;
 struct StructDecl;
+using Decl = std::variant<VarDecl *, StructDecl *, FuncDecl *>;
 
 // 'Name' corresponds to a single unique identifier string in the source text.
 // There may be multiple occurrences of a string in the source text, but only
@@ -251,7 +252,7 @@ struct StringLiteral : public Expr {
 // a function.
 struct DeclRefExpr : public Expr {
     Name *name = nullptr;
-    Decl *decl = nullptr;
+    Decl decl;
 
     DeclRefExpr(Name *name)
         : Expr(ExprKind::decl_ref), name(name) {}
@@ -291,7 +292,7 @@ struct UnaryExpr : public Expr {
 
 struct ParenExpr : public UnaryExpr {
     // ParenExprs may also have an associated Decl (e.g. (a).m).
-    Decl *decl = nullptr;
+    Decl decl;
     // The 'inside' expression is stored in UnaryExpr::operand.
 
     ParenExpr(Expr *inside_expr)
@@ -324,7 +325,7 @@ struct TypeExpr : public Expr {
     // Name of the type. TODO: should this contain '&' and '[]'?
     Name *name = nullptr;
     // Decl object that represents this type.
-    Decl *decl = nullptr;
+    Decl decl;
     // Is this type mutable?
     bool mut = false;
     // 'T' part of '&T'.  It is Expr rather than TypeExpr mainly so that it can
