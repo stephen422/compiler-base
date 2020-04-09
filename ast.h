@@ -221,6 +221,8 @@ struct Expr : public AstNode {
     // pointer should be maintained the same as decl->type, so that expr->type
     // becomes the unified way to retrieve the type of an expression.
     Type *type = nullptr;
+    // TODO: I think this function is somehow related to lvalue determination.
+    std::optional<Decl> decl() const;
 
     Expr(ExprKind e) : AstNode(AstKind::expr), kind(e) {}
 };
@@ -291,13 +293,13 @@ struct UnaryExpr : public Expr {
 };
 
 struct ParenExpr : public UnaryExpr {
-    // ParenExprs may also have an associated Decl (e.g. (a).m).
-    Decl decl;
     // The 'inside' expression is stored in UnaryExpr::operand.
 
     ParenExpr(Expr *inside_expr)
         : UnaryExpr(UnaryExprKind::paren, inside_expr) {}
     void print() const override;
+    // ParenExprs may also have an associated Decl (e.g. (a).m).
+    std::optional<Decl> decl() const { return operand->decl(); }
 };
 
 struct BinaryExpr : public Expr {

@@ -198,12 +198,10 @@ void setup_builtin_types(Sema &s) {
 }
 
 Sema::~Sema() {
-    for (auto d : decl_pool) {
+    for (auto d : decl_pool)
         delete d;
-    }
-    for (auto t : type_pool) {
+    for (auto t : type_pool)
         delete t;
-    }
 }
 
 // FIXME: lifetime of p.lexer.source() and p.names?
@@ -280,13 +278,6 @@ void NameBinder::visit_func_call_expr(FuncCallExpr *f) {
                                     f->func_name->str(), f->func_decl->args_count(),
                                     f->args.size()));
     }
-}
-
-void NameBinder::visit_paren_expr(ParenExpr *p) {
-    walk_paren_expr(*this, p);
-
-    // TODO: We need to retrieve the Decl from all the different types of Expr,
-    // here.
 }
 
 void NameBinder::visit_type_expr(TypeExpr *t) {
@@ -429,7 +420,7 @@ void TypeChecker::visit_member_expr(MemberExpr *m) {
         assert(decl_is<VarDecl *>(d->decl));
 
         // Make sure the LHS is actually a struct.
-        // TODO: what about a reference to a struct?
+        // TODO: All AST types that has a decl() goes in here.
         auto lhs_type = get<VarDecl *>(d->decl)->type;
         if (lhs_type->is_struct()) {
             // Search for a member with the same name.

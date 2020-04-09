@@ -195,4 +195,27 @@ void BadStmt::print() const { out() << "[BadStmt]\n"; }
 void BadDeclNode::print() const { out() << "[BadDecl]\n"; }
 void BadExpr::print() const { out() << "[BadExpr]\n"; }
 
+std::optional<Decl> Expr::decl() const {
+    switch (kind) {
+    case ExprKind::decl_ref:
+        return static_cast<const DeclRefExpr *>(this)->decl;
+        break;
+    case ExprKind::func_call:
+        return static_cast<const FuncCallExpr *>(this)->func_decl;
+        break;
+    case ExprKind::member:
+        return static_cast<const MemberExpr *>(this)->var_decl;
+        break;
+    case ExprKind::unary: {
+        auto u = static_cast<const UnaryExpr *>(this);
+        if (u->unary_kind == UnaryExprKind::paren)
+            return static_cast<const ParenExpr *>(u)->decl();
+        break;
+    }
+    default:
+        break;
+    }
+    return {};
+}
+
 } // namespace cmp

@@ -196,7 +196,6 @@ public:
     void visit_compound_stmt(CompoundStmt *cs);
     void visit_decl_ref_expr(DeclRefExpr *d);
     void visit_func_call_expr(FuncCallExpr *f);
-    void visit_paren_expr(ParenExpr *p);
     void visit_type_expr(TypeExpr *t);
     void visit_var_decl(VarDeclNode *v);
     void visit_struct_decl(StructDeclNode *s);
