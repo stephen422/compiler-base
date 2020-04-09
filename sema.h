@@ -131,12 +131,14 @@ class Parser;
 // Stores all of the semantic information necessary for semantic analysis
 // phase.
 struct Sema {
-    const Source &source;           // source text
-    NameTable &names;               // name table
-    std::vector<Decl *> decl_pool;  // memory pool for decls
-    std::vector<Type *> type_pool;  // memory pool for types
-    ScopedTable<Decl> decl_table; // scoped declaration table
-    ScopedTable<Type> type_table;   // scoped type table
+    using DeclMemBlock = std::variant<VarDecl, StructDecl, FuncDecl>;
+
+    const Source &source;                  // source text
+    NameTable &names;                      // name table
+    std::vector<DeclMemBlock *> decl_pool; // memory pool for decls
+    std::vector<Type *> type_pool;         // memory pool for types
+    ScopedTable<Decl> decl_table;          // scoped declaration table
+    ScopedTable<Type> type_table;          // scoped type table
     Context context;
     std::vector<Error> errors;  // error list
     std::vector<Error> beacons; // error beacon list
@@ -156,12 +158,10 @@ struct Sema {
 
     // Allocator function for Decls and Types.
     template <typename T, typename... Args> T *make_decl(T &&t) {
-        using DeclMemBlock = std::variant<VarDecl, StructDecl, FuncDecl>;
         DeclMemBlock *mem_block = new DeclMemBlock(t);
-        // decl_pool.push_back(decl);
-        return &std::get<T>(*mem_block);
-        // Decl *decl = new Decl{d};
-        // return decl;
+        decl_pool.push_back(mem_block);
+        auto ptr = &std::get<T>(*decl_pool.back());
+        return ptr;
     }
     template <typename... Args> Type *make_type(Args &&... args) {
         Type *t = new Type{std::forward<Args>(args)...};
