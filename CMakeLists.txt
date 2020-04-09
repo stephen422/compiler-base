@@ -11,8 +11,8 @@ endif()
 
 target_compile_features(cmp PUBLIC cxx_std_17)
 target_compile_options(cmp PRIVATE -Wall -Wextra -Wno-unused-parameter
-  -fno-omit-frame-pointer -fdiagnostics-color=always "$<$<CONFIG:DEBUG>:-ggdb>")
-target_link_libraries(cmp PRIVATE -fno-omit-frame-pointer)
+  -fno-omit-frame-pointer -fdiagnostics-color=always "$<$<CONFIG:DEBUG>:-ggdb>" -stdlib=libc++)
+target_link_libraries(cmp PRIVATE -fno-omit-frame-pointer -stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -Wl,-rpath=$ENV{HOME}/build/llvm/lib)
 
 # Selectively use LLD on Linux
 if(UNIX AND NOT APPLE)
