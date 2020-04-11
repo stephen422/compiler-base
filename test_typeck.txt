@@ -6,16 +6,23 @@ struct Car {
     wheel: int,
 }
 
+func f() -> Car {
+}
+
 func main() {
     let car: Car
-    car = 3 // [error: "cannot assign.*'int'.*'Car']
+    car = 3 // [error: "cannot assign.*'int'.*'Car'"]
     3.engine // [error: "not a structure"]
-    car.wing // [error: "'wing'.*not.*member.*'Car']
+    car.wing // [error: "'wing'.*not.*member.*'Car'"]
     car.engine
 
-    car.engine = car
+    car.engine = car // [error: "cannot assign.*'Car'.*'int'"]
 
-    (3 + car)
-    (3 + car).wheel
+    (3 + car) // [error: "incompatible.*binary.*'int'.*'Car'"]
+    (3 + car).wheel // [error: "incompatible.*binary.*'int'.*'Car'"]
     (car).wheel
+
+    car = f()
+    let i: int
+    i = f() // [error: "cannot assign.*'Car'.*'int'"]
 }

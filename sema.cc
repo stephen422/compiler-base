@@ -252,31 +252,32 @@ void NameBinder::visit_decl_ref_expr(DeclRefExpr *d) {
     }
 }
 
+// Only binds the function name part of the call, e.g. 'func' of func().
 void NameBinder::visit_func_call_expr(FuncCallExpr *f) {
+    // resolve function name
     auto sym = sema.decl_table.find(f->func_name);
-    if (sym) {
-        if (decl_is<FuncDecl *>(sym->value)) {
-            f->func_decl = get<FuncDecl *>(sym->value);
-        } else {
-            sema.error(f->pos,
-                       fmt::format("'{}' is not a function", f->func_name->str()));
-            return;
-        }
-    } else {
+    if (!sym) {
+        sema.error(f->pos, fmt::format("undeclared function '{}'",
+                                       f->func_name->str()));
+        return;
+    }
+    if (!decl_is<FuncDecl *>(sym->value)) {
         sema.error(f->pos,
-                   fmt::format("undeclared function '{}'", f->func_name->str()));
+                   fmt::format("'{}' is not a function", f->func_name->str()));
         return;
     }
 
-    walk_func_call_expr(*this, f);
-
+    f->func_decl = get<FuncDecl *>(sym->value);
     assert(f->func_decl);
+
+    walk_func_call_expr(*this, f);
 
     // check if argument count matches
     if (f->func_decl->args_count() != f->args.size()) {
-        sema.error(f->pos, fmt::format("'{}' accepts {} arguments, got {}",
-                                    f->func_name->str(), f->func_decl->args_count(),
-                                    f->args.size()));
+        sema.error(f->pos,
+                   fmt::format("'{}' accepts {} arguments, got {}",
+                               f->func_name->str(), f->func_decl->args_count(),
+                               f->args.size()));
     }
 }
 
@@ -400,6 +401,43 @@ void TypeChecker::visit_decl_ref_expr(DeclRefExpr *d) {
     d->type = var_decl->type;
 }
 
+// The VarDecl of a function call's return value is temporary.  Only when it is
+// binded to a variable does it become accessible from later positions in the
+// code.
+//
+// How do we model this temporariness?  Let's think in terms of lifetimes
+// ('ribs' in Rust). A function return value is a value whose lifetime starts
+// and ends in the same statement.
+//
+// For now, the tool that we can use for starting and ending a Decl's lifetime
+// is scopes.  Therefore, if we reshape this problem into something that
+// involves a variable that lives in a microscopic scope confined in a single
+// statement, we can model the temporary lifetime:
+//
+//     let v = f()
+//  -> let v = { var temp = f() }
+//
+// Normally, this micro scope thing would only be needed if a statement
+// contains a function call (or any other kind of expressions that spawn a
+// temporary Decl).  However, we cannot know this when we are visiting the
+// encompassing statement node unless we do some look-ahead.  So we just do
+// this pushing and popping of micro scopes for every kind of statements.  This
+// indicates that the scope_open/scope_close function should be implemented
+// reasonably efficiently.
+//
+// Some interesting cases to think about:
+//
+// * let v = f()
+// * let v = (f())
+// * let v = f().mem
+//
+void TypeChecker::visit_func_call_expr(FuncCallExpr *f) {
+    walk_func_call_expr(*this, f);
+
+    assert(f->func_decl->return_type);
+    f->type = f->func_decl->return_type;
+}
+
 // MemberExprs cannot be namebinded completely without type checking (e.g.
 // func().mem).  So we defer their namebinding to the type checking phase,
 // which is done here.
@@ -414,14 +452,14 @@ void TypeChecker::visit_member_expr(MemberExpr *m) {
     // @Cleanup: if-else chain here seems bulky. Is there any other place that
     // repeats this pattern?
     if (m->struct_expr->kind == ExprKind::decl_ref) {
-        auto d = static_cast<DeclRefExpr *>(m->struct_expr);
+        auto lhs_expr = static_cast<DeclRefExpr *>(m->struct_expr);
 
         // XXX: Only DeclRefs of VarDecls are considered as of now.
-        assert(decl_is<VarDecl *>(d->decl));
+        assert(decl_is<VarDecl *>(lhs_expr->decl));
 
         // Make sure the LHS is actually a struct.
         // TODO: All AST types that has a decl() goes in here.
-        auto lhs_type = get<VarDecl *>(d->decl)->type;
+        auto lhs_type = get<VarDecl *>(lhs_expr->decl)->type;
         if (lhs_type->is_struct()) {
             // Search for a member with the same name.
             for (auto mem_decl : lhs_type->struct_decl->fields)
@@ -476,8 +514,9 @@ void TypeChecker::visit_binary_expr(BinaryExpr *b) {
     if (b->lhs->type != b->rhs->type)
         sema.error(
             b->pos,
-            fmt::format("invalid operands to binary expression ('{}' and '{}')",
-                        b->lhs->type->name->str(), b->rhs->type->name->str()));
+            fmt::format(
+                "incompatible types to binary expression ('{}' and '{}')",
+                b->lhs->type->name->str(), b->rhs->type->name->str()));
 }
 
 void TypeChecker::visit_type_expr(TypeExpr *t) {
@@ -495,15 +534,6 @@ void TypeChecker::visit_type_expr(TypeExpr *t) {
     }
 }
 
-void TypeChecker::visit_struct_decl(StructDeclNode *s) {
-    walk_struct_decl(*this, s);
-
-    // Create a new type for this struct.
-    auto type = sema.make_type(TypeKind::value, s->name, nullptr, s->struct_decl);
-    // XXX: no need to insert to type table?
-    s->struct_decl->type = type;
-}
-
 void TypeChecker::visit_var_decl(VarDeclNode *v) {
     walk_var_decl(*this, v);
 
@@ -517,6 +547,28 @@ void TypeChecker::visit_var_decl(VarDeclNode *v) {
     } else {
         assert(false && "unreachable");
     }
+}
+
+void TypeChecker::visit_struct_decl(StructDeclNode *s) {
+    walk_struct_decl(*this, s);
+
+    // Create a new type for this struct.
+    auto type =
+        sema.make_type(TypeKind::value, s->name, nullptr, s->struct_decl);
+    // XXX: no need to insert to type table?
+    s->struct_decl->type = type;
+}
+
+void TypeChecker::visit_func_decl(FuncDeclNode *f) {
+    walk_func_decl(*this, f);
+
+    if (f->ret_type_expr) {
+        if (!f->ret_type_expr->type)
+            return;
+        f->func_decl->return_type = f->ret_type_expr->type;
+    }
+
+    // TODO: return type check from ReturnStmts
 }
 
 } // namespace cmp

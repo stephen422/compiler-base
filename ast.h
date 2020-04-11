@@ -263,8 +263,11 @@ struct DeclRefExpr : public Expr {
 
 struct FuncCallExpr : public Expr {
     Name *func_name = nullptr;
-    FuncDecl *func_decl = nullptr;
     std::vector<Expr *> args;
+    // Decl for the function name, 'func'.
+    FuncDecl *func_decl = nullptr;
+    // Decl for the return value, 'func()'.
+    VarDecl *var_decl = nullptr;
 
     FuncCallExpr(Name *name, const std::vector<Expr *> &args)
         : Expr(ExprKind::func_call), func_name(name),
@@ -682,7 +685,6 @@ void walk_var_decl(Visitor &v, VarDeclNode *var) {
     if (var->assign_expr) {
         v.visit_expr(var->assign_expr);
     } else if (var->type_expr) {
-        // XXX again, Type'Expr'?
         v.visit_type_expr(static_cast<TypeExpr *>(var->type_expr));
     } else {
         assert(false && "unreachable");
@@ -731,17 +733,15 @@ template <typename Visitor>
 void walk_if_stmt(Visitor &v, IfStmt *is) {
     v.visit_expr(is->cond);
     v.visit_compound_stmt(is->cstmt_true);
-    if (is->elseif) {
+    if (is->elseif)
         v.visit_if_stmt(is->elseif);
-    } else if (is->cstmt_false) {
+    else if (is->cstmt_false)
         v.visit_compound_stmt(is->cstmt_false);
-    }
 }
 template <typename Visitor>
 void walk_func_call_expr(Visitor &v, FuncCallExpr *f) {
-    for (auto arg : f->args) {
+    for (auto arg : f->args)
         v.visit_expr(arg);
-    }
 }
 template <typename Visitor>
 void walk_paren_expr(Visitor &v, ParenExpr *p) {
@@ -758,9 +758,8 @@ void walk_member_expr(Visitor &v, MemberExpr *m) {
 }
 template <typename Visitor>
 void walk_type_expr(Visitor &v, TypeExpr *t) {
-    if (t->subexpr) {
+    if (t->subexpr)
         v.visit_expr(t->subexpr);
-    }
 }
 
 } // namespace cmp

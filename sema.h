@@ -213,12 +213,14 @@ public:
     void visit_integer_literal(IntegerLiteral *i);
     void visit_string_literal(StringLiteral *s);
     void visit_decl_ref_expr(DeclRefExpr *d);
+    void visit_func_call_expr(FuncCallExpr *f);
     void visit_member_expr(MemberExpr *m);
     void visit_paren_expr(ParenExpr *p);
     void visit_binary_expr(BinaryExpr *b);
     void visit_type_expr(TypeExpr *t);
     void visit_var_decl(VarDeclNode *v);
     void visit_struct_decl(StructDeclNode *s);
+    void visit_func_decl(FuncDeclNode *f);
 };
 
 } // namespace cmp
