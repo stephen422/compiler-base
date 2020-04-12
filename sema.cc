@@ -266,7 +266,6 @@ void NameBinder::visit_func_call_expr(FuncCallExpr *f) {
                    fmt::format("'{}' is not a function", f->func_name->str()));
         return;
     }
-
     f->func_decl = get<FuncDecl *>(sym->value);
     assert(f->func_decl);
 
@@ -279,6 +278,9 @@ void NameBinder::visit_func_call_expr(FuncCallExpr *f) {
                                f->func_name->str(), f->func_decl->args_count(),
                                f->args.size()));
     }
+
+    // make decl for the return value
+    f->var_decl = sema.make_decl<VarDecl>(nullptr);
 }
 
 void NameBinder::visit_type_expr(TypeExpr *t) {
@@ -434,6 +436,7 @@ void TypeChecker::visit_func_call_expr(FuncCallExpr *f) {
     walk_func_call_expr(*this, f);
 
     assert(f->func_decl->return_type);
+    f->var_decl->type = f->func_decl->return_type;
     f->type = f->func_decl->return_type;
 }
 
@@ -448,54 +451,41 @@ void TypeChecker::visit_member_expr(MemberExpr *m) {
     if (!m->struct_expr->type)
         return;
 
-    if (m->struct_expr->decl()->index()) {
+    if (!m->struct_expr->decl()) {
+        sema.error(m->struct_expr->pos,
+                   fmt::format("type {} is not a struct",
+                               m->struct_expr->type->name->str()));
+        return;
     }
 
-    // @Cleanup: if-else chain here seems bulky. Is there any other place that
-    // repeats this pattern?
-    if (m->struct_expr->kind == ExprKind::decl_ref) {
-        auto lhs_expr = static_cast<DeclRefExpr *>(m->struct_expr);
+    assert(decl_is<VarDecl *>(*m->struct_expr->decl()));
+    auto lhs_type = get<VarDecl *>(*m->struct_expr->decl())->type;
 
-        // XXX: Only DeclRefs of VarDecls are considered as of now.
-        assert(decl_is<VarDecl *>(lhs_expr->var_decl));
-
-        // Make sure the LHS is actually a struct.
-        // TODO: All AST types that has a decl() goes in here.
-        auto lhs_type = lhs_expr->var_decl->type;
-        if (lhs_type->is_struct()) {
-            // Search for a member with the same name.
-            for (auto mem_decl : lhs_type->struct_decl->fields)
-                if (m->member_name == mem_decl->name)
-                    m->var_decl = mem_decl;
-
-            if (!m->var_decl) {
-                // TODO: pos for member
-                sema.error(m->struct_expr->pos,
-                           fmt::format("'{}' is not a member of '{}'",
-                                       m->member_name->str(),
-                                       lhs_type->name->str()));
-                return;
-            }
-
-            // Since the VarDecls for the fields are already typechecked, just
-            // copying over the type of the VarDecl completes typecheck for this
-            // MemberExpr.
-            assert(m->var_decl->type);
-            m->type = m->var_decl->type;
-        } else {
-            sema.error(m->struct_expr->pos,
-                       fmt::format("type {} is not a structure",
-                                   lhs_type->name->str()));
-        }
-    } else if (m->struct_expr->kind == ExprKind::func_call) {
-        // TODO: f().mem
-        assert(false && "not implemented");
-    } else if (m->struct_expr->kind == ExprKind::member) {
-        // Chained member expression (a.b.c).
-    } else {
-        sema.error(m->pos, fmt::format("type '{}' is not a structure",
-                                       m->struct_expr->type->name->str()));
+    // make sure the LHS is actually a struct
+    if (!lhs_type->is_struct()) {
+        sema.error(
+            m->struct_expr->pos,
+            fmt::format("type {} is not a structure", lhs_type->name->str()));
+        return;
     }
+
+    // find the member with the same name
+    for (auto mem_decl : lhs_type->struct_decl->fields)
+        if (m->member_name == mem_decl->name)
+            m->var_decl = mem_decl;
+    if (!m->var_decl) {
+        // TODO: pos for member
+        sema.error(m->struct_expr->pos,
+                   fmt::format("'{}' is not a member of '{}'",
+                               m->member_name->str(), lhs_type->name->str()));
+        return;
+    }
+
+    // Since the VarDecls for the fields are already typechecked, just
+    // copying over the type of the VarDecl completes typecheck for this
+    // MemberExpr.
+    assert(m->var_decl->type);
+    m->type = m->var_decl->type;
 }
 
 void TypeChecker::visit_paren_expr(ParenExpr *p) {

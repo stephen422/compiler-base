@@ -13,26 +13,30 @@ func g() -> int {
 }
 
 func main() {
-    // Var decl and assignment
+    // var decl and assignment
     let car: Car
     car = 3 // [error: "cannot assign.*'int'.*'Car'"]
 
-    // Member access
+    // member access
     3.engine // [error: "not a structure"]
     car.wing // [error: "'wing'.*not.*member.*'Car'"]
     car.engine
 
     car.engine = car // [error: "cannot assign.*'Car'.*'int'"]
 
-    // Binary expressions
+    // binary expressions
     (3 + car) // [error: "incompatible.*binary.*'int'.*'Car'"]
     (3 + car).wheel // [error: "incompatible.*binary.*'int'.*'Car'"]
     (car).wheel
 
-    // Function calls
+    // function calls
     car = f()
     let i: int
     i = f() // [error: "cannot assign.*'Car'.*'int'"]
     f() + g() // [error: "incompatible.*binary.*'Car'.*'int'"]
     f().engine
+    f().wing // [error: "'wing'.*not.*member.*'Car'"]
+    
+    // paren expr
+    (f()).engine
 }
