@@ -245,7 +245,7 @@ void NameBinder::visit_decl_ref_expr(DeclRefExpr *d) {
     // TODO: functions as variables?
     auto sym = sema.decl_table.find(d->name);
     if (sym && decl_is<VarDecl *>(sym->value)) {
-        d->decl = sym->value;
+        d->var_decl = get<VarDecl *>(sym->value);
     } else {
         sema.error(d->pos, fmt::format("use of undeclared identifier '{}'",
                                        d->name->str()));
@@ -396,9 +396,8 @@ void TypeChecker::visit_string_literal(StringLiteral *s) {
 void TypeChecker::visit_decl_ref_expr(DeclRefExpr *d) {
     // Link the type already stored in the Decl object to the Expr's type.
     // @future: currently only handles VarDecls.
-    auto var_decl = get<VarDecl *>(d->decl);
-    assert(var_decl->type);
-    d->type = var_decl->type;
+    assert(d->var_decl->type);
+    d->type = d->var_decl->type;
 }
 
 // The VarDecl of a function call's return value is temporary.  Only when it is
@@ -449,17 +448,20 @@ void TypeChecker::visit_member_expr(MemberExpr *m) {
     if (!m->struct_expr->type)
         return;
 
+    if (m->struct_expr->decl()->index()) {
+    }
+
     // @Cleanup: if-else chain here seems bulky. Is there any other place that
     // repeats this pattern?
     if (m->struct_expr->kind == ExprKind::decl_ref) {
         auto lhs_expr = static_cast<DeclRefExpr *>(m->struct_expr);
 
         // XXX: Only DeclRefs of VarDecls are considered as of now.
-        assert(decl_is<VarDecl *>(lhs_expr->decl));
+        assert(decl_is<VarDecl *>(lhs_expr->var_decl));
 
         // Make sure the LHS is actually a struct.
         // TODO: All AST types that has a decl() goes in here.
-        auto lhs_type = get<VarDecl *>(lhs_expr->decl)->type;
+        auto lhs_type = lhs_expr->var_decl->type;
         if (lhs_type->is_struct()) {
             // Search for a member with the same name.
             for (auto mem_decl : lhs_type->struct_decl->fields)

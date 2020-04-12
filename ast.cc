@@ -22,6 +22,24 @@ std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes) 
     return {min, max};
 }
 
+std::optional<Decl> Expr::decl() const {
+    switch (kind) {
+    case ExprKind::decl_ref:
+        return as<DeclRefExpr>()->var_decl;
+    case ExprKind::func_call:
+        return as<FuncCallExpr>()->func_decl;
+    case ExprKind::member:
+        return as<MemberExpr>()->var_decl;
+    case ExprKind::unary:
+        if (as<UnaryExpr>()->unary_kind == UnaryExprKind::paren)
+            return as<UnaryExpr>()->as<ParenExpr>()->decl();
+        break;
+    default:
+        break;
+    }
+    return {};
+}
+
 //
 // AST print functions
 //
@@ -194,28 +212,5 @@ void TypeExpr::print() const {
 void BadStmt::print() const { out() << "[BadStmt]\n"; }
 void BadDeclNode::print() const { out() << "[BadDecl]\n"; }
 void BadExpr::print() const { out() << "[BadExpr]\n"; }
-
-std::optional<Decl> Expr::decl() const {
-    switch (kind) {
-    case ExprKind::decl_ref:
-        return static_cast<const DeclRefExpr *>(this)->decl;
-        break;
-    case ExprKind::func_call:
-        return static_cast<const FuncCallExpr *>(this)->func_decl;
-        break;
-    case ExprKind::member:
-        return static_cast<const MemberExpr *>(this)->var_decl;
-        break;
-    case ExprKind::unary: {
-        auto u = static_cast<const UnaryExpr *>(this);
-        if (u->unary_kind == UnaryExprKind::paren)
-            return static_cast<const ParenExpr *>(u)->decl();
-        break;
-    }
-    default:
-        break;
-    }
-    return {};
-}
 
 } // namespace cmp

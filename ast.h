@@ -77,9 +77,18 @@ struct Ast {
 struct Sema;
 
 struct AstNode {
+    AstKind kind;   // node kind
+    size_t pos = 0; // start pos of this AST in the source text
+
     AstNode() {}
     AstNode(AstKind kind) : kind(kind) {}
     virtual ~AstNode() = default;
+
+    // Convenience cast function. Not checked.
+    template <typename T> T *as() { return static_cast<T *>(this); }
+    template <typename T> const T *as() const {
+        return static_cast<const T *>(this);
+    }
 
     // AST printing.
     virtual void print() const = 0;
@@ -99,9 +108,6 @@ struct AstNode {
         PrintScope() { indent += 2; }
         ~PrintScope() { indent -= 2; }
     };
-
-    AstKind kind;   // node kind
-    size_t pos = 0; // start pos of this AST in the source text
 };
 
 // ========
@@ -254,7 +260,7 @@ struct StringLiteral : public Expr {
 // a function.
 struct DeclRefExpr : public Expr {
     Name *name = nullptr;
-    Decl decl;
+    VarDecl *var_decl;
 
     DeclRefExpr(Name *name)
         : Expr(ExprKind::decl_ref), name(name) {}
