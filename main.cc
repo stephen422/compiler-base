@@ -26,7 +26,8 @@ int main(int argc, char **argv) {
     test_lexer(lexer);
 #else
     Source src_parser{Path{"../test_parser.txt"}};
-    Parser p_parser{src_parser};
+    Lexer l_parser{src_parser};
+    Parser p_parser{l_parser};
     p_parser.parse();
     if (!p_parser.verify())
         return EXIT_FAILURE;
@@ -40,7 +41,8 @@ int main(int argc, char **argv) {
     // n.visit_file(static_cast<File *>(ast.root));
 
     Source src_typeck{Path{"../test_typeck.txt"}};
-    Parser p_typeck{src_typeck};
+    Lexer l_typeck{src_typeck};
+    Parser p_typeck{l_typeck};
     auto ast = p_typeck.parse();
     Sema s_typeck{p_typeck};
     setup_builtin_types(s_typeck);

@@ -8,16 +8,12 @@ namespace cmp {
 
 template <typename T> using Res = ParserResult<T>;
 
-Parser::Parser(Lexer &&l) : lexer{std::move(l)} {
+Parser::Parser(Lexer &l) : lexer{l} {
     tok = lexer.lex();
     // insert keywords in name table
     for (auto m : keyword_map)
         names.get_or_add(std::string{m.first});
 }
-
-// Construct directly from a Source for convenience.  Note that 'src' should
-// live longer than the Parser.
-Parser::Parser(const Source &src) : Parser(Lexer{src}) {}
 
 void Parser::error(const std::string &msg) {
     errors.push_back({locate(), msg});
@@ -43,7 +39,8 @@ void Parser::next() {
         if (found != std::string_view::npos) {
             auto bracket = tok.text.substr(found);
             Source s{std::string{bracket}};
-            Parser p{s};
+            Lexer l{s};
+            Parser p{l};
             auto v = p.parseErrorBeacon();
             // override location
             for (auto &e : v) {
