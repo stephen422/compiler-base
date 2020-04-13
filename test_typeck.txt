@@ -18,7 +18,7 @@ func main() {
     car = 3 // [error: "cannot assign.*'int'.*'Car'"]
 
     // member access
-    3.engine // [error: "not a structure"]
+    3.engine // [error: "not a struct"]
     car.wing // [error: "'wing'.*not.*member.*'Car'"]
     car.engine
 

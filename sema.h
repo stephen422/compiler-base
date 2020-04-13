@@ -140,12 +140,14 @@ struct Sema {
     ScopedTable<Decl> decl_table;          // scoped declaration table
     ScopedTable<Type> type_table;          // scoped type table
     Context context;
-    std::vector<Error> errors;  // error list
-    std::vector<Error> beacons; // error beacon list
+    std::vector<Error> &errors;  // error list
+    std::vector<Error> &beacons; // error beacon list
     Type *int_type = nullptr;
     Type *char_type = nullptr;
 
-    Sema(const Source &s, NameTable &n) : source(s), names(n) {}
+    Sema(const Source &s, NameTable &n, std::vector<Error> &es,
+         std::vector<Error> &bs)
+        : source(s), names(n), errors(es), beacons(bs) {}
     Sema(Parser &p);
     Sema(const Sema &) = delete;
     Sema(Sema &&) = delete;

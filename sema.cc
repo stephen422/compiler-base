@@ -19,8 +19,7 @@ std::string Type::str() const { return name->text; }
 // }
 
 void Sema::error(size_t pos, const std::string &msg) {
-    Error e(source.locate(pos), msg);
-    fmt::print("{}\n", e.str());
+    errors.push_back({source.locate(pos), msg});
 }
 
 // Get or make a reference type of a given type.
@@ -197,17 +196,13 @@ void setup_builtin_types(Sema &s) {
     push_builtin_type_from_name(s, "char");
 }
 
+Sema::Sema(Parser &p) : Sema(p.lexer.source(), p.names, p.errors, p.beacons) {}
+
 Sema::~Sema() {
     for (auto d : decl_pool)
         delete d;
     for (auto t : type_pool)
         delete t;
-}
-
-// FIXME: lifetime of p.lexer.source() and p.names?
-Sema::Sema(Parser &p) : Sema(p.lexer.source(), p.names) {
-    errors = p.errors;
-    beacons = p.beacons;
 }
 
 void Sema::scope_open() {
