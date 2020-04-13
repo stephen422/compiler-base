@@ -448,7 +448,7 @@ void TypeChecker::visit_member_expr(MemberExpr *m) {
 
     if (!m->struct_expr->decl()) {
         sema.error(m->struct_expr->pos,
-                   fmt::format("type {} is not a struct",
+                   fmt::format("type '{}' is not a struct",
                                m->struct_expr->type->name->str()));
         return;
     }
@@ -460,7 +460,7 @@ void TypeChecker::visit_member_expr(MemberExpr *m) {
     if (!lhs_type->is_struct()) {
         sema.error(
             m->struct_expr->pos,
-            fmt::format("type {} is not a structure", lhs_type->name->str()));
+            fmt::format("type '{}' is not a struct", lhs_type->name->str()));
         return;
     }
 

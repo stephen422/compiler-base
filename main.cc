@@ -44,12 +44,21 @@ int main(int argc, char **argv) {
     Lexer l_typeck{src_typeck};
     Parser p_typeck{l_typeck};
     auto ast = p_typeck.parse();
+    fmt::print("Parser check: ");
+    if (!p_typeck.errors.empty()) {
+        fmt::print("fail\n");
+        p_typeck.report();
+        return EXIT_FAILURE;
+    } else {
+        fmt::print("success\n");
+    }
     Sema s_typeck{p_typeck};
     setup_builtin_types(s_typeck);
     NameBinder n{s_typeck};
     TypeChecker tc{s_typeck};
     n.visit_file(static_cast<File *>(ast.root));
     tc.visit_file(static_cast<File *>(ast.root));
+    fmt::print("Sema check:\n");
     if (!p_typeck.verify())
         return EXIT_FAILURE;
 
