@@ -410,7 +410,7 @@ Expr *Parser::parseFuncCallOrDeclRefExpr() {
 }
 
 bool Parser::isStartOfTypeExpr() const {
-    return tok.kind == Tok::ampersand || is_identifier_or_keyword(tok);
+    return tok.kind == Tok::star || is_identifier_or_keyword(tok);
 }
 
 // Parse a type expression.
@@ -430,7 +430,7 @@ Expr *Parser::parse_type_expr() {
     Expr *subexpr = nullptr;
 
     std::string text;
-    if (tok.kind == Tok::ampersand) {
+    if (tok.kind == Tok::star) {
         next();
         kind = TypeExprKind::ref;
         subexpr = parse_type_expr();
