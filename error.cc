@@ -1,4 +1,5 @@
 #include "error.h"
+#include <algorithm>
 
 namespace cmp {
 
@@ -7,10 +8,17 @@ std::string Error::str() const {
 }
 
 // Verify errors against the error beacons embedded in the source text.
-bool verify(const std::string &filename, const std::vector<Error> &errors,
+bool verify(const std::string &filename, std::vector<Error> &errors,
             const std::vector<Error> &beacons) {
     bool success = true;
     fmt::print("\033[0;32mtest\033[0m {}:\n", filename);
+
+    // FIXME: Make sure the errors are shorted in ascending order in terms of
+    // line numbers.
+    std::sort(errors.begin(), errors.end(), [](const auto &e1, const auto &e2) {
+        return e1.loc.line < e2.loc.line ||
+               (e1.loc.line == e2.loc.line && e1.loc.col < e2.loc.col);
+    });
 
     size_t i = 0, j = 0;
     while (i < errors.size() && j < beacons.size()) {

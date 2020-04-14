@@ -14,7 +14,7 @@ struct Error {
     std::string str() const;
 };
 
-bool verify(const std::string &filename, const std::vector<Error> &errors,
+bool verify(const std::string &filename, std::vector<Error> &errors,
             const std::vector<Error> &beacons);
 
 } // namespace cmp

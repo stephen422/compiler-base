@@ -597,7 +597,7 @@ std::vector<Error> Parser::parseErrorBeacon() {
 }
 
 // See cmp::verify().
-bool Parser::verify() const {
+bool Parser::verify() {
     return cmp::verify(lexer.source().filename, errors, beacons);
 }
 
