@@ -384,7 +384,10 @@ void TypeChecker::visit_assign_stmt(AssignStmt *as) {
     if (!lhsTy || !rhsTy)
         return;
 
-    if (!lhsTy->isLValue) {
+    // L-value check.
+    // XXX: It's not obvious that r-values correspond to expressions that don't
+    // have an associated Decl object. Maybe make an isRValue() function.
+    if (!as->lhs->decl()) {
         sema.error(as->pos, fmt::format("LHS is not assignable"));
         return;
     }
@@ -456,10 +459,10 @@ void TypeChecker::visit_func_call_expr(FuncCallExpr *f) {
 // func().mem).  So we defer their namebinding to the type checking phase,
 // which is done here.
 void TypeChecker::visit_member_expr(MemberExpr *m) {
-    // Propagate from left to right (struct->mem).
+    // propagate typecheck from left to right (struct -> .mem)
     walk_member_expr(*this, m);
 
-    // If the struct side failed to typecheck, we cannot proceed.
+    // if the struct side failed to typecheck, we cannot proceed
     if (!m->struct_expr->type)
         return;
 
@@ -471,7 +474,7 @@ void TypeChecker::visit_member_expr(MemberExpr *m) {
         return;
     }
 
-    // find the member with the same name
+    // find a member with the same name
     for (auto mem_decl : lhs_type->struct_decl->fields)
         if (m->member_name == mem_decl->name)
             m->var_decl = mem_decl;
