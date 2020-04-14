@@ -26,8 +26,6 @@ std::optional<Decl> Expr::decl() const {
     switch (kind) {
     case ExprKind::decl_ref:
         return as<DeclRefExpr>()->var_decl;
-    case ExprKind::func_call:
-        return as<FuncCallExpr>()->var_decl;
     case ExprKind::member:
         return as<MemberExpr>()->var_decl;
     case ExprKind::unary:

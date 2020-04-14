@@ -272,8 +272,6 @@ struct FuncCallExpr : public Expr {
     std::vector<Expr *> args;
     // Decl for the function name, 'func'.
     FuncDecl *func_decl = nullptr;
-    // Decl for the return value, 'func()'.
-    VarDecl *var_decl = nullptr;
 
     FuncCallExpr(Name *name, const std::vector<Expr *> &args)
         : Expr(ExprKind::func_call), func_name(name),

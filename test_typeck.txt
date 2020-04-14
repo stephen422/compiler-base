@@ -6,7 +6,7 @@ struct Car {
     wheel: int,
 }
 
-func f(a: int) -> Car {
+func f() -> Car {
 }
 
 func g() -> int {

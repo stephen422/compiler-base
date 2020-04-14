@@ -273,9 +273,6 @@ void NameBinder::visit_func_call_expr(FuncCallExpr *f) {
                                f->func_name->str(), f->func_decl->args_count(),
                                f->args.size()));
     }
-
-    // make decl for the return value
-    f->var_decl = sema.make_decl<VarDecl>(nullptr);
 }
 
 void NameBinder::visit_type_expr(TypeExpr *t) {
@@ -452,7 +449,6 @@ void TypeChecker::visit_func_call_expr(FuncCallExpr *f) {
     walk_func_call_expr(*this, f);
 
     assert(f->func_decl->return_type);
-    f->var_decl->type = f->func_decl->return_type;
     f->type = f->func_decl->return_type;
 }
 
@@ -467,21 +463,11 @@ void TypeChecker::visit_member_expr(MemberExpr *m) {
     if (!m->struct_expr->type)
         return;
 
-    if (!m->struct_expr->decl()) {
-        sema.error(m->struct_expr->pos,
-                   fmt::format("type '{}' is not a struct",
-                               m->struct_expr->type->name->str()));
-        return;
-    }
-
-    assert(decl_is<VarDecl *>(*m->struct_expr->decl()));
-    auto lhs_type = get<VarDecl *>(*m->struct_expr->decl())->type;
-
     // make sure the LHS is actually a struct
+    auto lhs_type = m->struct_expr->type;
     if (!lhs_type->is_struct()) {
-        sema.error(
-            m->struct_expr->pos,
-            fmt::format("type '{}' is not a struct", lhs_type->name->str()));
+        sema.error(m->struct_expr->pos, fmt::format("type '{}' is not a struct",
+                                                    lhs_type->name->str()));
         return;
     }
 
