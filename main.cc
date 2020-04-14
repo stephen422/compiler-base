@@ -58,7 +58,6 @@ int main(int argc, char **argv) {
     TypeChecker tc{s_typeck};
     n.visit_file(static_cast<File *>(ast.root));
     tc.visit_file(static_cast<File *>(ast.root));
-    fmt::print("Sema check:\n");
     if (!p_typeck.verify())
         return EXIT_FAILURE;
 

@@ -32,11 +32,14 @@ struct Type {
     Type *base_type = nullptr;
     // Back-reference to the StructDecl whose type is this object.
     StructDecl *struct_decl = nullptr;
+    // Is this type an l-value type, i.e. can a variable of this type come to
+    // the LHS of an assignment?
+    bool isLValue = true;
 
     // Built-in types.
-    Type(Name *n) : Type(TypeKind::value, n, nullptr, nullptr) {}
-    Type(TypeKind k, Name *n, Type *v, StructDecl *s)
-        : kind(k), name(n), base_type(v), struct_decl(s) {}
+    Type(Name *n) : Type(TypeKind::value, n, nullptr, nullptr, true) {}
+    Type(TypeKind k, Name *n, Type *v, StructDecl *s, bool lval)
+        : kind(k), name(n), base_type(v), struct_decl(s), isLValue(lval) {}
     std::string str() const;
 
     bool is_struct() const {
@@ -184,10 +187,10 @@ struct AstNode;
 void walkAST(Sema &sema, AstNode *node, bool (*pre_fn)(Sema &sema, AstNode *),
               bool (*post_fn)(Sema &sema, AstNode *));
 
-// Name binding pass. Handles variable/function/struct declaration,
-// redefinition/undeclared-use checks, number of function arguments checks,
-// etc.
-// Name binding pass can be thought of bascially linking a Name to a Decl.
+// Name binding pass.
+// Name binding pass basically links a Name to a Decl.
+// It handles variable/function/struct declaration, redefinition/undeclared-uses
+// checks, number of function arguments checks, etc.
 // TODO: doc more.
 class NameBinder : public AstVisitor<NameBinder> {
     Sema &sema;

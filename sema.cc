@@ -27,7 +27,7 @@ void Sema::error(size_t pos, const std::string &msg) {
 Type *getReferenceType(Sema &sema, Type *type) {
     Name *name = sema.names.get_or_add("&" + type->name->text);
     // FIXME: scope_level
-    Type ref_type{TypeKind::ref, name, type, nullptr};
+    Type ref_type{TypeKind::ref, name, type, nullptr, true/*FIXME*/};
     if (auto found = sema.type_table.find(name))
         return &found->value;
     return sema.type_table.insert(name, ref_type);
@@ -364,18 +364,39 @@ void NameBinder::visit_func_decl(FuncDeclNode *f) {
     sema.decl_table.scope_close();
 }
 
+struct S {
+    int a;
+};
+
+S *f() {
+    return nullptr;
+}
+
+// Assignments should check that the LHS is an l-value.
+// This check cannot be done reliably in the parsing stage because it depends
+// on the actual type of the expression, not just its kind; e.g. (v) or (3).
+//
+//                 3 = 4
 void TypeChecker::visit_assign_stmt(AssignStmt *as) {
     walk_assign_stmt(*this, as);
 
+    auto lhsTy = as->lhs->type;
+    auto rhsTy = as->rhs->type;
+
     // XXX: is this the best way to early-exit?
-    if (!as->rhs->type || !as->lhs->type)
+    if (!lhsTy || !rhsTy)
         return;
 
+    if (!lhsTy->isLValue) {
+        sema.error(as->pos, fmt::format("LHS is not assignable"));
+        return;
+    }
+
     // Only allow exact equality for assignment for now (TODO).
-    if (as->rhs->type != as->lhs->type)
-        sema.error(as->pos, fmt::format("cannot assign '{}' type to '{}'",
-                                        as->rhs->type->name->str(),
-                                        as->lhs->type->name->str()));
+    if (lhsTy != rhsTy)
+        sema.error(as->pos,
+                   fmt::format("cannot assign '{}' type to '{}'",
+                               rhsTy->name->str(), lhsTy->name->str()));
 }
 
 void TypeChecker::visit_integer_literal(IntegerLiteral *i) {
@@ -541,7 +562,7 @@ void TypeChecker::visit_struct_decl(StructDeclNode *s) {
 
     // Create a new type for this struct.
     auto type =
-        sema.make_type(TypeKind::value, s->name, nullptr, s->struct_decl);
+        sema.make_type(TypeKind::value, s->name, nullptr, s->struct_decl, true);
     // XXX: no need to insert to type table?
     s->struct_decl->type = type;
 }
