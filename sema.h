@@ -221,6 +221,7 @@ public:
     void visit_func_call_expr(FuncCallExpr *f);
     void visit_member_expr(MemberExpr *m);
     void visit_paren_expr(ParenExpr *p);
+    void visit_unary_expr(UnaryExpr *u);
     void visit_binary_expr(BinaryExpr *b);
     void visit_type_expr(TypeExpr *t);
     void visit_var_decl(VarDeclNode *v);

@@ -46,7 +46,7 @@ struct Name {
 // up the symbol table using Name instead of raw char * throughout the semantic
 // analysis.
 struct NameTable {
-    Name *get_or_add(const std::string &s) {
+    Name *getOrAdd(const std::string &s) {
         Name *found = get(s);
         if (found) {
             return found;
@@ -260,7 +260,7 @@ struct StringLiteral : public Expr {
 // a function.
 struct DeclRefExpr : public Expr {
     Name *name = nullptr;
-    VarDecl *var_decl;
+    VarDecl *var_decl = nullptr;
 
     DeclRefExpr(Name *name)
         : Expr(ExprKind::decl_ref), name(name) {}
@@ -293,6 +293,7 @@ struct MemberExpr : public Expr {
 struct UnaryExpr : public Expr {
     UnaryExprKind unary_kind;
     Expr *operand;
+    VarDecl *var_decl = nullptr;
 
     UnaryExpr(UnaryExprKind k, Expr *oper)
         : Expr(ExprKind::unary), unary_kind(k), operand(oper) {}
@@ -637,10 +638,10 @@ void AstVisitor<Derived>::visit_unary_expr(UnaryExpr *u) {
         dis()->visit_paren_expr(static_cast<ParenExpr *>(u));
         break;
     case UnaryExprKind::address:
-        // do nothing
+        dis()->visit_expr(u->operand);
         break;
     case UnaryExprKind::deref:
-        // do nothing
+        dis()->visit_expr(u->operand);
         break;
     default:
         assert(false);

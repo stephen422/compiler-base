@@ -12,7 +12,7 @@ Parser::Parser(Lexer &l) : lexer{l} {
     tok = lexer.lex();
     // insert keywords in name table
     for (auto m : keyword_map)
-        names.get_or_add(std::string{m.first});
+        names.getOrAdd(std::string{m.first});
 }
 
 void Parser::error(const std::string &msg) {
@@ -226,7 +226,7 @@ CompoundStmt *Parser::parseCompoundStmt() {
 DeclNode *Parser::parseVarDecl(VarDeclNode::Kind kind) {
     auto pos = tok.pos;
 
-    Name *name = names.get_or_add(std::string{tok.text});
+    Name *name = names.getOrAdd(std::string{tok.text});
     next();
 
     DeclNode *v = nullptr;
@@ -291,7 +291,7 @@ StructDeclNode *Parser::parseStructDecl() {
 
     if (tok.kind != Tok::ident)
         errorExpected("an identifier");
-    Name *name = names.get_or_add(std::string{tok.text});
+    Name *name = names.getOrAdd(std::string{tok.text});
     next();
 
     if (!expect(Tok::lbrace))
@@ -308,7 +308,7 @@ FuncDeclNode *Parser::parseFuncDecl() {
 
     expect(Tok::kw_func);
 
-    Name *name = names.get_or_add(std::string{tok.text});
+    Name *name = names.getOrAdd(std::string{tok.text});
     auto func = make_node<FuncDeclNode>(name);
     func->pos = tok.pos;
     next();
@@ -391,7 +391,7 @@ Expr *Parser::parseLiteralExpr() {
 Expr *Parser::parseFuncCallOrDeclRefExpr() {
     auto pos = tok.pos;
     assert(tok.kind == Tok::ident);
-    auto name = names.get_or_add(std::string{tok.text});
+    auto name = names.getOrAdd(std::string{tok.text});
     next();
 
     if (tok.kind == Tok::lparen) {
@@ -410,7 +410,7 @@ Expr *Parser::parseFuncCallOrDeclRefExpr() {
 }
 
 bool Parser::isStartOfTypeExpr() const {
-    return tok.kind == Tok::star || is_identifier_or_keyword(tok);
+    return tok.kind == Tok::star || isIdentifierOrKeyword(tok);
 }
 
 // Parse a type expression.
@@ -422,27 +422,26 @@ bool Parser::isStartOfTypeExpr() const {
 //     'mut'? ident
 Expr *Parser::parse_type_expr() {
     auto pos = tok.pos;
-
-    // XXX OUTDATED: Encode each type into a unique Name, so that they are easy
-    // to find in the type table in the semantic analysis phase.
     bool mut = false;
     TypeExprKind kind = TypeExprKind::value;
     Expr *subexpr = nullptr;
 
+    // XXX OUTDATED: Encode each type into a unique Name, so that they are easy
+    // to find in the type table in the semantic analysis phase.
     std::string text;
     if (tok.kind == Tok::star) {
         next();
         kind = TypeExprKind::ref;
         subexpr = parse_type_expr();
         if (subexpr->kind == ExprKind::type) {
-            text = "&" + static_cast<TypeExpr *>(subexpr)->name->text;
+            text = "*" + static_cast<TypeExpr *>(subexpr)->name->text;
         }
-    } else if (is_identifier_or_keyword(tok)) {
+    } else if (isIdentifierOrKeyword(tok)) {
         if (tok.kind == Tok::kw_mut) {
             expect(Tok::kw_mut);
             mut = true;
         }
-        if (!is_identifier_or_keyword(tok)) {
+        if (!isIdentifierOrKeyword(tok)) {
             // FIXME: type name? expression?
             errorExpected("type name");
             return make_node_pos<BadExpr>(pos);
@@ -456,7 +455,7 @@ Expr *Parser::parse_type_expr() {
         return make_node_pos<BadExpr>(pos);
     }
 
-    Name *name = names.get_or_add(text);
+    Name *name = names.getOrAdd(text);
 
     return make_node_pos<TypeExpr>(pos, kind, name, subexpr);
 }
@@ -566,7 +565,7 @@ Expr *Parser::parseMemberExprMaybe(Expr *expr) {
     while (tok.kind == Tok::dot) {
         expect(Tok::dot);
 
-        Name *member_name = names.get_or_add(std::string{tok.text});
+        Name *member_name = names.getOrAdd(std::string{tok.text});
         next();
 
         result = make_node_pos<MemberExpr>(result->pos, result, member_name);

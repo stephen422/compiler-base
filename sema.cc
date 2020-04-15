@@ -19,13 +19,16 @@ std::string Type::str() const { return name->text; }
 // }
 
 void Sema::error(size_t pos, const std::string &msg) {
-    errors.push_back({source.locate(pos), msg});
+    Error e(source.locate(pos), msg);
+    errors.push_back(e);
+    // XXX: for debugging
+    fmt::print("{}\n", e.str());
 }
 
 // Get or make a reference type of a given type.
 // TODO: inefficient string operations?
 Type *getReferenceType(Sema &sema, Type *type) {
-    Name *name = sema.names.get_or_add("&" + type->name->text);
+    Name *name = sema.names.getOrAdd("&" + type->name->text);
     // FIXME: scope_level
     Type ref_type{TypeKind::ref, name, type, nullptr, true/*FIXME*/};
     if (auto found = sema.type_table.find(name))
@@ -183,7 +186,7 @@ void MemberExpr::name_bind_post(Sema &sema) {
 #endif
 
 void push_builtin_type_from_name(Sema &s, const std::string &str) {
-    Name *name = s.names.get_or_add(str);
+    Name *name = s.names.getOrAdd(str);
     auto struct_decl = s.make_decl<StructDecl>(name);
     struct_decl->type = s.make_type(name);
     s.decl_table.insert(name, struct_decl);
@@ -412,8 +415,11 @@ void TypeChecker::visit_string_literal(StringLiteral *s) {
 }
 
 void TypeChecker::visit_decl_ref_expr(DeclRefExpr *d) {
-    // Link the type already stored in the Decl object to the Expr's type.
-    // @future: currently only handles VarDecls.
+    // Since there is no type inference now, the type is determined at the same
+    // time the variable is declared. So if a variable succeeded namebinding,
+    // its type is guaranteed to be determined.
+    //
+    // @future: Currently only handles VarDecls.
     assert(d->var_decl->type);
     d->type = d->var_decl->type;
 }
@@ -500,6 +506,31 @@ void TypeChecker::visit_paren_expr(ParenExpr *p) {
         return;
 
     p->type = p->operand->type;
+}
+
+void TypeChecker::visit_unary_expr(UnaryExpr *u) {
+    switch (u->unary_kind) {
+    case UnaryExprKind::paren:
+        visit_paren_expr(static_cast<ParenExpr *>(u));
+        break;
+    case UnaryExprKind::address:
+        // TODO
+        break;
+    case UnaryExprKind::deref:
+        visit_expr(u->operand);
+
+        if (u->operand->type->kind != TypeKind::ref) {
+            sema.error(u->operand->pos,
+                       fmt::format("dereference of a non-reference type '{}'",
+                                   u->operand->type->name->str()));
+            return;
+        }
+        fmt::print("I see a deref!\n");
+        break;
+    default:
+        assert(false);
+        break;
+    }
 }
 
 void TypeChecker::visit_binary_expr(BinaryExpr *b) {
