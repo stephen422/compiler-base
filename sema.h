@@ -197,6 +197,7 @@ class NameBinder : public AstVisitor<NameBinder> {
 
 public:
     NameBinder(Sema &s) : sema{s} {}
+    bool success() const { return sema.errors.empty(); }
 
     void visit_compound_stmt(CompoundStmt *cs);
     void visit_decl_ref_expr(DeclRefExpr *d);
@@ -213,6 +214,7 @@ class TypeChecker : public AstVisitor<TypeChecker> {
 
 public:
     TypeChecker(Sema &s) : sema{s} {}
+    bool success() const { return sema.errors.empty(); }
 
     void visit_assign_stmt(AssignStmt *as);
     void visit_integer_literal(IntegerLiteral *i);

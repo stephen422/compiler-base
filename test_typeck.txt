@@ -47,4 +47,6 @@ func main() {
     let ptr: *int
     *ptr = 3
     *ptr = car // [error: "cannot assign.*'Car'.*'int'"]
+
+    let pcar: *car
 }
