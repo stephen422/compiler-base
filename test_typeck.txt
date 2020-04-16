@@ -45,5 +45,6 @@ func main() {
     // ref and deref
     *i // [error: "dereference.*'int'"]
     let ptr: *int
-    *ptr
+    *ptr = 3
+    *ptr = car // [error: "cannot assign.*'Car'.*'int'"]
 }

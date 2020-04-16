@@ -518,6 +518,7 @@ void TypeChecker::visit_unary_expr(UnaryExpr *u) {
                                    u->operand->type->name->str()));
             return;
         }
+        u->type = u->operand->type->base_type;
         break;
     default:
         assert(false);

@@ -31,6 +31,8 @@ std::optional<Decl> Expr::decl() const {
     case ExprKind::unary:
         if (as<UnaryExpr>()->unary_kind == UnaryExprKind::paren)
             return as<UnaryExpr>()->as<ParenExpr>()->decl();
+        else if (as<UnaryExpr>()->unary_kind == UnaryExprKind::deref)
+            return as<UnaryExpr>()->var_decl;
         break;
     default:
         break;
