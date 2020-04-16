@@ -25,17 +25,6 @@ void Sema::error(size_t pos, const std::string &msg) {
     fmt::print("{}\n", e.str());
 }
 
-// Get or make a reference type of a given type.
-// TODO: inefficient string operations?
-Type *getReferenceType(Sema &sema, Type *type) {
-    Name *name = sema.names.getOrAdd("&" + type->name->text);
-    // FIXME: scope_level
-    Type ref_type{TypeKind::ref, name, type, nullptr, true/*FIXME*/};
-    if (auto found = sema.type_table.find(name))
-        return &found->value;
-    return sema.type_table.insert(name, ref_type);
-}
-
 //
 // AST Traversal
 //
@@ -281,11 +270,15 @@ void NameBinder::visit_func_call_expr(FuncCallExpr *f) {
 void NameBinder::visit_type_expr(TypeExpr *t) {
     walk_type_expr(*this, t);
 
-    // Name binding for TypeExprs only include linking existing Decls to the
+    // Namebinding for TypeExprs only include linking existing Decls to the
     // type names used in the expression, not declaring new ones.  The
     // declaration would be done when visiting VarDecls and StructDecls, etc.
 
-    // XXX: only do this for value types?
+    // For pointers and arrays, proper typechecking will be done in the later
+    // stages.
+    if (t->subexpr)
+        return;
+
     auto sym = sema.decl_table.find(t->name);
     if (sym && decl_is<StructDecl *>(sym->value)) {
         assert(t->kind == TypeExprKind::value);
@@ -525,7 +518,6 @@ void TypeChecker::visit_unary_expr(UnaryExpr *u) {
                                    u->operand->type->name->str()));
             return;
         }
-        fmt::print("I see a deref!\n");
         break;
     default:
         assert(false);
@@ -547,16 +539,43 @@ void TypeChecker::visit_binary_expr(BinaryExpr *b) {
                 b->lhs->type->name->str(), b->rhs->type->name->str()));
 }
 
+// Get or make a reference type of a given type.
+// TODO: inefficient string operations?
+Type *getReferenceType(Sema &sema, Type *type) {
+    Name *name = sema.names.getOrAdd("*" + type->name->text);
+    // FIXME: scope_level
+    auto refTy =
+        sema.make_type(TypeKind::ref, name, type, nullptr, true /*FIXME*/);
+    if (auto found = sema.type_table.find(name))
+        return found->value;
+    return *sema.type_table.insert(name, refTy);
+}
+
+// Type checking TypeExpr concerns with finding the Type object whose syntactic
+// representation matches the TypeExpr.
 void TypeChecker::visit_type_expr(TypeExpr *t) {
     walk_type_expr(*this, t);
 
     // first, find a type that has this exact name
     if (t->kind == TypeExprKind::value) {
-        // t->decl should be non-null after the passing the name binding.
-        // And, since we are currently doing single-pass (TODO), its type
-        // should also be resolved by now.
+        // t->decl should be non-null after the name binding stage.
+        // And since we are currently doing single-pass (TODO), its type should
+        // also be resolved by now.
+        assert(decl_is<StructDecl *>(t->decl));
         t->type = get<StructDecl *>(t->decl)->type;
         assert(t->type);
+    } else if (t->kind == TypeExprKind::ref) {
+        // Derived types are present to the type table only if they occur in
+        // the source code.  Trying to push them every time we see one is
+        // sufficient to keep this invariant.
+        assert(t->subexpr->type);
+        if (auto found = sema.type_table.find(t->name)) {
+            t->type = found->value;
+        } else {
+            t->type = sema.make_type(TypeKind::ref, t->name, t->subexpr->type,
+                                     nullptr, true /*FIXME*/);
+            sema.type_table.insert(t->name, t->type);
+        }
     } else {
         assert(false && "whooops");
     }
@@ -565,8 +584,6 @@ void TypeChecker::visit_type_expr(TypeExpr *t) {
 void TypeChecker::visit_var_decl(VarDeclNode *v) {
     walk_var_decl(*this, v);
 
-    // If a variable declaration specifies the type or an assignment
-    // expression, we can just take their inference result.
     if (v->type_expr) {
         v->var_decl->type = v->type_expr->type;
         assert(v->var_decl->type);

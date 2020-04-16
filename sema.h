@@ -38,8 +38,8 @@ struct Type {
 
     // Built-in types.
     Type(Name *n) : Type(TypeKind::value, n, nullptr, nullptr, true) {}
-    Type(TypeKind k, Name *n, Type *v, StructDecl *s, bool lval)
-        : kind(k), name(n), base_type(v), struct_decl(s), isLValue(lval) {}
+    Type(TypeKind k, Name *n, Type *bt, StructDecl *s, bool lval)
+        : kind(k), name(n), base_type(bt), struct_decl(s), isLValue(lval) {}
     std::string str() const;
 
     bool is_struct() const {
@@ -141,7 +141,7 @@ struct Sema {
     std::vector<DeclMemBlock *> decl_pool; // memory pool for decls
     std::vector<Type *> type_pool;         // memory pool for types
     ScopedTable<Decl> decl_table;          // scoped declaration table
-    ScopedTable<Type> type_table;          // scoped type table
+    ScopedTable<Type *> type_table;        // scoped type table
     Context context;
     std::vector<Error> &errors;  // error list
     std::vector<Error> &beacons; // error beacon list
