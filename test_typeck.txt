@@ -47,6 +47,9 @@ func main() {
     let ptr: *int
     *ptr = 3
     *ptr = car // [error: "cannot assign.*'Car'.*'int'"]
+    ptr = &i
 
-    let pcar: *car
+    let pcar: *Car
+    (*pcar).wheel
+    *(pcar.wheel) // [error: "'\*Car'.*not a struct"]
 }

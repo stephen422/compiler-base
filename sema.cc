@@ -501,16 +501,28 @@ void TypeChecker::visit_paren_expr(ParenExpr *p) {
     p->type = p->operand->type;
 }
 
+// Get or make a reference type of a given type.
+Type *getReferenceType(Sema &sema, Type *type) {
+    Name *name = sema.names.getOrAdd("*" + type->name->text);
+    if (auto found = sema.type_table.find(name))
+        return found->value;
+
+    // FIXME: scope_level
+    auto refTy =
+        sema.make_type(TypeKind::ref, name, type, nullptr, true /*FIXME*/);
+    return *sema.type_table.insert(name, refTy);
+}
+
 void TypeChecker::visit_unary_expr(UnaryExpr *u) {
     switch (u->unary_kind) {
     case UnaryExprKind::paren:
         visit_paren_expr(static_cast<ParenExpr *>(u));
         break;
-    case UnaryExprKind::address:
-        // TODO
-        break;
     case UnaryExprKind::deref:
         visit_expr(u->operand);
+        // XXX: arbitrary
+        if (!u->operand->type)
+            return;
 
         if (u->operand->type->kind != TypeKind::ref) {
             sema.error(u->operand->pos,
@@ -519,6 +531,14 @@ void TypeChecker::visit_unary_expr(UnaryExpr *u) {
             return;
         }
         u->type = u->operand->type->base_type;
+        break;
+    case UnaryExprKind::address:
+        visit_expr(u->operand);
+        // XXX: arbitrary
+        if (!u->operand->type)
+            return;
+
+        u->type = getReferenceType(sema, u->operand->type);
         break;
     default:
         assert(false);
@@ -538,18 +558,6 @@ void TypeChecker::visit_binary_expr(BinaryExpr *b) {
             fmt::format(
                 "incompatible types to binary expression ('{}' and '{}')",
                 b->lhs->type->name->str(), b->rhs->type->name->str()));
-}
-
-// Get or make a reference type of a given type.
-// TODO: inefficient string operations?
-Type *getReferenceType(Sema &sema, Type *type) {
-    Name *name = sema.names.getOrAdd("*" + type->name->text);
-    // FIXME: scope_level
-    auto refTy =
-        sema.make_type(TypeKind::ref, name, type, nullptr, true /*FIXME*/);
-    if (auto found = sema.type_table.find(name))
-        return found->value;
-    return *sema.type_table.insert(name, refTy);
 }
 
 // Type checking TypeExpr concerns with finding the Type object whose syntactic
