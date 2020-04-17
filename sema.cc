@@ -544,6 +544,12 @@ void TypeChecker::visit_unary_expr(UnaryExpr *u) {
         if (!u->operand->type)
             return;
 
+        // taking address of an rvalue is prohibited
+        // TODO: proper l-value check
+        if (!u->operand->decl()) {
+            sema.error(u->operand->pos, "cannot take address of an rvalue");
+            return;
+        }
         u->type = getReferenceType(sema, u->operand->type);
         break;
     default:

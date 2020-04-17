@@ -52,6 +52,8 @@ func main() {
     *ptr = 3
     *ptr = car // [error: "cannot assign.*'Car'.*'int'"]
     ptr = &i
+    &24 // [error: "take address of an rvalue"]
+    &g() // [error: "take address of an rvalue"]
 
     let pcar: *Car
     (*pcar).wheel
