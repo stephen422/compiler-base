@@ -308,7 +308,7 @@ void NameBinder::visit_var_decl(VarDeclNode *v) {
         assert(!sema.context.struct_decl_stack.empty());
         auto curr_struct = sema.context.struct_decl_stack.back();
         curr_struct->fields.push_back(v->var_decl);
-    } else if (v->kind == VarDeclNode::Kind::func) {
+    } else if (v->kind == VarDeclNode::Kind::param) {
         assert(!sema.context.func_decl_stack.empty());
         auto curr_func = sema.context.func_decl_stack.back();
         curr_func->args.push_back(v->var_decl);
@@ -387,6 +387,24 @@ void TypeChecker::visit_assign_stmt(AssignStmt *as) {
                                rhsTy->name->str(), lhsTy->name->str()));
 }
 
+void TypeChecker::visit_return_stmt(ReturnStmt *rs) {
+    walk_return_stmt(*this, rs);
+    if (!rs->expr->type)
+        return;
+
+    assert(!sema.context.func_decl_stack.empty());
+    auto funcDecl = sema.context.func_decl_stack.back();
+    if (rs->expr->type != funcDecl->return_type) {
+        sema.error(
+            rs->expr->pos,
+            fmt::format(
+                "return type mismatch: function returns '{}', but got '{}'",
+                funcDecl->return_type->name->str(),
+                rs->expr->type->name->str()));
+        return;
+    }
+}
+
 void TypeChecker::visit_integer_literal(IntegerLiteral *i) {
     auto int_name = sema.names.get("int");
     auto int_decl =
@@ -453,9 +471,8 @@ void TypeChecker::visit_func_call_expr(FuncCallExpr *f) {
             sema.error(
                 f->args[i]->pos,
                 fmt::format("argument type mismatch: expects '{}', got '{}'",
-                            f->args[i]->type->name->str(),
-                            f->func_decl->args[i]->type->name->str()));
-            return;
+                            f->func_decl->args[i]->type->name->str(),
+                            f->args[i]->type->name->str()));
         }
     }
 }
@@ -626,7 +643,13 @@ void TypeChecker::visit_struct_decl(StructDeclNode *s) {
 }
 
 void TypeChecker::visit_func_decl(FuncDeclNode *f) {
-    walk_func_decl(*this, f);
+    // We need to do return type typecheck before walking the body, so we can't
+    // use the generic walk_func_decl function here.
+
+    if (f->ret_type_expr)
+        visit_expr(f->ret_type_expr);
+    for (auto arg : f->args)
+        visit_decl(arg);
 
     if (f->ret_type_expr) {
         if (!f->ret_type_expr->type)
@@ -634,7 +657,10 @@ void TypeChecker::visit_func_decl(FuncDeclNode *f) {
         f->func_decl->return_type = f->ret_type_expr->type;
     }
 
-    // TODO: return type check from ReturnStmts
+    // FIXME: what about type_table?
+    sema.context.func_decl_stack.push_back(f->func_decl);
+    visit_compound_stmt(f->body);
+    sema.context.func_decl_stack.pop_back();
 }
 
 } // namespace cmp

@@ -10,6 +10,8 @@ func f() -> Car {
 }
 
 func g() -> int {
+    let p: *int
+    return p // [error: "return type mismatch"]
 }
 
 func h(a: int, b: *int) -> int {

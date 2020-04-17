@@ -378,7 +378,7 @@ struct VarDeclNode : public DeclNode {
     // indexing the symbol table.
     Name *name = nullptr;        // name of the variable
     VarDecl *var_decl = nullptr; // decl of the variable
-    enum Kind { local, struct_, func } kind = local;
+    enum Kind { local, struct_, param } kind = local;
     // TypeExpr of the variable.  Declared as Expr to accommodate for BadExpr.
     Expr *type_expr = nullptr;
     Expr *assign_expr = nullptr; // initial assignment value

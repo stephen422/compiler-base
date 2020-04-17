@@ -315,7 +315,7 @@ FuncDeclNode *Parser::parseFuncDecl() {
 
     // argument list
     expect(Tok::lparen);
-    func->args = parseVarDeclList(VarDeclNode::func);
+    func->args = parseVarDeclList(VarDeclNode::param);
     expect(Tok::rparen);
 
     // return type (-> ...)

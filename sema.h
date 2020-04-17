@@ -217,6 +217,7 @@ public:
     bool success() const { return sema.errors.empty(); }
 
     void visit_assign_stmt(AssignStmt *as);
+    void visit_return_stmt(ReturnStmt *rs);
     void visit_integer_literal(IntegerLiteral *i);
     void visit_string_literal(StringLiteral *s);
     void visit_decl_ref_expr(DeclRefExpr *d);
