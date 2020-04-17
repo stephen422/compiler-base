@@ -515,15 +515,6 @@ void TypeChecker::visit_member_expr(MemberExpr *m) {
     m->type = m->var_decl->type;
 }
 
-void TypeChecker::visit_paren_expr(ParenExpr *p) {
-    walk_paren_expr(*this, p);
-
-    if (!p->operand->type)
-        return;
-
-    p->type = p->operand->type;
-}
-
 // Get or make a reference type of a given type.
 Type *getReferenceType(Sema &sema, Type *type) {
     Name *name = sema.names.getOrAdd("*" + type->name->text);
@@ -575,6 +566,15 @@ void TypeChecker::visit_unary_expr(UnaryExpr *u) {
     }
 }
 
+void TypeChecker::visit_paren_expr(ParenExpr *p) {
+    walk_paren_expr(*this, p);
+
+    if (!p->operand->type)
+        return;
+
+    p->type = p->operand->type;
+}
+
 void TypeChecker::visit_binary_expr(BinaryExpr *b) {
     walk_binary_expr(*this, b);
 
@@ -603,7 +603,7 @@ void TypeChecker::visit_type_expr(TypeExpr *t) {
         t->type = get<StructDecl *>(t->decl)->type;
         assert(t->type);
     } else if (t->kind == TypeExprKind::ref) {
-        // Derived types are present to the type table only if they occur in
+        // Derived types are only present in the type table if they occur in
         // the source code.  Trying to push them every time we see one is
         // sufficient to keep this invariant.
         assert(t->subexpr->type);
@@ -661,6 +661,20 @@ void TypeChecker::visit_func_decl(FuncDeclNode *f) {
     sema.context.func_decl_stack.push_back(f->func_decl);
     visit_compound_stmt(f->body);
     sema.context.func_decl_stack.pop_back();
+}
+
+void ReturnChecker::visit_stmt(Stmt *s) {
+    if (s->kind == StmtKind::if_) {
+        fmt::print("Met an IfStmt\n");
+    } else {
+        fmt::print("Stmt\n");
+    }
+}
+
+void ReturnChecker::visit_func_decl(FuncDeclNode *f) {
+    fmt::print("ReturnChecker\n");
+
+    walk_func_decl(*this, f);
 }
 
 } // namespace cmp

@@ -55,14 +55,19 @@ int main(int argc, char **argv) {
     Sema s_typeck{p_typeck};
     setup_builtin_types(s_typeck);
     NameBinder n{s_typeck};
-    TypeChecker tc{s_typeck};
     n.visit_file(static_cast<File *>(ast.root));
     if (!n.success()) {
         fmt::print("Name binding failed\n");
         return EXIT_FAILURE;
     }
+    TypeChecker tc{s_typeck};
     tc.visit_file(static_cast<File *>(ast.root));
     if (!tc.success())
+        if (!p_typeck.verify())
+            return EXIT_FAILURE;
+    ReturnChecker rc{s_typeck};
+    rc.visit_file(static_cast<File *>(ast.root));
+    if (!rc.success())
         if (!p_typeck.verify())
             return EXIT_FAILURE;
 
