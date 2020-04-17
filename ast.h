@@ -428,238 +428,185 @@ struct BadDeclNode : public DeclNode {
 // Curiously-recurring template pattern (CRTP) is used to enable calling the
 // visitor function of the derived class from the default visitor defined in
 // this class.  See commit log b7e6113.
-template <typename Derived>
-class AstVisitor {
+template <typename Derived, typename... Args> class AstVisitor {
     // 'Derived this'. By calling visitors and walkers through the return
     // pointer of this function, the base class can access the derived visitor
     // implementations.
     constexpr Derived *dis() { return static_cast<Derived *>(this); }
 
 public:
-    void visit_file(File *f);
-    void visit_toplevel(AstNode *a);
+    //
+    // AST visitor functions.
+    //
+    // These are to be overridden by the specialized visitor classes. They
+    // provide a default behavior of simply traversing the node, acting nothing
+    // upon them.
+    //
 
-    void visit_stmt(Stmt *s);
-    void visit_decl_stmt(DeclStmt *ds);
-    void visit_expr_stmt(ExprStmt *es);
-    void visit_assign_stmt(AssignStmt *as);
-    void visit_return_stmt(ReturnStmt *rs);
-    void visit_compound_stmt(CompoundStmt *cs);
-    void visit_if_stmt(IfStmt *is);
-
-    void visit_expr(Expr *e);
-    void visit_integer_literal(IntegerLiteral *i);
-    void visit_string_literal(StringLiteral *s);
-    void visit_decl_ref_expr(DeclRefExpr *d);
-    void visit_func_call_expr(FuncCallExpr *f);
-    void visit_member_expr(MemberExpr *m);
-    void visit_unary_expr(UnaryExpr *u);
-    void visit_paren_expr(ParenExpr *p);
-    void visit_binary_expr(BinaryExpr *b);
-    void visit_type_expr(TypeExpr *t);
-
-    void visit_decl(DeclNode *d);
-    void visit_var_decl(VarDeclNode *v);
-    void visit_struct_decl(StructDeclNode *s);
-    void visit_func_decl(FuncDeclNode *f);
+    void visit_file(File *f, Args... args) { walk_file(*dis(), f); }
+    void visit_toplevel(AstNode *a, Args... args) {
+        switch (a->kind) {
+        case AstKind::stmt:
+            dis()->visit_stmt(static_cast<Stmt *>(a));
+            break;
+        case AstKind::decl:
+            dis()->visit_decl(static_cast<DeclNode *>(a));
+            break;
+        default:
+            fmt::print("AstKind: {}\n", a->kind);
+            assert(false && "not a toplevel node");
+        }
+    }
+    void visit_stmt(Stmt *s, Args... args) {
+        switch (s->kind) {
+        case StmtKind::decl:
+            dis()->visit_decl_stmt(static_cast<DeclStmt *>(s));
+            break;
+        case StmtKind::expr:
+            dis()->visit_expr_stmt(static_cast<ExprStmt *>(s));
+            break;
+        case StmtKind::assign:
+            dis()->visit_assign_stmt(static_cast<AssignStmt *>(s));
+            break;
+        case StmtKind::return_:
+            dis()->visit_return_stmt(static_cast<ReturnStmt *>(s));
+            break;
+        case StmtKind::compound:
+            dis()->visit_compound_stmt(static_cast<CompoundStmt *>(s));
+            break;
+        case StmtKind::if_:
+            dis()->visit_if_stmt(static_cast<IfStmt *>(s));
+            break;
+        case StmtKind::bad:
+            // do nothing
+            break;
+        default:
+            assert(false);
+        }
+    }
+    void visit_decl_stmt(DeclStmt *ds, Args... args) {
+        walk_decl_stmt(*dis(), ds);
+    }
+    void visit_expr_stmt(ExprStmt *es, Args... args) {
+        walk_expr_stmt(*dis(), es);
+    }
+    void visit_assign_stmt(AssignStmt *as, Args... args) {
+        walk_assign_stmt(*dis(), as);
+    }
+    void visit_return_stmt(ReturnStmt *rs, Args... args) {
+        walk_return_stmt(*dis(), rs);
+    }
+    void visit_compound_stmt(CompoundStmt *cs, Args... args) {
+        walk_compound_stmt(*dis(), cs);
+    }
+    void visit_if_stmt(IfStmt *is, Args... args) { walk_if_stmt(*dis(), is); }
+    void visit_decl(DeclNode *d, Args... args) {
+        switch (d->kind) {
+        case DeclNodeKind::var:
+            dis()->visit_var_decl(static_cast<VarDeclNode *>(d));
+            break;
+        case DeclNodeKind::struct_:
+            dis()->visit_struct_decl(static_cast<StructDeclNode *>(d));
+            break;
+        case DeclNodeKind::func:
+            dis()->visit_func_decl(static_cast<FuncDeclNode *>(d));
+            break;
+        case DeclNodeKind::bad:
+            // do nothing
+            break;
+        default:
+            assert(false);
+        }
+    }
+    void visit_var_decl(VarDeclNode *v, Args... args) {
+        walk_var_decl(*dis(), v);
+    }
+    void visit_struct_decl(StructDeclNode *s, Args... args) {
+        walk_struct_decl(*dis(), s);
+    }
+    void visit_func_decl(FuncDeclNode *f, Args... args) {
+        walk_func_decl(*dis(), f);
+    }
+    void visit_expr(Expr *e, Args... args) {
+        // Rather than calling walk_expr() here, we do a switch-case, because
+        // the visiting logic in a specialized visitor is likely to be different
+        // for each type of Expr and thus be implemented using a switch-case
+        // anyway.
+        switch (e->kind) {
+        case ExprKind::integer_literal:
+            dis()->visit_integer_literal(static_cast<IntegerLiteral *>(e));
+            break;
+        case ExprKind::string_literal:
+            dis()->visit_string_literal(static_cast<StringLiteral *>(e));
+            // do nothing
+            break;
+        case ExprKind::decl_ref:
+            dis()->visit_decl_ref_expr(static_cast<DeclRefExpr *>(e));
+            break;
+        case ExprKind::func_call:
+            dis()->visit_func_call_expr(static_cast<FuncCallExpr *>(e));
+            break;
+        case ExprKind::member:
+            dis()->visit_member_expr(static_cast<MemberExpr *>(e));
+            break;
+        case ExprKind::unary:
+            dis()->visit_unary_expr(static_cast<UnaryExpr *>(e));
+            break;
+        case ExprKind::binary:
+            dis()->visit_binary_expr(static_cast<BinaryExpr *>(e));
+            break;
+        case ExprKind::type:
+            dis()->visit_type_expr(static_cast<TypeExpr *>(e));
+            break;
+        case ExprKind::bad:
+            // do nothing
+            break;
+        default:
+            assert(false);
+            break;
+        }
+    }
+    void visit_integer_literal(IntegerLiteral *i, Args... args) {
+        // nothing to walk
+    }
+    void visit_string_literal(StringLiteral *s, Args... args) {
+        // nothing to walk
+    }
+    void visit_decl_ref_expr(DeclRefExpr *d, Args... args) {
+        // nothing to walk
+    }
+    void visit_func_call_expr(FuncCallExpr *f, Args... args) {
+        walk_func_call_expr(*dis(), f);
+    }
+    void visit_member_expr(MemberExpr *m, Args... args) {
+        walk_member_expr(*dis(), m);
+    }
+    void visit_unary_expr(UnaryExpr *u, Args... args) {
+        switch (u->unary_kind) {
+        case UnaryExprKind::paren:
+            dis()->visit_paren_expr(static_cast<ParenExpr *>(u));
+            break;
+        case UnaryExprKind::address:
+            dis()->visit_expr(u->operand);
+            break;
+        case UnaryExprKind::deref:
+            dis()->visit_expr(u->operand);
+            break;
+        default:
+            assert(false);
+            break;
+        }
+    }
+    void visit_paren_expr(ParenExpr *p, Args... args) {
+        walk_paren_expr(*dis(), p);
+    }
+    void visit_binary_expr(BinaryExpr *b, Args... args) {
+        walk_binary_expr(*dis(), b);
+    }
+    void visit_type_expr(TypeExpr *t, Args... args) {
+        walk_type_expr(*dis(), t);
+    }
 };
-
-//
-// AST visitor functions.
-//
-// These are to be overridden by the specialized visitor classes. They provide
-// a default behavior of simply traversing the node, acting nothing upon them.
-//
-
-template <typename Derived>
-void AstVisitor<Derived>::visit_file(File *f) {
-    walk_file(*dis(), f);
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_toplevel(AstNode *a) {
-    switch (a->kind) {
-    case AstKind::stmt:
-        dis()->visit_stmt(static_cast<Stmt *>(a));
-        break;
-    case AstKind::decl:
-        dis()->visit_decl(static_cast<DeclNode *>(a));
-        break;
-    default:
-        fmt::print("AstKind: {}\n", a->kind);
-        assert(false && "not a toplevel node");
-    }
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_stmt(Stmt *s) {
-    switch (s->kind) {
-    case StmtKind::decl:
-        dis()->visit_decl_stmt(static_cast<DeclStmt *>(s));
-        break;
-    case StmtKind::expr:
-        dis()->visit_expr_stmt(static_cast<ExprStmt *>(s));
-        break;
-    case StmtKind::assign:
-        dis()->visit_assign_stmt(static_cast<AssignStmt *>(s));
-        break;
-    case StmtKind::return_:
-        dis()->visit_return_stmt(static_cast<ReturnStmt *>(s));
-        break;
-    case StmtKind::compound:
-        dis()->visit_compound_stmt(static_cast<CompoundStmt *>(s));
-        break;
-    case StmtKind::if_:
-        dis()->visit_if_stmt(static_cast<IfStmt *>(s));
-        break;
-    case StmtKind::bad:
-        // do nothing
-        break;
-    default:
-        assert(false);
-    }
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_decl_stmt(DeclStmt *ds) {
-    walk_decl_stmt(*dis(), ds);
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_expr_stmt(ExprStmt *es) {
-    walk_expr_stmt(*dis(), es);
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_assign_stmt(AssignStmt *as) {
-    walk_assign_stmt(*dis(), as);
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_return_stmt(ReturnStmt *rs) {
-    walk_return_stmt(*dis(), rs);
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_compound_stmt(CompoundStmt *cs) {
-    walk_compound_stmt(*dis(), cs);
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_if_stmt(IfStmt *is) {
-    walk_if_stmt(*dis(), is);
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_decl(DeclNode *d) {
-    switch (d->kind) {
-    case DeclNodeKind::var:
-        dis()->visit_var_decl(static_cast<VarDeclNode *>(d));
-        break;
-    case DeclNodeKind::struct_:
-        dis()->visit_struct_decl(static_cast<StructDeclNode *>(d));
-        break;
-    case DeclNodeKind::func:
-        dis()->visit_func_decl(static_cast<FuncDeclNode *>(d));
-        break;
-    case DeclNodeKind::bad:
-        // do nothing
-        break;
-    default:
-        assert(false);
-    }
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_var_decl(VarDeclNode *v) {
-    walk_var_decl(*dis(), v);
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_struct_decl(StructDeclNode *s) {
-    walk_struct_decl(*dis(), s);
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_func_decl(FuncDeclNode *f) {
-    walk_func_decl(*dis(), f);
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_expr(Expr *e) {
-    // Rather than calling walk_expr() here, we do a switch-case, because the
-    // visiting logic in a specialized visitor is likely to be different for
-    // each type of Expr and thus be implemented using a switch-case anyway.
-    switch (e->kind) {
-    case ExprKind::integer_literal:
-        dis()->visit_integer_literal(static_cast<IntegerLiteral *>(e));
-        break;
-    case ExprKind::string_literal:
-        dis()->visit_string_literal(static_cast<StringLiteral *>(e));
-        // do nothing
-        break;
-    case ExprKind::decl_ref:
-        dis()->visit_decl_ref_expr(static_cast<DeclRefExpr *>(e));
-        break;
-    case ExprKind::func_call:
-        dis()->visit_func_call_expr(static_cast<FuncCallExpr *>(e));
-        break;
-    case ExprKind::member:
-        dis()->visit_member_expr(static_cast<MemberExpr *>(e));
-        break;
-    case ExprKind::unary:
-        dis()->visit_unary_expr(static_cast<UnaryExpr *>(e));
-        break;
-    case ExprKind::binary:
-        dis()->visit_binary_expr(static_cast<BinaryExpr *>(e));
-        break;
-    case ExprKind::type:
-        dis()->visit_type_expr(static_cast<TypeExpr *>(e));
-        break;
-    case ExprKind::bad:
-        // do nothing
-        break;
-    default:
-        assert(false);
-        break;
-    }
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_integer_literal(IntegerLiteral *i) {
-    // nothing to walk
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_string_literal(StringLiteral *s) {
-    // nothing to walk
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_decl_ref_expr(DeclRefExpr *d) {
-    // nothing to walk
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_func_call_expr(FuncCallExpr *f) {
-    walk_func_call_expr(*dis(), f);
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_member_expr(MemberExpr *m) {
-    walk_member_expr(*dis(), m);
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_unary_expr(UnaryExpr *u) {
-    switch (u->unary_kind) {
-    case UnaryExprKind::paren:
-        dis()->visit_paren_expr(static_cast<ParenExpr *>(u));
-        break;
-    case UnaryExprKind::address:
-        dis()->visit_expr(u->operand);
-        break;
-    case UnaryExprKind::deref:
-        dis()->visit_expr(u->operand);
-        break;
-    default:
-        assert(false);
-        break;
-    }
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_paren_expr(ParenExpr *p) {
-    walk_paren_expr(*dis(), p);
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_binary_expr(BinaryExpr *b) {
-    walk_binary_expr(*dis(), b);
-}
-template <typename Derived>
-void AstVisitor<Derived>::visit_type_expr(TypeExpr *t) {
-    walk_type_expr(*dis(), t);
-}
 
 //
 // AST walker functions.
