@@ -12,6 +12,9 @@ func f() -> Car {
 func g() -> int {
 }
 
+func h(a: int, b: *int) -> int {
+}
+
 func main() {
     // var decl and assignment
     1 = 3 // [error: "not assignable"]
@@ -38,6 +41,7 @@ func main() {
     f() + g() // [error: "incompatible.*binary.*'Car'.*'int'"]
     f().engine
     f().wing // [error: "'wing'.*not.*member.*'Car'"]
+    h(3, 4) // [error: "argument type mismatch"]
     
     // paren expr
     (f()).engine

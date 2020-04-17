@@ -357,14 +357,6 @@ void NameBinder::visit_func_decl(FuncDeclNode *f) {
     sema.decl_table.scope_close();
 }
 
-struct S {
-    int a;
-};
-
-S *f() {
-    return nullptr;
-}
-
 // Assignments should check that the LHS is an l-value.
 // This check cannot be done reliably in the parsing stage because it depends
 // on the actual type of the expression, not just its kind; e.g. (v) or (3).
@@ -452,6 +444,20 @@ void TypeChecker::visit_func_call_expr(FuncCallExpr *f) {
 
     assert(f->func_decl->return_type);
     f->type = f->func_decl->return_type;
+
+    // check argument type match
+    for (size_t i = 0; i < f->func_decl->args.size(); i++) {
+        assert(f->args[i]->type);
+        // TODO: proper type comparison
+        if (f->args[i]->type != f->func_decl->args[i]->type) {
+            sema.error(
+                f->args[i]->pos,
+                fmt::format("argument type mismatch: expects '{}', got '{}'",
+                            f->args[i]->type->name->str(),
+                            f->func_decl->args[i]->type->name->str()));
+            return;
+        }
+    }
 }
 
 // MemberExprs cannot be namebinded completely without type checking (e.g.
