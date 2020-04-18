@@ -663,7 +663,7 @@ void TypeChecker::visit_func_decl(FuncDeclNode *f) {
     sema.context.func_decl_stack.pop_back();
 }
 
-void ReturnChecker::visit_stmt(Stmt *s) {
+void ReturnChecker::visit_stmt(Stmt *s, BasicBlock *bb) {
     if (s->kind == StmtKind::if_) {
         fmt::print("Met an IfStmt\n");
     } else {
@@ -671,10 +671,10 @@ void ReturnChecker::visit_stmt(Stmt *s) {
     }
 }
 
-void ReturnChecker::visit_func_decl(FuncDeclNode *f) {
+void ReturnChecker::visit_func_decl(FuncDeclNode *f, BasicBlock *bb) {
     fmt::print("ReturnChecker\n");
 
-    walk_func_decl(*this, f);
+    walk_func_decl(*this, f, bb);
 }
 
 } // namespace cmp

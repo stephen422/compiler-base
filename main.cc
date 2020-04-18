@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
         if (!p_typeck.verify())
             return EXIT_FAILURE;
     ReturnChecker rc{s_typeck};
-    rc.visit_file(static_cast<File *>(ast.root));
+    rc.visit_file(static_cast<File *>(ast.root), nullptr);
     if (!rc.success())
         if (!p_typeck.verify())
             return EXIT_FAILURE;

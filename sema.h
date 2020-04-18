@@ -131,6 +131,11 @@ template <typename T> struct ScopedTable {
 
 class Parser;
 
+struct BasicBlock {
+    std::vector<Stmt *> stmts;
+    std::vector<BasicBlock *> preds;
+};
+
 // Stores all of the semantic information necessary for semantic analysis
 // phase.
 struct Sema {
@@ -138,8 +143,9 @@ struct Sema {
 
     const Source &source;                  // source text
     NameTable &names;                      // name table
-    std::vector<DeclMemBlock *> decl_pool; // memory pool for decls
-    std::vector<Type *> type_pool;         // memory pool for types
+    std::vector<DeclMemBlock *> decl_pool;
+    std::vector<Type *> type_pool;
+    std::vector<BasicBlock *> bb_pool;
     ScopedTable<Decl> decl_table;          // scoped declaration table
     ScopedTable<Type *> type_table;        // scoped type table
     Context context;
@@ -172,6 +178,11 @@ struct Sema {
         Type *t = new Type{std::forward<Args>(args)...};
         type_pool.push_back(t);
         return t;
+    }
+    BasicBlock *make_basic_block() {
+        BasicBlock *bb = new BasicBlock;
+        bb_pool.push_back(bb);
+        return bb;
     }
 };
 
@@ -234,22 +245,17 @@ public:
     void visit_func_decl(FuncDeclNode *f);
 };
 
-struct BasicBlock {
-    std::vector<Stmt *> stmts;
-    std::vector<BasicBlock *> preds;
-};
-
-class ReturnChecker : public AstVisitor<ReturnChecker> {
+class ReturnChecker : public AstVisitor<ReturnChecker, BasicBlock *> {
     Sema &sema;
 
 public:
     ReturnChecker(Sema &s) : sema{s} {}
     bool success() const { return sema.errors.empty(); }
 
-    void visit_stmt(Stmt *s);
+    void visit_stmt(Stmt *s, BasicBlock *bb);
     // void visit_return_stmt(ReturnStmt *rs);
 
-    void visit_func_decl(FuncDeclNode *f);
+    void visit_func_decl(FuncDeclNode *f, BasicBlock *bb);
 };
 
 } // namespace cmp
