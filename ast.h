@@ -443,17 +443,17 @@ public:
   // upon them.
   //
 
-  RetTy visit_file(File *f, Args... args) {
+  RetTy visitFile(File *f, Args... args) {
     walk_file(*dis(), f, args...);
     return RetTy();
   }
-  RetTy visit_toplevel(AstNode *a, Args... args) {
+  RetTy visitToplevel(AstNode *a, Args... args) {
     switch (a->kind) {
     case AstKind::stmt:
-      return dis()->visit_stmt(static_cast<Stmt *>(a), args...);
+      return dis()->visitStmt(static_cast<Stmt *>(a), args...);
       break;
     case AstKind::decl:
-      return dis()->visit_decl(static_cast<DeclNode *>(a), args...);
+      return dis()->visitDecl(static_cast<DeclNode *>(a), args...);
       break;
     default:
       fmt::print("AstKind: {}\n", a->kind);
@@ -461,26 +461,26 @@ public:
     }
     return RetTy();
   }
-  RetTy visit_stmt(Stmt *s, Args... args) {
+  RetTy visitStmt(Stmt *s, Args... args) {
     switch (s->kind) {
     case StmtKind::decl:
-      return dis()->visit_decl_stmt(static_cast<DeclStmt *>(s), args...);
+      return dis()->visitDeclStmt(static_cast<DeclStmt *>(s), args...);
       break;
     case StmtKind::expr:
-      return dis()->visit_expr_stmt(static_cast<ExprStmt *>(s), args...);
+      return dis()->visitExprStmt(static_cast<ExprStmt *>(s), args...);
       break;
     case StmtKind::assign:
-      return dis()->visit_assign_stmt(static_cast<AssignStmt *>(s), args...);
+      return dis()->visitAssignStmt(static_cast<AssignStmt *>(s), args...);
       break;
     case StmtKind::return_:
-      return dis()->visit_return_stmt(static_cast<ReturnStmt *>(s), args...);
+      return dis()->visitReturnStmt(static_cast<ReturnStmt *>(s), args...);
       break;
     case StmtKind::compound:
-      return dis()->visit_compound_stmt(static_cast<CompoundStmt *>(s),
+      return dis()->visitCompoundStmt(static_cast<CompoundStmt *>(s),
                                         args...);
       break;
     case StmtKind::if_:
-      return dis()->visit_if_stmt(static_cast<IfStmt *>(s), args...);
+      return dis()->visitIfStmt(static_cast<IfStmt *>(s), args...);
       break;
     case StmtKind::bad:
       // do nothing
@@ -490,41 +490,41 @@ public:
     }
     return RetTy();
   }
-  RetTy visit_decl_stmt(DeclStmt *ds, Args... args) {
+  RetTy visitDeclStmt(DeclStmt *ds, Args... args) {
     walk_decl_stmt(*dis(), ds, args...);
     return RetTy();
   }
-  RetTy visit_expr_stmt(ExprStmt *es, Args... args) {
+  RetTy visitExprStmt(ExprStmt *es, Args... args) {
     walk_expr_stmt(*dis(), es, args...);
     return RetTy();
   }
-  RetTy visit_assign_stmt(AssignStmt *as, Args... args) {
+  RetTy visitAssignStmt(AssignStmt *as, Args... args) {
     walk_assign_stmt(*dis(), as, args...);
     return RetTy();
   }
-  RetTy visit_return_stmt(ReturnStmt *rs, Args... args) {
+  RetTy visitReturnStmt(ReturnStmt *rs, Args... args) {
     walk_return_stmt(*dis(), rs, args...);
     return RetTy();
   }
-  RetTy visit_compound_stmt(CompoundStmt *cs, Args... args) {
+  RetTy visitCompoundStmt(CompoundStmt *cs, Args... args) {
     walk_compound_stmt(*dis(), cs, args...);
     return RetTy();
   }
-  RetTy visit_if_stmt(IfStmt *is, Args... args) {
+  RetTy visitIfStmt(IfStmt *is, Args... args) {
     walk_if_stmt(*dis(), is, args...);
     return RetTy();
   }
-  RetTy visit_decl(DeclNode *d, Args... args) {
+  RetTy visitDecl(DeclNode *d, Args... args) {
     switch (d->kind) {
     case DeclNodeKind::var:
-      return dis()->visit_var_decl(static_cast<VarDeclNode *>(d), args...);
+      return dis()->visitVarDecl(static_cast<VarDeclNode *>(d), args...);
       break;
     case DeclNodeKind::struct_:
-      return dis()->visit_struct_decl(static_cast<StructDeclNode *>(d),
+      return dis()->visitStructDecl(static_cast<StructDeclNode *>(d),
                                       args...);
       break;
     case DeclNodeKind::func:
-      return dis()->visit_func_decl(static_cast<FuncDeclNode *>(d), args...);
+      return dis()->visitFuncDecl(static_cast<FuncDeclNode *>(d), args...);
       break;
     case DeclNodeKind::bad:
       // do nothing
@@ -534,51 +534,51 @@ public:
     }
     return RetTy();
   }
-  RetTy visit_var_decl(VarDeclNode *v, Args... args) {
+  RetTy visitVarDecl(VarDeclNode *v, Args... args) {
     walk_var_decl(*dis(), v, args...);
     return RetTy();
   }
-  RetTy visit_struct_decl(StructDeclNode *s, Args... args) {
+  RetTy visitStructDecl(StructDeclNode *s, Args... args) {
     walk_struct_decl(*dis(), s, args...);
     return RetTy();
   }
-  RetTy visit_func_decl(FuncDeclNode *f, Args... args) {
+  RetTy visitFuncDecl(FuncDeclNode *f, Args... args) {
     walk_func_decl(*dis(), f, args...);
     return RetTy();
   }
-  RetTy visit_expr(Expr *e, Args... args) {
+  RetTy visitExpr(Expr *e, Args... args) {
     // Rather than calling walk_expr() here, we do a switch-case, because
     // the visiting logic in a specialized visitor is likely to be different
     // for each type of Expr and thus be implemented using a switch-case
     // anyway.
     switch (e->kind) {
     case ExprKind::integer_literal:
-      return dis()->visit_integer_literal(static_cast<IntegerLiteral *>(e),
+      return dis()->visitIntegerLiteral(static_cast<IntegerLiteral *>(e),
                                           args...);
       break;
     case ExprKind::string_literal:
-      return dis()->visit_string_literal(static_cast<StringLiteral *>(e),
+      return dis()->visitStringLiteral(static_cast<StringLiteral *>(e),
                                          args...);
       // do nothing
       break;
     case ExprKind::decl_ref:
-      return dis()->visit_decl_ref_expr(static_cast<DeclRefExpr *>(e), args...);
+      return dis()->visitDeclRefExpr(static_cast<DeclRefExpr *>(e), args...);
       break;
     case ExprKind::func_call:
-      return dis()->visit_func_call_expr(static_cast<FuncCallExpr *>(e),
+      return dis()->visitFuncCallExpr(static_cast<FuncCallExpr *>(e),
                                          args...);
       break;
     case ExprKind::member:
-      return dis()->visit_member_expr(static_cast<MemberExpr *>(e), args...);
+      return dis()->visitMemberExpr(static_cast<MemberExpr *>(e), args...);
       break;
     case ExprKind::unary:
-      return dis()->visit_unary_expr(static_cast<UnaryExpr *>(e), args...);
+      return dis()->visitUnaryExpr(static_cast<UnaryExpr *>(e), args...);
       break;
     case ExprKind::binary:
-      return dis()->visit_binary_expr(static_cast<BinaryExpr *>(e), args...);
+      return dis()->visitBinaryExpr(static_cast<BinaryExpr *>(e), args...);
       break;
     case ExprKind::type:
-      return dis()->visit_type_expr(static_cast<TypeExpr *>(e), args...);
+      return dis()->visitTypeExpr(static_cast<TypeExpr *>(e), args...);
       break;
     case ExprKind::bad:
       // do nothing
@@ -589,36 +589,36 @@ public:
     }
     return RetTy();
   }
-  RetTy visit_integer_literal(IntegerLiteral *i, Args... args) {
+  RetTy visitIntegerLiteral(IntegerLiteral *i, Args... args) {
     // nothing to walk
     return RetTy();
   }
-  RetTy visit_string_literal(StringLiteral *s, Args... args) {
+  RetTy visitStringLiteral(StringLiteral *s, Args... args) {
     // nothing to walk
     return RetTy();
   }
-  RetTy visit_decl_ref_expr(DeclRefExpr *d, Args... args) {
+  RetTy visitDeclRefExpr(DeclRefExpr *d, Args... args) {
     // nothing to walk
     return RetTy();
   }
-  RetTy visit_func_call_expr(FuncCallExpr *f, Args... args) {
+  RetTy visitFuncCallExpr(FuncCallExpr *f, Args... args) {
     walk_func_call_expr(*dis(), f, args...);
     return RetTy();
   }
-  RetTy visit_member_expr(MemberExpr *m, Args... args) {
+  RetTy visitMemberExpr(MemberExpr *m, Args... args) {
     walk_member_expr(*dis(), m, args...);
     return RetTy();
   }
-  RetTy visit_unary_expr(UnaryExpr *u, Args... args) {
+  RetTy visitUnaryExpr(UnaryExpr *u, Args... args) {
     switch (u->unary_kind) {
     case UnaryExprKind::paren:
-      return dis()->visit_paren_expr(static_cast<ParenExpr *>(u), args...);
+      return dis()->visitParenExpr(static_cast<ParenExpr *>(u), args...);
       break;
     case UnaryExprKind::address:
-      return dis()->visit_expr(u->operand, args...);
+      return dis()->visitExpr(u->operand, args...);
       break;
     case UnaryExprKind::deref:
-      return dis()->visit_expr(u->operand, args...);
+      return dis()->visitExpr(u->operand, args...);
       break;
     default:
       assert(false);
@@ -626,15 +626,15 @@ public:
     }
     return RetTy();
   }
-  RetTy visit_paren_expr(ParenExpr *p, Args... args) {
+  RetTy visitParenExpr(ParenExpr *p, Args... args) {
     walk_paren_expr(*dis(), p, args...);
     return RetTy();
   }
-  RetTy visit_binary_expr(BinaryExpr *b, Args... args) {
+  RetTy visitBinaryExpr(BinaryExpr *b, Args... args) {
     walk_binary_expr(*dis(), b, args...);
     return RetTy();
   }
-  RetTy visit_type_expr(TypeExpr *t, Args... args) {
+  RetTy visitTypeExpr(TypeExpr *t, Args... args) {
     walk_type_expr(*dis(), t, args...);
     return RetTy();
   }
@@ -661,15 +661,15 @@ public:
 template <typename Visitor, typename... Args>
 void walk_file(Visitor &v, File *f, Args... args) {
     for (auto a : f->toplevels) {
-        v.visit_toplevel(a, args...);
+        v.visitToplevel(a, args...);
     }
 }
 template <typename Visitor, typename... Args>
 void walk_var_decl(Visitor &v, VarDeclNode *var, Args... args) {
     if (var->assign_expr) {
-        v.visit_expr(var->assign_expr, args...);
+        v.visitExpr(var->assign_expr, args...);
     } else if (var->type_expr) {
-        v.visit_type_expr(static_cast<TypeExpr *>(var->type_expr), args...);
+        v.visitTypeExpr(static_cast<TypeExpr *>(var->type_expr), args...);
     } else {
         assert(false && "unreachable");
     }
@@ -677,71 +677,71 @@ void walk_var_decl(Visitor &v, VarDeclNode *var, Args... args) {
 template <typename Visitor, typename... Args>
 void walk_struct_decl(Visitor &v, StructDeclNode *s, Args... args) {
     for (auto d : s->members) {
-        v.visit_decl(d, args...);
+        v.visitDecl(d, args...);
     }
 }
 template <typename Visitor, typename... Args>
 void walk_func_decl(Visitor &v, FuncDeclNode *f, Args... args) {
     if (f->ret_type_expr)
-        v.visit_expr(f->ret_type_expr, args...);
+        v.visitExpr(f->ret_type_expr, args...);
     for (auto arg : f->args)
-        v.visit_decl(arg, args...);
-    v.visit_compound_stmt(f->body, args...);
+        v.visitDecl(arg, args...);
+    v.visitCompoundStmt(f->body, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_decl_stmt(Visitor &v, DeclStmt *ds, Args... args) {
-    v.visit_decl(ds->decl, args...);
+    v.visitDecl(ds->decl, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_expr_stmt(Visitor &v, ExprStmt *es, Args... args) {
-    v.visit_expr(es->expr, args...);
+    v.visitExpr(es->expr, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_assign_stmt(Visitor &v, AssignStmt *as, Args... args) {
-    v.visit_expr(as->rhs, args...);
-    v.visit_expr(as->lhs, args...);
+    v.visitExpr(as->rhs, args...);
+    v.visitExpr(as->lhs, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_return_stmt(Visitor &v, ReturnStmt *rs, Args... args) {
-    v.visit_expr(rs->expr, args..., args...);
+    v.visitExpr(rs->expr, args..., args...);
 }
 template <typename Visitor, typename... Args>
 void walk_compound_stmt(Visitor &v, CompoundStmt *cs, Args... args) {
     for (auto s : cs->stmts) {
-        v.visit_stmt(s, args...);
+        v.visitStmt(s, args...);
     }
 }
 template <typename Visitor, typename... Args>
 void walk_if_stmt(Visitor &v, IfStmt *is, Args... args) {
-    v.visit_expr(is->cond, args...);
-    v.visit_compound_stmt(is->if_body, args...);
+    v.visitExpr(is->cond, args...);
+    v.visitCompoundStmt(is->if_body, args...);
     if (is->else_if)
-        v.visit_if_stmt(is->else_if, args...);
+        v.visitIfStmt(is->else_if, args...);
     else if (is->else_body)
-        v.visit_compound_stmt(is->else_body, args...);
+        v.visitCompoundStmt(is->else_body, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_func_call_expr(Visitor &v, FuncCallExpr *f, Args... args) {
     for (auto arg : f->args)
-        v.visit_expr(arg, args...);
+        v.visitExpr(arg, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_paren_expr(Visitor &v, ParenExpr *p, Args... args) {
-    v.visit_expr(p->operand, args...);
+    v.visitExpr(p->operand, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_binary_expr(Visitor &v, BinaryExpr *b, Args... args) {
-    v.visit_expr(b->lhs, args...);
-    v.visit_expr(b->rhs, args...);
+    v.visitExpr(b->lhs, args...);
+    v.visitExpr(b->rhs, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_member_expr(Visitor &v, MemberExpr *m, Args... args) {
-    v.visit_expr(m->struct_expr, args...);
+    v.visitExpr(m->struct_expr, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_type_expr(Visitor &v, TypeExpr *t, Args... args) {
     if (t->subexpr)
-        v.visit_expr(t->subexpr, args...);
+        v.visitExpr(t->subexpr, args...);
 }
 
 } // namespace cmp

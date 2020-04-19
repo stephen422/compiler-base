@@ -220,13 +220,13 @@ bool Sema::verify() const {
     return cmp::verify(source.filename, errors, beacons);
 }
 
-void NameBinder::visit_compound_stmt(CompoundStmt *cs) {
+void NameBinder::visitCompoundStmt(CompoundStmt *cs) {
     sema.decl_table.scope_open();
     walk_compound_stmt(*this, cs);
     sema.decl_table.scope_close();
 }
 
-void NameBinder::visit_decl_ref_expr(DeclRefExpr *d) {
+void NameBinder::visitDeclRefExpr(DeclRefExpr *d) {
     // XXX: should walk_decl_ref_expr() exist?  It's a chore to look up which
     // one does and which doesn't.
 
@@ -242,7 +242,7 @@ void NameBinder::visit_decl_ref_expr(DeclRefExpr *d) {
 }
 
 // Only binds the function name part of the call, e.g. 'func' of func().
-void NameBinder::visit_func_call_expr(FuncCallExpr *f) {
+void NameBinder::visitFuncCallExpr(FuncCallExpr *f) {
     // resolve function name
     auto sym = sema.decl_table.find(f->func_name);
     if (!sym) {
@@ -269,7 +269,7 @@ void NameBinder::visit_func_call_expr(FuncCallExpr *f) {
     }
 }
 
-void NameBinder::visit_type_expr(TypeExpr *t) {
+void NameBinder::visitTypeExpr(TypeExpr *t) {
     walk_type_expr(*this, t);
 
     // Namebinding for TypeExprs only include linking existing Decls to the
@@ -292,7 +292,7 @@ void NameBinder::visit_type_expr(TypeExpr *t) {
     }
 }
 
-void NameBinder::visit_var_decl(VarDeclNode *v) {
+void NameBinder::visitVarDecl(VarDeclNode *v) {
     walk_var_decl(*this, v);
 
     auto found = sema.decl_table.find(v->name);
@@ -317,7 +317,7 @@ void NameBinder::visit_var_decl(VarDeclNode *v) {
     }
 }
 
-void NameBinder::visit_struct_decl(StructDeclNode *s) {
+void NameBinder::visitStructDecl(StructDeclNode *s) {
     auto found = sema.decl_table.find(s->name);
     if (found && decl_is<StructDecl *>(found->value) &&
         found->scope_level <= sema.decl_table.scope_level) {
@@ -339,7 +339,7 @@ void NameBinder::visit_struct_decl(StructDeclNode *s) {
     sema.decl_table.scope_close();
 }
 
-void NameBinder::visit_func_decl(FuncDeclNode *f) {
+void NameBinder::visitFuncDecl(FuncDeclNode *f) {
     auto found = sema.decl_table.find(f->name);
     if (found && decl_is<FuncDecl *>(found->value) &&
         found->scope_level <= sema.decl_table.scope_level) {
@@ -364,7 +364,7 @@ void NameBinder::visit_func_decl(FuncDeclNode *f) {
 // on the actual type of the expression, not just its kind; e.g. (v) or (3).
 //
 //                 3 = 4
-void TypeChecker::visit_assign_stmt(AssignStmt *as) {
+void TypeChecker::visitAssignStmt(AssignStmt *as) {
     walk_assign_stmt(*this, as);
 
     auto lhsTy = as->lhs->type;
@@ -389,7 +389,7 @@ void TypeChecker::visit_assign_stmt(AssignStmt *as) {
                                rhsTy->name->str(), lhsTy->name->str()));
 }
 
-void TypeChecker::visit_return_stmt(ReturnStmt *rs) {
+void TypeChecker::visitReturnStmt(ReturnStmt *rs) {
     walk_return_stmt(*this, rs);
     if (!rs->expr->type)
         return;
@@ -407,7 +407,7 @@ void TypeChecker::visit_return_stmt(ReturnStmt *rs) {
     }
 }
 
-void TypeChecker::visit_integer_literal(IntegerLiteral *i) {
+void TypeChecker::visitIntegerLiteral(IntegerLiteral *i) {
     auto int_name = sema.names.get("int");
     auto int_decl =
         get<StructDecl *>(sema.decl_table.find(int_name)->value);
@@ -415,11 +415,11 @@ void TypeChecker::visit_integer_literal(IntegerLiteral *i) {
     assert(i->type);
 }
 
-void TypeChecker::visit_string_literal(StringLiteral *s) {
+void TypeChecker::visitStringLiteral(StringLiteral *s) {
     // TODO
 }
 
-void TypeChecker::visit_decl_ref_expr(DeclRefExpr *d) {
+void TypeChecker::visitDeclRefExpr(DeclRefExpr *d) {
     // Since there is no type inference now, the type is determined at the same
     // time the variable is declared. So if a variable succeeded namebinding,
     // its type is guaranteed to be determined.
@@ -459,7 +459,7 @@ void TypeChecker::visit_decl_ref_expr(DeclRefExpr *d) {
 // * let v = (f())
 // * let v = f().mem
 //
-void TypeChecker::visit_func_call_expr(FuncCallExpr *f) {
+void TypeChecker::visitFuncCallExpr(FuncCallExpr *f) {
     walk_func_call_expr(*this, f);
 
     assert(f->func_decl->return_type);
@@ -482,7 +482,7 @@ void TypeChecker::visit_func_call_expr(FuncCallExpr *f) {
 // MemberExprs cannot be namebinded completely without type checking (e.g.
 // func().mem).  So we defer their namebinding to the type checking phase,
 // which is done here.
-void TypeChecker::visit_member_expr(MemberExpr *m) {
+void TypeChecker::visitMemberExpr(MemberExpr *m) {
     // propagate typecheck from left to right (struct -> .mem)
     walk_member_expr(*this, m);
 
@@ -529,13 +529,13 @@ Type *getReferenceType(Sema &sema, Type *type) {
     return *sema.type_table.insert(name, refTy);
 }
 
-void TypeChecker::visit_unary_expr(UnaryExpr *u) {
+void TypeChecker::visitUnaryExpr(UnaryExpr *u) {
     switch (u->unary_kind) {
     case UnaryExprKind::paren:
-        visit_paren_expr(static_cast<ParenExpr *>(u));
+        visitParenExpr(static_cast<ParenExpr *>(u));
         break;
     case UnaryExprKind::deref:
-        visit_expr(u->operand);
+        visitExpr(u->operand);
         // XXX: arbitrary
         if (!u->operand->type)
             return;
@@ -549,7 +549,7 @@ void TypeChecker::visit_unary_expr(UnaryExpr *u) {
         u->type = u->operand->type->base_type;
         break;
     case UnaryExprKind::address:
-        visit_expr(u->operand);
+        visitExpr(u->operand);
         // XXX: arbitrary
         if (!u->operand->type)
             return;
@@ -568,7 +568,7 @@ void TypeChecker::visit_unary_expr(UnaryExpr *u) {
     }
 }
 
-void TypeChecker::visit_paren_expr(ParenExpr *p) {
+void TypeChecker::visitParenExpr(ParenExpr *p) {
     walk_paren_expr(*this, p);
 
     if (!p->operand->type)
@@ -577,7 +577,7 @@ void TypeChecker::visit_paren_expr(ParenExpr *p) {
     p->type = p->operand->type;
 }
 
-void TypeChecker::visit_binary_expr(BinaryExpr *b) {
+void TypeChecker::visitBinaryExpr(BinaryExpr *b) {
     walk_binary_expr(*this, b);
 
     if (!b->lhs->type || !b->rhs->type)
@@ -593,7 +593,7 @@ void TypeChecker::visit_binary_expr(BinaryExpr *b) {
 
 // Type checking TypeExpr concerns with finding the Type object whose syntactic
 // representation matches the TypeExpr.
-void TypeChecker::visit_type_expr(TypeExpr *t) {
+void TypeChecker::visitTypeExpr(TypeExpr *t) {
     walk_type_expr(*this, t);
 
     // first, find a type that has this exact name
@@ -621,7 +621,7 @@ void TypeChecker::visit_type_expr(TypeExpr *t) {
     }
 }
 
-void TypeChecker::visit_var_decl(VarDeclNode *v) {
+void TypeChecker::visitVarDecl(VarDeclNode *v) {
     walk_var_decl(*this, v);
 
     if (v->type_expr) {
@@ -634,7 +634,7 @@ void TypeChecker::visit_var_decl(VarDeclNode *v) {
     }
 }
 
-void TypeChecker::visit_struct_decl(StructDeclNode *s) {
+void TypeChecker::visitStructDecl(StructDeclNode *s) {
     walk_struct_decl(*this, s);
 
     // Create a new type for this struct.
@@ -644,14 +644,14 @@ void TypeChecker::visit_struct_decl(StructDeclNode *s) {
     s->struct_decl->type = type;
 }
 
-void TypeChecker::visit_func_decl(FuncDeclNode *f) {
+void TypeChecker::visitFuncDecl(FuncDeclNode *f) {
     // We need to do return type typecheck before walking the body, so we can't
     // use the generic walk_func_decl function here.
 
     if (f->ret_type_expr)
-        visit_expr(f->ret_type_expr);
+        visitExpr(f->ret_type_expr);
     for (auto arg : f->args)
-        visit_decl(arg);
+        visitDecl(arg);
 
     if (f->ret_type_expr) {
         if (!f->ret_type_expr->type)
@@ -661,13 +661,13 @@ void TypeChecker::visit_func_decl(FuncDeclNode *f) {
 
     // FIXME: what about type_table?
     sema.context.func_decl_stack.push_back(f->func_decl);
-    visit_compound_stmt(f->body);
+    visitCompoundStmt(f->body);
     sema.context.func_decl_stack.pop_back();
 }
 
-BasicBlock *ReturnChecker::visit_stmt(Stmt *s, BasicBlock *bb) {
+BasicBlock *ReturnChecker::visitStmt(Stmt *s, BasicBlock *bb) {
   if (s->kind == StmtKind::if_) {
-    return visit_if_stmt(s->as<IfStmt>(), bb);
+    return visitIfStmt(s->as<IfStmt>(), bb);
   } else {
     // "Plain" statements that go into a single basic block.
     bb->stmts.push_back(s);
@@ -675,9 +675,9 @@ BasicBlock *ReturnChecker::visit_stmt(Stmt *s, BasicBlock *bb) {
   }
 }
 
-BasicBlock *ReturnChecker::visit_compound_stmt(CompoundStmt *cs, BasicBlock *bb) {
+BasicBlock *ReturnChecker::visitCompoundStmt(CompoundStmt *cs, BasicBlock *bb) {
   for (auto s : cs->stmts)
-    bb = visit_stmt(s, bb);
+    bb = visitStmt(s, bb);
   return bb;
 }
 
@@ -685,23 +685,23 @@ BasicBlock *ReturnChecker::visit_compound_stmt(CompoundStmt *cs, BasicBlock *bb)
 // its exit point.  If we add a new argument to the visitors so that they can
 // know which exit point the branches should link to (and create a new one if
 // passed a nullptr), we could decrease the number of redundant empty blocks.
-BasicBlock *ReturnChecker::visit_if_stmt(IfStmt *is, BasicBlock *bb) {
+BasicBlock *ReturnChecker::visitIfStmt(IfStmt *is, BasicBlock *bb) {
   // An empty basic block that the statements in the if body will be appending
   // themselves on.
   auto ifBranchStart = sema.make_basic_block();
   bb->succ.push_back(ifBranchStart);
-  auto ifBranchEnd = visit_compound_stmt(is->if_body, ifBranchStart);
+  auto ifBranchEnd = visitCompoundStmt(is->if_body, ifBranchStart);
 
   auto elseBranchEnd = bb;
   if (is->else_if) {
     // We could make a new empty basic block here, which would make this CFG a
     // binary graph; or just pass in 'bb', which will make 'bb' have more than
     // two successors.
-    elseBranchEnd = visit_if_stmt(is->else_if, bb);
+    elseBranchEnd = visitIfStmt(is->else_if, bb);
   } else if (is->else_body) {
     auto elseBranchStart = sema.make_basic_block();
     bb->succ.push_back(elseBranchStart);
-    elseBranchEnd = visit_compound_stmt(is->else_body, elseBranchStart);
+    elseBranchEnd = visitCompoundStmt(is->else_body, elseBranchStart);
   }
 
   auto exitPoint = sema.make_basic_block();
@@ -711,7 +711,7 @@ BasicBlock *ReturnChecker::visit_if_stmt(IfStmt *is, BasicBlock *bb) {
   return exitPoint;
 }
 
-BasicBlock *ReturnChecker::visit_func_decl(FuncDeclNode *f, BasicBlock *bb) {
+BasicBlock *ReturnChecker::visitFuncDecl(FuncDeclNode *f, BasicBlock *bb) {
   fmt::print("FuncDecl\n");
 
   auto entryPoint = sema.make_basic_block();

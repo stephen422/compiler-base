@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
     // ast.root->print();
     // Sema s{p_sema};
     // NameBinder n{s};
-    // n.visit_file(static_cast<File *>(ast.root));
+    // n.visitFile(static_cast<File *>(ast.root));
 
     Source src_typeck{Path{"../test_typeck.txt"}};
     Lexer l_typeck{src_typeck};
@@ -55,18 +55,18 @@ int main(int argc, char **argv) {
     Sema s_typeck{p_typeck};
     setup_builtin_types(s_typeck);
     NameBinder n{s_typeck};
-    n.visit_file(static_cast<File *>(ast.root));
+    n.visitFile(static_cast<File *>(ast.root));
     if (!n.success()) {
         fmt::print("Name binding failed\n");
         return EXIT_FAILURE;
     }
     TypeChecker tc{s_typeck};
-    tc.visit_file(static_cast<File *>(ast.root));
+    tc.visitFile(static_cast<File *>(ast.root));
     if (!tc.success())
         if (!p_typeck.verify())
             return EXIT_FAILURE;
     ReturnChecker rc{s_typeck};
-    rc.visit_file(static_cast<File *>(ast.root), nullptr);
+    rc.visitFile(static_cast<File *>(ast.root), nullptr);
     if (!rc.success())
         if (!p_typeck.verify())
             return EXIT_FAILURE;
