@@ -19,12 +19,17 @@ if(UNIX AND NOT APPLE)
     target_compile_options(cmp PRIVATE -stdlib=libc++)
     target_link_libraries(cmp PRIVATE -stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -Wl,-rpath=$ENV{HOME}/build/llvm/lib)
     target_link_libraries(cmp PRIVATE -fuse-ld=lld)
-endif()
 
-# Comment this out to disable AddressSanitizer.
-target_compile_options(cmp PRIVATE
-    "$<$<CONFIG:DEBUG>:-fsanitize=address,leak,undefined>")
-target_link_libraries(cmp PRIVATE
-    "$<$<CONFIG:DEBUG>:-fsanitize=address,leak,undefined>")
+    target_compile_options(cmp PRIVATE
+      "$<$<CONFIG:DEBUG>:-fsanitize=address,leak,undefined>")
+    target_link_libraries(cmp PRIVATE
+      "$<$<CONFIG:DEBUG>:-fsanitize=address,leak,undefined>")
+else()
+    # LeakSanitizer does not work on Darwin
+    target_compile_options(cmp PRIVATE
+      "$<$<CONFIG:DEBUG>:-fsanitize=address,undefined>")
+    target_link_libraries(cmp PRIVATE
+      "$<$<CONFIG:DEBUG>:-fsanitize=address,undefined>")
+endif()
 
 set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
