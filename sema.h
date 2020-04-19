@@ -203,7 +203,7 @@ void walkAST(Sema &sema, AstNode *node, bool (*pre_fn)(Sema &sema, AstNode *),
 // It handles variable/function/struct declaration, redefinition/undeclared-uses
 // checks, number of function arguments checks, etc.
 // TODO: doc more.
-class NameBinder : public AstVisitor<NameBinder> {
+class NameBinder : public AstVisitor<NameBinder, void> {
     Sema &sema;
 
 public:
@@ -220,7 +220,7 @@ public:
 };
 
 // Type checking pass.
-class TypeChecker : public AstVisitor<TypeChecker> {
+class TypeChecker : public AstVisitor<TypeChecker, void> {
     Sema &sema;
 
 public:
@@ -245,17 +245,19 @@ public:
     void visit_func_decl(FuncDeclNode *f);
 };
 
-class ReturnChecker : public AstVisitor<ReturnChecker, BasicBlock *> {
+class ReturnChecker : public AstVisitor<ReturnChecker, BasicBlock *, BasicBlock *> {
     Sema &sema;
 
 public:
     ReturnChecker(Sema &s) : sema{s} {}
     bool success() const { return sema.errors.empty(); }
 
-    void visit_stmt(Stmt *s, BasicBlock *bb);
+    BasicBlock *visit_stmt(Stmt *s, BasicBlock *bb);
+    BasicBlock *visit_compound_stmt(CompoundStmt *cs, BasicBlock *bb);
+    BasicBlock *visit_if_stmt(IfStmt *is, BasicBlock *bb);
     // void visit_return_stmt(ReturnStmt *rs);
 
-    void visit_func_decl(FuncDeclNode *f, BasicBlock *bb);
+    BasicBlock *visit_func_decl(FuncDeclNode *f, BasicBlock *bb);
 };
 
 } // namespace cmp

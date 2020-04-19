@@ -83,11 +83,11 @@ void IfStmt::print() const {
     out() << "[IfStmt]\n";
     PrintScope start;
     cond->print();
-    ifStmt->print();
-    if (elseIf) {
-        elseIf->print();
-    } else if (elseStmt) {
-        elseStmt->print();
+    if_stmt->print();
+    if (else_if) {
+        else_if->print();
+    } else if (else_stmt) {
+        else_stmt->print();
     }
 }
 

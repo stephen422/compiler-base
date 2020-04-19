@@ -195,6 +195,8 @@ Sema::~Sema() {
         delete d;
     for (auto t : type_pool)
         delete t;
+    for (auto b : bb_pool)
+        delete b;
 }
 
 void Sema::scope_open() {
@@ -663,18 +665,34 @@ void TypeChecker::visit_func_decl(FuncDeclNode *f) {
     sema.context.func_decl_stack.pop_back();
 }
 
-void ReturnChecker::visit_stmt(Stmt *s, BasicBlock *bb) {
-    if (s->kind == StmtKind::if_) {
-        fmt::print("Met an IfStmt\n");
-    } else {
-        fmt::print("Stmt\n");
-    }
+BasicBlock *ReturnChecker::visit_stmt(Stmt *s, BasicBlock *bb) {
+  if (s->kind == StmtKind::if_) {
+    visit_if_stmt(s->as<IfStmt>(), bb);
+  } else {
+    bb->stmts.push_back(s);
+    fmt::print("{} stmts in this BB now\n", bb->stmts.size());
+  }
+  return nullptr;
 }
 
-void ReturnChecker::visit_func_decl(FuncDeclNode *f, BasicBlock *bb) {
-    fmt::print("ReturnChecker\n");
+BasicBlock *ReturnChecker::visit_compound_stmt(CompoundStmt *cs, BasicBlock *bb) {
+  fmt::print("CompoundStmt\n");
+  for (auto s : cs->stmts)
+    visit_stmt(s, bb);
+  return nullptr;
+}
 
-    walk_func_decl(*this, f, bb);
+BasicBlock *ReturnChecker::visit_if_stmt(IfStmt *is, BasicBlock *bb) {
+  fmt::print("IfStmt\n");
+  return nullptr;
+}
+
+BasicBlock *ReturnChecker::visit_func_decl(FuncDeclNode *f, BasicBlock *bb) {
+  fmt::print("ReturnChecker\n");
+
+  auto entry_point = sema.make_basic_block();
+  walk_func_decl(*this, f, entry_point);
+  return nullptr;
 }
 
 } // namespace cmp
