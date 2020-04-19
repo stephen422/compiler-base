@@ -133,8 +133,15 @@ class Parser;
 
 struct BasicBlock {
     std::vector<Stmt *> stmts;
+    std::vector<BasicBlock *> pred;
     std::vector<BasicBlock *> succ;
     bool walked = false;
+    // Indicates whether it is guaranteed that a return statement is seen on
+    // every possible control flow that leads to this basic block.
+    bool returnedSoFar = false;
+
+    // True if this basic block contains a return statement.
+    bool returns() const;
 
     // Walk and enumerate all children nodes and itself in post-order.
     // Used to implement the the reverse post-order traversal.

@@ -541,6 +541,7 @@ BasicBlock *ReturnChecker::visitIfStmt(IfStmt *is, BasicBlock *bb) {
   // themselves on.
   auto ifBranchStart = sema.make_basic_block();
   bb->succ.push_back(ifBranchStart);
+  ifBranchStart->pred.push_back(bb);
   auto ifBranchEnd = visitCompoundStmt(is->if_body, ifBranchStart);
 
   auto elseBranchEnd = bb;
@@ -552,28 +553,74 @@ BasicBlock *ReturnChecker::visitIfStmt(IfStmt *is, BasicBlock *bb) {
   } else if (is->else_body) {
     auto elseBranchStart = sema.make_basic_block();
     bb->succ.push_back(elseBranchStart);
+    elseBranchStart->pred.push_back(bb);
     elseBranchEnd = visitCompoundStmt(is->else_body, elseBranchStart);
   }
 
   auto exitPoint = sema.make_basic_block();
   ifBranchEnd->succ.push_back(exitPoint);
   elseBranchEnd->succ.push_back(exitPoint);
+  exitPoint->pred.push_back(ifBranchEnd);
+  exitPoint->pred.push_back(elseBranchEnd);
 
   return exitPoint;
+}
+
+// Do the iterative solution for the dataflow analysis.
+static void returnCheckSolve(const std::vector<BasicBlock *> &walkList) {
+  for (auto bb : walkList)
+    bb->returnedSoFar = false;
+
+  bool changed = true;
+  while (changed) {
+    changed = false;
+
+    for (auto bbI = walkList.rbegin(); bbI != walkList.rend(); bbI++) {
+      auto bb = *bbI;
+
+      bool allPredReturns = false;
+      if (!bb->pred.empty()) {
+        allPredReturns = true;
+        for (auto pbb : bb->pred)
+          allPredReturns &= pbb->returnedSoFar;
+      }
+
+      auto t = bb->returns() || allPredReturns;
+      if (t != bb->returnedSoFar) {
+        changed = true;
+        bb->returnedSoFar = t;
+      }
+    }
+  }
 }
 
 BasicBlock *ReturnChecker::visitFuncDecl(FuncDeclNode *f, BasicBlock *bb) {
   fmt::print("FuncDecl\n");
 
+  if (!f->ret_type_expr)
+    return nullptr;
+
   auto entryPoint = sema.make_basic_block();
-  walk_func_decl(*this, f, entryPoint);
+  auto exitPoint = visitCompoundStmt(f->body, entryPoint);
 
   std::vector<BasicBlock *> walkList;
   entryPoint->enumeratePostOrder(walkList);
   for (auto bb : walkList)
     fmt::print("BasicBlock: {} stmts\n", bb->stmts.size());
 
+  returnCheckSolve(walkList);
+
+  if (!exitPoint->returnedSoFar)
+    sema.error(f->pos, "function not guaranteed to return a value");
+
   return nullptr;
+}
+
+bool BasicBlock::returns() const {
+  for (auto stmt : stmts)
+    if (stmt->kind == StmtKind::return_)
+      return true;
+  return false;
 }
 
 void BasicBlock::enumeratePostOrder(std::vector<BasicBlock *> &walkList) {
