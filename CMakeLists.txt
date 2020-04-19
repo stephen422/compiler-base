@@ -11,11 +11,13 @@ endif()
 
 target_compile_features(cmp PUBLIC cxx_std_17)
 target_compile_options(cmp PRIVATE -Wall -Wextra -Wno-unused-parameter
-  -fno-omit-frame-pointer -fdiagnostics-color=always "$<$<CONFIG:DEBUG>:-ggdb>" -stdlib=libc++)
-target_link_libraries(cmp PRIVATE -fno-omit-frame-pointer -stdlib=libc++ -rtlib=compiler-rt -unwindlib=libgcc -Wl,-rpath=$ENV{HOME}/build/llvm/lib)
+  -fno-omit-frame-pointer -fdiagnostics-color=always "$<$<CONFIG:DEBUG>:-ggdb>")
+target_link_libraries(cmp PRIVATE -fno-omit-frame-pointer)
 
 # Selectively use LLD on Linux
 if(UNIX AND NOT APPLE)
+    target_compile_options(cmp PRIVATE -stdlib=libc++)
+    target_link_libraries(cmp PRIVATE -stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -Wl,-rpath=$ENV{HOME}/build/llvm/lib)
     target_link_libraries(cmp PRIVATE -fuse-ld=lld)
 endif()
 
