@@ -11,7 +11,7 @@ endif()
 
 target_compile_features(cmp PUBLIC cxx_std_17)
 target_compile_options(cmp PRIVATE -Wall -Wextra -Wno-unused-parameter
-  -fno-omit-frame-pointer -fdiagnostics-color=always "$<$<CONFIG:DEBUG>:-ggdb>")
+  -fno-omit-frame-pointer -fdiagnostics-color=always "$<$<CONFIG:DEBUG>:-glldb>")
 target_link_libraries(cmp PRIVATE -fno-omit-frame-pointer)
 
 # Selectively use LLD on Linux
