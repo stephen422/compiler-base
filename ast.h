@@ -185,15 +185,15 @@ struct CompoundStmt : public Stmt {
 
 struct IfStmt : public Stmt {
     Expr *cond;               // conditional expr
-    CompoundStmt *if_stmt; // body for true cond
+    CompoundStmt *if_body; // body for true cond
     // Views 'else if' clauses as a separate if statement for the false case.
     // 'elseif' and 'cstmt_false' cannot be non-null at the same time.
     IfStmt *else_if = nullptr;
-    CompoundStmt *else_stmt = nullptr;
+    CompoundStmt *else_body = nullptr;
 
     IfStmt(Expr *e, CompoundStmt *is, IfStmt *ei, CompoundStmt *es)
-        : Stmt(StmtKind::if_), cond(e), if_stmt(is), else_if(ei),
-          else_stmt(es) {}
+        : Stmt(StmtKind::if_), cond(e), if_body(is), else_if(ei),
+        else_body(es) {}
     void print() const override;
 };
 
@@ -714,11 +714,11 @@ void walk_compound_stmt(Visitor &v, CompoundStmt *cs, Args... args) {
 template <typename Visitor, typename... Args>
 void walk_if_stmt(Visitor &v, IfStmt *is, Args... args) {
     v.visit_expr(is->cond, args...);
-    v.visit_compound_stmt(is->if_stmt, args...);
+    v.visit_compound_stmt(is->if_body, args...);
     if (is->else_if)
         v.visit_if_stmt(is->else_if, args...);
-    else if (is->else_stmt)
-        v.visit_compound_stmt(is->else_stmt, args...);
+    else if (is->else_body)
+        v.visit_compound_stmt(is->else_body, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_func_call_expr(Visitor &v, FuncCallExpr *f, Args... args) {

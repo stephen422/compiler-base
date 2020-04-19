@@ -133,7 +133,12 @@ class Parser;
 
 struct BasicBlock {
     std::vector<Stmt *> stmts;
-    std::vector<BasicBlock *> preds;
+    std::vector<BasicBlock *> succ;
+    bool walked = false;
+
+    // Walk and enumerate all children nodes and itself in post-order.
+    // Used to implement the the reverse post-order traversal.
+    void enumeratePostOrder(std::vector<BasicBlock *> &walkList);
 };
 
 // Stores all of the semantic information necessary for semantic analysis

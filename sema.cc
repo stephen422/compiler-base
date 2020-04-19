@@ -667,32 +667,74 @@ void TypeChecker::visit_func_decl(FuncDeclNode *f) {
 
 BasicBlock *ReturnChecker::visit_stmt(Stmt *s, BasicBlock *bb) {
   if (s->kind == StmtKind::if_) {
-    visit_if_stmt(s->as<IfStmt>(), bb);
+    return visit_if_stmt(s->as<IfStmt>(), bb);
   } else {
+    // "Plain" statements that go into a single basic block.
     bb->stmts.push_back(s);
-    fmt::print("{} stmts in this BB now\n", bb->stmts.size());
+    return bb;
   }
-  return nullptr;
 }
 
 BasicBlock *ReturnChecker::visit_compound_stmt(CompoundStmt *cs, BasicBlock *bb) {
-  fmt::print("CompoundStmt\n");
   for (auto s : cs->stmts)
-    visit_stmt(s, bb);
-  return nullptr;
+    bb = visit_stmt(s, bb);
+  return bb;
 }
 
+// TODO: Currently, all if-else statements create a new empty basic block as
+// its exit point.  If we add a new argument to the visitors so that they can
+// know which exit point the branches should link to (and create a new one if
+// passed a nullptr), we could decrease the number of redundant empty blocks.
 BasicBlock *ReturnChecker::visit_if_stmt(IfStmt *is, BasicBlock *bb) {
-  fmt::print("IfStmt\n");
-  return nullptr;
+  // An empty basic block that the statements in the if body will be appending
+  // themselves on.
+  auto ifBranchStart = sema.make_basic_block();
+  bb->succ.push_back(ifBranchStart);
+  auto ifBranchEnd = visit_compound_stmt(is->if_body, ifBranchStart);
+
+  auto elseBranchEnd = bb;
+  if (is->else_if) {
+    // We could make a new empty basic block here, which would make this CFG a
+    // binary graph; or just pass in 'bb', which will make 'bb' have more than
+    // two successors.
+    elseBranchEnd = visit_if_stmt(is->else_if, bb);
+  } else if (is->else_body) {
+    auto elseBranchStart = sema.make_basic_block();
+    bb->succ.push_back(elseBranchStart);
+    elseBranchEnd = visit_compound_stmt(is->else_body, elseBranchStart);
+  }
+
+  auto exitPoint = sema.make_basic_block();
+  ifBranchEnd->succ.push_back(exitPoint);
+  elseBranchEnd->succ.push_back(exitPoint);
+
+  return exitPoint;
 }
 
 BasicBlock *ReturnChecker::visit_func_decl(FuncDeclNode *f, BasicBlock *bb) {
-  fmt::print("ReturnChecker\n");
+  fmt::print("FuncDecl\n");
 
-  auto entry_point = sema.make_basic_block();
-  walk_func_decl(*this, f, entry_point);
+  auto entryPoint = sema.make_basic_block();
+  walk_func_decl(*this, f, entryPoint);
+
+  std::vector<BasicBlock *> walkList;
+  entryPoint->enumeratePostOrder(walkList);
+  for (auto bb : walkList)
+    fmt::print("BasicBlock: {} stmts\n", bb->stmts.size());
+
   return nullptr;
+}
+
+void BasicBlock::enumeratePostOrder(std::vector<BasicBlock *> &walkList) {
+  if (walked)
+    return;
+
+  for (auto s : succ)
+    s->enumeratePostOrder(walkList);
+
+  // post-order traversal
+  walked = true;
+  walkList.push_back(this);
 }
 
 } // namespace cmp
