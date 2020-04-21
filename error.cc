@@ -25,9 +25,7 @@ bool verify(const std::string &filename, std::vector<Error> &errors,
         auto error = errors[i];
         auto beacon = beacons[j];
         if (error.loc.line == beacon.loc.line) {
-            std::string stripped{std::cbegin(beacon.message) + 1,
-                                 std::cend(beacon.message) - 1};
-            std::regex regex{stripped};
+            std::regex regex{beacon.message};
             if (!std::regex_search(error.message, regex)) {
                 success = false;
                 fmt::print("< {}\n> {}\n", error.str(), beacon.str());

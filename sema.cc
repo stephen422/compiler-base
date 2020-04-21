@@ -21,8 +21,6 @@ std::string Type::str() const { return name->text; }
 void Sema::error(size_t pos, const std::string &msg) {
     Error e(source.locate(pos), msg);
     errors.push_back(e);
-    // XXX: for debugging
-    fmt::print("{}\n", e.str());
 }
 
 void push_builtin_type_from_name(Sema &s, const std::string &str) {
@@ -595,8 +593,6 @@ static void returnCheckSolve(const std::vector<BasicBlock *> &walkList) {
 }
 
 BasicBlock *ReturnChecker::visitFuncDecl(FuncDeclNode *f, BasicBlock *bb) {
-  fmt::print("FuncDecl\n");
-
   if (!f->ret_type_expr)
     return nullptr;
 
@@ -605,8 +601,9 @@ BasicBlock *ReturnChecker::visitFuncDecl(FuncDeclNode *f, BasicBlock *bb) {
 
   std::vector<BasicBlock *> walkList;
   entryPoint->enumeratePostOrder(walkList);
-  for (auto bb : walkList)
-    fmt::print("BasicBlock: {} stmts\n", bb->stmts.size());
+
+  // for (auto bb : walkList)
+  //   fmt::print("BasicBlock: {} stmts\n", bb->stmts.size());
 
   returnCheckSolve(walkList);
 

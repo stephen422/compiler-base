@@ -67,87 +67,87 @@ using ExprResult = ParserResult<Expr>;
 
 class Parser {
 public:
-    Lexer &lexer;                                // owned lexer
-    Token tok;                                   // lookahead token
-    std::vector<std::unique_ptr<AstNode>> nodes; // node pointer pool
-    std::vector<Error> errors;                   // error list
-    std::vector<Error> beacons;                  // error beacon list
-    AstNode *ast = nullptr;                      // resulting AST
-    NameTable names;                             // name table
+  Lexer &lexer;                                // owned lexer
+  Token tok;                                   // lookahead token
+  std::vector<std::unique_ptr<AstNode>> nodes; // node pointer pool
+  std::vector<Error> &errors;                  // error list
+  std::vector<Error> &beacons;                 // error beacon list
+  AstNode *ast = nullptr;                      // resulting AST
+  NameTable names;                             // name table
 
-    Parser(Lexer &lexer);
-    Ast parse();
-    void report() const;
-    bool verify();
+  Parser(Lexer &lexer, std::vector<Error> &errors, std::vector<Error> &beacons);
+  Ast parse();
+  void report() const;
+  bool verify();
 
 private:
-    // Parse the whole file.
-    File *parseFile();
+  // Parse the whole file.
+  File *parseFile();
 
-    // Parse a toplevel statement.
-    AstNode *parseToplevel();
+  // Parse a toplevel statement.
+  AstNode *parseToplevel();
 
-    // Statement parsers.
-    Stmt *parseStmt();
-    Stmt *parse_expr_or_assign_stmt();
-    Stmt *parse_return_stmt();
-    IfStmt *parse_if_stmt();
-    DeclStmt *parse_decl_stmt();
-    CompoundStmt *parseCompoundStmt();
-    bool is_end_of_stmt() const;
-    bool is_eos();
+  // Statement parsers.
+  Stmt *parseStmt();
+  Stmt *parse_expr_or_assign_stmt();
+  Stmt *parse_return_stmt();
+  IfStmt *parse_if_stmt();
+  DeclStmt *parse_decl_stmt();
+  CompoundStmt *parseCompoundStmt();
+  bool is_end_of_stmt() const;
+  bool is_eos();
 
-    // Declaration parsers
-    DeclNode *parseDecl();
-    DeclNode *parseVarDecl(VarDeclNode::Kind kind);
-    std::vector<DeclNode *> parseVarDeclList(VarDeclNode::Kind kind);
-    StructDeclNode *parseStructDecl();
-    FuncDeclNode *parseFuncDecl();
-    bool isStartOfDecl() const;
+  // Declaration parsers
+  DeclNode *parseDecl();
+  DeclNode *parseVarDecl(VarDeclNode::Kind kind);
+  std::vector<DeclNode *> parseVarDeclList(VarDeclNode::Kind kind);
+  StructDeclNode *parseStructDecl();
+  FuncDeclNode *parseFuncDecl();
+  bool isStartOfDecl() const;
 
-    // Expression parsers
-    Expr *parse_expr();
-    Expr *parseUnaryExpr();
-    Expr *parseLiteralExpr();
-    Expr *parseFuncCallOrDeclRefExpr();
-    Expr *parse_type_expr();
-    Expr *parseBinaryExprRhs(Expr *lhs, int precedence);
-    Expr *parseMemberExprMaybe(Expr *expr);
-    bool isStartOfTypeExpr() const;
+  // Expression parsers
+  Expr *parse_expr();
+  Expr *parseUnaryExpr();
+  Expr *parseLiteralExpr();
+  Expr *parseFuncCallOrDeclRefExpr();
+  Expr *parse_type_expr();
+  Expr *parseBinaryExprRhs(Expr *lhs, int precedence);
+  Expr *parseMemberExprMaybe(Expr *expr);
+  bool isStartOfTypeExpr() const;
 
-    std::vector<Error> parseErrorBeacon();
+  std::vector<Error> parse_error_beacon();
 
-    // Error handling
-    void error(const std::string &msg);
-    void errorExpected(const std::string &msg);
+  // Error handling
+  void error(const std::string &msg);
+  void errorExpected(const std::string &msg);
 
-    // Advance the lookahead token.
-    void next();
+  // Advance the lookahead token.
+  void next();
 
-    // Expect and consume functions.
-    bool expect(Tok kind, const std::string &msg);
+  // Expect and consume functions.
+  bool expect(Tok kind, const std::string &msg);
 
-    // Skip until a specific token(s) show up.
-    void skip_until(Tok kind);
-    void skip_until_any(const std::vector<Tok> &kinds);
-    void skip_until_end_of_line();
-    void skip_to_next_line();
-    void skip_newlines();
+  // Skip until a specific token(s) show up.
+  void skip_until(Tok kind);
+  void skip_until_any(const std::vector<Tok> &kinds);
+  void skip_until_end_of_line();
+  void skip_to_next_line();
+  void skip_newlines();
 
-    template <typename T, typename... Args> T *make_node(Args &&... args) {
-        nodes.emplace_back(new T{std::forward<Args>(args)...});
-        return static_cast<T *>(nodes.back().get());
-    }
+  template <typename T, typename... Args> T *make_node(Args &&... args) {
+    nodes.emplace_back(new T{std::forward<Args>(args)...});
+    return static_cast<T *>(nodes.back().get());
+  }
 
-    template <typename T, typename... Args>
-    T *make_node_pos(size_t pos, Args &&... args) {
-        auto node = make_node<T>(std::forward<Args>(args)...);
-        node->pos = pos;
-        return node;
-    }
+  template <typename T, typename... Args>
+  T *make_node_pos(size_t pos, Args &&... args) {
+    auto node = make_node<T>(std::forward<Args>(args)...);
+    node->pos = pos;
+    return node;
+  }
 
-    // Figure out the current location (line, col) in the source.
-    SourceLoc locate() const { return lexer.source().locate(tok.pos); }
+  // Figure out the current location (line, col) in the source.
+  SourceLoc locate() const { return lexer.source().locate(tok.pos); }
 };
 
 } // namespace cmp

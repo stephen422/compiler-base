@@ -1,10 +1,9 @@
 // TODO:
-// function return check -> needs control flow analysis
 
 struct Car {
     engine: int,
     wheel: int,
-    engine: int, // [error: "redefinition.*'engine'"]
+    engine: int, // ERROR: redefinition.*'engine'
 }
 
 func front_func(a: int, b: int, c: int) -> int {
@@ -12,35 +11,36 @@ func front_func(a: int, b: int, c: int) -> int {
 
 func main() {
     let a: int = 3 + 4
-    let a = 4 // [error: "redefinition.*'a'"]
+    let a = 4 // ERROR: redefinition.*'a'
     let car: Car
     a = "hi"
     car.a = 5
     (car).a = 5
 
-    new_kid // [error: "undeclared.*'new_kid'"]
+    new_kid // ERROR: undeclared.*'new_kid'
 
-    car(3) // [error: "'car'.*not a function]
+    car(3) // ERROR: 'car'.*not a function
     front_func(1 + 2)
     back_func(a, a) // TODO: multi-pass name binding
 
-    *a // [error: "dereference"] // TODO: report 'int'
+    *a // ERROR: dereference
+    // TODO: report 'int'
 
     {
         // declaration in a block
         let in_block = 0
         in_block
     }
-    in_block // [error: "undeclared.*'in_block']
+    in_block // ERROR: undeclared.*'in_block'
 
     if a {
         let in_if = 42
         in_if
     } else if a {
-        in_if // [error: "undeclared.*'in_if']
+        in_if // ERROR: undeclared.*'in_if'
     } else {
     }
-    in_if // [error: "undeclared.*'in_if']
+    in_if // ERROR: undeclared.*'in_if'
 }
 
 func back_func(a: int, b: int) {

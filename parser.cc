@@ -8,11 +8,12 @@ namespace cmp {
 
 template <typename T> using Res = ParserResult<T>;
 
-Parser::Parser(Lexer &l) : lexer{l} {
-    tok = lexer.lex();
-    // insert keywords in name table
-    for (auto m : keyword_map)
-        names.getOrAdd(std::string{m.first});
+Parser::Parser(Lexer &l, std::vector<Error> &e, std::vector<Error> &b)
+    : lexer{l}, errors(e), beacons(b) {
+  tok = lexer.lex();
+  // insert keywords in name table
+  for (auto m : keyword_map)
+    names.getOrAdd(std::string{m.first});
 }
 
 void Parser::error(const std::string &msg) {
@@ -25,30 +26,24 @@ void Parser::errorExpected(const std::string &msg) {
 }
 
 void Parser::next() {
-    if (tok.kind == Tok::eos)
-        return;
+  if (tok.kind == Tok::eos)
+    return;
 
-    tok = lexer.lex();
+  tok = lexer.lex();
 
-    // If an error beacon is found in a comment, add the error to the parser
-    // error list so that it can be compared to the actual errors later in the
-    // verifying phase.
-    if (tok.kind == Tok::comment) {
-        std::string_view marker{"[error:"};
-        auto found = tok.text.find(marker);
-        if (found != std::string_view::npos) {
-            auto bracket = tok.text.substr(found);
-            Source s{std::string{bracket}};
-            Lexer l{s};
-            Parser p{l};
-            auto v = p.parseErrorBeacon();
-            // override location
-            for (auto &e : v) {
-                e.loc = locate();
-                beacons.push_back(e);
-            }
-        }
-    }
+  // If an error beacon is found in a comment, add the error to the parser
+  // error list so that it can be compared to the actual errors later in the
+  // verifying phase.
+  if (tok.kind == Tok::comment) {
+    std::string_view marker{"// ERROR: "};
+    auto found = tok.text.find(marker);
+    if (found != 0)
+      return;
+
+    // '---' in '// ERROR: ---'
+    std::string regex_string{tok.text.substr(marker.length())};
+    beacons.push_back({locate(), regex_string});
+  }
 }
 
 bool Parser::expect(Tok kind, const std::string &msg = "") {
@@ -582,7 +577,7 @@ Expr *Parser::parse_expr() {
     return parseMemberExprMaybe(binary);
 }
 
-std::vector<Error> Parser::parseErrorBeacon() {
+std::vector<Error> Parser::parse_error_beacon() {
     expect(Tok::lbracket);
     expect(Tok::kw_error);
     expect(Tok::colon);

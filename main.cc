@@ -4,6 +4,47 @@
 
 using namespace cmp;
 
+struct Driver {
+  const std::string filename;
+  std::vector<Error> errors;
+  std::vector<Error> beacons;
+
+  bool compile_from_path(const Path &path);
+  bool no_errors() const { return errors.empty(); }
+};
+
+bool Driver::compile_from_path(const Path &path) {
+  fmt::print("Parse:\n");
+  Source src{path};
+  Lexer lexer{src};
+  Parser parser{lexer, errors, beacons};
+  auto ast = parser.parse();
+  if (!no_errors())
+    return false;
+
+  Sema sema{parser};
+  setup_builtin_types(sema);
+  fmt::print("Name binding:\n");
+  NameBinder nb{sema};
+  nb.visitFile(static_cast<File *>(ast.root));
+  if (!no_errors())
+    return false;
+
+  fmt::print("Type checking:\n");
+  TypeChecker tc{sema};
+  tc.visitFile(static_cast<File *>(ast.root));
+  if (!no_errors())
+    return false;
+
+  fmt::print("Return checking:\n");
+  ReturnChecker rc{sema};
+  rc.visitFile(static_cast<File *>(ast.root), nullptr);
+  if (!no_errors())
+    return false;
+
+  return true;
+}
+
 void test_lexer(Lexer &lexer) {
     Token token;
 
@@ -22,55 +63,10 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-#if 0
-    test_lexer(lexer);
-#else
-    Source src_parser{Path{"../test_parser.txt"}};
-    Lexer l_parser{src_parser};
-    Parser p_parser{l_parser};
-    p_parser.parse();
-    if (!p_parser.verify())
-        return EXIT_FAILURE;
+    Driver driver;
+    driver.compile_from_path(Path{"../test_parser.txt"});
+    Driver driver2;
+    driver2.compile_from_path(Path{"../test_typeck.txt"});
 
-    // Source src_sema{Path{"../test_sema.txt"}};
-    // Parser p_sema{src_sema};
-    // auto ast = p_sema.parse();
-    // ast.root->print();
-    // Sema s{p_sema};
-    // NameBinder n{s};
-    // n.visitFile(static_cast<File *>(ast.root));
-
-    Source src_typeck{Path{"../test_typeck.txt"}};
-    Lexer l_typeck{src_typeck};
-    Parser p_typeck{l_typeck};
-    auto ast = p_typeck.parse();
-    fmt::print("Parser check: ");
-    if (!p_typeck.errors.empty()) {
-        fmt::print("fail\n");
-        p_typeck.report();
-        return EXIT_FAILURE;
-    } else {
-        fmt::print("success\n");
-    }
-    Sema s_typeck{p_typeck};
-    setup_builtin_types(s_typeck);
-    NameBinder n{s_typeck};
-    n.visitFile(static_cast<File *>(ast.root));
-    if (!n.success()) {
-        fmt::print("Name binding failed\n");
-        return EXIT_FAILURE;
-    }
-    TypeChecker tc{s_typeck};
-    tc.visitFile(static_cast<File *>(ast.root));
-    if (!tc.success())
-        if (!p_typeck.verify())
-            return EXIT_FAILURE;
-    ReturnChecker rc{s_typeck};
-    rc.visitFile(static_cast<File *>(ast.root), nullptr);
-    if (!rc.success())
-        if (!p_typeck.verify())
-            return EXIT_FAILURE;
-
-#endif
     return EXIT_SUCCESS;
 }
