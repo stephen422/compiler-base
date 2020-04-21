@@ -28,7 +28,7 @@ else()
     # LeakSanitizer does not work on Darwin
     target_compile_options(cmp PRIVATE
       "$<$<CONFIG:DEBUG>:-fsanitize=address,undefined>")
-    target_link_libraries(cmp PRIVATE
+    target_link_libraries(cmp PRIVATE "-Wl,-L$ENV{HOME}/build/llvm/lib" "-Wl,-rpath $ENV{HOME}/build/llvm/lib"
       "$<$<CONFIG:DEBUG>:-fsanitize=address,undefined>")
 endif()
 
