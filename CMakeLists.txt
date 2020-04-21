@@ -45,6 +45,6 @@ target_compile_options(cmp-check PRIVATE ${MY_FLAG})
 target_compile_definitions(cmp-check PRIVATE CATCH_CONFIG_COLOUR_ANSI)
 target_link_options(cmp-check PRIVATE ${MY_LINK_FLAGS})
 
-add_custom_target(check COMMAND ./cmp-check DEPENDS cmp-check)
+add_custom_target(check COMMAND ./cmp-check --use-colour yes DEPENDS cmp-check)
 
 set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
