@@ -10,15 +10,9 @@ int main(int argc, char **argv) {
 
     // XXX: We don't even need to declare Driver variables, why not make these
     // free functions?
-    auto d1 = Driver::from_path(Path{"../test_parser.txt"});
+    auto d1 = Driver::from_path(Path{argv[1]});
     d1.compile();
-    d1.verify();
-    auto d2 = Driver::from_path(Path{"../test_namebind.txt"});
-    d2.compile();
-    d2.verify();
-    auto d3 = Driver::from_path(Path{"../test_typeck.txt"});
-    d3.compile();
-    d3.verify();
+    d1.report();
 
     return EXIT_SUCCESS;
 }

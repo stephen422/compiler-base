@@ -73,6 +73,8 @@ struct FuncDecl {
 
     FuncDecl(Name *n) : name(n) {}
     size_t args_count() const { return args.size(); }
+    // XXX: might false-report before typecheck is completed
+    bool is_void() const { return return_type == nullptr; }
 };
 
 // 'Decl' represents declaration of a variable, a function, or a type.

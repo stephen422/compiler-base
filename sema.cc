@@ -239,21 +239,27 @@ void TypeChecker::visitAssignStmt(AssignStmt *as) {
 }
 
 void TypeChecker::visitReturnStmt(ReturnStmt *rs) {
-    walk_return_stmt(*this, rs);
-    if (!rs->expr->type)
-        return;
+  walk_return_stmt(*this, rs);
+  if (!rs->expr->type)
+    return;
 
-    assert(!sema.context.func_decl_stack.empty());
-    auto funcDecl = sema.context.func_decl_stack.back();
-    if (rs->expr->type != funcDecl->return_type) {
-        sema.error(
-            rs->expr->pos,
-            fmt::format(
-                "return type mismatch: function returns '{}', but got '{}'",
-                funcDecl->return_type->name->str(),
-                rs->expr->type->name->str()));
-        return;
-    }
+  assert(!sema.context.func_decl_stack.empty());
+  auto func_decl = sema.context.func_decl_stack.back();
+  if (func_decl->is_void()) {
+    sema.error(rs->expr->pos,
+               fmt::format("function '{}' should not return a value",
+                           func_decl->name->str()));
+    return;
+  }
+
+  if (rs->expr->type != func_decl->return_type) {
+    sema.error(
+        rs->expr->pos,
+        fmt::format("return type mismatch: function returns '{}', but got '{}'",
+                    func_decl->return_type->name->str(),
+                    rs->expr->type->name->str()));
+    return;
+  }
 }
 
 void TypeChecker::visitIntegerLiteral(IntegerLiteral *i) {

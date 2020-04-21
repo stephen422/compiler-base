@@ -3,7 +3,6 @@
 #include "sema.h"
 
 bool Driver::compile() {
-  fmt::print("Parse:\n");
   Lexer lexer{source};
   Parser parser{lexer, errors, beacons};
   auto ast = parser.parse();
@@ -12,19 +11,16 @@ bool Driver::compile() {
 
   Sema sema{parser};
   setup_builtin_types(sema);
-  fmt::print("Name binding:\n");
   NameBinder nb{sema};
   nb.visitFile(static_cast<File *>(ast.root));
   if (!no_errors())
     return false;
 
-  fmt::print("Type checking:\n");
   TypeChecker tc{sema};
   tc.visitFile(static_cast<File *>(ast.root));
   if (!no_errors())
     return false;
 
-  fmt::print("Return checking:\n");
   ReturnChecker rc{sema};
   rc.visitFile(static_cast<File *>(ast.root), nullptr);
   if (!no_errors())

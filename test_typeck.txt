@@ -19,6 +19,10 @@ func g() -> int {
   return 98
 }
 
+func void_ret() {
+  return 1 // ERROR: function .* should not return
+}
+
 func h(a: int, b: *int) -> int {
   if 1 {
     return 1

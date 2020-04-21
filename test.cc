@@ -56,3 +56,9 @@ TEST_CASE("Type checking") {
   d.compile();
   REQUIRE(d.verify());
 }
+
+TEST_CASE("Return checking") {
+  auto d = Driver::from_path(Path{"../test_returnck.txt"});
+  d.compile();
+  REQUIRE(d.verify());
+}

@@ -1,0 +1,86 @@
+func no_ret() -> int { // ERROR: function not guaranteed to return
+}
+
+func single_if() -> int {
+  if 1 {
+    return 1
+  } else {
+    return 1
+  }
+}
+
+func single_if_fail() -> int { // ERROR: function not guaranteed to return
+  if 1 {
+    return 1
+  }
+
+  if 1 {
+  } else {
+    return 1
+  }
+}
+
+func if_elseif() -> int { // ERROR: function not guaranteed to return
+  if 1 {
+    return 1
+  } else if 1 {
+    return 1
+  }
+}
+
+func double_if() -> int {
+  if 1 {
+    return 1
+  } else if 1 {
+    return 1
+  } else {
+    if 1 {
+      return 1
+    } else {
+      return 1
+    }
+  }
+}
+
+func double_if_fail1() -> int { // ERROR: function not guaranteed to return
+  if 1 {
+    return 1
+  } else if 1 {
+    return 1
+  } else {
+    if 1 {
+      return 1
+    } else {
+    }
+  }
+}
+
+func double_if_fail2() -> int { // ERROR: function not guaranteed to return
+  if 1 {
+    return 1
+  } else if 1 {
+    // missing
+  } else {
+    if 1 {
+      return 1
+    } else {
+      return 1
+    }
+  }
+}
+
+func double_if_early() -> int {
+  return 1
+
+  if 1 {
+    return 1
+  } else if 1 {
+    // missing
+  } else {
+    if 1 {
+      return 1
+    } else {
+      return 1
+    }
+  }
+}
