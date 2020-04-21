@@ -1,7 +1,12 @@
-!!! Idea: "Programmable lifetime"
+!!! Idea: Programmable lifetime
 
-Let the programmer tell the compiler explicitly where a specific type of object
-lives and dies in the code.
+  Let the programmer tell the compiler explicitly where a specific type of
+  object lives and dies in the code.
+
+!! Idea: Specify lifetime between struct parameters?
+
+  E.g. Source, Parser, Lexer all in a single Driver struct, but their
+  construction/destruction order is guaranteed.
 
 Q. What's the advantage of separating type table from decl table?
 
