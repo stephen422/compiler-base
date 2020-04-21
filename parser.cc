@@ -590,11 +590,6 @@ std::vector<Error> Parser::parse_error_beacon() {
     return v;
 }
 
-// See cmp::verify().
-bool Parser::verify() {
-    return cmp::verify(lexer.source().filename, errors, beacons);
-}
-
 void Parser::skip_until(Tok kind) {
   while (tok.kind != kind)
     next();
@@ -640,7 +635,6 @@ AstNode *Parser::parseToplevel() {
         return parseStructDecl();
     default:
         error("assertion failed here");
-        report();
         assert(false && "unreachable");
     }
 }
@@ -658,12 +652,6 @@ File *Parser::parseFile() {
 Ast Parser::parse() {
     ast = parseFile();
     return Ast{ast, names};
-}
-
-// Report errors to stdout.
-void Parser::report() const {
-  for (auto e : errors)
-    fmt::print("{}\n", e.str());
 }
 
 } // namespace cmp

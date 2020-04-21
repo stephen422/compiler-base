@@ -77,8 +77,6 @@ public:
 
   Parser(Lexer &lexer, std::vector<Error> &errors, std::vector<Error> &beacons);
   Ast parse();
-  void report() const;
-  bool verify();
 
 private:
   // Parse the whole file.

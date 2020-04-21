@@ -5,18 +5,26 @@
 using namespace cmp;
 
 struct Driver {
-  const std::string filename;
+  const Source source;
   std::vector<Error> errors;
   std::vector<Error> beacons;
 
-  bool compile_from_path(const Path &path);
+  // Construct from a filepath.
+  Driver(const Path &path) : source{path} {}
+  // Construct from a string text.
+  Driver(const std::string &text) : source{text} {};
+  static Driver from_path(const Path &path) { return Driver{path}; }
+  static Driver from_text(const std::string &text) { return Driver{text}; }
+
+  bool compile();
+  void report() const;
+  bool verify();
   bool no_errors() const { return errors.empty(); }
 };
 
-bool Driver::compile_from_path(const Path &path) {
+bool Driver::compile() {
   fmt::print("Parse:\n");
-  Source src{path};
-  Lexer lexer{src};
+  Lexer lexer{source};
   Parser parser{lexer, errors, beacons};
   auto ast = parser.parse();
   if (!no_errors())
@@ -45,6 +53,17 @@ bool Driver::compile_from_path(const Path &path) {
   return true;
 }
 
+// Report errors to stdout.
+void Driver::report() const {
+  for (auto e : errors)
+    fmt::print("{}\n", e.str());
+}
+
+// See cmp::verify().
+bool Driver::verify() {
+    return cmp::verify(source.filename, errors, beacons);
+}
+
 void test_lexer(Lexer &lexer) {
     Token token;
 
@@ -63,10 +82,17 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    Driver driver;
-    driver.compile_from_path(Path{"../test_parser.txt"});
-    Driver driver2;
-    driver2.compile_from_path(Path{"../test_typeck.txt"});
+    // XXX: We don't even need to declare Driver variables, why not make these
+    // free functions?
+    auto d1 = Driver::from_path(Path{"../test_parser.txt"});
+    d1.compile();
+    d1.verify();
+    auto d2 = Driver::from_path(Path{"../test_sema.txt"});
+    d2.compile();
+    d2.verify();
+    auto d3 = Driver::from_path(Path{"../test_typeck.txt"});
+    d3.compile();
+    d3.verify();
 
     return EXIT_SUCCESS;
 }
