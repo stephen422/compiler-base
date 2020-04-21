@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
     auto d1 = Driver::from_path(Path{"../test_parser.txt"});
     d1.compile();
     d1.verify();
-    auto d2 = Driver::from_path(Path{"../test_sema.txt"});
+    auto d2 = Driver::from_path(Path{"../test_namebind.txt"});
     d2.compile();
     d2.verify();
     auto d3 = Driver::from_path(Path{"../test_typeck.txt"});

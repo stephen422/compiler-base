@@ -20,11 +20,9 @@ func main() {
     new_kid // ERROR: undeclared.*'new_kid'
 
     car(3) // ERROR: 'car'.*not a function
-    front_func(1 + 2)
-    back_func(a, a) // TODO: multi-pass name binding
-
-    *a // ERROR: dereference
-    // TODO: report 'int'
+    front_func(1 + 2) // ERROR: 'front_func' accepts 3 arguments, got 1
+    back_func(a, a) // ERROR: undeclared function 'back_func'
+    // TODO: multi-pass name binding
 
     {
         // declaration in a block
