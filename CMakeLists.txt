@@ -41,7 +41,7 @@ target_compile_options(cmp PRIVATE ${MY_COMPILE_FLAGS})
 target_link_options(cmp PRIVATE ${MY_LINK_FLAGS})
 
 target_compile_features(cmp-check PUBLIC cxx_std_17)
-target_compile_options(cmp-check PRIVATE ${MY_FLAG})
+target_compile_options(cmp-check PRIVATE ${MY_COMPILE_FLAGS})
 target_compile_definitions(cmp-check PRIVATE CATCH_CONFIG_COLOUR_ANSI)
 target_link_options(cmp-check PRIVATE ${MY_LINK_FLAGS})
 
