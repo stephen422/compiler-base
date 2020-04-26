@@ -125,8 +125,8 @@ void FuncDeclNode::print() const {
     PrintScope start;
     for (auto &p : args)
         p->print();
-    if (ret_type_expr)
-        ret_type_expr->print();
+    if (retTypeExpr)
+        retTypeExpr->print();
     body->print();
 }
 

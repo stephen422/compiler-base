@@ -408,7 +408,7 @@ struct FuncDeclNode : public DeclNode {
     FuncDecl *func_decl = nullptr; // decl info
     std::vector<DeclNode *> args;  // list of parameters
     CompoundStmt *body = nullptr;  // body statements
-    Expr *ret_type_expr = nullptr; // return type expression
+    Expr *retTypeExpr = nullptr; // return type expression
 
     FuncDeclNode(Name *n)
         : DeclNode(DeclNodeKind::func), name(n) {}
@@ -682,8 +682,8 @@ void walk_struct_decl(Visitor &v, StructDeclNode *s, Args... args) {
 }
 template <typename Visitor, typename... Args>
 void walk_func_decl(Visitor &v, FuncDeclNode *f, Args... args) {
-    if (f->ret_type_expr)
-        v.visitExpr(f->ret_type_expr, args...);
+    if (f->retTypeExpr)
+        v.visitExpr(f->retTypeExpr, args...);
     for (auto arg : f->args)
         v.visitDecl(arg, args...);
     v.visitCompoundStmt(f->body, args...);

@@ -138,6 +138,7 @@ struct BasicBlock {
     std::vector<BasicBlock *> pred;
     std::vector<BasicBlock *> succ;
     bool walked = false;
+
     // Indicates whether it is guaranteed that a return statement is seen on
     // every possible control flow that leads to this basic block.
     bool returnedSoFar = false;
@@ -259,19 +260,47 @@ public:
     void visitFuncDecl(FuncDeclNode *f);
 };
 
-class ReturnChecker : public AstVisitor<ReturnChecker, BasicBlock *, BasicBlock *> {
-    Sema &sema;
+class ReturnChecker
+    : public AstVisitor<ReturnChecker, BasicBlock *, BasicBlock *> {
+  Sema &sema;
 
 public:
-    ReturnChecker(Sema &s) : sema{s} {}
-    bool success() const { return sema.errors.empty(); }
+  ReturnChecker(Sema &s) : sema{s} {}
+  bool success() const { return sema.errors.empty(); }
 
-    BasicBlock *visitStmt(Stmt *s, BasicBlock *bb);
-    BasicBlock *visitCompoundStmt(CompoundStmt *cs, BasicBlock *bb);
-    BasicBlock *visitIfStmt(IfStmt *is, BasicBlock *bb);
-    // void visitReturnStmt(ReturnStmt *rs);
+  BasicBlock *visitStmt(Stmt *s, BasicBlock *bb);
+  BasicBlock *visitCompoundStmt(CompoundStmt *cs, BasicBlock *bb);
+  BasicBlock *visitIfStmt(IfStmt *is, BasicBlock *bb);
 
-    BasicBlock *visitFuncDecl(FuncDeclNode *f, BasicBlock *bb);
+  BasicBlock *visitFuncDecl(FuncDeclNode *f, BasicBlock *bb);
+};
+
+class CodeGenerator : public AstVisitor<CodeGenerator, void> {
+  Sema &sema;
+  int indent = 0;
+
+  template <typename... Args> void emit(Args &&... args) {
+    fmt::print("{:{}}", "", indent);
+    fmt::print(std::forward<Args>(args)...);
+  }
+  template <typename... Args> void emitCont(Args &&... args) {
+    fmt::print(std::forward<Args>(args)...);
+  }
+
+  struct IndentBlock {
+    CodeGenerator &c;
+    IndentBlock(CodeGenerator &c) : c{c} { c.indent += 2; }
+    ~IndentBlock() { c.indent -= 2; }
+  };
+
+public:
+  CodeGenerator(Sema &s) : sema{s} {}
+  bool success() const { return sema.errors.empty(); }
+
+  void visitIntegerLiteral(IntegerLiteral *i);
+  void visitTypeExpr(TypeExpr *t);
+  void visitVarDecl(VarDeclNode *v);
+  void visitFuncDecl(FuncDeclNode *f);
 };
 
 } // namespace cmp

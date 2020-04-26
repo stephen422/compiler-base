@@ -316,7 +316,7 @@ FuncDeclNode *Parser::parseFuncDecl() {
     // return type (-> ...)
     if (tok.kind == Tok::arrow) {
         next();
-        func->ret_type_expr = parse_type_expr();
+        func->retTypeExpr = parse_type_expr();
     }
     if (tok.kind != Tok::lbrace) {
         errorExpected("'->' or '{'");

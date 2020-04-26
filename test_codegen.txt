@@ -1,0 +1,7 @@
+func f() -> int {
+  let i = 1
+  return i
+}
+
+func g() {
+}

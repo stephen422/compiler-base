@@ -503,15 +503,15 @@ void TypeChecker::visitFuncDecl(FuncDeclNode *f) {
     // We need to do return type typecheck before walking the body, so we can't
     // use the generic walk_func_decl function here.
 
-    if (f->ret_type_expr)
-        visitExpr(f->ret_type_expr);
+    if (f->retTypeExpr)
+        visitExpr(f->retTypeExpr);
     for (auto arg : f->args)
         visitDecl(arg);
 
-    if (f->ret_type_expr) {
-        if (!f->ret_type_expr->type)
+    if (f->retTypeExpr) {
+        if (!f->retTypeExpr->type)
             return;
-        f->func_decl->return_type = f->ret_type_expr->type;
+        f->func_decl->return_type = f->retTypeExpr->type;
     }
 
     // FIXME: what about type_table?
@@ -599,7 +599,7 @@ static void returnCheckSolve(const std::vector<BasicBlock *> &walkList) {
 }
 
 BasicBlock *ReturnChecker::visitFuncDecl(FuncDeclNode *f, BasicBlock *bb) {
-  if (!f->ret_type_expr)
+  if (!f->retTypeExpr)
     return nullptr;
 
   auto entryPoint = sema.make_basic_block();
@@ -636,6 +636,43 @@ void BasicBlock::enumeratePostOrder(std::vector<BasicBlock *> &walkList) {
   // post-order traversal
   walked = true;
   walkList.push_back(this);
+}
+
+void CodeGenerator::visitIntegerLiteral(IntegerLiteral *i) {
+  fmt::print("{}", i->value);
+}
+
+void CodeGenerator::visitTypeExpr(TypeExpr *t) {
+  fmt::print("{}", t->type->name->str());
+}
+
+void CodeGenerator::visitVarDecl(VarDeclNode *v) {
+  emit("{} {};\n", v->var_decl->type->name->str(), v->name->str());
+  if (v->assign_expr) {
+    emit("{} = ", v->name->str());
+    visitExpr(v->assign_expr);
+    emitCont(";\n");
+  }
+}
+
+void CodeGenerator::visitFuncDecl(FuncDeclNode *f) {
+  if (f->retTypeExpr)
+    visitExpr(f->retTypeExpr);
+  else
+    emit("void");
+
+  emit(" {}(", f->name->str());
+  for (auto arg : f->args)
+    visitDecl(arg);
+  emitCont(") {{\n");
+
+  {
+    IndentBlock ib{*this};
+    visitCompoundStmt(f->body);
+  }
+
+  emit("}}\n");
+  emit("\n");
 }
 
 } // namespace cmp
