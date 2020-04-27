@@ -497,9 +497,12 @@ static int binary_op_precedence(const Token &op) {
     switch (op.kind) {
     case Tok::star:
     case Tok::slash:
-        return 1;
+        return 2;
     case Tok::plus:
     case Tok::minus:
+        return 1;
+    case Tok::greaterthan:
+    case Tok::lesserthan:
         return 0;
     default:
         // not an operator

@@ -433,17 +433,20 @@ void TypeChecker::visitParenExpr(ParenExpr *p) {
 }
 
 void TypeChecker::visitBinaryExpr(BinaryExpr *b) {
-    walk_binary_expr(*this, b);
+  walk_binary_expr(*this, b);
 
-    if (!b->lhs->type || !b->rhs->type)
-        return;
+  if (!b->lhs->type || !b->rhs->type)
+    return;
 
-    if (b->lhs->type != b->rhs->type)
-        sema.error(
-            b->pos,
-            fmt::format(
-                "incompatible types to binary expression ('{}' and '{}')",
-                b->lhs->type->name->str(), b->rhs->type->name->str()));
+  if (b->lhs->type != b->rhs->type) {
+    sema.error(
+        b->pos,
+        fmt::format("incompatible types to binary expression ('{}' and '{}')",
+                    b->lhs->type->name->str(), b->rhs->type->name->str()));
+    return;
+  }
+
+  b->type = b->lhs->type;
 }
 
 // Type checking TypeExpr concerns with finding the Type object whose syntactic
@@ -658,6 +661,12 @@ void CodeGenerator::visitFuncCallExpr(FuncCallExpr *f) {
   emitCont(")");
 }
 
+void CodeGenerator::visitParenExpr(ParenExpr *p) {
+  emitCont("(");
+  visitExpr(p->operand);
+  emitCont(")");
+}
+
 void CodeGenerator::visitBinaryExpr(BinaryExpr *b) {
   visitExpr(b->lhs);
   emitCont(" {} ", b->op.str());
@@ -700,11 +709,15 @@ void CodeGenerator::visitReturnStmt(ReturnStmt *r) {
 }
 
 void CodeGenerator::visitVarDecl(VarDeclNode *v) {
-  emit("{} {};\n", v->var_decl->type->name->str(), v->name->str());
-  if (v->assign_expr) {
-    emit("{} = ", v->name->str());
-    visitExpr(v->assign_expr);
-    emitCont(";\n");
+  if (v->kind == VarDeclNode::Kind::param) {
+    emit("{} {}", v->var_decl->type->name->str(), v->name->str());
+  } else {
+    emit("{} {};\n", v->var_decl->type->name->str(), v->name->str());
+    if (v->assign_expr) {
+      emit("{} = ", v->name->str());
+      visitExpr(v->assign_expr);
+      emitCont(";\n");
+    }
   }
 }
 
@@ -715,8 +728,12 @@ void CodeGenerator::visitFuncDecl(FuncDeclNode *f) {
     emit("void");
 
   emit(" {}(", f->name->str());
-  for (auto arg : f->args)
-    visitDecl(arg);
+  if (f->args.empty()) {
+    emitCont("void");
+  } else {
+    for (auto arg : f->args)
+      visitDecl(arg);
+  }
   emitCont(") {{\n");
 
   {

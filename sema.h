@@ -300,6 +300,7 @@ public:
   void visitIntegerLiteral(IntegerLiteral *i);
   void visitDeclRefExpr(DeclRefExpr *d);
   void visitFuncCallExpr(FuncCallExpr *f);
+  void visitParenExpr(ParenExpr *p);
   void visitBinaryExpr(BinaryExpr *b);
   void visitTypeExpr(TypeExpr *t);
 

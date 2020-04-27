@@ -57,6 +57,8 @@ func main() {
     
     // paren expr
     (f()).engine
+    i = 3 + 4
+
 
     // ref and deref
     *i // ERROR: dereference.*'int'

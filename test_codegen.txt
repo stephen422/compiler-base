@@ -1,11 +1,10 @@
-func f() -> int {
-  let i = 0
-  if i {
-    return i + i
+func f(n: int) -> int {
+  if n > 1 {
+    return n * f(n - 1)
   }
-  return 127
+  return 1
 }
 
 func main() -> int {
-  return f()
+  return f(8)
 }
