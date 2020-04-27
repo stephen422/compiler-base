@@ -1,7 +1,11 @@
 func f() -> int {
-  let i = 1
-  return i
+  let i = 0
+  if i {
+    return i + i
+  }
+  return 127
 }
 
-func g() {
+func main() -> int {
+  return f()
 }

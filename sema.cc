@@ -639,11 +639,64 @@ void BasicBlock::enumeratePostOrder(std::vector<BasicBlock *> &walkList) {
 }
 
 void CodeGenerator::visitIntegerLiteral(IntegerLiteral *i) {
-  fmt::print("{}", i->value);
+  emitCont("{}", i->value);
+}
+
+void CodeGenerator::visitDeclRefExpr(DeclRefExpr *d) {
+  emitCont("{}", d->name->str());
+}
+
+void CodeGenerator::visitFuncCallExpr(FuncCallExpr *f) {
+  emitCont("{}(", f->func_name->str());
+
+  for (size_t i = 0; i < f->args.size(); i++) {
+    visitExpr(f->args[i]);
+    if (i != f->args.size() - 1)
+      emitCont(", ");
+  }
+
+  emitCont(")");
+}
+
+void CodeGenerator::visitBinaryExpr(BinaryExpr *b) {
+  visitExpr(b->lhs);
+  emitCont(" {} ", b->op.str());
+  visitExpr(b->rhs);
 }
 
 void CodeGenerator::visitTypeExpr(TypeExpr *t) {
-  fmt::print("{}", t->type->name->str());
+  emitCont("{}", t->type->name->str());
+}
+
+void CodeGenerator::visitIfStmt(IfStmt *i) {
+  emit("if (");
+  visitExpr(i->cond);
+  emitCont(") {{\n");
+  {
+    IndentBlock ib{*this};
+    visitCompoundStmt(i->if_body);
+  }
+  emit("}}");
+
+  if (i->else_body) {
+    emitCont(" else {{\n");
+    {
+      IndentBlock ib{*this};
+      visitCompoundStmt(i->else_body);
+    }
+    emit("}}\n");
+  } else if (i->else_if) {
+    emitCont(" else ");
+    visitIfStmt(i->else_if);
+  } else {
+    emitCont("\n");
+  }
+}
+
+void CodeGenerator::visitReturnStmt(ReturnStmt *r) {
+  emit("return ");
+  visitExpr(r->expr);
+  emitCont(";\n");
 }
 
 void CodeGenerator::visitVarDecl(VarDeclNode *v) {

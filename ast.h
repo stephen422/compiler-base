@@ -84,7 +84,7 @@ struct AstNode {
     AstNode(AstKind kind) : kind(kind) {}
     virtual ~AstNode() = default;
 
-    // Convenience cast function. Not checked.
+    // Casts to the *pointer* of the given type.  Not checked.
     template <typename T> T *as() { return static_cast<T *>(this); }
     template <typename T> const T *as() const {
         return static_cast<const T *>(this);

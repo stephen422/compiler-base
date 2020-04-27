@@ -298,7 +298,14 @@ public:
   bool success() const { return sema.errors.empty(); }
 
   void visitIntegerLiteral(IntegerLiteral *i);
+  void visitDeclRefExpr(DeclRefExpr *d);
+  void visitFuncCallExpr(FuncCallExpr *f);
+  void visitBinaryExpr(BinaryExpr *b);
   void visitTypeExpr(TypeExpr *t);
+
+  void visitIfStmt(IfStmt *i);
+  void visitReturnStmt(ReturnStmt *r);
+
   void visitVarDecl(VarDeclNode *v);
   void visitFuncDecl(FuncDeclNode *f);
 };
