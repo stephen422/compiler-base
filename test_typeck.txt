@@ -31,6 +31,8 @@ func main() {
     // var decl and assignment
     1 = 3 // ERROR: not assignable
     f() = 3 // ERROR: not assignable
+    let s: string
+    s = "hi"
     let car: Car
     car = 3 // ERROR: cannot assign.*'int'.*'Car'
 
@@ -58,7 +60,6 @@ func main() {
     // paren expr
     (f()).engine
     i = 3 + 4
-
 
     // ref and deref
     *i // ERROR: dereference.*'int'

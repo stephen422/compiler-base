@@ -35,6 +35,7 @@ void push_builtin_type_from_name(Sema &s, const std::string &str) {
 void setup_builtin_types(Sema &s) {
     push_builtin_type_from_name(s, "int");
     push_builtin_type_from_name(s, "char");
+    push_builtin_type_from_name(s, "string");
 }
 
 Sema::Sema(Parser &p) : Sema(p.lexer.source(), p.names, p.errors, p.beacons) {}
@@ -263,15 +264,19 @@ void TypeChecker::visitReturnStmt(ReturnStmt *rs) {
 }
 
 void TypeChecker::visitIntegerLiteral(IntegerLiteral *i) {
-    auto int_name = sema.names.get("int");
-    auto int_decl =
-        get<StructDecl *>(sema.decl_table.find(int_name)->value);
-    i->type = int_decl->type;
-    assert(i->type);
+  auto name = sema.names.get("int");
+  assert(name);
+  auto decl = get<StructDecl *>(sema.decl_table.find(name)->value);
+  i->type = decl->type;
+  assert(i->type);
 }
 
 void TypeChecker::visitStringLiteral(StringLiteral *s) {
-    // TODO
+  auto name = sema.names.get("string");
+  assert(name);
+  auto decl = get<StructDecl *>(sema.decl_table.find(name)->value);
+  s->type = decl->type;
+  assert(s->type);
 }
 
 void TypeChecker::visitDeclRefExpr(DeclRefExpr *d) {

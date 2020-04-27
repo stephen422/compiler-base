@@ -4,6 +4,7 @@ struct Car {
     engine: int,
     wheel: int,
     engine: int, // ERROR: redefinition.*'engine'
+    name: string,
 }
 
 func front_func(a: int, b: int, c: int) -> int {
