@@ -268,13 +268,13 @@ struct DeclRefExpr : public Expr {
 };
 
 struct FuncCallExpr : public Expr {
-    Name *func_name = nullptr;
+    Name *funcName = nullptr;
     std::vector<Expr *> args;
     // Decl for the function name, 'func'.
-    FuncDecl *func_decl = nullptr;
+    FuncDecl *funcDecl = nullptr;
 
     FuncCallExpr(Name *name, const std::vector<Expr *> &args)
-        : Expr(ExprKind::func_call), func_name(name),
+        : Expr(ExprKind::func_call), funcName(name),
           args(args) {}
     void print() const override;
 };
@@ -291,12 +291,12 @@ struct MemberExpr : public Expr {
 };
 
 struct UnaryExpr : public Expr {
-    UnaryExprKind unary_kind;
+    UnaryExprKind unaryKind;
     Expr *operand;
-    VarDecl *var_decl = nullptr;
+    VarDecl *varDecl = nullptr;
 
     UnaryExpr(UnaryExprKind k, Expr *oper)
-        : Expr(ExprKind::unary), unary_kind(k), operand(oper) {}
+        : Expr(ExprKind::unary), unaryKind(k), operand(oper) {}
     void print() const override;
 };
 
@@ -610,7 +610,7 @@ public:
     return RetTy();
   }
   RetTy visitUnaryExpr(UnaryExpr *u, Args... args) {
-    switch (u->unary_kind) {
+    switch (u->unaryKind) {
     case UnaryExprKind::paren:
       return dis()->visitParenExpr(static_cast<ParenExpr *>(u), args...);
       break;

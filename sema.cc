@@ -23,19 +23,20 @@ void Sema::error(size_t pos, const std::string &msg) {
     errors.push_back(e);
 }
 
-void push_builtin_type_from_name(Sema &s, const std::string &str) {
+Type *push_builtin_type_from_name(Sema &s, const std::string &str) {
     Name *name = s.names.getOrAdd(str);
     auto struct_decl = s.make_decl<StructDecl>(name);
     struct_decl->type = s.make_type(name);
     s.decl_table.insert(name, struct_decl);
+    return struct_decl->type;
 }
 
 // Push Decls for the builtin types into the global scope of decl_table, so
 // that they are visible from any point in the AST.
 void setup_builtin_types(Sema &s) {
-    push_builtin_type_from_name(s, "int");
-    push_builtin_type_from_name(s, "char");
-    push_builtin_type_from_name(s, "string");
+    s.context.intType = push_builtin_type_from_name(s, "int");
+    s.context.charType = push_builtin_type_from_name(s, "char");
+    s.context.stringType = push_builtin_type_from_name(s, "string");
 }
 
 Sema::Sema(Parser &p) : Sema(p.lexer.source(), p.names, p.errors, p.beacons) {}
@@ -94,27 +95,27 @@ void NameBinder::visitDeclRefExpr(DeclRefExpr *d) {
 // Only binds the function name part of the call, e.g. 'func' of func().
 void NameBinder::visitFuncCallExpr(FuncCallExpr *f) {
     // resolve function name
-    auto sym = sema.decl_table.find(f->func_name);
+    auto sym = sema.decl_table.find(f->funcName);
     if (!sym) {
         sema.error(f->pos, fmt::format("undeclared function '{}'",
-                                       f->func_name->str()));
+                                       f->funcName->str()));
         return;
     }
     if (!decl_is<FuncDecl *>(sym->value)) {
         sema.error(f->pos,
-                   fmt::format("'{}' is not a function", f->func_name->str()));
+                   fmt::format("'{}' is not a function", f->funcName->str()));
         return;
     }
-    f->func_decl = get<FuncDecl *>(sym->value);
-    assert(f->func_decl);
+    f->funcDecl = get<FuncDecl *>(sym->value);
+    assert(f->funcDecl);
 
     walk_func_call_expr(*this, f);
 
     // check if argument count matches
-    if (f->func_decl->args_count() != f->args.size()) {
+    if (f->funcDecl->args_count() != f->args.size()) {
         sema.error(f->pos,
                    fmt::format("'{}' accepts {} arguments, got {}",
-                               f->func_name->str(), f->func_decl->args_count(),
+                               f->funcName->str(), f->funcDecl->args_count(),
                                f->args.size()));
     }
 }
@@ -264,19 +265,11 @@ void TypeChecker::visitReturnStmt(ReturnStmt *rs) {
 }
 
 void TypeChecker::visitIntegerLiteral(IntegerLiteral *i) {
-  auto name = sema.names.get("int");
-  assert(name);
-  auto decl = get<StructDecl *>(sema.decl_table.find(name)->value);
-  i->type = decl->type;
-  assert(i->type);
+  i->type = sema.context.intType;
 }
 
 void TypeChecker::visitStringLiteral(StringLiteral *s) {
-  auto name = sema.names.get("string");
-  assert(name);
-  auto decl = get<StructDecl *>(sema.decl_table.find(name)->value);
-  s->type = decl->type;
-  assert(s->type);
+  s->type = sema.context.stringType;
 }
 
 void TypeChecker::visitDeclRefExpr(DeclRefExpr *d) {
@@ -322,18 +315,18 @@ void TypeChecker::visitDeclRefExpr(DeclRefExpr *d) {
 void TypeChecker::visitFuncCallExpr(FuncCallExpr *f) {
     walk_func_call_expr(*this, f);
 
-    assert(f->func_decl->return_type);
-    f->type = f->func_decl->return_type;
+    assert(f->funcDecl->return_type);
+    f->type = f->funcDecl->return_type;
 
     // check argument type match
-    for (size_t i = 0; i < f->func_decl->args.size(); i++) {
+    for (size_t i = 0; i < f->funcDecl->args.size(); i++) {
         assert(f->args[i]->type);
         // TODO: proper type comparison
-        if (f->args[i]->type != f->func_decl->args[i]->type) {
+        if (f->args[i]->type != f->funcDecl->args[i]->type) {
             sema.error(
                 f->args[i]->pos,
                 fmt::format("argument type mismatch: expects '{}', got '{}'",
-                            f->func_decl->args[i]->type->name->str(),
+                            f->funcDecl->args[i]->type->name->str(),
                             f->args[i]->type->name->str()));
         }
     }
@@ -390,7 +383,7 @@ Type *getReferenceType(Sema &sema, Type *type) {
 }
 
 void TypeChecker::visitUnaryExpr(UnaryExpr *u) {
-    switch (u->unary_kind) {
+    switch (u->unaryKind) {
     case UnaryExprKind::paren:
         visitParenExpr(static_cast<ParenExpr *>(u));
         break;
@@ -650,12 +643,16 @@ void CodeGenerator::visitIntegerLiteral(IntegerLiteral *i) {
   emitCont("{}", i->value);
 }
 
+void CodeGenerator::visitStringLiteral(StringLiteral *s) {
+  emitCont("{}", s->value);
+}
+
 void CodeGenerator::visitDeclRefExpr(DeclRefExpr *d) {
   emitCont("{}", d->name->str());
 }
 
 void CodeGenerator::visitFuncCallExpr(FuncCallExpr *f) {
-  emitCont("{}(", f->func_name->str());
+  emitCont("{}(", f->funcName->str());
 
   for (size_t i = 0; i < f->args.size(); i++) {
     visitExpr(f->args[i]);
@@ -664,6 +661,31 @@ void CodeGenerator::visitFuncCallExpr(FuncCallExpr *f) {
   }
 
   emitCont(")");
+}
+
+void CodeGenerator::visitMemberExpr(MemberExpr *m) {
+  visitExpr(m->struct_expr);
+  emitCont(".");
+  emitCont("{}", m->member_name->str());
+}
+
+void CodeGenerator::visitUnaryExpr(UnaryExpr *u) {
+  switch (u->unaryKind) {
+  case UnaryExprKind::paren:
+    return visitParenExpr(u->as<ParenExpr>());
+    break;
+  case UnaryExprKind::address:
+    emitCont("&");
+    visitExpr(u->operand);
+    break;
+  case UnaryExprKind::deref:
+    emitCont("*");
+    visitExpr(u->operand);
+    break;
+  default:
+    assert(false);
+    break;
+  }
 }
 
 void CodeGenerator::visitParenExpr(ParenExpr *p) {
@@ -678,8 +700,12 @@ void CodeGenerator::visitBinaryExpr(BinaryExpr *b) {
   visitExpr(b->rhs);
 }
 
-void CodeGenerator::visitTypeExpr(TypeExpr *t) {
-  emitCont("{}", t->type->name->str());
+std::string CodeGenerator::cStringify(const Type *t) {
+  if (t == sema.context.stringType) {
+    return "char*";
+  } else {
+    return t->name->str();
+  }
 }
 
 void CodeGenerator::visitIfStmt(IfStmt *i) {
@@ -715,9 +741,9 @@ void CodeGenerator::visitReturnStmt(ReturnStmt *r) {
 
 void CodeGenerator::visitVarDecl(VarDeclNode *v) {
   if (v->kind == VarDeclNode::Kind::param) {
-    emit("{} {}", v->var_decl->type->name->str(), v->name->str());
+    emit("{} {}", cStringify(v->var_decl->type), v->name->str());
   } else {
-    emit("{} {};\n", v->var_decl->type->name->str(), v->name->str());
+    emit("{} {};\n", cStringify(v->var_decl->type), v->name->str());
     if (v->assign_expr) {
       emit("{} = ", v->name->str());
       visitExpr(v->assign_expr);
@@ -728,7 +754,7 @@ void CodeGenerator::visitVarDecl(VarDeclNode *v) {
 
 void CodeGenerator::visitFuncDecl(FuncDeclNode *f) {
   if (f->retTypeExpr)
-    visitExpr(f->retTypeExpr);
+    emit("{}", cStringify(f->func_decl->return_type));
   else
     emit("void");
 

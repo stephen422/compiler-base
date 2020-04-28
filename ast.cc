@@ -29,10 +29,10 @@ std::optional<Decl> Expr::decl() const {
     case ExprKind::member:
         return as<MemberExpr>()->var_decl;
     case ExprKind::unary:
-        if (as<UnaryExpr>()->unary_kind == UnaryExprKind::paren)
+        if (as<UnaryExpr>()->unaryKind == UnaryExprKind::paren)
             return as<UnaryExpr>()->as<ParenExpr>()->decl();
-        else if (as<UnaryExpr>()->unary_kind == UnaryExprKind::deref)
-            return as<UnaryExpr>()->var_decl;
+        else if (as<UnaryExpr>()->unaryKind == UnaryExprKind::deref)
+            return as<UnaryExpr>()->varDecl;
         break;
     default:
         break;
@@ -142,7 +142,7 @@ void BinaryExpr::print() const {
 void UnaryExpr::print() const {
     out() << "[UnaryExpr] ";
 
-    switch (unary_kind) {
+    switch (unaryKind) {
     case UnaryExprKind::deref: {
         std::cout << "Deref\n";
         PrintScope start;
@@ -181,8 +181,8 @@ void DeclRefExpr::print() const {
 void FuncCallExpr::print() const {
     out() << "[FuncCallExpr] "
           << "(Name:";
-    printf("%04x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(func_name)));
-    std::cout << ") " << func_name->text;
+    printf("%04x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(funcName)));
+    std::cout << ") " << funcName->text;
     if (type)
         std::cout << " '" << type->name->text << "'";
     std::cout << std::endl;

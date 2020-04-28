@@ -94,10 +94,10 @@ struct Context {
     // Current enclosing struct decl.
     std::vector<StructDecl *> struct_decl_stack;
     std::vector<FuncDecl *> func_decl_stack;
-    // Return type of this function.
-    Type *ret_type = nullptr;
-    // Seen one or more return statement in this function.
-    bool seen_return = false;
+    // Builtin types.
+    Type *intType = nullptr;
+    Type *charType = nullptr;
+    Type *stringType = nullptr;
 };
 
 // Scoped symbol table.
@@ -166,8 +166,6 @@ struct Sema {
     Context context;
     std::vector<Error> &errors;  // error list
     std::vector<Error> &beacons; // error beacon list
-    Type *int_type = nullptr;
-    Type *char_type = nullptr;
 
     Sema(const Source &s, NameTable &n, std::vector<Error> &es,
          std::vector<Error> &bs)
@@ -293,16 +291,20 @@ class CodeGenerator : public AstVisitor<CodeGenerator, void> {
     ~IndentBlock() { c.indent -= 2; }
   };
 
+  std::string cStringify(const Type *t);
+
 public:
   CodeGenerator(Sema &s) : sema{s} {}
   bool success() const { return sema.errors.empty(); }
 
   void visitIntegerLiteral(IntegerLiteral *i);
+  void visitStringLiteral(StringLiteral *s);
   void visitDeclRefExpr(DeclRefExpr *d);
   void visitFuncCallExpr(FuncCallExpr *f);
+  void visitMemberExpr(MemberExpr *m);
+  void visitUnaryExpr(UnaryExpr *u);
   void visitParenExpr(ParenExpr *p);
   void visitBinaryExpr(BinaryExpr *b);
-  void visitTypeExpr(TypeExpr *t);
 
   void visitIfStmt(IfStmt *i);
   void visitReturnStmt(ReturnStmt *r);

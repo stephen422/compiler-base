@@ -8,5 +8,5 @@ func f(n: int) -> int {
 
 func main() -> int {
   let s = "string"
-  return f(8)
+  return f(6)
 }
