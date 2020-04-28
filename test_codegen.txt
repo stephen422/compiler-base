@@ -3,6 +3,12 @@ struct Car {
   a: int
 }
 
+func swap(a: *int, b: *int) {
+  let t = *a
+  *a = *b
+  *b = t
+}
+
 func f(n: int) -> int {
   if n > 1 {
     return n * f(n - 1)
@@ -12,7 +18,8 @@ func f(n: int) -> int {
 }
 
 func main() -> int {
-  let s = "string"
-  let c: Car
-  return f(6)
+  let a = 1
+  let b = 4
+  swap(&a, &b)
+  return a
 }

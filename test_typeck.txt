@@ -34,14 +34,14 @@ func main() {
     let s: string
     s = "hi"
     let car: Car
-    car = 3 // ERROR: cannot assign.*'int'.*'Car'
+    car = 3 // ERROR: cannot assign 'int'.*'Car'
 
     // member access
     3.engine // ERROR: 'int'.*not a struct
     car.wing // ERROR: 'wing'.*not.*member.*'Car'
     car.engine
 
-    car.engine = car // ERROR: cannot assign.*'Car'.*'int'
+    car.engine = car // ERROR: cannot assign 'Car'.*'int'
 
     // binary expressions
     (3 + car) // ERROR: incompatible.*binary.*'int'.*'Car'
@@ -51,11 +51,13 @@ func main() {
     // function calls
     car = f()
     let i: int
-    i = f() // ERROR: cannot assign.*'Car'.*'int'
+    i = f() // ERROR: cannot assign 'Car'.*'int'
     f() + g() // ERROR: incompatible.*binary.*'Car'.*'int'
     f().engine
     f().wing // ERROR: 'wing'.*not.*member.*'Car'
     h(3, 4) // ERROR: argument type mismatch
+    void_ret()
+    i = void_ret() // ERROR: cannot assign 'void' .* 'int'
     
     // paren expr
     (f()).engine
@@ -65,7 +67,7 @@ func main() {
     *i // ERROR: dereference.*'int'
     let ptr: *int
     *ptr = 3
-    *ptr = car // ERROR: cannot assign.*'Car'.*'int'
+    *ptr = car // ERROR: cannot assign 'Car'.*'int'
     ptr = &i
     &24 // ERROR: take address of an rvalue
     &g() // ERROR: take address of an rvalue

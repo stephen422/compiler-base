@@ -8,6 +8,10 @@
   E.g. Source, Parser, Lexer all in a single Driver struct, but their
   construction/destruction order is guaranteed.
 
+!! Out-of-module extensible structs
+
+  E.g. enums should be allowed to have user defined methods.
+
 Q. What's the advantage of separating type table from decl table?
 
 - How to handle built-in types?

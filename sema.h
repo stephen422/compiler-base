@@ -68,13 +68,13 @@ struct StructDecl {
 // Declaration of a function.
 struct FuncDecl {
     Name *name = nullptr;
-    Type *return_type = nullptr;
+    Type *retTy = nullptr;
     std::vector<VarDecl *> args;
 
     FuncDecl(Name *n) : name(n) {}
-    size_t args_count() const { return args.size(); }
+    size_t argsCount() const { return args.size(); }
     // XXX: might false-report before typecheck is completed
-    bool is_void() const { return return_type == nullptr; }
+    bool isVoid(Sema &sema) const;
 };
 
 // 'Decl' represents declaration of a variable, a function, or a type.
@@ -95,9 +95,12 @@ struct Context {
     std::vector<StructDecl *> struct_decl_stack;
     std::vector<FuncDecl *> func_decl_stack;
     // Builtin types.
-    Type *intType = nullptr;
-    Type *charType = nullptr;
-    Type *stringType = nullptr;
+    // voidType exists to differentiate the type of FuncCallExprs whose
+    // function no return values, from expressions that failed to typecheck.
+    Type *voidTy = nullptr;
+    Type *intTy = nullptr;
+    Type *charTy = nullptr;
+    Type *stringTy = nullptr;
 };
 
 // Scoped symbol table.
@@ -284,6 +287,7 @@ class CodeGenerator : public AstVisitor<CodeGenerator, void> {
   template <typename... Args> void emitCont(Args &&... args) {
     fmt::print(std::forward<Args>(args)...);
   }
+  void emitIndent() { fmt::print("{:{}}", "", indent); };
 
   struct IndentBlock {
     CodeGenerator &c;
@@ -306,8 +310,9 @@ public:
   void visitParenExpr(ParenExpr *p);
   void visitBinaryExpr(BinaryExpr *b);
 
-  void visitIfStmt(IfStmt *i);
+  void visitAssignStmt(AssignStmt *a);
   void visitReturnStmt(ReturnStmt *r);
+  void visitIfStmt(IfStmt *i);
 
   void visitVarDecl(VarDeclNode *v);
   void visitStructDecl(StructDeclNode *s);
