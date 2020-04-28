@@ -1,3 +1,8 @@
+struct Car {
+  name: string
+  a: int
+}
+
 func f(n: int) -> int {
   if n > 1 {
     return n * f(n - 1)
@@ -8,5 +13,6 @@ func f(n: int) -> int {
 
 func main() -> int {
   let s = "string"
+  let c: Car
   return f(6)
 }

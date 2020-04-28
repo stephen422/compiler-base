@@ -700,8 +700,11 @@ void CodeGenerator::visitBinaryExpr(BinaryExpr *b) {
   visitExpr(b->rhs);
 }
 
+// Generate C source representation of a Type.
 std::string CodeGenerator::cStringify(const Type *t) {
   if (t == sema.context.stringType) {
+    // For now, strings are aliased to char *.  This works as long as strings
+    // are immutable and doesn't contain unicode characters.
     return "char*";
   } else {
     return t->name->str();
@@ -750,6 +753,17 @@ void CodeGenerator::visitVarDecl(VarDeclNode *v) {
       emitCont(";\n");
     }
   }
+}
+
+void CodeGenerator::visitStructDecl(StructDeclNode *s) {
+  emit("typedef struct {} {{\n", s->name->str());
+  {
+    IndentBlock ib{*this};
+    for (auto memb : s->members)
+      visitDecl(memb);
+  }
+  emit("}} {};\n", s->name->str());
+  emit("\n");
 }
 
 void CodeGenerator::visitFuncDecl(FuncDeclNode *f) {

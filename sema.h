@@ -310,6 +310,7 @@ public:
   void visitReturnStmt(ReturnStmt *r);
 
   void visitVarDecl(VarDeclNode *v);
+  void visitStructDecl(StructDeclNode *s);
   void visitFuncDecl(FuncDeclNode *f);
 };
 
