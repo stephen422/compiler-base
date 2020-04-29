@@ -46,6 +46,7 @@ void Parser::next() {
   }
 }
 
+// Returns true if match succeeded, false otherwise.
 bool Parser::expect(Tok kind, const std::string &msg = "") {
     if (tok.kind != kind) {
         std::string s = msg;
@@ -321,17 +322,22 @@ FuncDeclNode *Parser::parseFuncDecl() {
     // argument list
     expect(Tok::lparen);
     func->args = parseVarDeclList(VarDeclNode::param);
-    expect(Tok::rparen);
+    if (!expect(Tok::rparen)) {
+      skip_until(Tok::rparen);
+      expect(Tok::rparen);
+    }
 
     // return type (-> ...)
     if (tok.kind == Tok::arrow) {
         next();
         func->retTypeExpr = parse_type_expr();
     }
+
     if (tok.kind != Tok::lbrace) {
         errorExpected("'->' or '{'");
         skip_until(Tok::lbrace);
     }
+
     // function body
     func->body = parseCompoundStmt();
     func->pos = pos;

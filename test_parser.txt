@@ -54,8 +54,12 @@ func main() {
 func f(a: int) int { // ERROR: expected '->'.*found 'int'
 }
 
-func f(a: int, b int, c: int) -> int { // ERROR: expected.*':'
+func f(a: int, b int, c: int) -> int { // ERROR: expected .* ':'
     return * // ERROR: expected.*expression
+}
+
+// TODO: better message
+func f(a: int#, b int, c: int) -> int { // ERROR: found '#'
 }
 
 struct Car // ERROR: expected '\{'
