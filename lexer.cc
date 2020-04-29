@@ -23,6 +23,13 @@ bool isIdentifierOrKeyword(const Token tok) {
            (tok.kind > Tok::KWSTART && tok.kind < Tok::KWEND);
 }
 
+bool Token::isAny(const std::vector<Tok> &kinds) const {
+  for (auto cand : kinds)
+    if (kind == cand)
+      return true;
+  return false;
+}
+
 std::string Token::str() const {
     if (kind == Tok::newline)
         return std::string{"\\n"};

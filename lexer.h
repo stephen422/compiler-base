@@ -127,6 +127,7 @@ struct Token {
     Token(Tok kind, size_t pos) : kind(kind), pos(pos), text() {}
     Token(Tok kind, size_t pos, std::string_view text)
         : kind(kind), pos(pos), text(text) {}
+    bool isAny(const std::vector<Tok> &kinds) const;
     std::string str() const;
 };
 

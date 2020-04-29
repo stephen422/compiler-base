@@ -158,11 +158,11 @@ void NameBinder::visitVarDecl(VarDeclNode *v) {
     sema.decl_table.insert(v->name, v->var_decl);
 
     // struct member declarations are also parsed as VarDecls.
-    if (v->kind == VarDeclNode::Kind::struct_) {
+    if (v->kind == VarDeclNodeKind::struct_) {
         assert(!sema.context.struct_decl_stack.empty());
         auto curr_struct = sema.context.struct_decl_stack.back();
         curr_struct->fields.push_back(v->var_decl);
-    } else if (v->kind == VarDeclNode::Kind::param) {
+    } else if (v->kind == VarDeclNodeKind::param) {
         assert(!sema.context.func_decl_stack.empty());
         auto curr_func = sema.context.func_decl_stack.back();
         curr_func->args.push_back(v->var_decl);
@@ -782,7 +782,7 @@ void CodeGenerator::visitBuiltinStmt(BuiltinStmt *b) {
 }
 
 void CodeGenerator::visitVarDecl(VarDeclNode *v) {
-  if (v->kind == VarDeclNode::Kind::param) {
+  if (v->kind == VarDeclNodeKind::param) {
     emit("{} {}", cStringify(v->var_decl->type), v->name->str());
   } else {
     emit("{} {};\n", cStringify(v->var_decl->type), v->name->str());

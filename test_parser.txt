@@ -58,8 +58,7 @@ func f(a: int, b int, c: int) -> int { // ERROR: expected .* ':'
     return * // ERROR: expected.*expression
 }
 
-// TODO: better message
-func f(a: int#, b int, c: int) -> int { // ERROR: found '#'
+func f(a: int#, b: int, c: int) -> int { // ERROR: trailing token '#'
 }
 
 struct Car // ERROR: expected '\{'

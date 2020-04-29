@@ -381,18 +381,24 @@ struct DeclNode : public AstNode {
     // TODO: Unlike Expr, there is no Decl * here.  Do we need it?
 };
 
+enum class VarDeclNodeKind {
+  local,
+  struct_,
+  param,
+};
+
 // Variable declaration.
 struct VarDeclNode : public DeclNode {
     // The value of this pointer serves as a unique integer ID to be used for
     // indexing the symbol table.
     Name *name = nullptr;        // name of the variable
     VarDecl *var_decl = nullptr; // decl of the variable
-    enum Kind { local, struct_, param } kind = local;
+    VarDeclNodeKind kind = VarDeclNodeKind::local;
     // TypeExpr of the variable.  Declared as Expr to accommodate for BadExpr.
     Expr *type_expr = nullptr;
     Expr *assign_expr = nullptr; // initial assignment value
 
-    VarDeclNode(Name *n, Kind k, Expr *t, Expr *expr)
+    VarDeclNode(Name *n, VarDeclNodeKind k, Expr *t, Expr *expr)
         : DeclNode(DeclNodeKind::var), name(n), kind(k), type_expr(t),
           assign_expr(std::move(expr)) {}
     void print() const override;

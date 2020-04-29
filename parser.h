@@ -98,8 +98,8 @@ private:
 
   // Declaration parsers
   DeclNode *parseDecl();
-  DeclNode *parseVarDecl(VarDeclNode::Kind kind);
-  std::vector<DeclNode *> parseVarDeclList(VarDeclNode::Kind kind);
+  DeclNode *parseVarDecl(VarDeclNodeKind kind);
+  std::vector<DeclNode *> parseVarDeclList(VarDeclNodeKind kind);
   StructDeclNode *parseStructDecl();
   FuncDeclNode *parseFuncDecl();
   bool isStartOfDecl() const;

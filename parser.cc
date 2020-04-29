@@ -229,7 +229,7 @@ BuiltinStmt *Parser::parseBuiltinStmt() {
 }
 
 // Doesn't include 'let' or 'var'.
-DeclNode *Parser::parseVarDecl(VarDeclNode::Kind kind) {
+DeclNode *Parser::parseVarDecl(VarDeclNodeKind kind) {
     auto pos = tok.pos;
 
     Name *name = names.getOrAdd(std::string{tok.text});
@@ -260,34 +260,41 @@ DeclNode *Parser::parseVarDecl(VarDeclNode::Kind kind) {
 // Parses function argument lists and struct declaration member lists (if
 // 'isStruct' == true).
 // Doesn't parse the enclosing parentheses or braces.
-std::vector<DeclNode *> Parser::parseVarDeclList(VarDeclNode::Kind kind) {
-    std::vector<DeclNode *> decls;
+std::vector<DeclNode *> Parser::parseVarDeclList(VarDeclNodeKind kind) {
+  std::vector<DeclNode *> decls;
 
-    while (true) {
-        DeclNode *decl = nullptr;
-        skip_newlines();
-        if (tok.kind != Tok::ident)
-            break;
-
-        decl = parseVarDecl(kind);
-        decls.push_back(decl);
-
-        if (decl->kind == DeclNodeKind::bad) {
-            // Determining where each decl ends in a list is a little tricky.
-            // Here, we stop for any token that is either (1) separator tokens,
-            // i.e. comma, newline, or (2) used to enclose a decl list, i.e.
-            // parentheses and braces.  This works for both function argument
-            // lists and struct member lists.
-            skip_until_any({Tok::comma, Tok::newline,
-                          Tok::rparen, Tok::rbrace});
-        }
-        if (tok.kind == Tok::comma) {
-            next();
-        }
-    }
+  while (true) {
+    DeclNode *decl = nullptr;
     skip_newlines();
+    if (tok.kind != Tok::ident)
+      break;
 
-    return decls;
+    decl = parseVarDecl(kind);
+    decls.push_back(decl);
+
+    // Determining where each decl ends in a list is a little tricky.  Here, we
+    // stop for any token that is either (1) separator tokens, i.e. comma,
+    // newline, or (2) used to enclose a decl list, i.e.  parentheses and
+    // braces.  This works for both function argument lists and struct member
+    // lists.
+    //
+    // For cases when a VarDecl succeeds parsing but there is a leftover token,
+    // e.g. 'a: int#', we need to directly check the next token is the
+    // delimiting token, and do an appropriate error report.
+    auto delimiters = {Tok::comma, Tok::newline, Tok::rparen, Tok::rbrace};
+    if (decl->kind == DeclNodeKind::bad) {
+      skip_until_any(delimiters);
+    } else if (!tok.isAny(delimiters)) {
+      error(fmt::format("trailing token '{}' after declaration", tok.str()));
+      skip_until_any(delimiters);
+    }
+
+    if (tok.kind == Tok::comma)
+      next();
+  }
+  skip_newlines();
+
+  return decls;
 }
 
 StructDeclNode *Parser::parseStructDecl() {
@@ -302,7 +309,7 @@ StructDeclNode *Parser::parseStructDecl() {
 
     if (!expect(Tok::lbrace))
         skip_until_end_of_line();
-    auto fields = parseVarDeclList(VarDeclNode::struct_);
+    auto fields = parseVarDeclList(VarDeclNodeKind::struct_);
     expect(Tok::rbrace, "unterminated struct declaration");
     // TODO: recover
 
@@ -310,39 +317,39 @@ StructDeclNode *Parser::parseStructDecl() {
 }
 
 FuncDeclNode *Parser::parseFuncDecl() {
-    auto pos = tok.pos;
+  auto pos = tok.pos;
 
-    expect(Tok::kw_func);
+  expect(Tok::kw_func);
 
-    Name *name = names.getOrAdd(std::string{tok.text});
-    auto func = make_node<FuncDeclNode>(name);
-    func->pos = tok.pos;
+  Name *name = names.getOrAdd(std::string{tok.text});
+  auto func = make_node<FuncDeclNode>(name);
+  func->pos = tok.pos;
+  next();
+
+  // argument list
+  expect(Tok::lparen);
+  func->args = parseVarDeclList(VarDeclNodeKind::param);
+  if (!expect(Tok::rparen)) {
+    skip_until(Tok::rparen);
+    expect(Tok::rparen);
+  }
+
+  // return type (-> ...)
+  if (tok.kind == Tok::arrow) {
     next();
+    func->retTypeExpr = parse_type_expr();
+  }
 
-    // argument list
-    expect(Tok::lparen);
-    func->args = parseVarDeclList(VarDeclNode::param);
-    if (!expect(Tok::rparen)) {
-      skip_until(Tok::rparen);
-      expect(Tok::rparen);
-    }
+  if (tok.kind != Tok::lbrace) {
+    errorExpected("'->' or '{'");
+    skip_until(Tok::lbrace);
+  }
 
-    // return type (-> ...)
-    if (tok.kind == Tok::arrow) {
-        next();
-        func->retTypeExpr = parse_type_expr();
-    }
+  // function body
+  func->body = parseCompoundStmt();
+  func->pos = pos;
 
-    if (tok.kind != Tok::lbrace) {
-        errorExpected("'->' or '{'");
-        skip_until(Tok::lbrace);
-    }
-
-    // function body
-    func->body = parseCompoundStmt();
-    func->pos = pos;
-
-    return func;
+  return func;
 }
 
 bool Parser::isStartOfDecl() const {
@@ -360,7 +367,7 @@ DeclNode *Parser::parseDecl() {
     switch (tok.kind) {
     case Tok::kw_let:
         next();
-        return parseVarDecl(VarDeclNode::local);
+        return parseVarDecl(VarDeclNodeKind::local);
     // TODO: 'var'
     default:
         assert(false && "not a start of a declaration");
@@ -615,13 +622,8 @@ void Parser::skip_until(Tok kind) {
 }
 
 void Parser::skip_until_any(const std::vector<Tok> &kinds) {
-  while (true) {
-    for (auto kind : kinds) {
-      if (tok.kind == kind)
-        return;
-    }
+  while (!tok.isAny(kinds))
     next();
-  }
 }
 
 void Parser::skip_until_end_of_line() {
