@@ -1,7 +1,6 @@
-#define CATCH_CONFIG_MAIN
+#include "catch.hpp"
 #include "driver.h"
 #include "parser.h"
-#include "catch.hpp"
 
 using namespace cmp;
 
