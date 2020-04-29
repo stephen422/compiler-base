@@ -46,6 +46,9 @@ func main() {
     } else 3 { // ERROR: expected.*'\{'
         stray_stmt
     }
+
+    // builtins
+    #printf()
 }
 
 func f(a: int) int { // ERROR: expected '->'.*found 'int'

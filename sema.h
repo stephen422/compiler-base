@@ -301,6 +301,8 @@ public:
   CodeGenerator(Sema &s) : sema{s} {}
   bool success() const { return sema.errors.empty(); }
 
+  void visitFile(File *f);
+
   void visitIntegerLiteral(IntegerLiteral *i);
   void visitStringLiteral(StringLiteral *s);
   void visitDeclRefExpr(DeclRefExpr *d);
@@ -310,9 +312,11 @@ public:
   void visitParenExpr(ParenExpr *p);
   void visitBinaryExpr(BinaryExpr *b);
 
+  void visitExprStmt(ExprStmt *e);
   void visitAssignStmt(AssignStmt *a);
   void visitReturnStmt(ReturnStmt *r);
   void visitIfStmt(IfStmt *i);
+  void visitBuiltinStmt(BuiltinStmt *b);
 
   void visitVarDecl(VarDeclNode *v);
   void visitStructDecl(StructDeclNode *s);

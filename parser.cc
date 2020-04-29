@@ -78,22 +78,24 @@ bool Parser::is_eos() {
 //     Decl
 //     Expr
 Stmt *Parser::parseStmt() {
-    Stmt *stmt = nullptr;
+  Stmt *stmt = nullptr;
 
-    if (tok.kind == Tok::lbrace) {
-        stmt = parseCompoundStmt();
-    } else if (tok.kind == Tok::kw_return) {
-        stmt = parse_return_stmt();
-    } else if (tok.kind == Tok::kw_if) {
-        stmt = parse_if_stmt();
-    } else if (isStartOfDecl()) {
-        stmt = parse_decl_stmt();
-    } else {
-        stmt = parse_expr_or_assign_stmt();
-    }
-    skip_newlines();
+  if (tok.kind == Tok::lbrace) {
+    stmt = parseCompoundStmt();
+  } else if (tok.kind == Tok::kw_return) {
+    stmt = parse_return_stmt();
+  } else if (tok.kind == Tok::kw_if) {
+    stmt = parse_if_stmt();
+  } else if (tok.kind == Tok::hash) {
+    stmt = parseBuiltinStmt();
+  } else if (isStartOfDecl()) {
+    stmt = parse_decl_stmt();
+  } else {
+    stmt = parse_expr_or_assign_stmt();
+  }
+  skip_newlines();
 
-    return stmt;
+  return stmt;
 }
 
 Stmt *Parser::parse_return_stmt() {
@@ -215,6 +217,14 @@ CompoundStmt *Parser::parseCompoundStmt() {
 
     expect(Tok::rbrace);
     return compound;
+}
+
+BuiltinStmt *Parser::parseBuiltinStmt() {
+  auto start = tok.pos;
+  skip_until_end_of_line();
+  auto end = tok.pos;
+  std::string_view text{lexer.source().buf.data() + start, end - start};
+  return make_node_pos<BuiltinStmt>(start, text);
 }
 
 // Doesn't include 'let' or 'var'.

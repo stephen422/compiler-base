@@ -133,6 +133,7 @@ enum class StmtKind {
     return_,
     compound,
     if_,
+    builtin,
     bad,
 };
 
@@ -197,6 +198,14 @@ struct IfStmt : public Stmt {
     void print() const override;
 };
 
+struct BuiltinStmt : public Stmt {
+  std::string_view text;
+
+  BuiltinStmt(std::string_view sv)
+      : Stmt(StmtKind::builtin), text(sv) {}
+  void print() const override;
+};
+
 struct BadStmt : public Stmt {
     BadStmt() : Stmt(StmtKind::bad) {}
     void print() const override;
@@ -249,7 +258,7 @@ struct IntegerLiteral : public Expr {
 };
 
 struct StringLiteral : public Expr {
-    const std::string_view value;
+    std::string_view value;
 
     StringLiteral(std::string_view sv)
         : Expr(ExprKind::string_literal), value(sv) {}
@@ -482,6 +491,9 @@ public:
     case StmtKind::if_:
       return dis()->visitIfStmt(static_cast<IfStmt *>(s), args...);
       break;
+    case StmtKind::builtin:
+      return dis()->visitBuiltinStmt(static_cast<BuiltinStmt *>(s), args...);
+      break;
     case StmtKind::bad:
       // do nothing
       break;
@@ -512,6 +524,10 @@ public:
   }
   RetTy visitIfStmt(IfStmt *is, Args... args) {
     walk_if_stmt(*dis(), is, args...);
+    return RetTy();
+  }
+  RetTy visitBuiltinStmt(BuiltinStmt *bs, Args... args) {
+    // nothing to walk
     return RetTy();
   }
   RetTy visitDecl(DeclNode *d, Args... args) {

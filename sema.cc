@@ -646,6 +646,14 @@ void BasicBlock::enumeratePostOrder(std::vector<BasicBlock *> &walkList) {
   walkList.push_back(this);
 }
 
+void CodeGenerator::visitFile(File *f) {
+  emit("#include <stdlib.h>\n");
+  emit("#include <stdio.h>\n");
+  emit("\n");
+
+  walk_file(*this, f);
+}
+
 void CodeGenerator::visitIntegerLiteral(IntegerLiteral *i) {
   emitCont("{}", i->value);
 }
@@ -722,6 +730,12 @@ std::string CodeGenerator::cStringify(const Type *t) {
   }
 }
 
+void CodeGenerator::visitExprStmt(ExprStmt *e) {
+  emitIndent();
+  visitExpr(e->expr);
+  emitCont(";\n");
+}
+
 void CodeGenerator::visitAssignStmt(AssignStmt *a) {
   emitIndent();
   visitExpr(a->lhs);
@@ -759,6 +773,12 @@ void CodeGenerator::visitIfStmt(IfStmt *i) {
   } else {
     emitCont("\n");
   }
+}
+
+void CodeGenerator::visitBuiltinStmt(BuiltinStmt *b) {
+  // shed off the #
+  b->text.remove_prefix(1);
+  emit("{};\n", b->text);
 }
 
 void CodeGenerator::visitVarDecl(VarDeclNode *v) {

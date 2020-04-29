@@ -99,6 +99,10 @@ void CompoundStmt::print() const {
     }
 }
 
+void BuiltinStmt::print() const {
+  out() << "[BuiltinStmt]\n";
+}
+
 void VarDeclNode::print() const {
     out() << "[VarDecl] " << name->text << "\n";
     PrintScope start;

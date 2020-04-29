@@ -92,6 +92,7 @@ private:
   IfStmt *parse_if_stmt();
   DeclStmt *parse_decl_stmt();
   CompoundStmt *parseCompoundStmt();
+  BuiltinStmt *parseBuiltinStmt();
   bool is_end_of_stmt() const;
   bool is_eos();
 
