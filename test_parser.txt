@@ -65,4 +65,14 @@ struct Car // ERROR: expected '\{'
     a: i64,
     b: int
     c: int, // comma is permitted
-// ERROR: unterminated struct
+
+struct Token { // ERROR: unterminated struct
+  pos: int
+  a: int
+  // trailing newlines
+
+
+}
+
+struct { // ERROR: expected an identifier
+}

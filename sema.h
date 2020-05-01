@@ -65,6 +65,15 @@ struct StructDecl {
     StructDecl(Name *n) : name(n) {}
 };
 
+// Declaration of an enum.
+struct EnumDecl {
+    Name *name = nullptr;
+    Type *type = nullptr;
+    std::vector<StructDecl *> variants;
+
+    EnumDecl(Name *n) : name(n) {}
+};
+
 // Declaration of a function.
 struct FuncDecl {
     Name *name = nullptr;
@@ -83,7 +92,7 @@ struct FuncDecl {
 // redefinition.
 // TODO: Clarify the definition. Should type names have a Decl too?  What is
 // the 'type' member of a StructDecl?
-using Decl = std::variant<VarDecl *, StructDecl *, FuncDecl *>;
+using Decl = std::variant<VarDecl *, StructDecl *, EnumDecl *, FuncDecl *>;
 
 using std::get;
 template <typename T> bool decl_is(const Decl &decl) {
@@ -231,8 +240,8 @@ public:
     void visitFuncCallExpr(FuncCallExpr *f);
     void visitTypeExpr(TypeExpr *t);
     void visitVarDecl(VarDeclNode *v);
-    void visitStructDecl(StructDeclNode *s);
     void visitFuncDecl(FuncDeclNode *f);
+    void visitStructDecl(StructDeclNode *s);
 };
 
 // Type checking pass.
@@ -257,8 +266,8 @@ public:
     void visitTypeExpr(TypeExpr *t);
 
     void visitVarDecl(VarDeclNode *v);
-    void visitStructDecl(StructDeclNode *s);
     void visitFuncDecl(FuncDeclNode *f);
+    void visitStructDecl(StructDeclNode *s);
 };
 
 class ReturnChecker
@@ -319,8 +328,8 @@ public:
   void visitBuiltinStmt(BuiltinStmt *b);
 
   void visitVarDecl(VarDeclNode *v);
-  void visitStructDecl(StructDeclNode *s);
   void visitFuncDecl(FuncDeclNode *f);
+  void visitStructDecl(StructDeclNode *s);
 };
 
 } // namespace cmp

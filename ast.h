@@ -26,10 +26,11 @@ struct Expr;
 struct DeclNode;
 struct FuncDeclNode;
 struct Type;
-struct FuncDecl;
 struct VarDecl;
 struct StructDecl;
-using Decl = std::variant<VarDecl *, StructDecl *, FuncDecl *>;
+struct EnumDecl;
+struct FuncDecl;
+using Decl = std::variant<VarDecl *, StructDecl *, EnumDecl *, FuncDecl *>;
 
 // 'Name' corresponds to a single unique identifier string in the source text.
 // There may be multiple occurrences of a string in the source text, but only
@@ -368,8 +369,10 @@ struct BadExpr : public Expr {
 
 enum class DeclNodeKind {
     var,
-    struct_,
     func,
+    struct_,
+    enum_variant,
+    enum_,
     bad,
 };
 
@@ -404,30 +407,50 @@ struct VarDeclNode : public DeclNode {
     void print() const override;
 };
 
-// Struct declaration.
-struct StructDeclNode : public DeclNode {
-    Name *name = nullptr;              // name of the struct
-    StructDecl *struct_decl = nullptr; // decl info
-    std::vector<DeclNode *> members;   // member variables
-
-    StructDeclNode(Name *n, std::vector<DeclNode *> m)
-        : DeclNode(DeclNodeKind::struct_), name(n),
-          members(m) {}
-    void print() const override;
-};
-
 // Function declaration.  There is no separate function definition: functions
 // should always be defined whenever they are declared.
 struct FuncDeclNode : public DeclNode {
-    Name *name = nullptr;          // name of the function
-    FuncDecl *func_decl = nullptr; // decl info
-    std::vector<DeclNode *> args;  // list of parameters
-    CompoundStmt *body = nullptr;  // body statements
-    Expr *retTypeExpr = nullptr; // return type expression
+  Name *name = nullptr;            // name of the function
+  FuncDecl *func_decl = nullptr;   // decl object
+  std::vector<VarDeclNode *> args; // list of parameters
+  CompoundStmt *body = nullptr;    // body statements
+  Expr *retTypeExpr = nullptr;     // return type expression
 
-    FuncDeclNode(Name *n)
-        : DeclNode(DeclNodeKind::func), name(n) {}
-    void print() const override;
+  FuncDeclNode(Name *n) : DeclNode(DeclNodeKind::func), name(n) {}
+  void print() const override;
+};
+
+// Struct declaration.
+struct StructDeclNode : public DeclNode {
+  Name *name = nullptr;               // name of the struct
+  std::vector<VarDeclNode *> members; // member variables
+  StructDecl *struct_decl = nullptr;  // decl object
+
+  StructDeclNode(Name *n, std::vector<VarDeclNode *> m)
+      : DeclNode(DeclNodeKind::struct_), name(n), members(m) {}
+  void print() const override;
+};
+
+// A variant type in an enum.
+struct EnumVariantDeclNode : public DeclNode {
+  Name *name = nullptr;             // name of the variant
+  std::vector<Expr *> fields;   // type of the fields
+  StructDecl *structDecl = nullptr; // decl object
+
+  EnumVariantDeclNode(Name *n, std::vector<Expr *> f)
+      : DeclNode(DeclNodeKind::enum_variant), name(n), fields(f) {}
+  void print() const override;
+};
+
+// Enum declaration.
+struct EnumDeclNode : public DeclNode {
+  Name *name = nullptr;                        // name of the struct
+  std::vector<EnumVariantDeclNode *> variants; // variants
+  EnumDecl *enumDecl = nullptr;                // decl object
+
+  EnumDeclNode(Name *n, std::vector<EnumVariantDeclNode *> m)
+      : DeclNode(DeclNodeKind::enum_), name(n), variants(m) {}
+  void print() const override;
 };
 
 struct BadDeclNode : public DeclNode {
@@ -441,8 +464,8 @@ struct BadDeclNode : public DeclNode {
 // from this class and override the node visitor functions as necessary.
 //
 // Curiously-recurring template pattern (CRTP) is used to enable calling the
-// visitor function of the derived class from the default visitor defined in
-// this class.  See commit log b7e6113.
+// visitor function of the derived class from the that of the parent class
+// defined here.  See commit log b7e6113.
 template <typename Derived, typename RetTy, typename... Args> class AstVisitor {
   // 'Derived this'. By calling visitors and walkers through the return
   // pointer of this function, the base class can access the derived visitor
@@ -541,12 +564,18 @@ public:
     case DeclNodeKind::var:
       return dis()->visitVarDecl(static_cast<VarDeclNode *>(d), args...);
       break;
-    case DeclNodeKind::struct_:
-      return dis()->visitStructDecl(static_cast<StructDeclNode *>(d),
-                                      args...);
-      break;
     case DeclNodeKind::func:
       return dis()->visitFuncDecl(static_cast<FuncDeclNode *>(d), args...);
+      break;
+    case DeclNodeKind::struct_:
+      return dis()->visitStructDecl(static_cast<StructDeclNode *>(d), args...);
+      break;
+    case DeclNodeKind::enum_variant:
+      return dis()->visitEnumVariantDecl(static_cast<EnumVariantDeclNode *>(d),
+                                         args...);
+      break;
+    case DeclNodeKind::enum_:
+      return dis()->visitEnumDecl(static_cast<EnumDeclNode *>(d), args...);
       break;
     case DeclNodeKind::bad:
       // do nothing
@@ -560,12 +589,20 @@ public:
     walk_var_decl(*dis(), v, args...);
     return RetTy();
   }
+  RetTy visitFuncDecl(FuncDeclNode *f, Args... args) {
+    walk_func_decl(*dis(), f, args...);
+    return RetTy();
+  }
   RetTy visitStructDecl(StructDeclNode *s, Args... args) {
     walk_struct_decl(*dis(), s, args...);
     return RetTy();
   }
-  RetTy visitFuncDecl(FuncDeclNode *f, Args... args) {
-    walk_func_decl(*dis(), f, args...);
+  RetTy visitEnumVariantDecl(EnumVariantDeclNode *e, Args... args) {
+    walk_enum_variant_decl(*dis(), e, args...);
+    return RetTy();
+  }
+  RetTy visitEnumDecl(EnumDeclNode *e, Args... args) {
+    walk_enum_decl(*dis(), e, args...);
     return RetTy();
   }
   RetTy visitExpr(Expr *e, Args... args) {
@@ -674,96 +711,106 @@ public:
 // Polymorphism is required because they should be able to call different
 // derived visitor methods.
 //
-// Note: The functions here combined can be seen as what the 'accept()'
+// Note: The functions here combined can be regarded as what the 'accept()'
 // function do in the visitor pattern. However, whereas the accept() function
-// is declared as virtual in the pattern proper, these are not polymorphic.
+// is declared as virtual in the pattern proper, these need not be polymorphic.
 // TODO: Document why.
 //
 
 template <typename Visitor, typename... Args>
 void walk_file(Visitor &v, File *f, Args... args) {
-    for (auto a : f->toplevels) {
-        v.visitToplevel(a, args...);
-    }
+  for (auto a : f->toplevels) {
+    v.visitToplevel(a, args...);
+  }
 }
 template <typename Visitor, typename... Args>
 void walk_var_decl(Visitor &v, VarDeclNode *var, Args... args) {
-    if (var->assign_expr) {
-        v.visitExpr(var->assign_expr, args...);
-    } else if (var->type_expr) {
-        v.visitTypeExpr(static_cast<TypeExpr *>(var->type_expr), args...);
-    } else {
-        assert(false && "unreachable");
-    }
-}
-template <typename Visitor, typename... Args>
-void walk_struct_decl(Visitor &v, StructDeclNode *s, Args... args) {
-    for (auto d : s->members) {
-        v.visitDecl(d, args...);
-    }
+  if (var->assign_expr) {
+    v.visitExpr(var->assign_expr, args...);
+  } else if (var->type_expr) {
+    v.visitTypeExpr(static_cast<TypeExpr *>(var->type_expr), args...);
+  } else {
+    assert(false && "unreachable");
+  }
 }
 template <typename Visitor, typename... Args>
 void walk_func_decl(Visitor &v, FuncDeclNode *f, Args... args) {
-    if (f->retTypeExpr)
-        v.visitExpr(f->retTypeExpr, args...);
-    for (auto arg : f->args)
-        v.visitDecl(arg, args...);
-    v.visitCompoundStmt(f->body, args...);
+  if (f->retTypeExpr)
+    v.visitExpr(f->retTypeExpr, args...);
+  for (auto arg : f->args)
+    v.visitDecl(arg, args...);
+  v.visitCompoundStmt(f->body, args...);
+}
+template <typename Visitor, typename... Args>
+void walk_struct_decl(Visitor &v, StructDeclNode *s, Args... args) {
+  for (auto d : s->members) {
+    v.visitDecl(d, args...);
+  }
+}
+template <typename Visitor, typename... Args>
+void walk_enum_variant_decl(Visitor &v, EnumVariantDeclNode *e, Args... args) {
+  for (auto f : e->fields)
+    v.visitExpr(f, args...);
+}
+template <typename Visitor, typename... Args>
+void walk_enum_decl(Visitor &v, EnumDeclNode *e, Args... args) {
+  for (auto var : e->variants)
+    v.visitEnumVariantDecl(var, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_decl_stmt(Visitor &v, DeclStmt *ds, Args... args) {
-    v.visitDecl(ds->decl, args...);
+  v.visitDecl(ds->decl, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_expr_stmt(Visitor &v, ExprStmt *es, Args... args) {
-    v.visitExpr(es->expr, args...);
+  v.visitExpr(es->expr, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_assign_stmt(Visitor &v, AssignStmt *as, Args... args) {
-    v.visitExpr(as->rhs, args...);
-    v.visitExpr(as->lhs, args...);
+  v.visitExpr(as->rhs, args...);
+  v.visitExpr(as->lhs, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_return_stmt(Visitor &v, ReturnStmt *rs, Args... args) {
-    v.visitExpr(rs->expr, args..., args...);
+  v.visitExpr(rs->expr, args..., args...);
 }
 template <typename Visitor, typename... Args>
 void walk_compound_stmt(Visitor &v, CompoundStmt *cs, Args... args) {
-    for (auto s : cs->stmts) {
-        v.visitStmt(s, args...);
-    }
+  for (auto s : cs->stmts) {
+    v.visitStmt(s, args...);
+  }
 }
 template <typename Visitor, typename... Args>
 void walk_if_stmt(Visitor &v, IfStmt *is, Args... args) {
-    v.visitExpr(is->cond, args...);
-    v.visitCompoundStmt(is->if_body, args...);
-    if (is->else_if)
-        v.visitIfStmt(is->else_if, args...);
-    else if (is->else_body)
-        v.visitCompoundStmt(is->else_body, args...);
+  v.visitExpr(is->cond, args...);
+  v.visitCompoundStmt(is->if_body, args...);
+  if (is->else_if)
+    v.visitIfStmt(is->else_if, args...);
+  else if (is->else_body)
+    v.visitCompoundStmt(is->else_body, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_func_call_expr(Visitor &v, FuncCallExpr *f, Args... args) {
-    for (auto arg : f->args)
-        v.visitExpr(arg, args...);
+  for (auto arg : f->args)
+    v.visitExpr(arg, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_paren_expr(Visitor &v, ParenExpr *p, Args... args) {
-    v.visitExpr(p->operand, args...);
+  v.visitExpr(p->operand, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_binary_expr(Visitor &v, BinaryExpr *b, Args... args) {
-    v.visitExpr(b->lhs, args...);
-    v.visitExpr(b->rhs, args...);
+  v.visitExpr(b->lhs, args...);
+  v.visitExpr(b->rhs, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_member_expr(Visitor &v, MemberExpr *m, Args... args) {
-    v.visitExpr(m->struct_expr, args...);
+  v.visitExpr(m->struct_expr, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_type_expr(Visitor &v, TypeExpr *t, Args... args) {
-    if (t->subexpr)
-        v.visitExpr(t->subexpr, args...);
+  if (t->subexpr)
+    v.visitExpr(t->subexpr, args...);
 }
 
 } // namespace cmp

@@ -50,6 +50,7 @@ enum class Tok {
     KWSTART,
     kw_func,
     kw_struct,
+    kw_enum,
     kw_let,
     kw_var,
     kw_mut,
@@ -66,7 +67,7 @@ enum class Tok {
 
 // This is under linear search, so it is better to place more frequently used
 // symbols at the top.
-const std::pair<std::string_view, Tok> symbol_map[] {
+constexpr std::pair<std::string_view, Tok> symbol_map[] {
     {"\"", Tok::doublequote},
     {"\n", Tok::newline},
     {"->", Tok::arrow},
@@ -100,9 +101,10 @@ const std::pair<std::string_view, Tok> symbol_map[] {
     {"comment", Tok::comment},
 };
 
-const std::pair<std::string_view, Tok> keyword_map[] {
+constexpr std::pair<std::string_view, Tok> keyword_map[] {
     {"func", Tok::kw_func},
     {"struct", Tok::kw_struct},
+    {"enum", Tok::kw_enum},
     {"let", Tok::kw_let},
     {"var", Tok::kw_var},
     {"mut", Tok::kw_mut},

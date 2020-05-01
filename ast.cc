@@ -117,13 +117,6 @@ void VarDeclNode::print() const {
     }
 }
 
-void StructDeclNode::print() const {
-    out() << "[StructDecl] " << name->text << "\n";
-    PrintScope start;
-    for (auto &m : members)
-        m->print();
-}
-
 void FuncDeclNode::print() const {
     out() << "[FuncDecl] " << name->text << "\n";
     PrintScope start;
@@ -132,6 +125,24 @@ void FuncDeclNode::print() const {
     if (retTypeExpr)
         retTypeExpr->print();
     body->print();
+}
+
+void StructDeclNode::print() const {
+    out() << "[StructDecl] " << name->text << "\n";
+    PrintScope start;
+    for (auto &m : members)
+        m->print();
+}
+
+void EnumVariantDeclNode::print() const {
+    out() << "[EnumVariant] " << name->text << "\n";
+}
+
+void EnumDeclNode::print() const {
+    out() << "[EnumDecl] " << name->text << "\n";
+    PrintScope start;
+    for (auto &m : variants)
+      m->print();
 }
 
 void BinaryExpr::print() const {

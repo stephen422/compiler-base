@@ -90,7 +90,7 @@ Stmt *Parser::parseStmt() {
   } else if (tok.kind == Tok::hash) {
     stmt = parseBuiltinStmt();
   } else if (isStartOfDecl()) {
-    stmt = parse_decl_stmt();
+    stmt = parseDeclStmt();
   } else {
     stmt = parse_expr_or_assign_stmt();
   }
@@ -156,16 +156,17 @@ IfStmt *Parser::parse_if_stmt() {
     return make_node_pos<IfStmt>(pos, cond, cstmt, elseif, cstmt_false);
 }
 
-// let a = ...
-DeclStmt *Parser::parse_decl_stmt() {
-    auto decl = parseDecl();
-    if (!is_end_of_stmt()) {
-        if (decl->kind != DeclNodeKind::bad)
-            expect(Tok::newline);
-        // try to recover
-        skip_until_end_of_line();
-    }
-    return make_node<DeclStmt>(decl);
+// Parse 'let a = ...'
+DeclStmt *Parser::parseDeclStmt() {
+  auto decl = parseDecl();
+  if (!is_end_of_stmt()) {
+    // XXX: remove bad check
+    if (decl && decl->kind != DeclNodeKind::bad)
+      expect(Tok::newline);
+    // try to recover
+    skip_until_end_of_line();
+  }
+  return make_node<DeclStmt>(decl);
 }
 
 // Upon seeing an expression, we don't know yet if it is a simple expression
@@ -229,91 +230,73 @@ BuiltinStmt *Parser::parseBuiltinStmt() {
 }
 
 // Doesn't include 'let' or 'var'.
-DeclNode *Parser::parseVarDecl(VarDeclNodeKind kind) {
-    auto pos = tok.pos;
+VarDeclNode *Parser::parseVarDecl(VarDeclNodeKind kind) {
+  auto pos = tok.pos;
 
-    Name *name = names.getOrAdd(std::string{tok.text});
+  Name *name = names.getOrAdd(std::string{tok.text});
+  next();
+
+  VarDeclNode *v = nullptr;
+  // '=' comes either first, or after the ': type' part.
+  if (tok.kind == Tok::colon) {
     next();
-
-    DeclNode *v = nullptr;
-    // '=' comes either first, or after the ': type' part.
-    if (tok.kind == Tok::colon) {
-        next();
-        auto type_expr = parse_type_expr();
-        v = make_node_pos<VarDeclNode>(pos, name, kind, type_expr, nullptr);
-    }
-    if (tok.kind == Tok::equals) {
-        next();
-        auto assign_expr = parse_expr();
-        if (v)
-            static_cast<VarDeclNode *>(v)->assign_expr = assign_expr;
-        else
-            v = make_node_pos<VarDeclNode>(pos, name, kind, nullptr, assign_expr);
-    }
-    if (!v) {
-        errorExpected("'=' or ':' after var name");
-        v = make_node_pos<BadDeclNode>(pos);
-    }
-    return v;
+    auto type_expr = parse_type_expr();
+    v = make_node_pos<VarDeclNode>(pos, name, kind, type_expr, nullptr);
+  }
+  if (tok.kind == Tok::equals) {
+    next();
+    auto assign_expr = parse_expr();
+    if (v)
+      static_cast<VarDeclNode *>(v)->assign_expr = assign_expr;
+    else
+      v = make_node_pos<VarDeclNode>(pos, name, kind, nullptr, assign_expr);
+  }
+  if (!v) {
+    errorExpected("'=' or ':' after var name");
+    v = nullptr;
+  }
+  return v;
 }
 
-// Parses function argument lists and struct declaration member lists (if
-// 'isStruct' == true).
+// Parses a comma separated list of AST nodes whose type is T*.  Parser
+// function for the node type should be provided as 'parseFn' so that this
+// function knows how to parse the elements.
 // Doesn't parse the enclosing parentheses or braces.
-std::vector<DeclNode *> Parser::parseVarDeclList(VarDeclNodeKind kind) {
-  std::vector<DeclNode *> decls;
+template <typename T, typename F>
+std::vector<T *> Parser::parseCommaSeparatedList(F &&parseFn) {
+  std::vector<T *> list;
 
   while (true) {
-    DeclNode *decl = nullptr;
     skip_newlines();
+    // XXX: assumes elem starts with an ident!
     if (tok.kind != Tok::ident)
       break;
 
-    decl = parseVarDecl(kind);
-    decls.push_back(decl);
+    auto elem = parseFn();
+    list.push_back(elem);
 
     // Determining where each decl ends in a list is a little tricky.  Here, we
     // stop for any token that is either (1) separator tokens, i.e. comma,
     // newline, or (2) used to enclose a decl list, i.e.  parentheses and
     // braces.  This works for both function argument lists and struct member
     // lists.
-    //
-    // For cases when a VarDecl succeeds parsing but there is a leftover token,
-    // e.g. 'a: int#', we need to directly check the next token is the
-    // delimiting token, and do an appropriate error report.
     auto delimiters = {Tok::comma, Tok::newline, Tok::rparen, Tok::rbrace};
-    if (decl->kind == DeclNodeKind::bad) {
+    if (!elem) {
       skip_until_any(delimiters);
     } else if (!tok.isAny(delimiters)) {
+      // For cases when a VarDecl succeeds parsing but there is a leftover
+      // token, e.g. 'a: int#', we need to directly check the next token is the
+      // delimiting token, and do an appropriate error report.
       error(fmt::format("trailing token '{}' after declaration", tok.str()));
       skip_until_any(delimiters);
     }
 
+    // skip comma if any
     if (tok.kind == Tok::comma)
       next();
   }
-  skip_newlines();
 
-  return decls;
-}
-
-StructDeclNode *Parser::parseStructDecl() {
-    auto pos = tok.pos;
-
-    expect(Tok::kw_struct);
-
-    if (tok.kind != Tok::ident)
-        errorExpected("an identifier");
-    Name *name = names.getOrAdd(std::string{tok.text});
-    next();
-
-    if (!expect(Tok::lbrace))
-        skip_until_end_of_line();
-    auto fields = parseVarDeclList(VarDeclNodeKind::struct_);
-    expect(Tok::rbrace, "unterminated struct declaration");
-    // TODO: recover
-
-    return make_node_pos<StructDeclNode>(pos, name, fields);
+  return list;
 }
 
 FuncDeclNode *Parser::parseFuncDecl() {
@@ -328,7 +311,8 @@ FuncDeclNode *Parser::parseFuncDecl() {
 
   // argument list
   expect(Tok::lparen);
-  func->args = parseVarDeclList(VarDeclNodeKind::param);
+  func->args = parseCommaSeparatedList<VarDeclNode>(
+      [this] { return parseVarDecl(VarDeclNodeKind::param); });
   if (!expect(Tok::rparen)) {
     skip_until(Tok::rparen);
     expect(Tok::rparen);
@@ -350,6 +334,83 @@ FuncDeclNode *Parser::parseFuncDecl() {
   func->pos = pos;
 
   return func;
+}
+
+StructDeclNode *Parser::parseStructDecl() {
+  auto pos = tok.pos;
+
+  expect(Tok::kw_struct);
+
+  if (tok.kind != Tok::ident)
+    errorExpected("an identifier");
+  Name *name = names.getOrAdd(std::string{tok.text});
+  next();
+
+  if (!expect(Tok::lbrace))
+    skip_until_end_of_line();
+  auto fields = parseCommaSeparatedList<VarDeclNode>(
+      [this] { return parseVarDecl(VarDeclNodeKind::struct_); });
+  expect(Tok::rbrace, "unterminated struct declaration");
+  // TODO: recover
+
+  return make_node_pos<StructDeclNode>(pos, name, fields);
+}
+
+EnumVariantDeclNode *Parser::parseEnumVariant() {
+  auto pos = tok.pos;
+
+  if (tok.kind != Tok::ident) {
+    errorExpected("an identifier");
+  }
+  Name *name = names.getOrAdd(std::string{tok.text});
+  fmt::print("EnumVariant: '{}'\n", name->str());
+  next();
+
+  expect(Tok::lparen);
+  auto fields =
+      parseCommaSeparatedList<Expr>([this] { return parse_type_expr(); });
+  expect(Tok::rparen);
+
+  return make_node_pos<EnumVariantDeclNode>(pos, name, fields);
+}
+
+// Doesn't account for the enclosing {}s.
+std::vector<EnumVariantDeclNode *> Parser::parseEnumVariantDeclList() {
+  std::vector<EnumVariantDeclNode *> list;
+
+  while (true) {
+    skip_newlines();
+    if (tok.kind != Tok::ident)
+      break;
+
+    auto elem = parseEnumVariant();
+    list.push_back(elem);
+
+    expect(Tok::newline);
+    skip_newlines();
+  }
+
+  return list;
+}
+
+EnumDeclNode *Parser::parseEnumDecl() {
+  fmt::print("Hi I'm here!\n");
+  auto pos = tok.pos;
+
+  expect(Tok::kw_enum);
+
+  if (tok.kind != Tok::ident)
+    errorExpected("an identifier");
+  Name *name = names.getOrAdd(std::string{tok.text});
+  next();
+
+  if (!expect(Tok::lbrace))
+    skip_until_end_of_line();
+  auto fields = parseEnumVariantDeclList();
+  expect(Tok::rbrace, "unterminated enum declaration");
+  // TODO: recover
+
+  return make_node_pos<EnumDeclNode>(pos, name, fields);
 }
 
 bool Parser::isStartOfDecl() const {
@@ -654,6 +715,8 @@ AstNode *Parser::parseToplevel() {
         return parseFuncDecl();
     case Tok::kw_struct:
         return parseStructDecl();
+    case Tok::kw_enum:
+        return parseEnumDecl();
     default:
         error("assertion failed here");
         assert(false && "unreachable");

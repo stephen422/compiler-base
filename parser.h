@@ -90,7 +90,7 @@ private:
   Stmt *parse_expr_or_assign_stmt();
   Stmt *parse_return_stmt();
   IfStmt *parse_if_stmt();
-  DeclStmt *parse_decl_stmt();
+  DeclStmt *parseDeclStmt();
   CompoundStmt *parseCompoundStmt();
   BuiltinStmt *parseBuiltinStmt();
   bool is_end_of_stmt() const;
@@ -98,10 +98,14 @@ private:
 
   // Declaration parsers
   DeclNode *parseDecl();
-  DeclNode *parseVarDecl(VarDeclNodeKind kind);
-  std::vector<DeclNode *> parseVarDeclList(VarDeclNodeKind kind);
-  StructDeclNode *parseStructDecl();
+  VarDeclNode *parseVarDecl(VarDeclNodeKind kind);
+  template <typename T, typename F>
+  std::vector<T *> parseCommaSeparatedList(F &&parseFn);
   FuncDeclNode *parseFuncDecl();
+  StructDeclNode *parseStructDecl();
+  EnumVariantDeclNode *parseEnumVariant();
+  std::vector<EnumVariantDeclNode *> parseEnumVariantDeclList();
+  EnumDeclNode *parseEnumDecl();
   bool isStartOfDecl() const;
 
   // Expression parsers
