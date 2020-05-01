@@ -31,9 +31,11 @@ bool Token::isAny(const std::vector<Tok> &kinds) const {
 }
 
 std::string Token::str() const {
-    if (kind == Tok::newline)
-        return std::string{"\\n"};
-    return std::string{text};
+  if (kind == Tok::newline)
+    return {"\\n"};
+  else if (kind == Tok::eos)
+    return {"EOF"};
+  return std::string{text};
 }
 
 // Advances 'look', not 'curr'. 'curr' is used as a manual marking position for

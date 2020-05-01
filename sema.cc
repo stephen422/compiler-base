@@ -85,7 +85,7 @@ void NameBinder::visitDeclRefExpr(DeclRefExpr *d) {
     // TODO: only accept Decls with var type.
     // TODO: functions as variables?
     auto sym = sema.decl_table.find(d->name);
-    if (sym && decl_is<VarDecl *>(sym->value)) {
+    if (sym && declIs<VarDecl *>(sym->value)) {
         d->var_decl = get<VarDecl *>(sym->value);
     } else {
         sema.error(d->pos, fmt::format("use of undeclared identifier '{}'",
@@ -102,7 +102,7 @@ void NameBinder::visitFuncCallExpr(FuncCallExpr *f) {
                                        f->funcName->str()));
         return;
     }
-    if (!decl_is<FuncDecl *>(sym->value)) {
+    if (!declIs<FuncDecl *>(sym->value)) {
         sema.error(f->pos,
                    fmt::format("'{}' is not a function", f->funcName->str()));
         return;
@@ -122,33 +122,46 @@ void NameBinder::visitFuncCallExpr(FuncCallExpr *f) {
 }
 
 void NameBinder::visitTypeExpr(TypeExpr *t) {
-    walk_type_expr(*this, t);
+  walk_type_expr(*this, t);
 
-    // Namebinding for TypeExprs only include linking existing Decls to the
-    // type names used in the expression, not declaring new ones.  The
-    // declaration would be done when visiting VarDecls and StructDecls, etc.
+  // Namebinding for TypeExprs only include linking existing Decls to the
+  // type names used in the expression, not declaring new ones.  The
+  // declaration would be done when visiting VarDecls and StructDecls, etc.
 
-    // For pointers and arrays, proper typechecking will be done in the later
-    // stages.
-    if (t->subexpr)
-        return;
+  // For pointers and arrays, proper typechecking will be done in the later
+  // stages.
+  if (t->subexpr)
+    return;
 
-    auto sym = sema.decl_table.find(t->name);
-    if (sym && decl_is<StructDecl *>(sym->value)) {
-        assert(t->kind == TypeExprKind::value);
-        t->decl = sym->value;
-    } else {
-        sema.error(t->pos,
-                   fmt::format("use of undeclared type '{}'", t->name->str()));
-        return;
-    }
+  auto sym = sema.decl_table.find(t->name);
+  if (sym && declIs<StructDecl *>(sym->value)) {
+    assert(t->kind == TypeExprKind::value);
+    t->decl = sym->value;
+  } else {
+    sema.error(t->pos,
+               fmt::format("use of undeclared type '{}'", t->name->str()));
+    return;
+  }
+}
+
+template <typename T> T *NameBinder::declare(Name *name, size_t pos) {
+  auto found = sema.decl_table.find(name);
+  if (found && declIs<T *>(found->value) &&
+      found->scope_level <= sema.decl_table.scope_level) {
+    sema.error(pos, fmt::format("redefinition of '{}'", name->str()));
+    return nullptr;
+  }
+
+  T *decl = sema.make_decl<T>(name);
+  sema.decl_table.insert(name, decl);
+  return decl;
 }
 
 void NameBinder::visitVarDecl(VarDeclNode *v) {
     walk_var_decl(*this, v);
 
     auto found = sema.decl_table.find(v->name);
-    if (found && decl_is<VarDecl *>(found->value) &&
+    if (found && declIs<VarDecl *>(found->value) &&
         found->scope_level <= sema.decl_table.scope_level) {
         sema.error(v->pos, fmt::format("redefinition of '{}'", v->name->str()));
         return;
@@ -159,19 +172,39 @@ void NameBinder::visitVarDecl(VarDeclNode *v) {
 
     // struct member declarations are also parsed as VarDecls.
     if (v->kind == VarDeclNodeKind::struct_) {
-        assert(!sema.context.struct_decl_stack.empty());
-        auto curr_struct = sema.context.struct_decl_stack.back();
-        curr_struct->fields.push_back(v->var_decl);
+      assert(!sema.context.structDeclStack.empty());
+      auto currStruct = sema.context.structDeclStack.back();
+      currStruct->fields.push_back(v->var_decl);
     } else if (v->kind == VarDeclNodeKind::param) {
-        assert(!sema.context.func_decl_stack.empty());
-        auto curr_func = sema.context.func_decl_stack.back();
-        curr_func->args.push_back(v->var_decl);
+      assert(!sema.context.funcDeclStack.empty());
+      auto currFunc = sema.context.funcDeclStack.back();
+      currFunc->args.push_back(v->var_decl);
     }
+}
+
+void NameBinder::visitFuncDecl(FuncDeclNode *f) {
+    auto found = sema.decl_table.find(f->name);
+    if (found && declIs<FuncDecl *>(found->value) &&
+        found->scope_level <= sema.decl_table.scope_level) {
+        sema.error(f->pos, fmt::format("redefinition of '{}'", f->name->str()));
+        return;
+    }
+
+    f->func_decl = sema.make_decl<FuncDecl>(f->name);
+    sema.decl_table.insert(f->name, f->func_decl);
+
+    sema.decl_table.scope_open(); // for argument variables
+    sema.context.funcDeclStack.push_back(f->func_decl);
+
+    walk_func_decl(*this, f);
+
+    sema.context.funcDeclStack.pop_back();
+    sema.decl_table.scope_close();
 }
 
 void NameBinder::visitStructDecl(StructDeclNode *s) {
     auto found = sema.decl_table.find(s->name);
-    if (found && decl_is<StructDecl *>(found->value) &&
+    if (found && declIs<StructDecl *>(found->value) &&
         found->scope_level <= sema.decl_table.scope_level) {
         sema.error(s->pos, fmt::format("redefinition of '{}'", s->name->str()));
         return;
@@ -183,32 +216,15 @@ void NameBinder::visitStructDecl(StructDeclNode *s) {
     // Decl table is used for checking redefinition when parsing the member
     // list.
     sema.decl_table.scope_open();
-    sema.context.struct_decl_stack.push_back(s->struct_decl);
+    sema.context.structDeclStack.push_back(s->struct_decl);
 
     walk_struct_decl(*this, s);
 
-    sema.context.struct_decl_stack.pop_back();
+    sema.context.structDeclStack.pop_back();
     sema.decl_table.scope_close();
 }
 
-void NameBinder::visitFuncDecl(FuncDeclNode *f) {
-    auto found = sema.decl_table.find(f->name);
-    if (found && decl_is<FuncDecl *>(found->value) &&
-        found->scope_level <= sema.decl_table.scope_level) {
-        sema.error(f->pos, fmt::format("redefinition of '{}'", f->name->str()));
-        return;
-    }
-
-    f->func_decl = sema.make_decl<FuncDecl>(f->name);
-    sema.decl_table.insert(f->name, f->func_decl);
-
-    sema.decl_table.scope_open(); // for argument variables
-    sema.context.func_decl_stack.push_back(f->func_decl);
-
-    walk_func_decl(*this, f);
-
-    sema.context.func_decl_stack.pop_back();
-    sema.decl_table.scope_close();
+void NameBinder::visitEnumDecl(EnumDeclNode *e) {
 }
 
 // Assignments should check that the LHS is an l-value.
@@ -250,8 +266,8 @@ void TypeChecker::visitReturnStmt(ReturnStmt *rs) {
   if (!rs->expr->type)
     return;
 
-  assert(!sema.context.func_decl_stack.empty());
-  auto func_decl = sema.context.func_decl_stack.back();
+  assert(!sema.context.funcDeclStack.empty());
+  auto func_decl = sema.context.funcDeclStack.back();
   if (func_decl->isVoid(sema)) {
     sema.error(rs->expr->pos,
                fmt::format("function '{}' should not return a value",
@@ -461,7 +477,7 @@ void TypeChecker::visitTypeExpr(TypeExpr *t) {
         // t->decl should be non-null after the name binding stage.
         // And since we are currently doing single-pass (TODO), its type should
         // also be resolved by now.
-        assert(decl_is<StructDecl *>(t->decl));
+        assert(declIs<StructDecl *>(t->decl));
         t->type = get<StructDecl *>(t->decl)->type;
         assert(t->type);
     } else if (t->kind == TypeExprKind::ref) {
@@ -523,9 +539,9 @@ void TypeChecker::visitFuncDecl(FuncDeclNode *f) {
   }
 
   // FIXME: what about type_table?
-  sema.context.func_decl_stack.push_back(f->func_decl);
+  sema.context.funcDeclStack.push_back(f->func_decl);
   visitCompoundStmt(f->body);
-  sema.context.func_decl_stack.pop_back();
+  sema.context.funcDeclStack.pop_back();
 }
 
 BasicBlock *ReturnChecker::visitStmt(Stmt *s, BasicBlock *bb) {

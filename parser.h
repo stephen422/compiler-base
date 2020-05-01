@@ -93,8 +93,8 @@ private:
   DeclStmt *parseDeclStmt();
   CompoundStmt *parseCompoundStmt();
   BuiltinStmt *parseBuiltinStmt();
-  bool is_end_of_stmt() const;
-  bool is_eos();
+  bool isEndOfStmt() const;
+  bool isEos() const;
 
   // Declaration parsers
   DeclNode *parseDecl();

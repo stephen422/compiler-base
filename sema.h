@@ -95,14 +95,14 @@ struct FuncDecl {
 using Decl = std::variant<VarDecl *, StructDecl *, EnumDecl *, FuncDecl *>;
 
 using std::get;
-template <typename T> bool decl_is(const Decl &decl) {
+template <typename T> bool declIs(const Decl &decl) {
     return std::holds_alternative<T>(decl);
 }
 
 struct Context {
     // Current enclosing struct decl.
-    std::vector<StructDecl *> struct_decl_stack;
-    std::vector<FuncDecl *> func_decl_stack;
+    std::vector<StructDecl *> structDeclStack;
+    std::vector<FuncDecl *> funcDeclStack;
     // Builtin types.
     // voidType exists to differentiate the type of FuncCallExprs whose
     // function no return values, from expressions that failed to typecheck.
@@ -224,24 +224,28 @@ void walkAST(Sema &sema, AstNode *node, bool (*pre_fn)(Sema &sema, AstNode *),
               bool (*post_fn)(Sema &sema, AstNode *));
 
 // Name binding pass.
-// Name binding pass basically links a Name to a Decl.
+// Name binding basically is a pass that simply links each Name to a Decl.
 // It handles variable/function/struct declaration, redefinition/undeclared-uses
 // checks, number of function arguments checks, etc.
 // TODO: doc more.
 class NameBinder : public AstVisitor<NameBinder, void> {
-    Sema &sema;
+  Sema &sema;
 
 public:
-    NameBinder(Sema &s) : sema{s} {}
-    bool success() const { return sema.errors.empty(); }
+  NameBinder(Sema &s) : sema{s} {}
+  bool success() const { return sema.errors.empty(); }
 
-    void visitCompoundStmt(CompoundStmt *cs);
-    void visitDeclRefExpr(DeclRefExpr *d);
-    void visitFuncCallExpr(FuncCallExpr *f);
-    void visitTypeExpr(TypeExpr *t);
-    void visitVarDecl(VarDeclNode *v);
-    void visitFuncDecl(FuncDeclNode *f);
-    void visitStructDecl(StructDeclNode *s);
+  void visitCompoundStmt(CompoundStmt *cs);
+  void visitDeclRefExpr(DeclRefExpr *d);
+  void visitFuncCallExpr(FuncCallExpr *f);
+  void visitTypeExpr(TypeExpr *t);
+  void visitVarDecl(VarDeclNode *v);
+  void visitFuncDecl(FuncDeclNode *f);
+  void visitStructDecl(StructDeclNode *s);
+  void visitEnumDecl(EnumDeclNode *e);
+
+private:
+  template <typename T> T *declare(Name *name, size_t pos);
 };
 
 // Type checking pass.

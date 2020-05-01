@@ -61,18 +61,18 @@ func f(a: int, b int, c: int) -> int { // ERROR: expected .* ':'
 func f(a: int#, b: int, c: int) -> int { // ERROR: trailing token '#'
 }
 
-struct Car // ERROR: expected '\{'
-    a: i64,
-    b: int
-    c: int, // comma is permitted
-
-struct Token { // ERROR: unterminated struct
+struct Token {
   pos: int
   a: int
-  // trailing newlines
 
 
 }
 
 struct { // ERROR: expected an identifier
 }
+
+struct Car // ERROR: expected '\{'
+    a: i64,
+    b: int
+    c: int, // comma is permitted
+// ERROR: unterminated struct

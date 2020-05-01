@@ -64,14 +64,11 @@ bool Parser::expect(Tok kind, const std::string &msg = "") {
 
 // Assumes that comments can only come at the end of a line, i.e. it considers
 // only the line '//' comments.
-bool Parser::is_end_of_stmt() const {
-    return tok.kind == Tok::newline || tok.kind == Tok::comment;
+bool Parser::isEndOfStmt() const {
+  return tok.kind == Tok::newline || tok.kind == Tok::comment;
 }
 
-bool Parser::is_eos() {
-    skip_newlines();
-    return tok.kind == Tok::eos;
-}
+bool Parser::isEos() const { return tok.kind == Tok::eos; }
 
 // Parse a statement.
 //
@@ -106,13 +103,13 @@ Stmt *Parser::parse_return_stmt() {
 
     // optional
     Expr *expr = nullptr;
-    if (!is_end_of_stmt()) {
-        expr = parse_expr();
+    if (!isEndOfStmt()) {
+      expr = parse_expr();
     }
-    if (!is_end_of_stmt()) {
-        skip_until_end_of_line();
-        expect(Tok::newline);
-        return make_node_pos<BadStmt>(pos);
+    if (!isEndOfStmt()) {
+      skip_until_end_of_line();
+      expect(Tok::newline);
+      return make_node_pos<BadStmt>(pos);
     }
     skip_until_end_of_line();
     expect(Tok::newline);
@@ -159,7 +156,7 @@ IfStmt *Parser::parse_if_stmt() {
 // Parse 'let a = ...'
 DeclStmt *Parser::parseDeclStmt() {
   auto decl = parseDecl();
-  if (!is_end_of_stmt()) {
+  if (!isEndOfStmt()) {
     // XXX: remove bad check
     if (decl && decl->kind != DeclNodeKind::bad)
       expect(Tok::newline);
@@ -179,10 +176,10 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
 
     auto lhs = parse_expr();
     // ExprStmt: expression ends with a newline
-    if (is_end_of_stmt()) {
-        skip_until_end_of_line();
-        expect(Tok::newline);
-        return make_node<ExprStmt>(lhs);
+    if (isEndOfStmt()) {
+      skip_until_end_of_line();
+      expect(Tok::newline);
+      return make_node<ExprStmt>(lhs);
     }
 
     // AssignStmt: expression is followed by equals
@@ -206,19 +203,19 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
 // CompoundStmt:
 //     { Stmt* }
 CompoundStmt *Parser::parseCompoundStmt() {
-    expect(Tok::lbrace);
-    auto compound = make_node<CompoundStmt>();
+  expect(Tok::lbrace);
+  auto compound = make_node<CompoundStmt>();
 
-    while (true) {
-        skip_newlines();
-        if (tok.kind == Tok::rbrace)
-            break;
-        auto stmt = parseStmt();
-        compound->stmts.push_back(stmt);
-    }
+  while (!isEos()) {
+    skip_newlines();
+    if (tok.kind == Tok::rbrace)
+      break;
+    auto stmt = parseStmt();
+    compound->stmts.push_back(stmt);
+  }
 
-    expect(Tok::rbrace);
-    return compound;
+  expect(Tok::rbrace);
+  return compound;
 }
 
 BuiltinStmt *Parser::parseBuiltinStmt() {
@@ -233,6 +230,9 @@ BuiltinStmt *Parser::parseBuiltinStmt() {
 VarDeclNode *Parser::parseVarDecl(VarDeclNodeKind kind) {
   auto pos = tok.pos;
 
+  if (tok.kind != Tok::ident) {
+    errorExpected("an identifier");
+  }
   Name *name = names.getOrAdd(std::string{tok.text});
   next();
 
@@ -270,7 +270,7 @@ std::vector<T *> Parser::parseCommaSeparatedList(F &&parseFn) {
 
   while (true) {
     skip_newlines();
-    if (tok.isAny(finishers))
+    if (tok.isAny(finishers) || isEos())
       break;
 
     auto elem = parseFn();
@@ -352,6 +352,7 @@ StructDeclNode *Parser::parseStructDecl() {
 
   if (!expect(Tok::lbrace))
     skip_until_end_of_line();
+
   auto fields = parseCommaSeparatedList<VarDeclNode>(
       [this] { return parseVarDecl(VarDeclNodeKind::struct_); });
   expect(Tok::rbrace, "unterminated struct declaration");
@@ -364,7 +365,6 @@ EnumVariantDeclNode *Parser::parseEnumVariant() {
   auto pos = tok.pos;
 
   Name *name = names.getOrAdd(std::string{tok.text});
-  fmt::print("EnumVariant: '{}'\n", name->str());
   next();
 
   std::vector<Expr *> fields;
@@ -381,7 +381,7 @@ EnumVariantDeclNode *Parser::parseEnumVariant() {
 std::vector<EnumVariantDeclNode *> Parser::parseEnumVariantDeclList() {
   std::vector<EnumVariantDeclNode *> list;
 
-  while (true) {
+  while (!isEos()) {
     skip_newlines();
     if (tok.kind != Tok::ident)
       break;
@@ -605,7 +605,7 @@ static int binary_op_precedence(const Token &op) {
 Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence = 0) {
     Expr *root = lhs;
 
-    while (true) {
+    while (!isEos()) {
         int this_prec = binary_op_precedence(tok);
 
         // If the upcoming op has lower precedence, finish this subexpression.
@@ -681,18 +681,18 @@ std::vector<Error> Parser::parse_error_beacon() {
 }
 
 void Parser::skip_until(Tok kind) {
-  while (tok.kind != kind)
+  while (!isEos() && tok.kind != kind)
     next();
 }
 
 void Parser::skip_until_any(const std::vector<Tok> &kinds) {
-  while (!tok.isAny(kinds))
+  while (!isEos() && !tok.isAny(kinds))
     next();
 }
 
 void Parser::skip_until_end_of_line() {
-    while (tok.kind != Tok::newline)
-        next();
+  while (!isEos() && tok.kind != Tok::newline)
+    next();
 }
 
 // Used when the current statement turns out to be broken and we just want to
@@ -711,8 +711,6 @@ void Parser::skip_newlines() {
 }
 
 AstNode *Parser::parseToplevel() {
-    skip_newlines();
-
     switch (tok.kind) {
     case Tok::kw_func:
         return parseFuncDecl();
@@ -728,13 +726,17 @@ AstNode *Parser::parseToplevel() {
 
 File *Parser::parseFile() {
     auto file = make_node<File>();
-    // FIXME
-    while (!is_eos()) {
-        auto toplevel = parseToplevel();
-        if (!toplevel)
-          continue;
-        file->toplevels.push_back(toplevel);
+
+    skip_newlines();
+
+    while (!isEos()) {
+      auto toplevel = parseToplevel();
+      if (!toplevel)
+        continue;
+      file->toplevels.push_back(toplevel);
+      skip_newlines();
     }
+
     return file;
 }
 
