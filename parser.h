@@ -113,7 +113,7 @@ private:
   Expr *parseUnaryExpr();
   Expr *parseLiteralExpr();
   Expr *parseFuncCallOrDeclRefExpr();
-  Expr *parse_type_expr();
+  Expr *parseTypeExpr();
   Expr *parseBinaryExprRhs(Expr *lhs, int precedence);
   Expr *parseMemberExprMaybe(Expr *expr);
   bool isStartOfTypeExpr() const;

@@ -133,7 +133,7 @@ struct Token {
     std::string str() const;
 };
 
-bool isIdentifierOrKeyword(const Token tok);
+bool isIdentOrKeyword(const Token tok);
 
 /// Represents a lexer state machine.
 /// Assumes that the associated Source outlives it.

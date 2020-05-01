@@ -18,9 +18,9 @@ std::string tokenTypeToString(Tok kind) {
     return "";
 }
 
-bool isIdentifierOrKeyword(const Token tok) {
-    return tok.kind == Tok::ident ||
-           (tok.kind > Tok::KWSTART && tok.kind < Tok::KWEND);
+bool isIdentOrKeyword(const Token tok) {
+  return tok.kind == Tok::ident ||
+         (tok.kind > Tok::KWSTART && tok.kind < Tok::KWEND);
 }
 
 bool Token::isAny(const std::vector<Tok> &kinds) const {

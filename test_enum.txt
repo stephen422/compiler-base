@@ -1,0 +1,5 @@
+enum Expr {
+    Token
+    Literal(int, int)
+    Binary(Expr, Expr)
+}

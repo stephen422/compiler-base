@@ -240,7 +240,7 @@ VarDeclNode *Parser::parseVarDecl(VarDeclNodeKind kind) {
   // '=' comes either first, or after the ': type' part.
   if (tok.kind == Tok::colon) {
     next();
-    auto type_expr = parse_type_expr();
+    auto type_expr = parseTypeExpr();
     v = make_node_pos<VarDeclNode>(pos, name, kind, type_expr, nullptr);
   }
   if (tok.kind == Tok::equals) {
@@ -265,11 +265,12 @@ VarDeclNode *Parser::parseVarDecl(VarDeclNodeKind kind) {
 template <typename T, typename F>
 std::vector<T *> Parser::parseCommaSeparatedList(F &&parseFn) {
   std::vector<T *> list;
+  auto finishers = {Tok::rparen, Tok::rbrace};
+  auto delimiters = {Tok::comma, Tok::newline, Tok::rparen, Tok::rbrace};
 
   while (true) {
     skip_newlines();
-    // XXX: assumes elem starts with an ident!
-    if (tok.kind != Tok::ident)
+    if (tok.isAny(finishers))
       break;
 
     auto elem = parseFn();
@@ -280,7 +281,6 @@ std::vector<T *> Parser::parseCommaSeparatedList(F &&parseFn) {
     // newline, or (2) used to enclose a decl list, i.e.  parentheses and
     // braces.  This works for both function argument lists and struct member
     // lists.
-    auto delimiters = {Tok::comma, Tok::newline, Tok::rparen, Tok::rbrace};
     if (!elem) {
       skip_until_any(delimiters);
     } else if (!tok.isAny(delimiters)) {
@@ -321,7 +321,7 @@ FuncDeclNode *Parser::parseFuncDecl() {
   // return type (-> ...)
   if (tok.kind == Tok::arrow) {
     next();
-    func->retTypeExpr = parse_type_expr();
+    func->retTypeExpr = parseTypeExpr();
   }
 
   if (tok.kind != Tok::lbrace) {
@@ -363,17 +363,16 @@ StructDeclNode *Parser::parseStructDecl() {
 EnumVariantDeclNode *Parser::parseEnumVariant() {
   auto pos = tok.pos;
 
-  if (tok.kind != Tok::ident) {
-    errorExpected("an identifier");
-  }
   Name *name = names.getOrAdd(std::string{tok.text});
   fmt::print("EnumVariant: '{}'\n", name->str());
   next();
 
-  expect(Tok::lparen);
-  auto fields =
-      parseCommaSeparatedList<Expr>([this] { return parse_type_expr(); });
-  expect(Tok::rparen);
+  std::vector<Expr *> fields;
+  if (tok.kind == Tok::lparen) {
+    expect(Tok::lparen);
+    fields = parseCommaSeparatedList<Expr>([this] { return parseTypeExpr(); });
+    expect(Tok::rparen);
+  }
 
   return make_node_pos<EnumVariantDeclNode>(pos, name, fields);
 }
@@ -493,7 +492,7 @@ Expr *Parser::parseFuncCallOrDeclRefExpr() {
 }
 
 bool Parser::isStartOfTypeExpr() const {
-    return tok.kind == Tok::star || isIdentifierOrKeyword(tok);
+  return tok.kind == Tok::star || isIdentOrKeyword(tok);
 }
 
 // Parse a type expression.
@@ -503,44 +502,44 @@ bool Parser::isStartOfTypeExpr() const {
 // TypeExpr:
 //     '&' TypeExpr
 //     'mut'? ident
-Expr *Parser::parse_type_expr() {
-    auto pos = tok.pos;
-    bool mut = false;
-    TypeExprKind kind = TypeExprKind::value;
-    Expr *subexpr = nullptr;
+Expr *Parser::parseTypeExpr() {
+  auto pos = tok.pos;
+  bool mut = false;
+  TypeExprKind type_kind = TypeExprKind::value;
+  Expr *subexpr = nullptr;
 
-    // XXX OUTDATED: Encode each type into a unique Name, so that they are easy
-    // to find in the type table in the semantic analysis phase.
-    std::string text;
-    if (tok.kind == Tok::star) {
-        next();
-        kind = TypeExprKind::ref;
-        subexpr = parse_type_expr();
-        if (subexpr->kind == ExprKind::type) {
-            text = "*" + static_cast<TypeExpr *>(subexpr)->name->text;
-        }
-    } else if (isIdentifierOrKeyword(tok)) {
-        if (tok.kind == Tok::kw_mut) {
-            expect(Tok::kw_mut);
-            mut = true;
-        }
-        if (!isIdentifierOrKeyword(tok)) {
-            // FIXME: type name? expression?
-            errorExpected("type name");
-            return make_node_pos<BadExpr>(pos);
-        }
-        kind = TypeExprKind::value;
-        subexpr = nullptr;
-        text = tok.text;
-        next();
-    } else {
-        errorExpected("type expression");
-        return make_node_pos<BadExpr>(pos);
+  // XXX OUTDATED: Encode each type into a unique Name, so that they are easy
+  // to find in the type table in the semantic analysis phase.
+  std::string text;
+  if (tok.kind == Tok::star) {
+    next();
+    type_kind = TypeExprKind::ref;
+    subexpr = parseTypeExpr();
+    if (subexpr->kind == ExprKind::type) {
+      text = "*" + subexpr->as<TypeExpr>()->name->text;
     }
+  } else if (isIdentOrKeyword(tok)) {
+    if (tok.kind == Tok::kw_mut) {
+      expect(Tok::kw_mut);
+      mut = true;
+    }
+    if (!isIdentOrKeyword(tok)) {
+      // FIXME: type name? expression?
+      errorExpected("type name");
+      return make_node_pos<BadExpr>(pos);
+    }
+    type_kind = TypeExprKind::value;
+    subexpr = nullptr;
+    text = tok.text;
+    next();
+  } else {
+    errorExpected("type expression");
+    return make_node_pos<BadExpr>(pos);
+  }
 
-    Name *name = names.getOrAdd(text);
+  Name *name = names.getOrAdd(text);
 
-    return make_node_pos<TypeExpr>(pos, kind, name, subexpr);
+  return make_node_pos<TypeExpr>(pos, type_kind, name, subexpr);
 }
 
 Expr *Parser::parseUnaryExpr() {
