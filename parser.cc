@@ -338,13 +338,17 @@ FuncDeclNode *Parser::parseFuncDecl() {
 
 StructDeclNode *Parser::parseStructDecl() {
   auto pos = tok.pos;
+  Name *name = nullptr;
 
   expect(Tok::kw_struct);
 
-  if (tok.kind != Tok::ident)
+  if (tok.kind != Tok::ident) {
     errorExpected("an identifier");
-  Name *name = names.getOrAdd(std::string{tok.text});
-  next();
+    skip_until(Tok::lbrace);
+  } else {
+    name = names.getOrAdd(std::string{tok.text});
+    next();
+  }
 
   if (!expect(Tok::lbrace))
     skip_until_end_of_line();
@@ -728,6 +732,8 @@ File *Parser::parseFile() {
     // FIXME
     while (!is_eos()) {
         auto toplevel = parseToplevel();
+        if (!toplevel)
+          continue;
         file->toplevels.push_back(toplevel);
     }
     return file;
