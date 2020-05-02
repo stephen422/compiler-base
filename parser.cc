@@ -711,33 +711,33 @@ void Parser::skip_newlines() {
 }
 
 AstNode *Parser::parseToplevel() {
-    switch (tok.kind) {
-    case Tok::kw_func:
-        return parseFuncDecl();
-    case Tok::kw_struct:
-        return parseStructDecl();
-    case Tok::kw_enum:
-        return parseEnumDecl();
-    default:
-        error("assertion failed here");
-        assert(false && "unreachable");
-    }
+  switch (tok.kind) {
+  case Tok::kw_func:
+    return parseFuncDecl();
+  case Tok::kw_struct:
+    return parseStructDecl();
+  case Tok::kw_enum:
+    return parseEnumDecl();
+  default:
+    error("assertion failed here");
+    assert(false && "unreachable");
+  }
 }
 
 File *Parser::parseFile() {
-    auto file = make_node<File>();
+  auto file = make_node<File>();
 
+  skip_newlines();
+
+  while (!isEos()) {
+    auto toplevel = parseToplevel();
+    if (!toplevel)
+      continue;
+    file->toplevels.push_back(toplevel);
     skip_newlines();
+  }
 
-    while (!isEos()) {
-      auto toplevel = parseToplevel();
-      if (!toplevel)
-        continue;
-      file->toplevels.push_back(toplevel);
-      skip_newlines();
-    }
-
-    return file;
+  return file;
 }
 
 Ast Parser::parse() {

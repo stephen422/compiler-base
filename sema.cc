@@ -144,7 +144,7 @@ void NameBinder::visitTypeExpr(TypeExpr *t) {
   }
 }
 
-template <typename T> T *NameBinder::declare(Name *name, size_t pos) {
+template <typename T> T *declare(Sema &sema, Name *name, size_t pos) {
   auto found = sema.decl_table.find(name);
   if (found && declIs<T *>(found->value) &&
       found->scope_level <= sema.decl_table.scope_level) {
@@ -158,70 +158,52 @@ template <typename T> T *NameBinder::declare(Name *name, size_t pos) {
 }
 
 void NameBinder::visitVarDecl(VarDeclNode *v) {
-    walk_var_decl(*this, v);
+  walk_var_decl(*this, v);
 
-    auto found = sema.decl_table.find(v->name);
-    if (found && declIs<VarDecl *>(found->value) &&
-        found->scope_level <= sema.decl_table.scope_level) {
-        sema.error(v->pos, fmt::format("redefinition of '{}'", v->name->str()));
-        return;
-    }
+  v->var_decl = declare<VarDecl>(sema, v->name, v->pos);
+  if (!v->var_decl)
+    return;
 
-    v->var_decl = sema.make_decl<VarDecl>(v->name);
-    sema.decl_table.insert(v->name, v->var_decl);
-
-    // struct member declarations are also parsed as VarDecls.
-    if (v->kind == VarDeclNodeKind::struct_) {
-      assert(!sema.context.structDeclStack.empty());
-      auto currStruct = sema.context.structDeclStack.back();
-      currStruct->fields.push_back(v->var_decl);
-    } else if (v->kind == VarDeclNodeKind::param) {
-      assert(!sema.context.funcDeclStack.empty());
-      auto currFunc = sema.context.funcDeclStack.back();
-      currFunc->args.push_back(v->var_decl);
-    }
+  // struct member declarations are also parsed as VarDecls.
+  if (v->kind == VarDeclNodeKind::struct_) {
+    assert(!sema.context.structDeclStack.empty());
+    auto currStruct = sema.context.structDeclStack.back();
+    currStruct->fields.push_back(v->var_decl);
+  } else if (v->kind == VarDeclNodeKind::param) {
+    assert(!sema.context.funcDeclStack.empty());
+    auto currFunc = sema.context.funcDeclStack.back();
+    currFunc->args.push_back(v->var_decl);
+  }
 }
 
 void NameBinder::visitFuncDecl(FuncDeclNode *f) {
-    auto found = sema.decl_table.find(f->name);
-    if (found && declIs<FuncDecl *>(found->value) &&
-        found->scope_level <= sema.decl_table.scope_level) {
-        sema.error(f->pos, fmt::format("redefinition of '{}'", f->name->str()));
-        return;
-    }
+  f->func_decl = declare<FuncDecl>(sema, f->name, f->pos);
+  if (!f->func_decl)
+    return;
 
-    f->func_decl = sema.make_decl<FuncDecl>(f->name);
-    sema.decl_table.insert(f->name, f->func_decl);
+  sema.decl_table.scope_open(); // for argument variables
+  sema.context.funcDeclStack.push_back(f->func_decl);
 
-    sema.decl_table.scope_open(); // for argument variables
-    sema.context.funcDeclStack.push_back(f->func_decl);
+  walk_func_decl(*this, f);
 
-    walk_func_decl(*this, f);
-
-    sema.context.funcDeclStack.pop_back();
-    sema.decl_table.scope_close();
+  sema.context.funcDeclStack.pop_back();
+  sema.decl_table.scope_close();
 }
 
 void NameBinder::visitStructDecl(StructDeclNode *s) {
-    auto found = sema.decl_table.find(s->name);
-    if (found && declIs<StructDecl *>(found->value) &&
-        found->scope_level <= sema.decl_table.scope_level) {
-        sema.error(s->pos, fmt::format("redefinition of '{}'", s->name->str()));
-        return;
-    }
+  s->struct_decl = declare<StructDecl>(sema, s->name, s->pos);
+  if (!s->struct_decl)
+    return;
 
-    s->struct_decl = sema.make_decl(StructDecl{s->name});
-    sema.decl_table.insert(s->name, s->struct_decl);
+  // Decl table is used for checking redefinition when parsing the member
+  // list.
+  sema.decl_table.scope_open();
+  sema.context.structDeclStack.push_back(s->struct_decl);
 
-    // Decl table is used for checking redefinition when parsing the member
-    // list.
-    sema.decl_table.scope_open();
-    sema.context.structDeclStack.push_back(s->struct_decl);
+  walk_struct_decl(*this, s);
 
-    walk_struct_decl(*this, s);
-
-    sema.context.structDeclStack.pop_back();
-    sema.decl_table.scope_close();
+  sema.context.structDeclStack.pop_back();
+  sema.decl_table.scope_close();
 }
 
 void NameBinder::visitEnumDecl(EnumDeclNode *e) {

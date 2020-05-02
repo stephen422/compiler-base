@@ -223,6 +223,8 @@ struct AstNode;
 void walkAST(Sema &sema, AstNode *node, bool (*pre_fn)(Sema &sema, AstNode *),
               bool (*post_fn)(Sema &sema, AstNode *));
 
+template <typename T> T *declare(Sema &sema, Name *name, size_t pos);
+
 // Name binding pass.
 // Name binding basically is a pass that simply links each Name to a Decl.
 // It handles variable/function/struct declaration, redefinition/undeclared-uses
@@ -243,9 +245,6 @@ public:
   void visitFuncDecl(FuncDeclNode *f);
   void visitStructDecl(StructDeclNode *s);
   void visitEnumDecl(EnumDeclNode *e);
-
-private:
-  template <typename T> T *declare(Name *name, size_t pos);
 };
 
 // Type checking pass.
