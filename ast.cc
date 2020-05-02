@@ -7,19 +7,20 @@ namespace cmp {
 
 int AstNode::indent = 0;
 
-// TODO: max is currently not being used.
-std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes) {
-    size_t min = static_cast<size_t>(-1);
-    size_t max = 0;
-    for (auto node : nodes) {
-        if (!node) {
-            continue;
-        }
-        if (node->pos < min) {
-            min = node->pos;
-        }
+// Gets the union of the source ranges of nodes.
+std::pair<size_t, size_t>
+get_ast_range(std::initializer_list<AstNode *> nodes) {
+  size_t min = static_cast<size_t>(-1);
+  size_t max = 0; // FIXME not used
+  for (auto node : nodes) {
+    if (!node) {
+      continue;
     }
-    return {min, max};
+    if (node->pos < min) {
+      min = node->pos;
+    }
+  }
+  return {min, max};
 }
 
 std::optional<Decl> Expr::decl() const {

@@ -336,12 +336,14 @@ struct BinaryExpr : public Expr {
 
 // XXX: can I call this an expression?
 enum class TypeExprKind {
-    value,
-    ref,
-    array,
+  none,
+  value,
+  ref,
+  array,
 };
+
 struct TypeExpr : public Expr {
-    TypeExprKind kind;
+    TypeExprKind kind = TypeExprKind::none;
     // Name of the type. TODO: should this contain '&' and '[]'?
     Name *name = nullptr;
     // Decl object that represents this type.
@@ -424,7 +426,7 @@ struct FuncDeclNode : public DeclNode {
 struct StructDeclNode : public DeclNode {
   Name *name = nullptr;               // name of the struct
   std::vector<VarDeclNode *> members; // member variables
-  StructDecl *struct_decl = nullptr;  // decl object
+  StructDecl *struct_decl = nullptr;    // decl object
 
   StructDeclNode(Name *n, std::vector<VarDeclNode *> m)
       : DeclNode(DeclNodeKind::struct_), name(n), members(m) {}
@@ -446,7 +448,7 @@ struct EnumVariantDeclNode : public DeclNode {
 struct EnumDeclNode : public DeclNode {
   Name *name = nullptr;                        // name of the struct
   std::vector<EnumVariantDeclNode *> variants; // variants
-  EnumDecl *enumDecl = nullptr;                // decl object
+  EnumDecl *enum_decl = nullptr;               // decl object
 
   EnumDeclNode(Name *n, std::vector<EnumVariantDeclNode *> m)
       : DeclNode(DeclNodeKind::enum_), name(n), variants(m) {}

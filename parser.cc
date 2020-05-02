@@ -505,7 +505,7 @@ bool Parser::isStartOfTypeExpr() const {
 Expr *Parser::parseTypeExpr() {
   auto pos = tok.pos;
   bool mut = false;
-  TypeExprKind type_kind = TypeExprKind::value;
+  TypeExprKind type_kind = TypeExprKind::none;
   Expr *subexpr = nullptr;
 
   // XXX OUTDATED: Encode each type into a unique Name, so that they are easy

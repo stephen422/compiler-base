@@ -23,29 +23,43 @@ enum class TypeKind {
     ref,
     array,
 };
+
 struct Type {
-    TypeKind kind;
-    // Name of the type. TODO: include & or [] in the name?
-    Name *name = nullptr;
-    // The type that this type refers to.  If it is a non-reference type, this
-    // should be null.
-    Type *base_type = nullptr;
-    // Back-reference to the StructDecl whose type is this object.
-    StructDecl *struct_decl = nullptr;
-    // Is this type an l-value type, i.e. can a variable of this type come to
-    // the LHS of an assignment?
-    bool isLValue = true;
+  using TypeDecl = std::variant<std::monostate, StructDecl *, EnumDecl *>;
 
-    // Built-in types.
-    Type(Name *n) : Type(TypeKind::value, n, nullptr, nullptr, true) {}
-    Type(TypeKind k, Name *n, Type *bt, StructDecl *s, bool lval)
-        : kind(k), name(n), base_type(bt), struct_decl(s), isLValue(lval) {}
-    std::string str() const;
+  TypeKind kind;
+  // Name of the type. TODO: include & or [] in the name?
+  Name *name = nullptr;
+  // The type that this type refers to.  If it is a non-reference type, this
+  // should be null.
+  Type *base_type = nullptr;
+  // Back-reference to the decl object that defines this type.
+  TypeDecl type_decl = std::monostate{};
 
-    bool is_struct() const {
-        // TODO: should base_type be null too?
-        return struct_decl != nullptr;
-    }
+  // Built-in types.
+  Type(Name *n)
+      : Type(TypeKind::value, n, nullptr, std::monostate{}) {}
+  Type(TypeKind k, Name *n, Type *bt, TypeDecl td)
+      : kind(k), name(n), base_type(bt), type_decl(td) {}
+
+  static Type valueType(Name *n, TypeDecl decl) {
+    return Type{TypeKind::value, n, nullptr, decl};
+  }
+  static Type refType(Name *n, Type *base_type) {
+    return Type{TypeKind::ref, n, base_type, std::monostate{}};
+  }
+
+  std::string str() const;
+
+  bool isStruct() const {
+    // TODO: should base_type be null too?
+    return std::holds_alternative<StructDecl *>(type_decl);
+  }
+
+  StructDecl *getStructDecl() {
+    assert(std::holds_alternative<StructDecl *>(type_decl));
+    return std::get<StructDecl *>(type_decl);
+  }
 };
 
 // Declaration of a variable. Includes struct field variables.
@@ -56,13 +70,13 @@ struct VarDecl {
     VarDecl(Name *n) : name(n) {}
 };
 
-// Declaration of a struct.
+// Declaration of a type, e.g. struct or enum.
 struct StructDecl {
-    Name *name = nullptr;
-    Type *type = nullptr;
-    std::vector<VarDecl *> fields;
+  Name *name = nullptr;
+  Type *type = nullptr;
+  std::vector<VarDecl *> struct_fields;
 
-    StructDecl(Name *n) : name(n) {}
+  StructDecl(Name *n) : name(n) {}
 };
 
 // Declaration of an enum.
@@ -98,6 +112,7 @@ using std::get;
 template <typename T> bool declIs(const Decl &decl) {
     return std::holds_alternative<T>(decl);
 }
+bool declIsType(const Decl &decl);
 
 struct Context {
     // Current enclosing struct decl.
@@ -166,49 +181,49 @@ struct BasicBlock {
 // Stores all of the semantic information necessary for semantic analysis
 // phase.
 struct Sema {
-    using DeclMemBlock = std::variant<VarDecl, StructDecl, FuncDecl>;
+  using DeclMemBlock = std::variant<VarDecl, StructDecl, EnumDecl, FuncDecl>;
 
-    const Source &source;                  // source text
-    NameTable &names;                      // name table
-    std::vector<DeclMemBlock *> decl_pool;
-    std::vector<Type *> type_pool;
-    std::vector<BasicBlock *> bb_pool;
-    ScopedTable<Decl> decl_table;          // scoped declaration table
-    ScopedTable<Type *> type_table;        // scoped type table
-    Context context;
-    std::vector<Error> &errors;  // error list
-    std::vector<Error> &beacons; // error beacon list
+  const Source &source; // source text
+  NameTable &names;     // name table
+  std::vector<DeclMemBlock *> decl_pool;
+  std::vector<Type *> type_pool;
+  std::vector<BasicBlock *> bb_pool;
+  ScopedTable<Decl> decl_table;   // scoped declaration table
+  ScopedTable<Type *> type_table; // scoped type table
+  Context context;
+  std::vector<Error> &errors;  // error list
+  std::vector<Error> &beacons; // error beacon list
 
-    Sema(const Source &s, NameTable &n, std::vector<Error> &es,
-         std::vector<Error> &bs)
-        : source(s), names(n), errors(es), beacons(bs) {}
-    Sema(Parser &p);
-    Sema(const Sema &) = delete;
-    Sema(Sema &&) = delete;
-    ~Sema();
-    void error(size_t pos, const std::string &msg);
-    void scope_open();
-    void scope_close();
-    void report() const;
-    bool verify() const;
+  Sema(const Source &s, NameTable &n, std::vector<Error> &es,
+       std::vector<Error> &bs)
+      : source(s), names(n), errors(es), beacons(bs) {}
+  Sema(Parser &p);
+  Sema(const Sema &) = delete;
+  Sema(Sema &&) = delete;
+  ~Sema();
+  void error(size_t pos, const std::string &msg);
+  void scope_open();
+  void scope_close();
+  void report() const;
+  bool verify() const;
 
-    // Allocator function for Decls and Types.
-    template <typename T, typename... Args> T *make_decl(T &&t) {
-        DeclMemBlock *mem_block = new DeclMemBlock(t);
-        decl_pool.push_back(mem_block);
-        auto ptr = &std::get<T>(*decl_pool.back());
-        return ptr;
-    }
-    template <typename... Args> Type *make_type(Args &&... args) {
-        Type *t = new Type{std::forward<Args>(args)...};
-        type_pool.push_back(t);
-        return t;
-    }
-    BasicBlock *make_basic_block() {
-        BasicBlock *bb = new BasicBlock;
-        bb_pool.push_back(bb);
-        return bb;
-    }
+  // Allocator function for Decls and Types.
+  template <typename T, typename... Args> T *make_decl(Args &&... args) {
+    DeclMemBlock *mem_block = new DeclMemBlock(T{std::forward<Args>(args)...});
+    decl_pool.push_back(mem_block);
+    auto ptr = &std::get<T>(*decl_pool.back());
+    return ptr;
+  }
+  template <typename... Args> Type *make_type(Args &&... args) {
+    Type *t = new Type{std::forward<Args>(args)...};
+    type_pool.push_back(t);
+    return t;
+  }
+  BasicBlock *make_basic_block() {
+    BasicBlock *bb = new BasicBlock;
+    bb_pool.push_back(bb);
+    return bb;
+  }
 };
 
 void setup_builtin_types(Sema &s);
@@ -244,6 +259,7 @@ public:
   void visitVarDecl(VarDeclNode *v);
   void visitFuncDecl(FuncDeclNode *f);
   void visitStructDecl(StructDeclNode *s);
+  void visitEnumVariantDecl(EnumVariantDeclNode *e);
   void visitEnumDecl(EnumDeclNode *e);
 };
 
@@ -271,6 +287,8 @@ public:
     void visitVarDecl(VarDeclNode *v);
     void visitFuncDecl(FuncDeclNode *f);
     void visitStructDecl(StructDeclNode *s);
+    void visitEnumVariantDecl(EnumVariantDeclNode *e);
+    void visitEnumDecl(EnumDeclNode *e);
 };
 
 class ReturnChecker

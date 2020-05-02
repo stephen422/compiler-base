@@ -44,11 +44,11 @@ TEST_CASE("Parsing") {
     d.compile();
     REQUIRE(d.verify());
   }
-  // SECTION("enum") {
-  //   auto d = Driver::from_path(Path{"../test_enum.txt"});
-  //   d.compile();
-  //   REQUIRE(d.verify());
-  // }
+  SECTION("enum") {
+    auto d = Driver::from_path(Path{"../test_enum.txt"});
+    d.compile();
+    REQUIRE(d.verify());
+  }
 }
 
 TEST_CASE("Name binding") {

@@ -72,6 +72,12 @@ bool Sema::verify() const {
     return cmp::verify(source.filename, errors, beacons);
 }
 
+// Checks if this Decl object is a kind that represents a type, e.g. structs or
+// enums.
+bool declIsType(const Decl &decl) {
+  return declIs<StructDecl *>(decl) || declIs<EnumDecl *>(decl);
+}
+
 void NameBinder::visitCompoundStmt(CompoundStmt *cs) {
     sema.decl_table.scope_open();
     walk_compound_stmt(*this, cs);
@@ -134,7 +140,7 @@ void NameBinder::visitTypeExpr(TypeExpr *t) {
     return;
 
   auto sym = sema.decl_table.find(t->name);
-  if (sym && declIs<StructDecl *>(sym->value)) {
+  if (sym && declIsType(sym->value)) {
     assert(t->kind == TypeExprKind::value);
     t->decl = sym->value;
   } else {
@@ -144,6 +150,8 @@ void NameBinder::visitTypeExpr(TypeExpr *t) {
   }
 }
 
+// Semantically declare a 'name' at a 'pos', whose Decl type is T.
+// Returns nullptr if declaration failed due to e.g. redeclaration.
 template <typename T> T *declare(Sema &sema, Name *name, size_t pos) {
   auto found = sema.decl_table.find(name);
   if (found && declIs<T *>(found->value) &&
@@ -153,7 +161,9 @@ template <typename T> T *declare(Sema &sema, Name *name, size_t pos) {
   }
 
   T *decl = sema.make_decl<T>(name);
+  // binding of name and decl
   sema.decl_table.insert(name, decl);
+
   return decl;
 }
 
@@ -168,7 +178,7 @@ void NameBinder::visitVarDecl(VarDeclNode *v) {
   if (v->kind == VarDeclNodeKind::struct_) {
     assert(!sema.context.structDeclStack.empty());
     auto currStruct = sema.context.structDeclStack.back();
-    currStruct->fields.push_back(v->var_decl);
+    currStruct->struct_fields.push_back(v->var_decl);
   } else if (v->kind == VarDeclNodeKind::param) {
     assert(!sema.context.funcDeclStack.empty());
     auto currFunc = sema.context.funcDeclStack.back();
@@ -206,7 +216,20 @@ void NameBinder::visitStructDecl(StructDeclNode *s) {
   sema.decl_table.scope_close();
 }
 
+void NameBinder::visitEnumVariantDecl(EnumVariantDeclNode *e) {
+  walk_enum_variant_decl(*this, e);
+}
+
 void NameBinder::visitEnumDecl(EnumDeclNode *e) {
+  e->enum_decl = declare<EnumDecl>(sema, e->name, e->pos);
+  if (!e->enum_decl)
+    return;
+
+  sema.decl_table.scope_open();
+
+  walk_enum_decl(*this, e);
+
+  sema.decl_table.scope_close();
 }
 
 // Assignments should check that the LHS is an l-value.
@@ -215,28 +238,27 @@ void NameBinder::visitEnumDecl(EnumDeclNode *e) {
 //
 //                 3 = 4
 void TypeChecker::visitAssignStmt(AssignStmt *as) {
-    walk_assign_stmt(*this, as);
+  walk_assign_stmt(*this, as);
 
-    auto lhsTy = as->lhs->type;
-    auto rhsTy = as->rhs->type;
+  auto lhs_ty = as->lhs->type;
+  auto rhs_ty = as->rhs->type;
 
-    // XXX: is this the best way to early-exit?
-    if (!lhsTy || !rhsTy)
-        return;
+  // XXX: is this the best way to early-exit?
+  if (!lhs_ty || !rhs_ty)
+    return;
 
-    // L-value check.
-    // XXX: It's not obvious that r-values correspond to expressions that don't
-    // have an associated Decl object. Maybe make an isRValue() function.
-    if (!as->lhs->decl()) {
-        sema.error(as->pos, fmt::format("LHS is not assignable"));
-        return;
-    }
+  // L-value check.
+  // XXX: It's not obvious that r-values correspond to expressions that don't
+  // have an associated Decl object. Maybe make an isRValue() function.
+  if (!as->lhs->decl()) {
+    sema.error(as->pos, fmt::format("LHS is not assignable"));
+    return;
+  }
 
-    // Only allow exact equality for assignment for now (TODO).
-    if (lhsTy != rhsTy)
-        sema.error(as->pos,
-                   fmt::format("cannot assign '{}' type to '{}'",
-                               rhsTy->name->str(), lhsTy->name->str()));
+  // Only allow exact equality for assignment for now (TODO).
+  if (lhs_ty != rhs_ty)
+    sema.error(as->pos, fmt::format("cannot assign '{}' type to '{}'",
+                                    rhs_ty->name->str(), lhs_ty->name->str()));
 }
 
 bool FuncDecl::isVoid(Sema &sema) const {
@@ -338,38 +360,39 @@ void TypeChecker::visitFuncCallExpr(FuncCallExpr *f) {
 // func().mem).  So we defer their namebinding to the type checking phase,
 // which is done here.
 void TypeChecker::visitMemberExpr(MemberExpr *m) {
-    // propagate typecheck from left to right (struct -> .mem)
-    walk_member_expr(*this, m);
+  // propagate typecheck from left to right (struct -> .mem)
+  walk_member_expr(*this, m);
 
-    // if the struct side failed to typecheck, we cannot proceed
-    if (!m->struct_expr->type)
-        return;
+  // if the struct side failed to typecheck, we cannot proceed
+  if (!m->struct_expr->type)
+    return;
 
-    // make sure the LHS is actually a struct
-    auto lhs_type = m->struct_expr->type;
-    if (!lhs_type->is_struct()) {
-        sema.error(m->struct_expr->pos, fmt::format("type '{}' is not a struct",
-                                                    lhs_type->name->str()));
-        return;
-    }
+  // make sure the LHS is actually a struct
+  auto lhs_type = m->struct_expr->type;
+  if (!lhs_type->isStruct()) {
+    sema.error(m->struct_expr->pos,
+               fmt::format("type '{}' is not a struct", lhs_type->name->str()));
+    return;
+  }
 
-    // find a member with the same name
-    for (auto mem_decl : lhs_type->struct_decl->fields)
-        if (m->member_name == mem_decl->name)
-            m->var_decl = mem_decl;
-    if (!m->var_decl) {
-        // TODO: pos for member
-        sema.error(m->struct_expr->pos,
-                   fmt::format("'{}' is not a member of '{}'",
-                               m->member_name->str(), lhs_type->name->str()));
-        return;
-    }
+  // find a member with the same name
+  assert(lhs_type->isStruct() && lhs_type->getStructDecl());
+  for (auto mem_decl : lhs_type->getStructDecl()->struct_fields)
+    if (m->member_name == mem_decl->name)
+      m->var_decl = mem_decl;
+  if (!m->var_decl) {
+    // TODO: pos for member
+    sema.error(m->struct_expr->pos,
+               fmt::format("'{}' is not a member of '{}'",
+                           m->member_name->str(), lhs_type->name->str()));
+    return;
+  }
 
-    // Since the VarDecls for the fields are already typechecked, just
-    // copying over the type of the VarDecl completes typecheck for this
-    // MemberExpr.
-    assert(m->var_decl->type);
-    m->type = m->var_decl->type;
+  // Since the VarDecls for the fields are already typechecked, just
+  // copying over the type of the VarDecl completes typecheck for this
+  // MemberExpr.
+  assert(m->var_decl->type);
+  m->type = m->var_decl->type;
 }
 
 // Get or make a reference type of a given type.
@@ -379,8 +402,7 @@ Type *getReferenceType(Sema &sema, Type *type) {
         return found->value;
 
     // FIXME: scope_level
-    auto refTy =
-        sema.make_type(TypeKind::ref, name, type, nullptr, true /*FIXME*/);
+    auto refTy = sema.make_type(Type::refType(name, type));
     return *sema.type_table.insert(name, refTy);
 }
 
@@ -449,34 +471,45 @@ void TypeChecker::visitBinaryExpr(BinaryExpr *b) {
   b->type = b->lhs->type;
 }
 
+Type *declGetType(const Decl &decl) {
+  return std::visit(
+      [](auto &&d) -> Type * {
+        using T = std::decay_t<decltype(d)>;
+        if constexpr (std::is_same_v<T, FuncDecl *>) {
+          return nullptr;
+        } else {
+          return d->type;
+        }
+      },
+      decl);
+}
+
 // Type checking TypeExpr concerns with finding the Type object whose syntactic
 // representation matches the TypeExpr.
 void TypeChecker::visitTypeExpr(TypeExpr *t) {
-    walk_type_expr(*this, t);
+  walk_type_expr(*this, t);
 
-    // first, find a type that has this exact name
-    if (t->kind == TypeExprKind::value) {
-        // t->decl should be non-null after the name binding stage.
-        // And since we are currently doing single-pass (TODO), its type should
-        // also be resolved by now.
-        assert(declIs<StructDecl *>(t->decl));
-        t->type = get<StructDecl *>(t->decl)->type;
-        assert(t->type);
-    } else if (t->kind == TypeExprKind::ref) {
-        // Derived types are only present in the type table if they occur in
-        // the source code.  Trying to push them every time we see one is
-        // sufficient to keep this invariant.
-        assert(t->subexpr->type);
-        if (auto found = sema.type_table.find(t->name)) {
-            t->type = found->value;
-        } else {
-            t->type = sema.make_type(TypeKind::ref, t->name, t->subexpr->type,
-                                     nullptr, true /*FIXME*/);
-            sema.type_table.insert(t->name, t->type);
-        }
+  if (t->kind == TypeExprKind::value) {
+    // t->decl should be non-null after the name binding stage.
+    // And since we are currently doing single-pass (TODO), its type should
+    // also be resolved by now.
+    assert(declIsType(t->decl));
+    t->type = declGetType(t->decl);
+    assert(t->type && "type not resolved in corresponding *Decl");
+  } else if (t->kind == TypeExprKind::ref) {
+    // Derived types are only present in the type table if they occur in the
+    // source code.  Trying to push them every time we see one is sufficient to
+    // keep this invariant.
+    assert(t->subexpr->type);
+    if (auto found = sema.type_table.find(t->name)) {
+      t->type = found->value;
     } else {
-        assert(false && "whooops");
+      t->type = sema.make_type(Type::refType(t->name, t->subexpr->type));
+      sema.type_table.insert(t->name, t->type);
     }
+  } else {
+    assert(false && "whooops");
+  }
 }
 
 void TypeChecker::visitVarDecl(VarDeclNode *v) {
@@ -490,16 +523,6 @@ void TypeChecker::visitVarDecl(VarDeclNode *v) {
     } else {
         assert(false && "unreachable");
     }
-}
-
-void TypeChecker::visitStructDecl(StructDeclNode *s) {
-    walk_struct_decl(*this, s);
-
-    // Create a new type for this struct.
-    auto type =
-        sema.make_type(TypeKind::value, s->name, nullptr, s->struct_decl, true);
-    // XXX: no need to insert to type table?
-    s->struct_decl->type = type;
 }
 
 void TypeChecker::visitFuncDecl(FuncDeclNode *f) {
@@ -524,6 +547,29 @@ void TypeChecker::visitFuncDecl(FuncDeclNode *f) {
   sema.context.funcDeclStack.push_back(f->func_decl);
   visitCompoundStmt(f->body);
   sema.context.funcDeclStack.pop_back();
+}
+
+void TypeChecker::visitStructDecl(StructDeclNode *s) {
+  // Create a new type for this struct.
+  auto type = sema.make_type(Type::valueType(s->name, s->struct_decl));
+  s->struct_decl->type = type;
+
+  // This is a pre-order walk so that recursive struct definitions are made
+  // possible.
+  walk_struct_decl(*this, s);
+}
+
+void TypeChecker::visitEnumVariantDecl(EnumVariantDeclNode *e) {
+  walk_enum_variant_decl(*this, e);
+}
+
+void TypeChecker::visitEnumDecl(EnumDeclNode *e) {
+  auto type = sema.make_type(Type::valueType(e->name, e->enum_decl));
+  e->enum_decl->type = type;
+
+  // This is a pre-order walk so that recursive enum definitions are made
+  // possible.
+  walk_enum_decl(*this, e);
 }
 
 BasicBlock *ReturnChecker::visitStmt(Stmt *s, BasicBlock *bb) {
