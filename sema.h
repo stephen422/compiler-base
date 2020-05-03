@@ -55,10 +55,19 @@ struct Type {
     // TODO: should base_type be null too?
     return std::holds_alternative<StructDecl *>(type_decl);
   }
+  bool isEnum() const {
+    // TODO: should base_type be null too?
+    return std::holds_alternative<EnumDecl *>(type_decl);
+  }
+  bool is_member_accessible() const { return isStruct() || isEnum(); }
 
   StructDecl *getStructDecl() {
     assert(std::holds_alternative<StructDecl *>(type_decl));
     return std::get<StructDecl *>(type_decl);
+  }
+  EnumDecl *getEnumDecl() {
+    assert(std::holds_alternative<EnumDecl *>(type_decl));
+    return std::get<EnumDecl *>(type_decl);
   }
 };
 
@@ -74,7 +83,7 @@ struct VarDecl {
 struct StructDecl {
   Name *name = nullptr;
   Type *type = nullptr;
-  std::vector<VarDecl *> struct_fields;
+  std::vector<VarDecl *> fields;
 
   StructDecl(Name *n) : name(n) {}
 };
@@ -113,11 +122,13 @@ template <typename T> bool declIs(const Decl &decl) {
     return std::holds_alternative<T>(decl);
 }
 bool declIsType(const Decl &decl);
+Type *declGetType(const Decl &decl);
 
 struct Context {
-    // Current enclosing struct decl.
-    std::vector<StructDecl *> structDeclStack;
-    std::vector<FuncDecl *> funcDeclStack;
+    // Current enclosing decls.
+    std::vector<FuncDecl *> func_decl_stack;
+    std::vector<StructDecl *> struct_decl_stack;
+    std::vector<EnumDecl *> enum_decl_stack;
     // Builtin types.
     // voidType exists to differentiate the type of FuncCallExprs whose
     // function no return values, from expressions that failed to typecheck.
@@ -204,8 +215,6 @@ struct Sema {
   void error(size_t pos, const std::string &msg);
   void scope_open();
   void scope_close();
-  void report() const;
-  bool verify() const;
 
   // Allocator function for Decls and Types.
   template <typename T, typename... Args> T *make_decl(Args &&... args) {

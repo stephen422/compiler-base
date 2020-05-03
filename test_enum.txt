@@ -3,3 +3,12 @@ enum Expr {
     Literal(int, int)
     Binary(Expr, Expr)
 }
+
+func main() {
+    let tok = Expr.Token
+    // let lit = Expr.Lit(3, 4)
+}
+
+// check there's no name clash
+struct Token {
+}

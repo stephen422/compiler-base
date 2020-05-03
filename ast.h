@@ -266,15 +266,27 @@ struct StringLiteral : public Expr {
     void print() const override;
 };
 
+enum class DeclRefKind {
+  undecided,
+  var,
+  struct_,
+  enum_,
+};
+
 // A unary expression that references a declaration object, e.g. a variable or
 // a function.
 struct DeclRefExpr : public Expr {
-    Name *name = nullptr;
+  DeclRefKind kind;
+  Name *name = nullptr;
+  union {
     VarDecl *var_decl = nullptr;
+    StructDecl *struct_decl;
+    EnumDecl *enum_decl;
+  };
 
-    DeclRefExpr(Name *name)
-        : Expr(ExprKind::decl_ref), name(name) {}
-    void print() const override;
+  DeclRefExpr(DeclRefKind k, Name *n)
+      : Expr(ExprKind::decl_ref), kind(k), name(n) {}
+  void print() const override;
 };
 
 struct FuncCallExpr : public Expr {
@@ -291,13 +303,13 @@ struct FuncCallExpr : public Expr {
 
 // 'struct.mem'
 struct MemberExpr : public Expr {
-    Expr *struct_expr = nullptr; // 'struct' part
-    Name *member_name = nullptr; // 'mem' part
-    VarDecl *var_decl = nullptr; // decl of 'mem'
+  Expr *lhs_expr = nullptr;    // 'struct' part
+  Name *member_name = nullptr; // 'mem' part
+  Decl decl;                   // decl of 'mem'
 
-    MemberExpr(Expr *e, Name *m)
-        : Expr(ExprKind::member), struct_expr(e), member_name(m) {}
-    void print() const override;
+  MemberExpr(Expr *e, Name *m)
+      : Expr(ExprKind::member), lhs_expr(e), member_name(m) {}
+  void print() const override;
 };
 
 struct UnaryExpr : public Expr {
@@ -437,7 +449,7 @@ struct StructDeclNode : public DeclNode {
 struct EnumVariantDeclNode : public DeclNode {
   Name *name = nullptr;             // name of the variant
   std::vector<Expr *> fields;   // type of the fields
-  StructDecl *structDecl = nullptr; // decl object
+  StructDecl *struct_decl = nullptr; // decl object
 
   EnumVariantDeclNode(Name *n, std::vector<Expr *> f)
       : DeclNode(DeclNodeKind::enum_variant), name(n), fields(f) {}
@@ -807,7 +819,7 @@ void walk_binary_expr(Visitor &v, BinaryExpr *b, Args... args) {
 }
 template <typename Visitor, typename... Args>
 void walk_member_expr(Visitor &v, MemberExpr *m, Args... args) {
-  v.visitExpr(m->struct_expr, args...);
+  v.visitExpr(m->lhs_expr, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_type_expr(Visitor &v, TypeExpr *t, Args... args) {

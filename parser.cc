@@ -397,7 +397,6 @@ std::vector<EnumVariantDeclNode *> Parser::parseEnumVariantDeclList() {
 }
 
 EnumDeclNode *Parser::parseEnumDecl() {
-  fmt::print("Hi I'm here!\n");
   auto pos = tok.pos;
 
   expect(Tok::kw_enum);
@@ -464,31 +463,33 @@ Expr *Parser::parseLiteralExpr() {
 }
 
 // Upon seeing an expression that starts with an identifier, we don't know
-// whether it is just a variable, a function call, or struct initialization
-// without lookahead ('a' vs 'a()' vs 'a {...}'). Rather than using lookahead,
-// parse the both kinds in one go in this function.
+// whether it is just a variable, a function call, an enum name, or a struct
+// name ('a' vs 'a()' vs 'a {...}') without lookahead. Rather than using
+// lookahead, parse the both kinds in one go in this function.
 //
 // TODO: maybe name it parse_ident_start_exprs?
 // TODO: add struct declaration here, e.g. Car {}
 Expr *Parser::parseFuncCallOrDeclRefExpr() {
-    auto pos = tok.pos;
-    assert(tok.kind == Tok::ident);
-    auto name = names.getOrAdd(std::string{tok.text});
-    next();
+  auto pos = tok.pos;
+  assert(tok.kind == Tok::ident);
+  auto name = names.getOrAdd(std::string{tok.text});
+  next();
 
-    if (tok.kind == Tok::lparen) {
-        expect(Tok::lparen);
-        std::vector<Expr *> args;
-        while (tok.kind != Tok::rparen) {
-            args.push_back(parse_expr());
-            if (tok.kind == Tok::comma)
-                next();
-        }
-        expect(Tok::rparen);
-        return make_node_pos<FuncCallExpr>(pos, name, args);
-    } else {
-        return make_node_pos<DeclRefExpr>(pos, name);
+  if (tok.kind == Tok::lparen) {
+    expect(Tok::lparen);
+    std::vector<Expr *> args;
+    while (tok.kind != Tok::rparen) {
+      args.push_back(parse_expr());
+      if (tok.kind == Tok::comma)
+        next();
     }
+    expect(Tok::rparen);
+    return make_node_pos<FuncCallExpr>(pos, name, args);
+  } else {
+    // Whether this is a variable or a struct/enum name can only be decided
+    // in the type checking stage.
+    return make_node_pos<DeclRefExpr>(pos, DeclRefKind::undecided, name);
+  }
 }
 
 bool Parser::isStartOfTypeExpr() const {

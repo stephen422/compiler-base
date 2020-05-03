@@ -28,7 +28,7 @@ std::optional<Decl> Expr::decl() const {
     case ExprKind::decl_ref:
         return as<DeclRefExpr>()->var_decl;
     case ExprKind::member:
-        return as<MemberExpr>()->var_decl;
+      return as<MemberExpr>()->decl;
     case ExprKind::unary:
         if (as<UnaryExpr>()->unaryKind == UnaryExprKind::paren)
             return as<UnaryExpr>()->as<ParenExpr>()->decl();
@@ -217,7 +217,7 @@ void ParenExpr::print() const {
 void MemberExpr::print() const {
     out() << "[MemberExpr]" << std::endl;
     PrintScope start;
-    struct_expr->print();
+    lhs_expr->print();
     out() << "'.' " << member_name->text << std::endl;
 }
 

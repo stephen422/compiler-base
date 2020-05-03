@@ -3,6 +3,15 @@
   Let the programmer tell the compiler explicitly where a specific type of
   object lives and dies in the code.
 
+!! Idea: 'match' syntax in function(method) declaration
+
+  Similar to how functional languages like Haskell allow function declaration
+  to be spread over specific instances of argument patterns, allow to declare
+  methods to be declared with different 'self' pattern matches, so that
+  "virtual" method calls are defined clearly in syntax.  The performance
+  characteristics of such method calls now become clear because they use the
+  same codegen as matches.
+
 !! Idea: Specify lifetime between struct parameters?
 
   E.g. Source, Parser, Lexer all in a single Driver struct, but their
