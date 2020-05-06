@@ -39,16 +39,21 @@ TEST_CASE("Comment lexing", "[lex_comment]") {
 }
 
 TEST_CASE("Parsing") {
-  SECTION("basic") {
-    auto d = Driver::from_path(Path{"../test_parser.txt"});
-    d.compile();
-    REQUIRE(d.verify());
-  }
-  SECTION("enum") {
-    auto d = Driver::from_path(Path{"../test_enum.txt"});
-    d.compile();
-    REQUIRE(d.verify());
-  }
+    SECTION("basic") {
+        auto d = Driver::from_path(Path{"../test_parser.txt"});
+        d.compile();
+        REQUIRE(d.verify());
+    }
+    SECTION("struct") {
+        auto d = Driver::from_path(Path{"../test_struct.txt"});
+        d.compile();
+        REQUIRE(d.verify());
+    }
+    SECTION("enum") {
+      auto d = Driver::from_path(Path{"../test_enum.txt"});
+      d.compile();
+      REQUIRE(d.verify());
+    }
 }
 
 TEST_CASE("Name binding") {

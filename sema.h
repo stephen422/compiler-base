@@ -119,12 +119,13 @@ struct FuncDecl {
 // the 'type' member of a StructDecl?
 using Decl = std::variant<VarDecl *, StructDecl *, EnumDecl *, FuncDecl *>;
 
-using std::get;
-template <typename T> bool declIs(const Decl &decl) {
-    return std::holds_alternative<T>(decl);
+template <typename T> T *decl_as(const Decl decl) {
+    if (std::holds_alternative<T *>(decl))
+        return std::get<T *>(decl);
+    else
+        return nullptr;
 }
-bool declIsType(const Decl &decl);
-Type *decl_get_type(const Decl &decl);
+Type *decl_get_type(const Decl decl);
 
 struct Context {
     // Current enclosing decls.

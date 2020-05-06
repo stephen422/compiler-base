@@ -61,23 +61,18 @@ void Sema::scope_close() {
     type_table.scope_close();
 }
 
-// Checks if this Decl object is a kind that represents a type, e.g. structs or
-// enums.
-bool declIsType(const Decl &decl) {
-  return declIs<StructDecl *>(decl) || declIs<EnumDecl *>(decl);
-}
-
-Type *decl_get_type(const Decl &decl) {
-  if (declIs<VarDecl *>(decl)) {
-    return get<VarDecl *>(decl)->type;
-  } else if (declIs<StructDecl *>(decl)) {
-    return get<StructDecl *>(decl)->type;
-  } else if (declIs<EnumDecl *>(decl)) {
-    return get<EnumDecl *>(decl)->type;
-  } else if (declIs<FuncDecl *>(decl)) {
-    return nullptr;
-  }
-  assert(false && "not all decl kinds handled");
+// Return 'type' member of Decl, or nullptr if this Decl kind doesn't have any.
+Type *decl_get_type(const Decl decl) {
+    if (auto d = decl_as<VarDecl>(decl)) {
+        return d->type;
+    } else if (auto d = decl_as<StructDecl>(decl)) {
+        return d->type;
+    } else if (auto d = decl_as<EnumDecl>(decl)) {
+        return d->type;
+    } else if (auto d = decl_as<FuncDecl>(decl)) {
+        return nullptr;
+    }
+    assert(false && "not all decl kinds handled");
 }
 
 void NameBinder::visitCompoundStmt(CompoundStmt *cs) {
@@ -87,21 +82,21 @@ void NameBinder::visitCompoundStmt(CompoundStmt *cs) {
 }
 
 void NameBinder::visitDeclRefExpr(DeclRefExpr *d) {
-  auto sym = sema.decl_table.find(d->name);
-  if (!sym) {
-    sema.error(d->pos, fmt::format("use of undeclared identifier '{}'",
-                                   d->name->str()));
-    return;
-  }
-  if (declIs<VarDecl *>(sym->value)) {
-    d->kind = DeclRefKind::var;
-    d->var_decl = get<VarDecl *>(sym->value);
-  } else if (declIs<EnumDecl *>(sym->value)) {
-    d->kind = DeclRefKind::enum_;
-    d->enum_decl = get<EnumDecl *>(sym->value);
-  } else {
-    assert(false && "not implemented");
-  }
+    auto sym = sema.decl_table.find(d->name);
+    if (!sym) {
+        sema.error(d->pos, fmt::format("use of undeclared identifier '{}'",
+                                       d->name->str()));
+        return;
+    }
+    if (auto vd = decl_as<VarDecl>(sym->value)) {
+        d->kind = DeclRefKind::var;
+        d->var_decl = vd;
+    } else if (auto ed = decl_as<EnumDecl>(sym->value)) {
+        d->kind = DeclRefKind::enum_;
+        d->enum_decl = ed;
+    } else {
+        assert(false && "not implemented");
+    }
 }
 
 // Only binds the function name part of the call, e.g. 'func' of func().
@@ -113,12 +108,12 @@ void NameBinder::visitFuncCallExpr(FuncCallExpr *f) {
                                        f->funcName->str()));
         return;
     }
-    if (!declIs<FuncDecl *>(sym->value)) {
+    if (!decl_as<FuncDecl>(sym->value)) {
         sema.error(f->pos,
                    fmt::format("'{}' is not a function", f->funcName->str()));
         return;
     }
-    f->funcDecl = get<FuncDecl *>(sym->value);
+    f->funcDecl = decl_as<FuncDecl>(sym->value);
     assert(f->funcDecl);
 
     walk_func_call_expr(*this, f);
@@ -133,33 +128,33 @@ void NameBinder::visitFuncCallExpr(FuncCallExpr *f) {
 }
 
 void NameBinder::visitTypeExpr(TypeExpr *t) {
-  walk_type_expr(*this, t);
+    walk_type_expr(*this, t);
 
-  // Namebinding for TypeExprs only include linking existing Decls to the
-  // type names used in the expression, not declaring new ones.  The
-  // declaration would be done when visiting VarDecls and StructDecls, etc.
+    // Namebinding for TypeExprs only include linking existing Decls to the
+    // type names used in the expression, not declaring new ones.  The
+    // declaration would be done when visiting VarDecls and StructDecls, etc.
 
-  // For pointers and arrays, proper typechecking will be done in the later
-  // stages.
-  if (t->subexpr)
-    return;
+    // For pointers and arrays, proper typechecking will be done in the later
+    // stages.
+    if (t->subexpr)
+        return;
 
-  auto sym = sema.decl_table.find(t->name);
-  if (sym && declIsType(sym->value)) {
-    assert(t->kind == TypeExprKind::value);
-    t->decl = sym->value;
-  } else {
-    sema.error(t->pos,
-               fmt::format("use of undeclared type '{}'", t->name->str()));
-    return;
-  }
+    auto sym = sema.decl_table.find(t->name);
+    if (sym && decl_get_type(sym->value)) {
+        assert(t->kind == TypeExprKind::value);
+        t->decl = sym->value;
+    } else {
+        sema.error(t->pos,
+                   fmt::format("use of undeclared type '{}'", t->name->str()));
+        return;
+    }
 }
 
 // Semantically declare a 'name' at a 'pos', whose Decl type is T.
 // Returns nullptr if declaration failed due to e.g. redeclaration.
 template <typename T> T *declare(Sema &sema, Name *name, size_t pos) {
   auto found = sema.decl_table.find(name);
-  if (found && declIs<T *>(found->value) &&
+  if (found && decl_as<T>(found->value) &&
       found->scope_level <= sema.decl_table.scope_level) {
     sema.error(pos, fmt::format("redefinition of '{}'", name->str()));
     return nullptr;
@@ -543,7 +538,6 @@ void TypeChecker::visitTypeExpr(TypeExpr *t) {
     // t->decl should be non-null after the name binding stage.
     // And since we are currently doing single-pass (TODO), its type should
     // also be resolved by now.
-    assert(declIsType(t->decl));
     t->type = decl_get_type(t->decl);
     assert(t->type && "type not resolved in corresponding *Decl");
   } else if (t->kind == TypeExprKind::ref) {

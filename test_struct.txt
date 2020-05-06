@@ -1,0 +1,9 @@
+struct Token {
+    pos: int
+    text: string
+}
+
+func main() {
+    let tok = Token {}
+}
+

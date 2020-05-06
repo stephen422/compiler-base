@@ -116,6 +116,7 @@ private:
   Expr *parseTypeExpr();
   Expr *parse_binary_expr_rhs(Expr *lhs, int precedence);
   Expr *parse_member_expr_maybe(Expr *expr);
+  Expr *parse_struct_def_maybe(Expr *expr);
 
   std::vector<Error> parse_error_beacon();
 

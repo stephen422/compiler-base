@@ -550,7 +550,9 @@ Expr *Parser::parse_unary_expr() {
     case Tok::ident: {
         // TODO: do proper op precedence parsing
         auto expr = parse_funccall_or_declref_expr();
-        return parse_member_expr_maybe(expr);
+        expr = parse_member_expr_maybe(expr);
+        expr = parse_struct_def_maybe(expr);
+        return expr;
     }
     case Tok::star: {
         next();
@@ -647,18 +649,30 @@ Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence = 0) {
 // such. If not, just pass along the original expression. This function is
 // called after the operand expression part is fully parsed.
 Expr *Parser::parse_member_expr_maybe(Expr *expr) {
-  Expr *result = expr;
+    Expr *result = expr;
 
-  while (tok.kind == Tok::dot) {
-    expect(Tok::dot);
+    while (tok.kind == Tok::dot) {
+        expect(Tok::dot);
 
-    Name *member_name = names.get_or_add(std::string{tok.text});
-    next();
+        Name *member_name = names.get_or_add(std::string{tok.text});
+        next();
 
-    result = make_node_pos<MemberExpr>(result->pos, result, member_name);
-  }
+        result = make_node_pos<MemberExpr>(result->pos, result, member_name);
+    }
 
-  return result;
+    return result;
+}
+
+// If this expression has a trailing {...}, parse as a struct definition
+// expression.  If not, just pass along the original expression. This function
+// is called after the operand expression part is fully parsed.
+Expr *Parser::parse_struct_def_maybe(Expr *expr) {
+    if (tok.kind == Tok::lbrace) {
+        next();
+        next();
+        fmt::print("I think I saw one\n");
+    }
+    return expr;
 }
 
 Expr *Parser::parse_expr() {

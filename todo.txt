@@ -2,20 +2,31 @@
 
   Let the programmer tell the compiler explicitly where a specific type of
   object lives and dies in the code.
+  - How would the lifetime annotation look like?
 
 !! Idea: 'match' syntax in function(method) declaration
 
   Similar to how functional languages like Haskell allow function declaration
-  to be spread over specific instances of argument patterns, allow to declare
-  methods to be declared with different 'self' pattern matches, so that
-  "virtual" method calls are defined clearly in syntax.  The performance
-  characteristics of such method calls now become clear because they use the
-  same codegen as matches.
+  to be spread over specific instances of argument patterns, allow methods to
+  be declared with different 'self' pattern matches, so that "virtual" method
+  calls are defined clearly in syntax.  The performance characteristics of such
+  method calls now become clear because they use the same codegen as matches.
 
 !! Idea: Specify lifetime between struct parameters?
 
   E.g. Source, Parser, Lexer all in a single Driver struct, but their
   construction/destruction order is guaranteed.
+
+!! Idea: Compiler UI that reports if a function (or an arbitrary snippet of
+code) allocates on the heap or not.
+
+  E.g. give it a variable name or a file:line:col, and it should tell you where
+  that variable resides on the memory.
+  - For code that just calls into another code, it might need deep call chain
+    analysis.
+    - This can be solved if we annotate all functions with the allocation
+      analysis result to begin with.
+  - Is this a job for a debugger though?
 
 !! Out-of-module extensible structs
 
