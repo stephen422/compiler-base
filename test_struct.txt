@@ -4,6 +4,6 @@ struct Token {
 }
 
 func main() {
-    let tok = Token {}
+    let tok = Token {.pos = }
 }
 

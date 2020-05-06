@@ -228,34 +228,35 @@ BuiltinStmt *Parser::parseBuiltinStmt() {
 
 // Doesn't include 'let' or 'var'.
 VarDeclNode *Parser::parse_var_decl(VarDeclNodeKind kind) {
-  auto pos = tok.pos;
+    auto pos = tok.pos;
 
-  if (tok.kind != Tok::ident) {
-    error_expected("an identifier");
-  }
-  Name *name = names.get_or_add(std::string{tok.text});
-  next();
+    if (tok.kind != Tok::ident) {
+        error_expected("an identifier");
+    }
+    Name *name = names.get_or_add(std::string{tok.text});
+    next();
 
-  VarDeclNode *v = nullptr;
-  // '=' comes either first, or after the ': type' part.
-  if (tok.kind == Tok::colon) {
-    next();
-    auto type_expr = parse_type_expr();
-    v = make_node_pos<VarDeclNode>(pos, name, kind, type_expr, nullptr);
-  }
-  if (tok.kind == Tok::equals) {
-    next();
-    auto assign_expr = parse_expr();
-    if (v)
-      static_cast<VarDeclNode *>(v)->assign_expr = assign_expr;
-    else
-      v = make_node_pos<VarDeclNode>(pos, name, kind, nullptr, assign_expr);
-  }
-  if (!v) {
-    error_expected("'=' or ':' after var name");
-    v = nullptr;
-  }
-  return v;
+    VarDeclNode *v = nullptr;
+    // '=' comes either first, or after the ': type' part.
+    if (tok.kind == Tok::colon) {
+        next();
+        auto type_expr = parse_type_expr();
+        v = make_node_pos<VarDeclNode>(pos, name, kind, type_expr, nullptr);
+    }
+    if (tok.kind == Tok::equals) {
+        next();
+        auto assign_expr = parse_expr();
+        if (v)
+            static_cast<VarDeclNode *>(v)->assign_expr = assign_expr;
+        else
+            v = make_node_pos<VarDeclNode>(pos, name, kind, nullptr,
+                                           assign_expr);
+    }
+    if (!v) {
+        error_expected("'=' or ':' after var name");
+        v = nullptr;
+    }
+    return v;
 }
 
 // Parses a comma separated list of AST nodes whose type is T*.  Parser
@@ -263,8 +264,8 @@ VarDeclNode *Parser::parse_var_decl(VarDeclNodeKind kind) {
 // function knows how to parse the elements.
 // Doesn't parse the enclosing parentheses or braces.
 template <typename T, typename F>
-std::vector<T *> Parser::parse_comma_separated_list(F &&parse_fn) {
-    std::vector<T *> list;
+std::vector<T> Parser::parse_comma_separated_list(F &&parse_fn) {
+    std::vector<T> list;
     auto finishers = {Tok::rparen, Tok::rbrace};
     auto delimiters = {Tok::comma, Tok::newline, Tok::rparen, Tok::rbrace};
 
@@ -312,7 +313,7 @@ FuncDeclNode *Parser::parseFuncDecl() {
 
   // argument list
   expect(Tok::lparen);
-  func->args = parse_comma_separated_list<VarDeclNode>(
+  func->args = parse_comma_separated_list<VarDeclNode *>(
       [this] { return parse_var_decl(VarDeclNodeKind::param); });
   if (!expect(Tok::rparen)) {
     skip_until(Tok::rparen);
@@ -354,7 +355,7 @@ StructDeclNode *Parser::parseStructDecl() {
   if (!expect(Tok::lbrace))
     skip_until_end_of_line();
 
-  auto fields = parse_comma_separated_list<VarDeclNode>(
+  auto fields = parse_comma_separated_list<VarDeclNode *>(
       [this] { return parse_var_decl(VarDeclNodeKind::struct_); });
   expect(Tok::rbrace, "unterminated struct declaration");
   // TODO: recover
@@ -371,7 +372,7 @@ EnumVariantDeclNode *Parser::parseEnumVariant() {
   std::vector<Expr *> fields;
   if (tok.kind == Tok::lparen) {
     expect(Tok::lparen);
-    fields = parse_comma_separated_list<Expr>([this] { return parse_type_expr(); });
+    fields = parse_comma_separated_list<Expr *>([this] { return parse_type_expr(); });
     expect(Tok::rparen);
   }
 
@@ -663,24 +664,44 @@ Expr *Parser::parse_member_expr_maybe(Expr *expr) {
     return result;
 }
 
+// Parse '.memb = expr' part in Struct { .m1 = e1, .m2 = e2, ... }.
+std::optional<Parser::FieldDesignator> Parser::parse_struct_def_field() {
+    if (!expect(Tok::dot))
+        return {};
+
+    auto name = names.get_or_add(std::string{tok.text});
+    next();
+
+    if (!expect(Tok::equals))
+        return {};
+
+    auto expr = parse_expr();
+    if (!expr)
+        return {};
+
+    return FieldDesignator{name, expr};
+}
+
 // If this expression has a trailing {...}, parse as a struct definition
 // expression.  If not, just pass along the original expression. This function
 // is called after the operand expression part is fully parsed.
 Expr *Parser::parse_struct_def_maybe(Expr *expr) {
     if (tok.kind == Tok::lbrace) {
-        next();
-        next();
-        fmt::print("I think I saw one\n");
+        error("parse_struct_def_maybe being called here");
+        expect(Tok::lbrace);
+        parse_comma_separated_list<std::optional<FieldDesignator>>(
+            [this] { return parse_struct_def_field(); });
+        expect(Tok::rbrace);
     }
     return expr;
 }
 
 Expr *Parser::parse_expr() {
-  auto unary = parse_unary_expr();
-  if (!unary)
-    return nullptr;
-  auto binary = parse_binary_expr_rhs(unary);
-  return parse_member_expr_maybe(binary);
+    auto unary = parse_unary_expr();
+    if (!unary)
+        return nullptr;
+    auto binary = parse_binary_expr_rhs(unary);
+    return parse_member_expr_maybe(binary);
 }
 
 void Parser::skip_until(Tok kind) {
