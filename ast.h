@@ -47,23 +47,23 @@ struct Name {
 // up the symbol table using Name instead of raw char * throughout the semantic
 // analysis.
 struct NameTable {
-    Name *getOrAdd(const std::string &s) {
-        Name *found = get(s);
-        if (found) {
-            return found;
-        }
-        auto pair = map.insert({s, {s}});
-        return &pair.first->second;
+  Name *get_or_add(const std::string &s) {
+    Name *found = get(s);
+    if (found) {
+      return found;
     }
-    Name *get(const std::string &s) {
-        auto found = map.find(s);
-        if (found == map.end()) {
-            return nullptr;
-        } else {
-            return &found->second;
-        }
+    auto pair = map.insert({s, {s}});
+    return &pair.first->second;
+  }
+  Name *get(const std::string &s) {
+    auto found = map.find(s);
+    if (found == map.end()) {
+      return nullptr;
+    } else {
+      return &found->second;
     }
-    std::unordered_map<std::string, Name> map;
+  }
+  std::unordered_map<std::string, Name> map;
 };
 
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);

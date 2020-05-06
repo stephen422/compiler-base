@@ -24,11 +24,11 @@ void Sema::error(size_t pos, const std::string &msg) {
 }
 
 Type *push_builtin_type_from_name(Sema &s, const std::string &str) {
-    Name *name = s.names.getOrAdd(str);
-    auto struct_decl = s.make_decl<StructDecl>(name);
-    struct_decl->type = s.make_type(name);
-    s.decl_table.insert(name, struct_decl);
-    return struct_decl->type;
+  Name *name = s.name_table.get_or_add(str);
+  auto struct_decl = s.make_decl<StructDecl>(name);
+  struct_decl->type = s.make_type(name);
+  s.decl_table.insert(name, struct_decl);
+  return struct_decl->type;
 }
 
 // Push Decls for the builtin types into the global scope of decl_table, so
@@ -67,17 +67,17 @@ bool declIsType(const Decl &decl) {
   return declIs<StructDecl *>(decl) || declIs<EnumDecl *>(decl);
 }
 
-Type *declGetType(const Decl &decl) {
-  return std::visit(
-      [](auto &&d) -> Type * {
-        using T = std::decay_t<decltype(d)>;
-        if constexpr (std::is_same_v<T, FuncDecl *>) {
-          return nullptr;
-        } else {
-          return d->type;
-        }
-      },
-      decl);
+Type *decl_get_type(const Decl &decl) {
+  if (declIs<VarDecl *>(decl)) {
+    return get<VarDecl *>(decl)->type;
+  } else if (declIs<StructDecl *>(decl)) {
+    return get<StructDecl *>(decl)->type;
+  } else if (declIs<EnumDecl *>(decl)) {
+    return get<EnumDecl *>(decl)->type;
+  } else if (declIs<FuncDecl *>(decl)) {
+    return nullptr;
+  }
+  assert(false && "not all decl kinds handled");
 }
 
 void NameBinder::visitCompoundStmt(CompoundStmt *cs) {
@@ -225,7 +225,7 @@ void NameBinder::visitStructDecl(StructDeclNode *s) {
 // For now, these are named as "_0", "_1", etc.
 static Name *gen_anonymous_field_name(Sema &sema, size_t index) {
   auto text = fmt::format("_{}", index);
-  return sema.names.getOrAdd(text);
+  return sema.name_table.get_or_add(text);
 }
 
 void NameBinder::visitEnumVariantDecl(EnumVariantDeclNode *v) {
@@ -239,16 +239,16 @@ void NameBinder::visitEnumVariantDecl(EnumVariantDeclNode *v) {
   // then, add fields to this struct, whose names are anonymous
   // and only types are specified (e.g. Pos(int, int))
   for (size_t i = 0; i < v->fields.size(); i++) {
-    // open new scope so that anonymous field names doesn't clash
+    // so that anonymous field names don't clash
     sema.decl_table.scope_open();
 
     // TODO cast should be removed in the future
-    auto anonymous_decl = declare<VarDecl>(
-        sema, gen_anonymous_field_name(sema, i), v->fields[i]->pos);
-    if (!anonymous_decl)
+    auto field_decl = declare<VarDecl>(sema, gen_anonymous_field_name(sema, i),
+                                       v->fields[i]->pos);
+    if (!field_decl)
       return;
 
-    v->struct_decl->fields.push_back(anonymous_decl);
+    v->struct_decl->fields.push_back(field_decl);
 
     sema.decl_table.scope_close();
   }
@@ -454,19 +454,19 @@ void TypeChecker::visitMemberExpr(MemberExpr *m) {
   }
 
   // the fields are already typechecked
-  assert(declGetType(m->decl));
-  m->type = declGetType(m->decl);
+  assert(decl_get_type(m->decl));
+  m->type = decl_get_type(m->decl);
 }
 
 // Get or make a reference type of a given type.
 Type *getReferenceType(Sema &sema, Type *type) {
-    Name *name = sema.names.getOrAdd("*" + type->name->text);
-    if (auto found = sema.type_table.find(name))
-        return found->value;
+  Name *name = sema.name_table.get_or_add("*" + type->name->text);
+  if (auto found = sema.type_table.find(name))
+    return found->value;
 
-    // FIXME: scope_level
-    auto refTy = sema.make_type(Type::refType(name, type));
-    return *sema.type_table.insert(name, refTy);
+  // FIXME: scope_level
+  auto refTy = sema.make_type(Type::refType(name, type));
+  return *sema.type_table.insert(name, refTy);
 }
 
 void TypeChecker::visitUnaryExpr(UnaryExpr *u) {
@@ -544,7 +544,7 @@ void TypeChecker::visitTypeExpr(TypeExpr *t) {
     // And since we are currently doing single-pass (TODO), its type should
     // also be resolved by now.
     assert(declIsType(t->decl));
-    t->type = declGetType(t->decl);
+    t->type = decl_get_type(t->decl);
     assert(t->type && "type not resolved in corresponding *Decl");
   } else if (t->kind == TypeExprKind::ref) {
     // Derived types are only present in the type table if they occur in the

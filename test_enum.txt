@@ -1,14 +1,25 @@
-enum Expr {
-    Token
-    Literal(int, int)
-    Binary(Expr, Expr)
+// simple C-like enum
+enum Color {
+    red
+    green
+    blue
 }
+
+struct Token {
+}
+
+// tagged union
+// enum Expr {
+//     tok: Token
+//     lit: Literal
+//     bin: Binary
+// }
 
 func main() {
-    let tok = Expr.Token
-    // let lit = Expr.Lit(3, 4)
-}
+    Color.red
+    Color.black // ERROR: 'black' is not a member
 
-// check there's no name clash
-struct Token {
+    // let tok = Expr.Token
+    // let lit = Expr.Literal
+    // Expr.None // ERROR: 'None' is not a member
 }

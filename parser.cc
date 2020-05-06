@@ -13,16 +13,16 @@ Parser::Parser(Lexer &l, std::vector<Error> &e, std::vector<Error> &b)
   tok = lexer.lex();
   // insert keywords in name table
   for (auto m : keyword_map)
-    names.getOrAdd(std::string{m.first});
+    names.get_or_add(std::string{m.first});
 }
 
 void Parser::error(const std::string &msg) {
     errors.push_back({locate(), msg});
 }
 
-void Parser::errorExpected(const std::string &msg) {
-    std::string s = fmt::format("expected {}, found '{}'", msg, tok.str());
-    error(s);
+void Parser::error_expected(const std::string &msg) {
+  std::string s = fmt::format("expected {}, found '{}'", msg, tok.str());
+  error(s);
 }
 
 void Parser::next() {
@@ -68,7 +68,7 @@ bool Parser::isEndOfStmt() const {
   return tok.kind == Tok::newline || tok.kind == Tok::comment;
 }
 
-bool Parser::isEos() const { return tok.kind == Tok::eos; }
+bool Parser::is_eos() const { return tok.kind == Tok::eos; }
 
 // Parse a statement.
 //
@@ -206,7 +206,7 @@ CompoundStmt *Parser::parseCompoundStmt() {
   expect(Tok::lbrace);
   auto compound = make_node<CompoundStmt>();
 
-  while (!isEos()) {
+  while (!is_eos()) {
     skip_newlines();
     if (tok.kind == Tok::rbrace)
       break;
@@ -231,9 +231,9 @@ VarDeclNode *Parser::parseVarDecl(VarDeclNodeKind kind) {
   auto pos = tok.pos;
 
   if (tok.kind != Tok::ident) {
-    errorExpected("an identifier");
+    error_expected("an identifier");
   }
-  Name *name = names.getOrAdd(std::string{tok.text});
+  Name *name = names.get_or_add(std::string{tok.text});
   next();
 
   VarDeclNode *v = nullptr;
@@ -252,7 +252,7 @@ VarDeclNode *Parser::parseVarDecl(VarDeclNodeKind kind) {
       v = make_node_pos<VarDeclNode>(pos, name, kind, nullptr, assign_expr);
   }
   if (!v) {
-    errorExpected("'=' or ':' after var name");
+    error_expected("'=' or ':' after var name");
     v = nullptr;
   }
   return v;
@@ -263,40 +263,41 @@ VarDeclNode *Parser::parseVarDecl(VarDeclNodeKind kind) {
 // function knows how to parse the elements.
 // Doesn't parse the enclosing parentheses or braces.
 template <typename T, typename F>
-std::vector<T *> Parser::parseCommaSeparatedList(F &&parseFn) {
-  std::vector<T *> list;
-  auto finishers = {Tok::rparen, Tok::rbrace};
-  auto delimiters = {Tok::comma, Tok::newline, Tok::rparen, Tok::rbrace};
+std::vector<T *> Parser::parse_comma_separated_list(F &&parse_fn) {
+    std::vector<T *> list;
+    auto finishers = {Tok::rparen, Tok::rbrace};
+    auto delimiters = {Tok::comma, Tok::newline, Tok::rparen, Tok::rbrace};
 
-  while (true) {
-    skip_newlines();
-    if (tok.isAny(finishers) || isEos())
-      break;
+    while (true) {
+        skip_newlines();
+        if (tok.is_any(finishers) || is_eos())
+            break;
 
-    auto elem = parseFn();
-    list.push_back(elem);
+        auto elem = parse_fn();
+        list.push_back(elem);
 
-    // Determining where each decl ends in a list is a little tricky.  Here, we
-    // stop for any token that is either (1) separator tokens, i.e. comma,
-    // newline, or (2) used to enclose a decl list, i.e.  parentheses and
-    // braces.  This works for both function argument lists and struct member
-    // lists.
-    if (!elem) {
-      skip_until_any(delimiters);
-    } else if (!tok.isAny(delimiters)) {
-      // For cases when a VarDecl succeeds parsing but there is a leftover
-      // token, e.g. 'a: int#', we need to directly check the next token is the
-      // delimiting token, and do an appropriate error report.
-      error(fmt::format("trailing token '{}' after declaration", tok.str()));
-      skip_until_any(delimiters);
+        // Determining where each decl ends in a list is a little tricky.  Here,
+        // we stop for any token that is either (1) separator tokens, i.e.
+        // comma, newline, or (2) used to enclose a decl list, i.e.  parentheses
+        // and braces.  This works for both function argument lists and struct
+        // member lists.
+        if (!elem) {
+            skip_until_any(delimiters);
+        } else if (!tok.is_any(delimiters)) {
+            // For cases when a VarDecl succeeds parsing but there is a leftover
+            // token, e.g. 'a: int#', we need to directly check the next token
+            // is the delimiting token, and do an appropriate error report.
+            error(fmt::format("trailing token '{}' after declaration",
+                              tok.str()));
+            skip_until_any(delimiters);
+        }
+
+        // skip comma if any
+        if (tok.kind == Tok::comma)
+            next();
     }
 
-    // skip comma if any
-    if (tok.kind == Tok::comma)
-      next();
-  }
-
-  return list;
+    return list;
 }
 
 FuncDeclNode *Parser::parseFuncDecl() {
@@ -304,14 +305,14 @@ FuncDeclNode *Parser::parseFuncDecl() {
 
   expect(Tok::kw_func);
 
-  Name *name = names.getOrAdd(std::string{tok.text});
+  Name *name = names.get_or_add(std::string{tok.text});
   auto func = make_node<FuncDeclNode>(name);
   func->pos = tok.pos;
   next();
 
   // argument list
   expect(Tok::lparen);
-  func->args = parseCommaSeparatedList<VarDeclNode>(
+  func->args = parse_comma_separated_list<VarDeclNode>(
       [this] { return parseVarDecl(VarDeclNodeKind::param); });
   if (!expect(Tok::rparen)) {
     skip_until(Tok::rparen);
@@ -325,7 +326,7 @@ FuncDeclNode *Parser::parseFuncDecl() {
   }
 
   if (tok.kind != Tok::lbrace) {
-    errorExpected("'->' or '{'");
+    error_expected("'->' or '{'");
     skip_until(Tok::lbrace);
   }
 
@@ -343,17 +344,17 @@ StructDeclNode *Parser::parseStructDecl() {
   expect(Tok::kw_struct);
 
   if (tok.kind != Tok::ident) {
-    errorExpected("an identifier");
+    error_expected("an identifier");
     skip_until(Tok::lbrace);
   } else {
-    name = names.getOrAdd(std::string{tok.text});
+    name = names.get_or_add(std::string{tok.text});
     next();
   }
 
   if (!expect(Tok::lbrace))
     skip_until_end_of_line();
 
-  auto fields = parseCommaSeparatedList<VarDeclNode>(
+  auto fields = parse_comma_separated_list<VarDeclNode>(
       [this] { return parseVarDecl(VarDeclNodeKind::struct_); });
   expect(Tok::rbrace, "unterminated struct declaration");
   // TODO: recover
@@ -364,13 +365,13 @@ StructDeclNode *Parser::parseStructDecl() {
 EnumVariantDeclNode *Parser::parseEnumVariant() {
   auto pos = tok.pos;
 
-  Name *name = names.getOrAdd(std::string{tok.text});
+  Name *name = names.get_or_add(std::string{tok.text});
   next();
 
   std::vector<Expr *> fields;
   if (tok.kind == Tok::lparen) {
     expect(Tok::lparen);
-    fields = parseCommaSeparatedList<Expr>([this] { return parseTypeExpr(); });
+    fields = parse_comma_separated_list<Expr>([this] { return parseTypeExpr(); });
     expect(Tok::rparen);
   }
 
@@ -381,7 +382,7 @@ EnumVariantDeclNode *Parser::parseEnumVariant() {
 std::vector<EnumVariantDeclNode *> Parser::parseEnumVariantDeclList() {
   std::vector<EnumVariantDeclNode *> list;
 
-  while (!isEos()) {
+  while (!is_eos()) {
     skip_newlines();
     if (tok.kind != Tok::ident)
       break;
@@ -402,8 +403,8 @@ EnumDeclNode *Parser::parseEnumDecl() {
   expect(Tok::kw_enum);
 
   if (tok.kind != Tok::ident)
-    errorExpected("an identifier");
-  Name *name = names.getOrAdd(std::string{tok.text});
+    error_expected("an identifier");
+  Name *name = names.get_or_add(std::string{tok.text});
   next();
 
   if (!expect(Tok::lbrace))
@@ -439,27 +440,27 @@ DeclNode *Parser::parseDecl() {
     return nullptr;
 }
 
-Expr *Parser::parseLiteralExpr() {
-    Expr *expr = nullptr;
-    // TODO Literals other than integers?
-    switch (tok.kind) {
-    case Tok::number: {
-        std::string s{tok.text};
-        int value = std::stoi(s);
-        expr = make_node<IntegerLiteral>(value);
-        break;
-    }
-    case Tok::string:
-        expr = make_node<StringLiteral>(tok.text);
-        break;
-    default:
-        assert(false && "non-integer literals not implemented");
-    }
-    expr->pos = tok.pos;
+Expr *Parser::parse_literal_expr() {
+  Expr *expr = nullptr;
+  // TODO Literals other than integers?
+  switch (tok.kind) {
+  case Tok::number: {
+    std::string s{tok.text};
+    int value = std::stoi(s);
+    expr = make_node<IntegerLiteral>(value);
+    break;
+  }
+  case Tok::string:
+    expr = make_node<StringLiteral>(tok.text);
+    break;
+  default:
+    assert(false && "non-integer literals not implemented");
+  }
+  expr->pos = tok.pos;
 
-    next();
+  next();
 
-    return expr;
+  return expr;
 }
 
 // Upon seeing an expression that starts with an identifier, we don't know
@@ -469,10 +470,10 @@ Expr *Parser::parseLiteralExpr() {
 //
 // TODO: maybe name it parse_ident_start_exprs?
 // TODO: add struct declaration here, e.g. Car {}
-Expr *Parser::parseFuncCallOrDeclRefExpr() {
+Expr *Parser::parse_funccall_or_declref_expr() {
   auto pos = tok.pos;
   assert(tok.kind == Tok::ident);
-  auto name = names.getOrAdd(std::string{tok.text});
+  auto name = names.get_or_add(std::string{tok.text});
   next();
 
   if (tok.kind == Tok::lparen) {
@@ -490,10 +491,6 @@ Expr *Parser::parseFuncCallOrDeclRefExpr() {
     // in the type checking stage.
     return make_node_pos<DeclRefExpr>(pos, DeclRefKind::undecided, name);
   }
-}
-
-bool Parser::isStartOfTypeExpr() const {
-  return tok.kind == Tok::star || isIdentOrKeyword(tok);
 }
 
 // Parse a type expression.
@@ -526,7 +523,7 @@ Expr *Parser::parseTypeExpr() {
     }
     if (!isIdentOrKeyword(tok)) {
       // FIXME: type name? expression?
-      errorExpected("type name");
+      error_expected("type name");
       return make_node_pos<BadExpr>(pos);
     }
     type_kind = TypeExprKind::value;
@@ -534,35 +531,35 @@ Expr *Parser::parseTypeExpr() {
     text = tok.text;
     next();
   } else {
-    errorExpected("type expression");
+    error_expected("type expression");
     return make_node_pos<BadExpr>(pos);
   }
 
-  Name *name = names.getOrAdd(text);
+  Name *name = names.get_or_add(text);
 
   return make_node_pos<TypeExpr>(pos, type_kind, name, subexpr);
 }
 
-Expr *Parser::parseUnaryExpr() {
+Expr *Parser::parse_unary_expr() {
     auto pos = tok.pos;
 
     switch (tok.kind) {
     case Tok::number:
     case Tok::string:
-        return parseLiteralExpr();
+        return parse_literal_expr();
     case Tok::ident: {
         // TODO: do proper op precedence parsing
-        auto expr = parseFuncCallOrDeclRefExpr();
-        return parseMemberExprMaybe(expr);
+        auto expr = parse_funccall_or_declref_expr();
+        return parse_member_expr_maybe(expr);
     }
     case Tok::star: {
         next();
-        auto expr = parseUnaryExpr();
+        auto expr = parse_unary_expr();
         return make_node_pos<UnaryExpr>(pos, UnaryExprKind::deref, expr);
     }
     case Tok::ampersand: {
         next();
-        auto expr = parseUnaryExpr();
+        auto expr = parse_unary_expr();
         return make_node_pos<UnaryExpr>(pos, UnaryExprKind::address, expr);
     }
     case Tok::lparen: {
@@ -576,12 +573,14 @@ Expr *Parser::parseUnaryExpr() {
         // Because all expressions start with a unary expression, failing here
         // means no other expression could be matched either, so just do a
         // really generic report.
-        errorExpected("an expression");
+        error_expected("an expression");
         return make_node_pos<BadExpr>(pos);
     }
 }
 
-static int binary_op_precedence(const Token &op) {
+namespace {
+
+int binary_op_precedence(const Token &op) {
     switch (op.kind) {
     case Tok::star:
     case Tok::slash:
@@ -598,41 +597,43 @@ static int binary_op_precedence(const Token &op) {
     }
 }
 
+} // namespace
+
 // Extend a unary expression into binary if possible, by parsing any attached
 // RHS. There may be more than one terms in the RHS, all of which is consumed
 // by this function. The parsing goes on as long as operators with higher than
-// or equal to 'precedence' are seen. Giving this parameter 0 means to parse
-// the whole chain of binary expressions.
-Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence = 0) {
+// or equal to 'precedence' are seen. Giving it 0 means that this function will
+// keep parsing until no more valid binary operators are seen (which has
+// negative precedence values).
+Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence = 0) {
     Expr *root = lhs;
 
-    while (!isEos()) {
+    while (!is_eos()) {
         int this_prec = binary_op_precedence(tok);
 
         // If the upcoming op has lower precedence, finish this subexpression.
         // It will be treated as a single term when this function is re-called
         // with lower precedence.
-        if (this_prec < precedence) {
+        if (this_prec < precedence)
             return root;
-        }
 
         Token op = tok;
         next();
 
         // Parse the second term.
-        Expr *rhs = parseUnaryExpr();
+        Expr *rhs = parse_unary_expr();
 
-        // We do not know if this term should associate to left or right;
-        // e.g. "(a * b) + c" or "a + (b * c)".  We should look ahead for the
-        // next operator that follows this term.
+        // We do not know if this term should associate to left or right; e.g.
+        // "(a
+        // * b) + c" or "a + (b * c)".  We should look ahead for the next
+        // operator that follows this term.
         int next_prec = binary_op_precedence(tok);
 
-        // If the next operator has higher precedence ("a + b * c"), evaluate
-        // the RHS as a single subexpression with elevated minimum precedence.
-        // Else ("a * b + c"), just treat it as a unary expression.
-        if (this_prec < next_prec) {
-            rhs = parseBinaryExprRhs(rhs, precedence + 1);
-        }
+        // If the next operator has higher precedence ("a + b * c"), parse the
+        // RHS as a single subexpression with elevated minimum precedence. Else
+        // ("a * b + c"), just treat it as a unary expression.
+        if (this_prec < next_prec)
+            rhs = parse_binary_expr_rhs(rhs, precedence + 1);
 
         // Create a new root with the old root as its LHS, and the recursion
         // result as RHS.  This implements left associativity.
@@ -645,27 +646,27 @@ Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence = 0) {
 // If this expression is a member expression with a dot (.) operator, parse as
 // such. If not, just pass along the original expression. This function is
 // called after the operand expression part is fully parsed.
-Expr *Parser::parseMemberExprMaybe(Expr *expr) {
-    Expr *result = expr;
+Expr *Parser::parse_member_expr_maybe(Expr *expr) {
+  Expr *result = expr;
 
-    while (tok.kind == Tok::dot) {
-        expect(Tok::dot);
+  while (tok.kind == Tok::dot) {
+    expect(Tok::dot);
 
-        Name *member_name = names.getOrAdd(std::string{tok.text});
-        next();
+    Name *member_name = names.get_or_add(std::string{tok.text});
+    next();
 
-        result = make_node_pos<MemberExpr>(result->pos, result, member_name);
-    }
+    result = make_node_pos<MemberExpr>(result->pos, result, member_name);
+  }
 
-    return result;
+  return result;
 }
 
 Expr *Parser::parse_expr() {
-    auto unary = parseUnaryExpr();
-    if (!unary)
-        return nullptr;
-    auto binary = parseBinaryExprRhs(unary);
-    return parseMemberExprMaybe(binary);
+  auto unary = parse_unary_expr();
+  if (!unary)
+    return nullptr;
+  auto binary = parse_binary_expr_rhs(unary);
+  return parse_member_expr_maybe(binary);
 }
 
 std::vector<Error> Parser::parse_error_beacon() {
@@ -682,17 +683,17 @@ std::vector<Error> Parser::parse_error_beacon() {
 }
 
 void Parser::skip_until(Tok kind) {
-  while (!isEos() && tok.kind != kind)
+  while (!is_eos() && tok.kind != kind)
     next();
 }
 
-void Parser::skip_until_any(const std::vector<Tok> &kinds) {
-  while (!isEos() && !tok.isAny(kinds))
+void Parser::skip_until_any(std::initializer_list<Tok> &kinds) {
+  while (!is_eos() && !tok.is_any(kinds))
     next();
 }
 
 void Parser::skip_until_end_of_line() {
-  while (!isEos() && tok.kind != Tok::newline)
+  while (!is_eos() && tok.kind != Tok::newline)
     next();
 }
 
@@ -730,7 +731,7 @@ File *Parser::parseFile() {
 
   skip_newlines();
 
-  while (!isEos()) {
+  while (!is_eos()) {
     auto toplevel = parseToplevel();
     if (!toplevel)
       continue;

@@ -94,13 +94,13 @@ private:
   CompoundStmt *parseCompoundStmt();
   BuiltinStmt *parseBuiltinStmt();
   bool isEndOfStmt() const;
-  bool isEos() const;
+  bool is_eos() const;
 
   // Declaration parsers
   DeclNode *parseDecl();
   VarDeclNode *parseVarDecl(VarDeclNodeKind kind);
   template <typename T, typename F>
-  std::vector<T *> parseCommaSeparatedList(F &&parseFn);
+  std::vector<T *> parse_comma_separated_list(F &&parseFn);
   FuncDeclNode *parseFuncDecl();
   StructDeclNode *parseStructDecl();
   EnumVariantDeclNode *parseEnumVariant();
@@ -110,19 +110,18 @@ private:
 
   // Expression parsers
   Expr *parse_expr();
-  Expr *parseUnaryExpr();
-  Expr *parseLiteralExpr();
-  Expr *parseFuncCallOrDeclRefExpr();
+  Expr *parse_unary_expr();
+  Expr *parse_literal_expr();
+  Expr *parse_funccall_or_declref_expr();
   Expr *parseTypeExpr();
-  Expr *parseBinaryExprRhs(Expr *lhs, int precedence);
-  Expr *parseMemberExprMaybe(Expr *expr);
-  bool isStartOfTypeExpr() const;
+  Expr *parse_binary_expr_rhs(Expr *lhs, int precedence);
+  Expr *parse_member_expr_maybe(Expr *expr);
 
   std::vector<Error> parse_error_beacon();
 
   // Error handling
   void error(const std::string &msg);
-  void errorExpected(const std::string &msg);
+  void error_expected(const std::string &msg);
 
   // Advance the lookahead token.
   void next();
@@ -132,7 +131,7 @@ private:
 
   // Skip until a specific token(s) show up.
   void skip_until(Tok kind);
-  void skip_until_any(const std::vector<Tok> &kinds);
+  void skip_until_any(std::initializer_list<Tok> &kinds);
   void skip_until_end_of_line();
   void skip_to_next_line();
   void skip_newlines();

@@ -21,6 +21,9 @@
 
   E.g. enums should be allowed to have user defined methods.
 
+* Compile time health check.
+  - ninja -j1 took ~42s near b8fa151cf.
+
 Q. What's the advantage of separating type table from decl table?
 
 - How to handle built-in types?

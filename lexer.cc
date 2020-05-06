@@ -23,7 +23,7 @@ bool isIdentOrKeyword(const Token tok) {
          (tok.kind > Tok::KWSTART && tok.kind < Tok::KWEND);
 }
 
-bool Token::isAny(const std::vector<Tok> &kinds) const {
+bool Token::is_any(std::initializer_list<Tok> &kinds) const {
   for (auto cand : kinds)
     if (kind == cand)
       return true;

@@ -6,7 +6,6 @@
 #include "fmt/core.h"
 #include "fmt/format.h"
 #include <assert.h>
-#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -25,6 +24,9 @@ enum class TypeKind {
 };
 
 struct Type {
+  // There are several Decl kinds that can have a type. This is a union type
+  // used to store those kinds of Decl objects as a single member.
+  // XXX: why not just use Decl?
   using TypeDecl = std::variant<std::monostate, StructDecl *, EnumDecl *>;
 
   TypeKind kind;
@@ -122,7 +124,7 @@ template <typename T> bool declIs(const Decl &decl) {
     return std::holds_alternative<T>(decl);
 }
 bool declIsType(const Decl &decl);
-Type *declGetType(const Decl &decl);
+Type *decl_get_type(const Decl &decl);
 
 struct Context {
     // Current enclosing decls.
@@ -195,7 +197,7 @@ struct Sema {
   using DeclMemBlock = std::variant<VarDecl, StructDecl, EnumDecl, FuncDecl>;
 
   const Source &source; // source text
-  NameTable &names;     // name table
+  NameTable &name_table; // name table
   std::vector<DeclMemBlock *> decl_pool;
   std::vector<Type *> type_pool;
   std::vector<BasicBlock *> bb_pool;
@@ -207,7 +209,7 @@ struct Sema {
 
   Sema(const Source &s, NameTable &n, std::vector<Error> &es,
        std::vector<Error> &bs)
-      : source(s), names(n), errors(es), beacons(bs) {}
+      : source(s), name_table(n), errors(es), beacons(bs) {}
   Sema(Parser &p);
   Sema(const Sema &) = delete;
   Sema(Sema &&) = delete;
