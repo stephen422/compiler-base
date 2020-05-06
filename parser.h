@@ -98,7 +98,7 @@ private:
 
   // Declaration parsers
   DeclNode *parseDecl();
-  VarDeclNode *parseVarDecl(VarDeclNodeKind kind);
+  VarDeclNode *parse_var_decl(VarDeclNodeKind kind);
   template <typename T, typename F>
   std::vector<T *> parse_comma_separated_list(F &&parseFn);
   FuncDeclNode *parseFuncDecl();
@@ -113,12 +113,11 @@ private:
   Expr *parse_unary_expr();
   Expr *parse_literal_expr();
   Expr *parse_funccall_or_declref_expr();
-  Expr *parseTypeExpr();
+  Expr *parse_type_expr();
   Expr *parse_binary_expr_rhs(Expr *lhs, int precedence);
   Expr *parse_member_expr_maybe(Expr *expr);
+  Expr *parse_struct_def_field();
   Expr *parse_struct_def_maybe(Expr *expr);
-
-  std::vector<Error> parse_error_beacon();
 
   // Error handling
   void error(const std::string &msg);

@@ -227,7 +227,7 @@ BuiltinStmt *Parser::parseBuiltinStmt() {
 }
 
 // Doesn't include 'let' or 'var'.
-VarDeclNode *Parser::parseVarDecl(VarDeclNodeKind kind) {
+VarDeclNode *Parser::parse_var_decl(VarDeclNodeKind kind) {
   auto pos = tok.pos;
 
   if (tok.kind != Tok::ident) {
@@ -240,7 +240,7 @@ VarDeclNode *Parser::parseVarDecl(VarDeclNodeKind kind) {
   // '=' comes either first, or after the ': type' part.
   if (tok.kind == Tok::colon) {
     next();
-    auto type_expr = parseTypeExpr();
+    auto type_expr = parse_type_expr();
     v = make_node_pos<VarDeclNode>(pos, name, kind, type_expr, nullptr);
   }
   if (tok.kind == Tok::equals) {
@@ -313,7 +313,7 @@ FuncDeclNode *Parser::parseFuncDecl() {
   // argument list
   expect(Tok::lparen);
   func->args = parse_comma_separated_list<VarDeclNode>(
-      [this] { return parseVarDecl(VarDeclNodeKind::param); });
+      [this] { return parse_var_decl(VarDeclNodeKind::param); });
   if (!expect(Tok::rparen)) {
     skip_until(Tok::rparen);
     expect(Tok::rparen);
@@ -322,7 +322,7 @@ FuncDeclNode *Parser::parseFuncDecl() {
   // return type (-> ...)
   if (tok.kind == Tok::arrow) {
     next();
-    func->retTypeExpr = parseTypeExpr();
+    func->retTypeExpr = parse_type_expr();
   }
 
   if (tok.kind != Tok::lbrace) {
@@ -355,7 +355,7 @@ StructDeclNode *Parser::parseStructDecl() {
     skip_until_end_of_line();
 
   auto fields = parse_comma_separated_list<VarDeclNode>(
-      [this] { return parseVarDecl(VarDeclNodeKind::struct_); });
+      [this] { return parse_var_decl(VarDeclNodeKind::struct_); });
   expect(Tok::rbrace, "unterminated struct declaration");
   // TODO: recover
 
@@ -371,7 +371,7 @@ EnumVariantDeclNode *Parser::parseEnumVariant() {
   std::vector<Expr *> fields;
   if (tok.kind == Tok::lparen) {
     expect(Tok::lparen);
-    fields = parse_comma_separated_list<Expr>([this] { return parseTypeExpr(); });
+    fields = parse_comma_separated_list<Expr>([this] { return parse_type_expr(); });
     expect(Tok::rparen);
   }
 
@@ -431,7 +431,7 @@ DeclNode *Parser::parseDecl() {
     switch (tok.kind) {
     case Tok::kw_let:
         next();
-        return parseVarDecl(VarDeclNodeKind::local);
+        return parse_var_decl(VarDeclNodeKind::local);
     // TODO: 'var'
     default:
         assert(false && "not a start of a declaration");
@@ -500,7 +500,7 @@ Expr *Parser::parse_funccall_or_declref_expr() {
 // TypeExpr:
 //     '&' TypeExpr
 //     'mut'? ident
-Expr *Parser::parseTypeExpr() {
+Expr *Parser::parse_type_expr() {
   auto pos = tok.pos;
   bool mut = false;
   TypeExprKind type_kind = TypeExprKind::none;
@@ -512,7 +512,7 @@ Expr *Parser::parseTypeExpr() {
   if (tok.kind == Tok::star) {
     next();
     type_kind = TypeExprKind::ref;
-    subexpr = parseTypeExpr();
+    subexpr = parse_type_expr();
     if (subexpr->kind == ExprKind::type) {
       text = "*" + subexpr->as<TypeExpr>()->name->text;
     }
@@ -681,19 +681,6 @@ Expr *Parser::parse_expr() {
     return nullptr;
   auto binary = parse_binary_expr_rhs(unary);
   return parse_member_expr_maybe(binary);
-}
-
-std::vector<Error> Parser::parse_error_beacon() {
-    expect(Tok::lbracket);
-    expect(Tok::kw_error);
-    expect(Tok::colon);
-
-    std::vector<Error> v;
-    v.push_back({locate(), std::string{tok.text}});
-    next();
-
-    expect(Tok::rbracket);
-    return v;
 }
 
 void Parser::skip_until(Tok kind) {
