@@ -4,6 +4,11 @@ struct Token {
 }
 
 func main() {
-    let tok = Token {.pos = }
+    Token {.pos} // ERROR: expected '='
+    Token {.pos = } // ERROR: expected an expression
+    Token {.pos 3} // ERROR: expected '='
+    Token {.pos = 3, .text = "hi"}
+
+    Token {pos} // ERROR: expected '='
 }
 

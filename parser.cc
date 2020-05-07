@@ -208,7 +208,7 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
 
     // AssignStmt: expression is followed by equals
     // (anything else is treated as an error)
-    if (!expect(Tok::equals)) {
+    if (!expect(Tok::equals, "expected '=' or '\\n' after expression")) {
         skip_until_end_of_line();
         expect(Tok::newline);
         return make_node_pos<BadStmt>(pos);
