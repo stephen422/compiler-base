@@ -289,17 +289,18 @@ VarDeclNode *Parser::parse_var_decl(VarDeclNodeKind kind) {
 // Doesn't parse the enclosing parentheses or braces.
 template <typename T, typename F>
 std::vector<T> Parser::parse_comma_separated_list(F &&parse_fn) {
-    std::vector<T> list;
     auto finishers = {Tok::rparen, Tok::rbrace};
     auto delimiters = {Tok::comma, Tok::newline, Tok::rparen, Tok::rbrace};
+    std::vector<T> list;
 
-    while (true) {
+    for (;;) {
         skip_newlines();
         if (tok.is_any(finishers) || is_eos())
             break;
 
         auto elem = parse_fn();
-        list.push_back(elem);
+        if (elem)
+            list.push_back(elem);
 
         // Determining where each decl ends in a list is a little tricky.  Here,
         // we stop for any token that is either (1) separator tokens, i.e.
@@ -310,7 +311,7 @@ std::vector<T> Parser::parse_comma_separated_list(F &&parse_fn) {
             skip_until_any(delimiters);
         } else if (!tok.is_any(delimiters)) {
             // For cases when a VarDecl succeeds parsing but there is a leftover
-            // token, e.g. 'a: int#', we need to directly check the next token
+            // token, e.g. 'a: int###', we need to directly check the next token
             // is the delimiting token, and do an appropriate error report.
             error(fmt::format("trailing token '{}' after declaration",
                               tok.str()));
@@ -577,9 +578,8 @@ Expr *Parser::parse_unary_expr() {
         // operators, e.g. '.', '()' and '{...}'.
         auto expr = parse_funccall_or_declref_expr();
         expr = parse_member_expr_maybe(expr);
-        auto s = save_state();
-        parse_struct_def_maybe(expr);
-        restore_state(s);
+        if (lookahead_struct_def())
+            expr = parse_struct_def_maybe(expr);
         return expr;
     }
     case Tok::star: {
@@ -691,6 +691,24 @@ Expr *Parser::parse_member_expr_maybe(Expr *expr) {
     return result;
 }
 
+bool Parser::lookahead_struct_def() {
+    auto s = save_state();
+
+    if (tok.kind != Tok::lbrace) {
+        restore_state(s);
+        return false;
+    }
+    next();
+
+    if (tok.kind != Tok::dot) {
+        restore_state(s);
+        return false;
+    }
+
+    restore_state(s);
+    return true;
+}
+
 // Parse '.memb = expr' part in Struct { .m1 = e1, .m2 = e2, ... }.
 std::optional<Parser::FieldDesignator> Parser::parse_struct_def_field() {
     if (!expect(Tok::dot))
@@ -714,7 +732,6 @@ std::optional<Parser::FieldDesignator> Parser::parse_struct_def_field() {
 // is called after the operand expression part is fully parsed.
 Expr *Parser::parse_struct_def_maybe(Expr *expr) {
     if (tok.kind == Tok::lbrace) {
-        error("parse_struct_def_maybe being called here");
         expect(Tok::lbrace);
         parse_comma_separated_list<std::optional<FieldDesignator>>(
             [this] { return parse_struct_def_field(); });

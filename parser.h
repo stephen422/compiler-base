@@ -140,6 +140,7 @@ private:
         Expr *expr;
     };
     std::optional<FieldDesignator> parse_struct_def_field();
+    bool lookahead_struct_def();
     Expr *parse_struct_def_maybe(Expr *expr);
 
     // Error handling
