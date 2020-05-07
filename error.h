@@ -10,6 +10,7 @@ struct Error {
     SourceLoc loc;
     std::string message;
 
+    Error() {}
     Error(SourceLoc loc, const std::string &msg) : loc(loc), message(msg) {}
     std::string str() const;
 };

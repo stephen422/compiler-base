@@ -60,6 +60,16 @@ void Parser::next() {
     next_read_pos++;
 }
 
+Parser::State Parser::save_state() {
+    return State{tok, next_read_pos, errors.size()};
+}
+
+void Parser::restore_state(State state) {
+    tok = state.tok;
+    next_read_pos = state.next_read_pos;
+    errors.resize(state.error_count);
+}
+
 // Returns true if match succeeded, false otherwise.
 bool Parser::expect(Tok kind, const std::string &msg = "") {
     if (tok.kind != kind) {
@@ -567,7 +577,9 @@ Expr *Parser::parse_unary_expr() {
         // operators, e.g. '.', '()' and '{...}'.
         auto expr = parse_funccall_or_declref_expr();
         expr = parse_member_expr_maybe(expr);
-        // expr = parse_struct_def_maybe(expr);
+        auto s = save_state();
+        parse_struct_def_maybe(expr);
+        restore_state(s);
         return expr;
     }
     case Tok::star: {

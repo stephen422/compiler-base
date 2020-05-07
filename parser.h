@@ -83,6 +83,14 @@ public:
     // Index of the token to be read in the next next() call.
     size_t next_read_pos = 0;
 
+    struct State {
+        Token tok;
+        size_t next_read_pos;
+        size_t error_count;
+    };
+    State save_state();
+    void restore_state(State state);
+
     Parser(Lexer &lexer, std::vector<Error> &errors,
            std::vector<Error> &beacons);
     ~Parser();
