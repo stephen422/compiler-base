@@ -67,94 +67,98 @@ using ExprResult = ParserResult<Expr>;
 
 class Parser {
 public:
-  Lexer &lexer;                                // owned lexer
-  Token tok;                                   // lookahead token
-  std::vector<std::unique_ptr<AstNode>> nodes; // node pointer pool
-  std::vector<Error> &errors;                  // error list
-  std::vector<Error> &beacons;                 // error beacon list
-  AstNode *ast = nullptr;                      // resulting AST
-  NameTable names;                             // name table
+    Lexer &lexer;                   // owned lexer
+    Token tok;                      // lookahead token
+    std::vector<Token> token_cache; // cache of lookahead tokens
+    size_t cache_pos;               // index of current lookahead within cache
+    std::vector<AstNode *> nodes;   // node pointer pool
+    std::vector<Error> &errors;                  // error list
+    std::vector<Error> &beacons;                 // error beacon list
+    AstNode *ast = nullptr;                      // resulting AST
+    NameTable names;                             // name table
 
-  Parser(Lexer &lexer, std::vector<Error> &errors, std::vector<Error> &beacons);
-  Ast parse();
+    Parser(Lexer &lexer, std::vector<Error> &errors,
+           std::vector<Error> &beacons);
+    ~Parser();
+    Ast parse();
 
 private:
-  // Parse the whole file.
-  File *parseFile();
+    // Parse the whole file.
+    File *parseFile();
 
-  // Parse a toplevel statement.
-  AstNode *parseToplevel();
+    // Parse a toplevel statement.
+    AstNode *parseToplevel();
 
-  // Statement parsers.
-  Stmt *parseStmt();
-  Stmt *parse_expr_or_assign_stmt();
-  Stmt *parse_return_stmt();
-  IfStmt *parse_if_stmt();
-  DeclStmt *parseDeclStmt();
-  CompoundStmt *parseCompoundStmt();
-  BuiltinStmt *parseBuiltinStmt();
-  bool isEndOfStmt() const;
-  bool is_eos() const;
+    // Statement parsers.
+    Stmt *parse_stmt();
+    Stmt *parse_expr_or_assign_stmt();
+    Stmt *parse_return_stmt();
+    IfStmt *parse_if_stmt();
+    DeclStmt *parseDeclStmt();
+    CompoundStmt *parseCompoundStmt();
+    BuiltinStmt *parseBuiltinStmt();
+    bool is_end_of_stmt() const;
+    bool is_eos() const;
 
-  // Declaration parsers
-  DeclNode *parseDecl();
-  VarDeclNode *parse_var_decl(VarDeclNodeKind kind);
-  template <typename T, typename F>
-  std::vector<T> parse_comma_separated_list(F &&parseFn);
-  FuncDeclNode *parseFuncDecl();
-  StructDeclNode *parseStructDecl();
-  EnumVariantDeclNode *parseEnumVariant();
-  std::vector<EnumVariantDeclNode *> parseEnumVariantDeclList();
-  EnumDeclNode *parseEnumDecl();
-  bool isStartOfDecl() const;
+    // Declaration parsers
+    DeclNode *parseDecl();
+    VarDeclNode *parse_var_decl(VarDeclNodeKind kind);
+    template <typename T, typename F>
+    std::vector<T> parse_comma_separated_list(F &&parseFn);
+    FuncDeclNode *parseFuncDecl();
+    StructDeclNode *parseStructDecl();
+    EnumVariantDeclNode *parseEnumVariant();
+    std::vector<EnumVariantDeclNode *> parseEnumVariantDeclList();
+    EnumDeclNode *parseEnumDecl();
+    bool isStartOfDecl() const;
 
-  // Expression parsers
-  Expr *parse_expr();
-  Expr *parse_unary_expr();
-  Expr *parse_literal_expr();
-  Expr *parse_funccall_or_declref_expr();
-  Expr *parse_type_expr();
-  Expr *parse_binary_expr_rhs(Expr *lhs, int precedence);
-  Expr *parse_member_expr_maybe(Expr *expr);
-  // '.memb = expr' part in Struct { ... }.
-  struct FieldDesignator {
-      Name *name;
-      Expr *expr;
-  };
-  std::optional<FieldDesignator> parse_struct_def_field();
-  Expr *parse_struct_def_maybe(Expr *expr);
+    // Expression parsers
+    Expr *parse_expr();
+    Expr *parse_unary_expr();
+    Expr *parse_literal_expr();
+    Expr *parse_funccall_or_declref_expr();
+    Expr *parse_type_expr();
+    Expr *parse_binary_expr_rhs(Expr *lhs, int precedence);
+    Expr *parse_member_expr_maybe(Expr *expr);
+    // '.memb = expr' part in Struct { ... }.
+    struct FieldDesignator {
+        Name *name;
+        Expr *expr;
+    };
+    std::optional<FieldDesignator> parse_struct_def_field();
+    Expr *parse_struct_def_maybe(Expr *expr);
 
-  // Error handling
-  void error(const std::string &msg);
-  void error_expected(const std::string &msg);
+    // Error handling
+    void error(const std::string &msg);
+    void error_expected(const std::string &msg);
 
-  // Advance the lookahead token.
-  void next();
+    // Advance the lookahead token.
+    void next();
 
-  // Expect and consume functions.
-  bool expect(Tok kind, const std::string &msg);
+    // Expect and consume functions.
+    bool expect(Tok kind, const std::string &msg);
 
-  // Skip until a specific token(s) show up.
-  void skip_until(Tok kind);
-  void skip_until_any(std::initializer_list<Tok> &kinds);
-  void skip_until_end_of_line();
-  void skip_to_next_line();
-  void skip_newlines();
+    // Skip until a specific token(s) show up.
+    void skip_until(Tok kind);
+    void skip_until_any(std::initializer_list<Tok> &kinds);
+    void skip_until_end_of_line();
+    void skip_to_next_line();
+    void skip_newlines();
 
-  template <typename T, typename... Args> T *make_node(Args &&... args) {
-    nodes.emplace_back(new T{std::forward<Args>(args)...});
-    return static_cast<T *>(nodes.back().get());
-  }
+    template <typename T, typename... Args> T *make_node(Args &&... args) {
+        nodes.emplace_back(new T{std::forward<Args>(args)...});
+        return static_cast<T *>(nodes.back());
+    }
 
-  template <typename T, typename... Args>
-  T *make_node_pos(size_t pos, Args &&... args) {
-    auto node = make_node<T>(std::forward<Args>(args)...);
-    node->pos = pos;
-    return node;
-  }
+    template <typename T, typename... Args>
+    T *make_node_pos(size_t pos, Args &&... args) {
+        auto node = make_node<T>(std::forward<Args>(args)...);
+        node->pos = pos;
+        return node;
+    }
 
-  // Figure out the current location (line, col) in the source.
-  SourceLoc locate() const { return lexer.source().locate(tok.pos); }
+    // Figure out the current location (line, col) in the source.
+    SourceLoc locate() const { return lexer.source().locate(tok.pos); }
 };
 
 } // namespace cmp

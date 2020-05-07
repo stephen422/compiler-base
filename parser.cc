@@ -10,10 +10,15 @@ template <typename T> using Res = ParserResult<T>;
 
 Parser::Parser(Lexer &l, std::vector<Error> &e, std::vector<Error> &b)
     : lexer{l}, errors(e), beacons(b) {
-  tok = lexer.lex();
-  // insert keywords in name table
-  for (auto m : keyword_map)
-    names.get_or_add(std::string{m.first});
+    tok = lexer.lex();
+    // insert keywords in name table
+    for (auto m : keyword_map)
+        names.get_or_add(std::string{m.first});
+}
+
+Parser::~Parser() {
+    for (auto n : nodes)
+        delete n;
 }
 
 void Parser::error(const std::string &msg) {
@@ -21,29 +26,29 @@ void Parser::error(const std::string &msg) {
 }
 
 void Parser::error_expected(const std::string &msg) {
-  std::string s = fmt::format("expected {}, found '{}'", msg, tok.str());
-  error(s);
+    std::string s = fmt::format("expected {}, found '{}'", msg, tok.str());
+    error(s);
 }
 
 void Parser::next() {
-  if (tok.kind == Tok::eos)
-    return;
+    if (tok.kind == Tok::eos)
+        return;
 
-  tok = lexer.lex();
+    tok = lexer.lex();
 
-  // If an error beacon is found in a comment, add the error to the parser
-  // error list so that it can be compared to the actual errors later in the
-  // verifying phase.
-  if (tok.kind == Tok::comment) {
-    std::string_view marker{"// ERROR: "};
-    auto found = tok.text.find(marker);
-    if (found != 0)
-      return;
+    // If an error beacon is found in a comment, add the error to the parser
+    // error list so that it can be compared to the actual errors later in the
+    // verifying phase.
+    if (tok.kind == Tok::comment) {
+        std::string_view marker{"// ERROR: "};
+        auto found = tok.text.find(marker);
+        if (found != 0)
+            return;
 
-    // '---' in '// ERROR: ---'
-    std::string regex_string{tok.text.substr(marker.length())};
-    beacons.push_back({locate(), regex_string});
-  }
+        // '---' in '// ERROR: ---'
+        std::string regex_string{tok.text.substr(marker.length())};
+        beacons.push_back({locate(), regex_string});
+    }
 }
 
 // Returns true if match succeeded, false otherwise.
@@ -64,8 +69,8 @@ bool Parser::expect(Tok kind, const std::string &msg = "") {
 
 // Assumes that comments can only come at the end of a line, i.e. it considers
 // only the line '//' comments.
-bool Parser::isEndOfStmt() const {
-  return tok.kind == Tok::newline || tok.kind == Tok::comment;
+bool Parser::is_end_of_stmt() const {
+    return tok.kind == Tok::newline || tok.kind == Tok::comment;
 }
 
 bool Parser::is_eos() const { return tok.kind == Tok::eos; }
@@ -75,7 +80,7 @@ bool Parser::is_eos() const { return tok.kind == Tok::eos; }
 // Stmt:
 //     Decl
 //     Expr
-Stmt *Parser::parseStmt() {
+Stmt *Parser::parse_stmt() {
   Stmt *stmt = nullptr;
 
   if (tok.kind == Tok::lbrace) {
@@ -103,10 +108,10 @@ Stmt *Parser::parse_return_stmt() {
 
     // optional
     Expr *expr = nullptr;
-    if (!isEndOfStmt()) {
+    if (!is_end_of_stmt()) {
       expr = parse_expr();
     }
-    if (!isEndOfStmt()) {
+    if (!is_end_of_stmt()) {
       skip_until_end_of_line();
       expect(Tok::newline);
       return make_node_pos<BadStmt>(pos);
@@ -156,7 +161,7 @@ IfStmt *Parser::parse_if_stmt() {
 // Parse 'let a = ...'
 DeclStmt *Parser::parseDeclStmt() {
   auto decl = parseDecl();
-  if (!isEndOfStmt()) {
+  if (!is_end_of_stmt()) {
     // XXX: remove bad check
     if (decl && decl->kind != DeclNodeKind::bad)
       expect(Tok::newline);
@@ -176,7 +181,7 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
 
     auto lhs = parse_expr();
     // ExprStmt: expression ends with a newline
-    if (isEndOfStmt()) {
+    if (is_end_of_stmt()) {
       skip_until_end_of_line();
       expect(Tok::newline);
       return make_node<ExprStmt>(lhs);
@@ -210,7 +215,7 @@ CompoundStmt *Parser::parseCompoundStmt() {
     skip_newlines();
     if (tok.kind == Tok::rbrace)
       break;
-    auto stmt = parseStmt();
+    auto stmt = parse_stmt();
     compound->stmts.push_back(stmt);
   }
 
@@ -549,10 +554,11 @@ Expr *Parser::parse_unary_expr() {
     case Tok::string:
         return parse_literal_expr();
     case Tok::ident: {
-        // TODO: do proper op precedence parsing
+        // TODO: Do proper op precedence parsing for right-hand-side unary
+        // operators, e.g. '.', '()' and '{...}'.
         auto expr = parse_funccall_or_declref_expr();
         expr = parse_member_expr_maybe(expr);
-        expr = parse_struct_def_maybe(expr);
+        // expr = parse_struct_def_maybe(expr);
         return expr;
     }
     case Tok::star: {
@@ -686,6 +692,7 @@ std::optional<Parser::FieldDesignator> Parser::parse_struct_def_field() {
 // expression.  If not, just pass along the original expression. This function
 // is called after the operand expression part is fully parsed.
 Expr *Parser::parse_struct_def_maybe(Expr *expr) {
+    assert(false);
     if (tok.kind == Tok::lbrace) {
         error("parse_struct_def_maybe being called here");
         expect(Tok::lbrace);

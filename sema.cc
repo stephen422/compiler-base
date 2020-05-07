@@ -62,7 +62,7 @@ void Sema::scope_close() {
 }
 
 // Return 'type' member of Decl, or nullptr if this Decl kind doesn't have any.
-Type *decl_get_type(const Decl decl) {
+std::optional<Type *> decl_get_type(const Decl decl) {
     if (auto d = decl_as<VarDecl>(decl)) {
         return d->type;
     } else if (auto d = decl_as<StructDecl>(decl)) {
@@ -70,7 +70,7 @@ Type *decl_get_type(const Decl decl) {
     } else if (auto d = decl_as<EnumDecl>(decl)) {
         return d->type;
     } else if (auto d = decl_as<FuncDecl>(decl)) {
-        return nullptr;
+        return {};
     }
     assert(false && "not all decl kinds handled");
 }
@@ -450,7 +450,7 @@ void TypeChecker::visitMemberExpr(MemberExpr *m) {
 
   // the fields are already typechecked
   assert(decl_get_type(m->decl));
-  m->type = decl_get_type(m->decl);
+  m->type = *decl_get_type(m->decl);
 }
 
 // Get or make a reference type of a given type.
@@ -538,7 +538,7 @@ void TypeChecker::visitTypeExpr(TypeExpr *t) {
     // t->decl should be non-null after the name binding stage.
     // And since we are currently doing single-pass (TODO), its type should
     // also be resolved by now.
-    t->type = decl_get_type(t->decl);
+    t->type = *decl_get_type(t->decl);
     assert(t->type && "type not resolved in corresponding *Decl");
   } else if (t->kind == TypeExprKind::ref) {
     // Derived types are only present in the type table if they occur in the

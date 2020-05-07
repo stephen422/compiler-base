@@ -55,7 +55,7 @@ func f(a: int) int { // ERROR: expected '->'.*found 'int'
 }
 
 func f(a: int, b int, c: int) -> int { // ERROR: expected .* ':'
-    return * // ERROR: expected.*expression
+    return * // ERROR: expected expression
 }
 
 func f(a: int#, b: int, c: int) -> int { // ERROR: trailing token '#'

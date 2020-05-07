@@ -125,7 +125,7 @@ template <typename T> T *decl_as(const Decl decl) {
     else
         return nullptr;
 }
-Type *decl_get_type(const Decl decl);
+std::optional<Type *> decl_get_type(const Decl decl);
 
 struct Context {
     // Current enclosing decls.
