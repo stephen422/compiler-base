@@ -62,7 +62,7 @@ enum class Tok {
     kw_return,
     kw_error,
     KWEND,
-    none // not found
+    none // not initialized
 };
 
 // This is under linear search, so it is better to place more frequently used

@@ -67,15 +67,21 @@ using ExprResult = ParserResult<Expr>;
 
 class Parser {
 public:
-    Lexer &lexer;                   // owned lexer
-    Token tok;                      // lookahead token
-    std::vector<Token> token_cache; // cache of lookahead tokens
-    size_t cache_pos;               // index of current lookahead within cache
-    std::vector<AstNode *> nodes;   // node pointer pool
-    std::vector<Error> &errors;                  // error list
-    std::vector<Error> &beacons;                 // error beacon list
-    AstNode *ast = nullptr;                      // resulting AST
-    NameTable names;                             // name table
+    Lexer &lexer;                 // owned lexer
+    Token tok;                    // lookahead token
+    std::vector<AstNode *> nodes; // node pointer pool
+    std::vector<Error> &errors;   // error list
+    std::vector<Error> &beacons;  // error beacon list
+    AstNode *ast = nullptr;       // resulting AST
+    NameTable names;              // name table
+
+    // Token cache.
+    // These are data structures that enable flexible roll-back of the parsing
+    // state.
+    // Cache of the lookahead tokens.
+    std::vector<Token> token_cache;
+    // Index of the token to be read in the next next() call.
+    size_t next_read_pos = 0;
 
     Parser(Lexer &lexer, std::vector<Error> &errors,
            std::vector<Error> &beacons);

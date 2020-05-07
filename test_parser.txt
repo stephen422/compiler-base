@@ -74,5 +74,4 @@ struct { // ERROR: expected an identifier
 struct Car // ERROR: expected '\{'
     a: i64,
     b: int
-    c: int, // comma is permitted
-// ERROR: unterminated struct
+    c: int, // ERROR: unterminated struct

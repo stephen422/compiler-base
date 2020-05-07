@@ -10,10 +10,12 @@ template <typename T> using Res = ParserResult<T>;
 
 Parser::Parser(Lexer &l, std::vector<Error> &e, std::vector<Error> &b)
     : lexer{l}, errors(e), beacons(b) {
-    tok = lexer.lex();
     // insert keywords in name table
     for (auto m : keyword_map)
         names.get_or_add(std::string{m.first});
+
+    // set up lookahead and cache
+    next();
 }
 
 Parser::~Parser() {
@@ -34,21 +36,28 @@ void Parser::next() {
     if (tok.kind == Tok::eos)
         return;
 
-    tok = lexer.lex();
+    // update cache if necessary
+    if (next_read_pos == token_cache.size()) {
+        auto t = lexer.lex();
 
-    // If an error beacon is found in a comment, add the error to the parser
-    // error list so that it can be compared to the actual errors later in the
-    // verifying phase.
-    if (tok.kind == Tok::comment) {
-        std::string_view marker{"// ERROR: "};
-        auto found = tok.text.find(marker);
-        if (found != 0)
-            return;
+        // If an error beacon is found in a comment, add the error to the parser
+        // error list so that it can be compared to the actual errors later in
+        // the verifying phase.
+        if (t.kind == Tok::comment) {
+            std::string_view marker{"// ERROR: "};
+            auto found = t.text.find(marker);
+            if (found == 0) {
+                // '---' in '// ERROR: ---'
+                std::string regex_string{t.text.substr(marker.length())};
+                beacons.push_back({locate(), regex_string});
+            }
+        }
 
-        // '---' in '// ERROR: ---'
-        std::string regex_string{tok.text.substr(marker.length())};
-        beacons.push_back({locate(), regex_string});
+        token_cache.push_back(t);
     }
+
+    tok = token_cache[next_read_pos];
+    next_read_pos++;
 }
 
 // Returns true if match succeeded, false otherwise.
@@ -692,7 +701,6 @@ std::optional<Parser::FieldDesignator> Parser::parse_struct_def_field() {
 // expression.  If not, just pass along the original expression. This function
 // is called after the operand expression part is fully parsed.
 Expr *Parser::parse_struct_def_maybe(Expr *expr) {
-    assert(false);
     if (tok.kind == Tok::lbrace) {
         error("parse_struct_def_maybe being called here");
         expect(Tok::lbrace);
