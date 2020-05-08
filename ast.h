@@ -301,6 +301,10 @@ struct FuncCallExpr : public Expr {
     void print() const override;
 };
 
+// 'Struct { .m1 = .e1, .m2 = e2, ... }'
+struct StructDefExpr : public Expr {
+};
+
 // 'struct.mem'
 struct MemberExpr : public Expr {
   Expr *lhs_expr = nullptr;    // 'struct' part

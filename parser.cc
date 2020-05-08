@@ -74,9 +74,10 @@ void Parser::restore_state(State state) {
 bool Parser::expect(Tok kind, const std::string &msg = "") {
     if (tok.kind != kind) {
         std::string s = msg;
-        if (msg.empty())
+        if (msg.empty()) {
             s = fmt::format("expected '{}', found '{}'",
                             tokenTypeToString(kind), tok.text);
+        }
         error(s);
         // Don't make progress if the match failed.
         // Note: the Go compiler does otherwise. Is that necessary?
@@ -100,24 +101,24 @@ bool Parser::is_eos() const { return tok.kind == Tok::eos; }
 //     Decl
 //     Expr
 Stmt *Parser::parse_stmt() {
-  Stmt *stmt = nullptr;
+    Stmt *stmt = nullptr;
 
-  if (tok.kind == Tok::lbrace) {
-    stmt = parseCompoundStmt();
-  } else if (tok.kind == Tok::kw_return) {
-    stmt = parse_return_stmt();
-  } else if (tok.kind == Tok::kw_if) {
-    stmt = parse_if_stmt();
-  } else if (tok.kind == Tok::hash) {
-    stmt = parseBuiltinStmt();
-  } else if (isStartOfDecl()) {
-    stmt = parseDeclStmt();
-  } else {
-    stmt = parse_expr_or_assign_stmt();
-  }
-  skip_newlines();
+    if (tok.kind == Tok::lbrace) {
+        stmt = parseCompoundStmt();
+    } else if (tok.kind == Tok::kw_return) {
+        stmt = parse_return_stmt();
+    } else if (tok.kind == Tok::kw_if) {
+        stmt = parse_if_stmt();
+    } else if (tok.kind == Tok::hash) {
+        stmt = parseBuiltinStmt();
+    } else if (isStartOfDecl()) {
+        stmt = parseDeclStmt();
+    } else {
+        stmt = parse_expr_or_assign_stmt();
+    }
+    skip_newlines();
 
-  return stmt;
+    return stmt;
 }
 
 Stmt *Parser::parse_return_stmt() {
@@ -179,22 +180,20 @@ IfStmt *Parser::parse_if_stmt() {
 
 // Parse 'let a = ...'
 DeclStmt *Parser::parseDeclStmt() {
-  auto decl = parseDecl();
-  if (!is_end_of_stmt()) {
-    // XXX: remove bad check
-    if (decl && decl->kind != DeclNodeKind::bad)
-      expect(Tok::newline);
-    // try to recover
-    skip_until_end_of_line();
-  }
-  return make_node<DeclStmt>(decl);
+    auto decl = parseDecl();
+    if (!is_end_of_stmt()) {
+        // XXX: remove bad check
+        if (decl && decl->kind != DeclNodeKind::bad)
+            expect(Tok::newline);
+        // try to recover
+        skip_until_end_of_line();
+    }
+    return make_node<DeclStmt>(decl);
 }
 
 // Upon seeing an expression, we don't know yet if it is a simple expression
 // statement or an assignment statement until we see the '=' token and the RHS.
 // This function handles both cases in one go.
-//
-// TODO: function call?
 Stmt *Parser::parse_expr_or_assign_stmt() {
     auto pos = tok.pos;
 
@@ -227,27 +226,27 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
 // CompoundStmt:
 //     { Stmt* }
 CompoundStmt *Parser::parseCompoundStmt() {
-  expect(Tok::lbrace);
-  auto compound = make_node<CompoundStmt>();
+    expect(Tok::lbrace);
+    auto compound = make_node<CompoundStmt>();
 
-  while (!is_eos()) {
-    skip_newlines();
-    if (tok.kind == Tok::rbrace)
-      break;
-    auto stmt = parse_stmt();
-    compound->stmts.push_back(stmt);
-  }
+    while (!is_eos()) {
+        skip_newlines();
+        if (tok.kind == Tok::rbrace)
+            break;
+        auto stmt = parse_stmt();
+        compound->stmts.push_back(stmt);
+    }
 
-  expect(Tok::rbrace);
-  return compound;
+    expect(Tok::rbrace);
+    return compound;
 }
 
 BuiltinStmt *Parser::parseBuiltinStmt() {
-  auto start = tok.pos;
-  skip_until_end_of_line();
-  auto end = tok.pos;
-  std::string_view text{lexer.source().buf.data() + start, end - start};
-  return make_node_pos<BuiltinStmt>(start, text);
+    auto start = tok.pos;
+    skip_until_end_of_line();
+    auto end = tok.pos;
+    std::string_view text{lexer.source().buf.data() + start, end - start};
+    return make_node_pos<BuiltinStmt>(start, text);
 }
 
 // Doesn't include 'let' or 'var'.
@@ -462,31 +461,29 @@ DeclNode *Parser::parseDecl() {
     default:
         assert(false && "not a start of a declaration");
     }
-    // unreachable
-    return nullptr;
 }
 
 Expr *Parser::parse_literal_expr() {
-  Expr *expr = nullptr;
-  // TODO Literals other than integers?
-  switch (tok.kind) {
-  case Tok::number: {
-    std::string s{tok.text};
-    int value = std::stoi(s);
-    expr = make_node<IntegerLiteral>(value);
-    break;
-  }
-  case Tok::string:
-    expr = make_node<StringLiteral>(tok.text);
-    break;
-  default:
-    assert(false && "non-integer literals not implemented");
-  }
-  expr->pos = tok.pos;
+    Expr *expr = nullptr;
+    // TODO Literals other than integers?
+    switch (tok.kind) {
+    case Tok::number: {
+        std::string s{tok.text};
+        int value = std::stoi(s);
+        expr = make_node<IntegerLiteral>(value);
+        break;
+    }
+    case Tok::string:
+        expr = make_node<StringLiteral>(tok.text);
+        break;
+    default:
+        assert(false && "non-integer literals not implemented");
+    }
+    expr->pos = tok.pos;
 
-  next();
+    next();
 
-  return expr;
+    return expr;
 }
 
 // Upon seeing an expression that starts with an identifier, we don't know
@@ -497,26 +494,26 @@ Expr *Parser::parse_literal_expr() {
 // TODO: maybe name it parse_ident_start_exprs?
 // TODO: add struct declaration here, e.g. Car {}
 Expr *Parser::parse_funccall_or_declref_expr() {
-  auto pos = tok.pos;
-  assert(tok.kind == Tok::ident);
-  auto name = names.get_or_add(std::string{tok.text});
-  next();
+    auto pos = tok.pos;
+    assert(tok.kind == Tok::ident);
+    auto name = names.get_or_add(std::string{tok.text});
+    next();
 
-  if (tok.kind == Tok::lparen) {
-    expect(Tok::lparen);
-    std::vector<Expr *> args;
-    while (tok.kind != Tok::rparen) {
-      args.push_back(parse_expr());
-      if (tok.kind == Tok::comma)
-        next();
+    if (tok.kind == Tok::lparen) {
+        expect(Tok::lparen);
+        std::vector<Expr *> args;
+        while (tok.kind != Tok::rparen) {
+            args.push_back(parse_expr());
+            if (tok.kind == Tok::comma)
+                next();
+        }
+        expect(Tok::rparen);
+        return make_node_pos<FuncCallExpr>(pos, name, args);
+    } else {
+        // Whether this is a variable or a struct/enum name can only be decided
+        // in the type checking stage.
+        return make_node_pos<DeclRefExpr>(pos, DeclRefKind::undecided, name);
     }
-    expect(Tok::rparen);
-    return make_node_pos<FuncCallExpr>(pos, name, args);
-  } else {
-    // Whether this is a variable or a struct/enum name can only be decided
-    // in the type checking stage.
-    return make_node_pos<DeclRefExpr>(pos, DeclRefKind::undecided, name);
-  }
 }
 
 // Parse a type expression.
@@ -692,20 +689,24 @@ Expr *Parser::parse_member_expr_maybe(Expr *expr) {
 }
 
 bool Parser::lookahead_struct_def() {
-    auto s = save_state();
+    struct Defer {
+        Parser &p;
+        State s;
+        Defer(Parser &p) : p(p) { s = p.save_state(); }
+        ~Defer() { p.restore_state(s); }
+    } d(*this);
 
-    if (tok.kind != Tok::lbrace) {
-        restore_state(s);
+    if (tok.kind != Tok::lbrace)
         return false;
-    }
+
+    // empty ({})
+    if (tok.kind == Tok::rbrace)
+        return true;
     next();
 
-    if (tok.kind != Tok::dot) {
-        restore_state(s);
+    if (tok.kind != Tok::dot)
         return false;
-    }
 
-    restore_state(s);
     return true;
 }
 
@@ -733,7 +734,7 @@ std::optional<Parser::FieldDesignator> Parser::parse_struct_def_field() {
 Expr *Parser::parse_struct_def_maybe(Expr *expr) {
     if (tok.kind == Tok::lbrace) {
         expect(Tok::lbrace);
-        parse_comma_separated_list<std::optional<FieldDesignator>>(
+        auto v = parse_comma_separated_list<std::optional<FieldDesignator>>(
             [this] { return parse_struct_def_field(); });
         expect(Tok::rbrace);
     }
@@ -787,8 +788,7 @@ AstNode *Parser::parseToplevel() {
   case Tok::kw_enum:
     return parseEnumDecl();
   default:
-    error("assertion failed here");
-    assert(false && "unreachable");
+    assert(false && "unrecognized toplevel");
   }
 }
 

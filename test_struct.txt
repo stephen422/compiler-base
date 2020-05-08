@@ -10,5 +10,12 @@ func main() {
     Token {.pos = 3, .text = "hi"}
 
     Token {pos} // ERROR: expected '='
-}
 
+    if Token {.pos = 3} {
+    } else {
+    }
+
+    // if Token {} {
+    // } else {
+    // }
+}
