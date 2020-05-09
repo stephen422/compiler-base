@@ -134,12 +134,7 @@ private:
     Expr *parse_type_expr();
     Expr *parse_binary_expr_rhs(Expr *lhs, int precedence);
     Expr *parse_member_expr_maybe(Expr *expr);
-    // '.memb = expr' part in Struct { ... }.
-    struct FieldDesignator {
-        Name *name;
-        Expr *expr;
-    };
-    std::optional<FieldDesignator> parse_struct_def_field();
+    std::optional<StructFieldDesignator> parse_struct_def_field();
     bool lookahead_struct_def();
     Expr *parse_struct_def_maybe(Expr *expr);
 

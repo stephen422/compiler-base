@@ -222,6 +222,7 @@ enum class ExprKind {
     string_literal,
     decl_ref,
     func_call,
+    struct_def,
     member,
     unary,
     binary,
@@ -301,8 +302,20 @@ struct FuncCallExpr : public Expr {
     void print() const override;
 };
 
+// '.memb = expr' part in Struct { ... }.
+struct StructFieldDesignator {
+    Name *name;
+    Expr *expr;
+};
+
 // 'Struct { .m1 = .e1, .m2 = e2, ... }'
 struct StructDefExpr : public Expr {
+    Expr *name_expr; // could be DeclRefs or MemberExprs
+    std::vector<StructFieldDesignator> desigs;
+
+    StructDefExpr(Expr *e, const std::vector<StructFieldDesignator> &ds)
+        : Expr(ExprKind::struct_def), name_expr(e), desigs(ds) {}
+    void print() const override;
 };
 
 // 'struct.mem'

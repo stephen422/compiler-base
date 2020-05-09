@@ -689,29 +689,31 @@ Expr *Parser::parse_member_expr_maybe(Expr *expr) {
 }
 
 bool Parser::lookahead_struct_def() {
-    struct Defer {
-        Parser &p;
-        State s;
-        Defer(Parser &p) : p(p) { s = p.save_state(); }
-        ~Defer() { p.restore_state(s); }
-    } d(*this);
+    auto s = save_state();
 
     if (tok.kind != Tok::lbrace)
-        return false;
+        goto fail;
 
     // empty ({})
     if (tok.kind == Tok::rbrace)
-        return true;
+        goto success;
     next();
 
     if (tok.kind != Tok::dot)
-        return false;
+        goto fail;
 
+    goto success;
+
+success:
+    restore_state(s);
     return true;
+fail:
+    restore_state(s);
+    return false;
 }
 
 // Parse '.memb = expr' part in Struct { .m1 = e1, .m2 = e2, ... }.
-std::optional<Parser::FieldDesignator> Parser::parse_struct_def_field() {
+std::optional<StructFieldDesignator> Parser::parse_struct_def_field() {
     if (!expect(Tok::dot))
         return {};
 
@@ -725,20 +727,29 @@ std::optional<Parser::FieldDesignator> Parser::parse_struct_def_field() {
     if (!expr)
         return {};
 
-    return FieldDesignator{name, expr};
+    return StructFieldDesignator{name, expr};
 }
 
 // If this expression has a trailing {...}, parse as a struct definition
 // expression.  If not, just pass along the original expression. This function
 // is called after the operand expression part is fully parsed.
 Expr *Parser::parse_struct_def_maybe(Expr *expr) {
-    if (tok.kind == Tok::lbrace) {
-        expect(Tok::lbrace);
-        auto v = parse_comma_separated_list<std::optional<FieldDesignator>>(
-            [this] { return parse_struct_def_field(); });
-        expect(Tok::rbrace);
+    auto pos = tok.pos;
+
+    expect(Tok::lbrace);
+
+    auto v = parse_comma_separated_list<std::optional<StructFieldDesignator>>(
+        [this] { return parse_struct_def_field(); });
+
+    std::vector<StructFieldDesignator> desigs;
+    for (auto opt_field : v) {
+        assert(opt_field.has_value());
+        desigs.push_back(*opt_field);
     }
-    return expr;
+
+    expect(Tok::rbrace);
+
+    return make_node_pos<StructDefExpr>(pos, expr, desigs);
 }
 
 Expr *Parser::parse_expr() {
@@ -750,18 +761,18 @@ Expr *Parser::parse_expr() {
 }
 
 void Parser::skip_until(Tok kind) {
-  while (!is_eos() && tok.kind != kind)
-    next();
+    while (!is_eos() && tok.kind != kind)
+        next();
 }
 
 void Parser::skip_until_any(std::initializer_list<Tok> &kinds) {
-  while (!is_eos() && !tok.is_any(kinds))
-    next();
+    while (!is_eos() && !tok.is_any(kinds))
+        next();
 }
 
 void Parser::skip_until_end_of_line() {
-  while (!is_eos() && tok.kind != Tok::newline)
-    next();
+    while (!is_eos() && tok.kind != Tok::newline)
+        next();
 }
 
 // Used when the current statement turns out to be broken and we just want to

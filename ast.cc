@@ -214,6 +214,10 @@ void ParenExpr::print() const {
     operand->print();
 }
 
+void StructDefExpr::print() const {
+    out() << "[StructDefExpr] TODO" << std::endl;
+}
+
 void MemberExpr::print() const {
     out() << "[MemberExpr]" << std::endl;
     PrintScope start;
