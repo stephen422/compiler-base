@@ -38,36 +38,26 @@ struct Type {
   // Back-reference to the decl object that defines this type.
   TypeDecl type_decl = std::monostate{};
 
-  // Built-in types.
-  Type(Name *n)
-      : Type(TypeKind::value, n, nullptr, std::monostate{}) {}
   Type(TypeKind k, Name *n, Type *bt, TypeDecl td)
       : kind(k), name(n), base_type(bt), type_decl(td) {}
 
-  static Type valueType(Name *n, TypeDecl decl) {
-    return Type{TypeKind::value, n, nullptr, decl};
-  }
-  static Type refType(Name *n, Type *base_type) {
-    return Type{TypeKind::ref, n, base_type, std::monostate{}};
-  }
-
   std::string str() const;
 
-  bool isStruct() const {
+  bool is_struct() const {
     // TODO: should base_type be null too?
     return std::holds_alternative<StructDecl *>(type_decl);
   }
-  bool isEnum() const {
+  bool is_enum() const {
     // TODO: should base_type be null too?
     return std::holds_alternative<EnumDecl *>(type_decl);
   }
-  bool is_member_accessible() const { return isStruct() || isEnum(); }
+  bool is_member_accessible() const { return is_struct() || is_enum(); }
 
-  StructDecl *getStructDecl() {
+  StructDecl *get_struct_decl() {
     assert(std::holds_alternative<StructDecl *>(type_decl));
     return std::get<StructDecl *>(type_decl);
   }
-  EnumDecl *getEnumDecl() {
+  EnumDecl *get_enum_decl() {
     assert(std::holds_alternative<EnumDecl *>(type_decl));
     return std::get<EnumDecl *>(type_decl);
   }
@@ -118,6 +108,7 @@ struct FuncDecl {
 // TODO: Clarify the definition. Should type names have a Decl too?  What is
 // the 'type' member of a StructDecl?
 using Decl = std::variant<VarDecl *, StructDecl *, EnumDecl *, FuncDecl *>;
+using DeclMemBlock = std::variant<VarDecl, StructDecl, EnumDecl, FuncDecl>;
 
 template <typename T> T *decl_as(const Decl decl) {
     if (std::holds_alternative<T *>(decl))
@@ -195,8 +186,6 @@ struct BasicBlock {
 // Stores all of the semantic information necessary for semantic analysis
 // phase.
 struct Sema {
-  using DeclMemBlock = std::variant<VarDecl, StructDecl, EnumDecl, FuncDecl>;
-
   const Source &source; // source text
   NameTable &name_table; // name table
   std::vector<DeclMemBlock *> decl_pool;
@@ -225,11 +214,6 @@ struct Sema {
     decl_pool.push_back(mem_block);
     auto ptr = &std::get<T>(*decl_pool.back());
     return ptr;
-  }
-  template <typename... Args> Type *make_type(Args &&... args) {
-    Type *t = new Type{std::forward<Args>(args)...};
-    type_pool.push_back(t);
-    return t;
   }
   BasicBlock *make_basic_block() {
     BasicBlock *bb = new BasicBlock;

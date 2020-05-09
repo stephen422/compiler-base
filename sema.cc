@@ -23,10 +23,22 @@ void Sema::error(size_t pos, const std::string &msg) {
     errors.push_back(e);
 }
 
+Type *make_value_type(Sema &sema, Name *n, Type::TypeDecl decl) {
+    Type *t = new Type(TypeKind::value, n, nullptr, decl);
+    sema.type_pool.push_back(t);
+    return t;
+}
+
+Type *make_ref_type(Sema &sema, Name *n, Type *base_type) {
+    Type *t = new Type(TypeKind::ref, n, base_type, std::monostate{});
+    sema.type_pool.push_back(t);
+    return t;
+}
+
 Type *push_builtin_type_from_name(Sema &s, const std::string &str) {
   Name *name = s.name_table.get_or_add(str);
   auto struct_decl = s.make_decl<StructDecl>(name);
-  struct_decl->type = s.make_type(name);
+  struct_decl->type = make_value_type(s, name, std::monostate{});
   s.decl_table.insert(name, struct_decl);
   return struct_decl->type;
 }
@@ -422,8 +434,8 @@ void TypeChecker::visitMemberExpr(MemberExpr *m) {
   // find a member with the same name
   // TODO: can this be abstracted?
   bool found = false;
-  if (lhs_type->isStruct()) {
-    for (auto mem_decl : lhs_type->getStructDecl()->fields) {
+  if (lhs_type->is_struct()) {
+    for (auto mem_decl : lhs_type->get_struct_decl()->fields) {
       if (m->member_name == mem_decl->name) {
         m->decl = mem_decl;
         found = true;
@@ -431,8 +443,8 @@ void TypeChecker::visitMemberExpr(MemberExpr *m) {
       }
     }
   }
-  if (lhs_type->isEnum()) {
-    for (auto mem_decl : lhs_type->getEnumDecl()->variants) {
+  if (lhs_type->is_enum()) {
+    for (auto mem_decl : lhs_type->get_enum_decl()->variants) {
       if (m->member_name == mem_decl->name) {
         m->decl = mem_decl;
         found = true;
@@ -460,7 +472,7 @@ Type *getReferenceType(Sema &sema, Type *type) {
     return found->value;
 
   // FIXME: scope_level
-  auto refTy = sema.make_type(Type::refType(name, type));
+  auto refTy = make_ref_type(sema, name, type);
   return *sema.type_table.insert(name, refTy);
 }
 
@@ -548,7 +560,7 @@ void TypeChecker::visitTypeExpr(TypeExpr *t) {
     if (auto found = sema.type_table.find(t->name)) {
       t->type = found->value;
     } else {
-      t->type = sema.make_type(Type::refType(t->name, t->subexpr->type));
+      t->type = make_ref_type(sema, t->name, t->subexpr->type);
       sema.type_table.insert(t->name, t->type);
     }
   } else {
@@ -595,7 +607,7 @@ void TypeChecker::visitFuncDecl(FuncDeclNode *f) {
 
 void TypeChecker::visitStructDecl(StructDeclNode *s) {
   // Create a new type for this struct.
-  auto type = sema.make_type(Type::valueType(s->name, s->struct_decl));
+  auto type = make_value_type(sema, s->name, s->struct_decl);
   s->struct_decl->type = type;
 
   // This is a pre-order walk so that recursive struct definitions are made
@@ -605,7 +617,7 @@ void TypeChecker::visitStructDecl(StructDeclNode *s) {
 
 void TypeChecker::visitEnumVariantDecl(EnumVariantDeclNode *v) {
   // Create a new type for this struct.
-  auto type = sema.make_type(Type::valueType(v->name, v->struct_decl));
+  auto type = make_value_type(sema, v->name, v->struct_decl);
   v->struct_decl->type = type;
 
   // This is a pre-order walk so that recursive struct definitions are made
@@ -614,7 +626,7 @@ void TypeChecker::visitEnumVariantDecl(EnumVariantDeclNode *v) {
 }
 
 void TypeChecker::visitEnumDecl(EnumDeclNode *e) {
-  auto type = sema.make_type(Type::valueType(e->name, e->enum_decl));
+  auto type = make_value_type(sema, e->name, e->enum_decl);
   e->enum_decl->type = type;
 
   // This is a pre-order walk so that recursive enum definitions are made
