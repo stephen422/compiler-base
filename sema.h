@@ -91,14 +91,14 @@ struct EnumDecl {
 
 // Declaration of a function.
 struct FuncDecl {
-    Name *name = nullptr;
-    Type *ret_ty = nullptr;
-    std::vector<VarDecl *> args;
+  Name *name = nullptr;
+  Type *ret_ty = nullptr;
+  std::vector<VarDecl *> args;
 
-    FuncDecl(Name *n) : name(n) {}
-    size_t argsCount() const { return args.size(); }
-    // XXX: might false-report before typecheck is completed
-    bool isVoid(Sema &sema) const;
+  FuncDecl(Name *n) : name(n) {}
+  size_t args_count() const { return args.size(); }
+  // XXX: might false-report before typecheck is completed
+  bool is_void(Sema &sema) const;
 };
 
 // 'Decl' represents declaration of a variable, a function, or a type.
@@ -166,21 +166,21 @@ template <typename T> struct ScopedTable {
 class Parser;
 
 struct BasicBlock {
-    std::vector<Stmt *> stmts;
-    std::vector<BasicBlock *> pred;
-    std::vector<BasicBlock *> succ;
-    bool walked = false;
+  std::vector<Stmt *> stmts;
+  std::vector<BasicBlock *> pred;
+  std::vector<BasicBlock *> succ;
+  bool walked = false;
 
-    // Indicates whether it is guaranteed that a return statement is seen on
-    // every possible control flow that leads to this basic block.
-    bool returnedSoFar = false;
+  // Indicates whether it is guaranteed that a return statement is seen on
+  // every possible control flow that leads to this basic block.
+  bool returned_so_far = false;
 
-    // True if this basic block contains a return statement.
-    bool returns() const;
+  // True if this basic block contains a return statement.
+  bool returns() const;
 
-    // Walk and enumerate all children nodes and itself in post-order.
-    // Used to implement the the reverse post-order traversal.
-    void enumeratePostOrder(std::vector<BasicBlock *> &walkList);
+  // Walk and enumerate all children nodes and itself in post-order.
+  // Used to implement the the reverse post-order traversal.
+  void enumeratePostOrder(std::vector<BasicBlock *> &walkList);
 };
 
 // Stores all of the semantic information necessary for semantic analysis

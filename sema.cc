@@ -131,10 +131,10 @@ void NameBinder::visitFuncCallExpr(FuncCallExpr *f) {
     walk_func_call_expr(*this, f);
 
     // check if argument count matches
-    if (f->func_decl->argsCount() != f->args.size()) {
+    if (f->func_decl->args_count() != f->args.size()) {
         sema.error(f->pos,
                    fmt::format("'{}' accepts {} arguments, got {}",
-                               f->func_name->str(), f->func_decl->argsCount(),
+                               f->func_name->str(), f->func_decl->args_count(),
                                f->args.size()));
     }
 }
@@ -228,12 +228,16 @@ void NameBinder::visitStructDecl(StructDeclNode *s) {
   sema.decl_table.scope_close();
 }
 
+namespace {
+
 // Generate a name for the anonymous fields in each enum variant structs.
 // For now, these are named as "_0", "_1", etc.
-static Name *gen_anonymous_field_name(Sema &sema, size_t index) {
+Name *gen_anonymous_field_name(Sema &sema, size_t index) {
   auto text = fmt::format("_{}", index);
   return sema.name_table.get_or_add(text);
 }
+
+} // namespace
 
 void NameBinder::visitEnumVariantDecl(EnumVariantDeclNode *v) {
   walk_enum_variant_decl(*this, v);
@@ -311,7 +315,7 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
   return lhs_ty;
 }
 
-bool FuncDecl::isVoid(Sema &sema) const {
+bool FuncDecl::is_void(Sema &sema) const {
   return ret_ty == sema.context.void_type;
 }
 
@@ -322,7 +326,7 @@ Type *TypeChecker::visitReturnStmt(ReturnStmt *rs) {
 
   assert(!sema.context.func_decl_stack.empty());
   auto func_decl = sema.context.func_decl_stack.back();
-  if (func_decl->isVoid(sema)) {
+  if (func_decl->is_void(sema)) {
     sema.error(rs->expr->pos,
                fmt::format("function '{}' should not return a value",
                            func_decl->name->str()));
@@ -592,34 +596,34 @@ Type *TypeChecker::visitTypeExpr(TypeExpr *t) {
 }
 
 Type *TypeChecker::visitVarDecl(VarDeclNode *v) {
-    walk_var_decl(*this, v);
+  walk_var_decl(*this, v);
 
-    if (v->type_expr) {
-        v->var_decl->type = v->type_expr->type;
-        assert(v->var_decl->type);
-    } else if (v->assign_expr) {
-        v->var_decl->type = v->assign_expr->type;
-    } else {
-        assert(false && "unreachable");
-    }
+  if (v->type_expr) {
+    v->var_decl->type = v->type_expr->type;
+    assert(v->var_decl->type);
+  } else if (v->assign_expr) {
+    v->var_decl->type = v->assign_expr->type;
+  } else {
+    assert(false && "unreachable");
+  }
 
-    return v->var_decl->type;
+  return v->var_decl->type;
 }
 
 Type *TypeChecker::visitFuncDecl(FuncDeclNode *f) {
   // We need to do return type typecheck before walking the body, so we can't
   // use the generic walk_func_decl function here.
 
-  if (f->retTypeExpr)
-    visitExpr(f->retTypeExpr);
+  if (f->ret_type_expr)
+    visitExpr(f->ret_type_expr);
   for (auto arg : f->args)
     visitDecl(arg);
 
-  if (f->retTypeExpr) {
+  if (f->ret_type_expr) {
     // XXX: confusing flow
-    if (!f->retTypeExpr->type)
+    if (!f->ret_type_expr->type)
       return nullptr;
-    f->func_decl->ret_ty = f->retTypeExpr->type;
+    f->func_decl->ret_ty = f->ret_type_expr->type;
   } else {
     f->func_decl->ret_ty = sema.context.void_type;
   }
@@ -691,37 +695,39 @@ BasicBlock *ReturnChecker::visitCompoundStmt(CompoundStmt *cs, BasicBlock *bb) {
 BasicBlock *ReturnChecker::visitIfStmt(IfStmt *is, BasicBlock *bb) {
   // An empty basic block that the statements in the if body will be appending
   // themselves on.
-  auto ifBranchStart = sema.make_basic_block();
-  bb->succ.push_back(ifBranchStart);
-  ifBranchStart->pred.push_back(bb);
-  auto ifBranchEnd = visitCompoundStmt(is->if_body, ifBranchStart);
+  auto if_branch_start = sema.make_basic_block();
+  bb->succ.push_back(if_branch_start);
+  if_branch_start->pred.push_back(bb);
+  auto if_branch_end = visitCompoundStmt(is->if_body, if_branch_start);
 
-  auto elseBranchEnd = bb;
+  auto else_branch_end = bb;
   if (is->else_if) {
     // We could make a new empty basic block here, which would make this CFG a
     // binary graph; or just pass in 'bb', which will make 'bb' have more than
     // two successors.
-    elseBranchEnd = visitIfStmt(is->else_if, bb);
+    else_branch_end = visitIfStmt(is->else_if, bb);
   } else if (is->else_body) {
-    auto elseBranchStart = sema.make_basic_block();
-    bb->succ.push_back(elseBranchStart);
-    elseBranchStart->pred.push_back(bb);
-    elseBranchEnd = visitCompoundStmt(is->else_body, elseBranchStart);
+    auto else_branch_start = sema.make_basic_block();
+    bb->succ.push_back(else_branch_start);
+    else_branch_start->pred.push_back(bb);
+    else_branch_end = visitCompoundStmt(is->else_body, else_branch_start);
   }
 
-  auto exitPoint = sema.make_basic_block();
-  ifBranchEnd->succ.push_back(exitPoint);
-  elseBranchEnd->succ.push_back(exitPoint);
-  exitPoint->pred.push_back(ifBranchEnd);
-  exitPoint->pred.push_back(elseBranchEnd);
+  auto exit_point = sema.make_basic_block();
+  if_branch_end->succ.push_back(exit_point);
+  else_branch_end->succ.push_back(exit_point);
+  exit_point->pred.push_back(if_branch_end);
+  exit_point->pred.push_back(else_branch_end);
 
-  return exitPoint;
+  return exit_point;
 }
 
+namespace {
+
 // Do the iterative solution for the dataflow analysis.
-static void returnCheckSolve(const std::vector<BasicBlock *> &walkList) {
+void returnCheckSolve(const std::vector<BasicBlock *> &walkList) {
   for (auto bb : walkList)
-    bb->returnedSoFar = false;
+    bb->returned_so_far = false;
 
   bool changed = true;
   while (changed) {
@@ -734,20 +740,22 @@ static void returnCheckSolve(const std::vector<BasicBlock *> &walkList) {
       if (!bb->pred.empty()) {
         allPredReturns = true;
         for (auto pbb : bb->pred)
-          allPredReturns &= pbb->returnedSoFar;
+          allPredReturns &= pbb->returned_so_far;
       }
 
       auto t = bb->returns() || allPredReturns;
-      if (t != bb->returnedSoFar) {
+      if (t != bb->returned_so_far) {
         changed = true;
-        bb->returnedSoFar = t;
+        bb->returned_so_far = t;
       }
     }
   }
 }
 
+} // namespace
+
 BasicBlock *ReturnChecker::visitFuncDecl(FuncDeclNode *f, BasicBlock *bb) {
-  if (!f->retTypeExpr)
+  if (!f->ret_type_expr)
     return nullptr;
 
   auto entryPoint = sema.make_basic_block();
@@ -761,7 +769,7 @@ BasicBlock *ReturnChecker::visitFuncDecl(FuncDeclNode *f, BasicBlock *bb) {
 
   returnCheckSolve(walkList);
 
-  if (!exitPoint->returnedSoFar)
+  if (!exitPoint->returned_so_far)
     sema.error(f->pos, "function not guaranteed to return a value");
 
   return nullptr;
@@ -946,7 +954,7 @@ void CodeGenerator::visitStructDecl(StructDeclNode *s) {
 }
 
 void CodeGenerator::visitFuncDecl(FuncDeclNode *f) {
-  if (f->retTypeExpr)
+  if (f->ret_type_expr)
     emit("{}", cStringify(f->func_decl->ret_ty));
   else
     emit("void");

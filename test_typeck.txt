@@ -6,7 +6,7 @@ struct Car {
 }
 
 func void_ret() {
-  return 1 // ERROR: function .* should not return
+    return 1 // ERROR: function .* should not return
 }
 
 func f() -> Car {
@@ -20,11 +20,11 @@ func f() -> Car {
 }
 
 func g() -> int {
-  return 98
+    return 98
 }
 
 func h(a: int, b: *int) -> int {
-  return 1
+    return 1
 }
 
 func main() {
