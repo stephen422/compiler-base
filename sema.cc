@@ -46,10 +46,10 @@ Type *push_builtin_type_from_name(Sema &s, const std::string &str) {
 // Push Decls for the builtin types into the global scope of decl_table, so
 // that they are visible from any point in the AST.
 void setup_builtin_types(Sema &s) {
-    s.context.voidTy = push_builtin_type_from_name(s, "void");
-    s.context.intTy = push_builtin_type_from_name(s, "int");
-    s.context.charTy = push_builtin_type_from_name(s, "char");
-    s.context.stringTy = push_builtin_type_from_name(s, "string");
+    s.context.void_type = push_builtin_type_from_name(s, "void");
+    s.context.int_type = push_builtin_type_from_name(s, "int");
+    s.context.char_type = push_builtin_type_from_name(s, "char");
+    s.context.string_type = push_builtin_type_from_name(s, "string");
 }
 
 Sema::Sema(Parser &p) : Sema(p.lexer.source(), p.names, p.errors, p.beacons) {}
@@ -114,27 +114,27 @@ void NameBinder::visitDeclRefExpr(DeclRefExpr *d) {
 // Only binds the function name part of the call, e.g. 'func' of func().
 void NameBinder::visitFuncCallExpr(FuncCallExpr *f) {
     // resolve function name
-    auto sym = sema.decl_table.find(f->funcName);
+    auto sym = sema.decl_table.find(f->func_name);
     if (!sym) {
         sema.error(f->pos, fmt::format("undeclared function '{}'",
-                                       f->funcName->str()));
+                                       f->func_name->str()));
         return;
     }
     if (!decl_as<FuncDecl>(sym->value)) {
         sema.error(f->pos,
-                   fmt::format("'{}' is not a function", f->funcName->str()));
+                   fmt::format("'{}' is not a function", f->func_name->str()));
         return;
     }
-    f->funcDecl = decl_as<FuncDecl>(sym->value);
-    assert(f->funcDecl);
+    f->func_decl = decl_as<FuncDecl>(sym->value);
+    assert(f->func_decl);
 
     walk_func_call_expr(*this, f);
 
     // check if argument count matches
-    if (f->funcDecl->argsCount() != f->args.size()) {
+    if (f->func_decl->argsCount() != f->args.size()) {
         sema.error(f->pos,
                    fmt::format("'{}' accepts {} arguments, got {}",
-                               f->funcName->str(), f->funcDecl->argsCount(),
+                               f->func_name->str(), f->func_decl->argsCount(),
                                f->args.size()));
     }
 }
@@ -310,7 +310,7 @@ void TypeChecker::visitAssignStmt(AssignStmt *as) {
 }
 
 bool FuncDecl::isVoid(Sema &sema) const {
-  return retTy == sema.context.voidTy;
+  return retTy == sema.context.void_type;
 }
 
 void TypeChecker::visitReturnStmt(ReturnStmt *rs) {
@@ -338,11 +338,11 @@ void TypeChecker::visitReturnStmt(ReturnStmt *rs) {
 }
 
 void TypeChecker::visitIntegerLiteral(IntegerLiteral *i) {
-  i->type = sema.context.intTy;
+  i->type = sema.context.int_type;
 }
 
 void TypeChecker::visitStringLiteral(StringLiteral *s) {
-  s->type = sema.context.stringTy;
+  s->type = sema.context.string_type;
 }
 
 void TypeChecker::visitDeclRefExpr(DeclRefExpr *d) {
@@ -396,20 +396,24 @@ void TypeChecker::visitDeclRefExpr(DeclRefExpr *d) {
 void TypeChecker::visitFuncCallExpr(FuncCallExpr *f) {
   walk_func_call_expr(*this, f);
 
-  assert(f->funcDecl->retTy);
-  f->type = f->funcDecl->retTy;
+  assert(f->func_decl->retTy);
+  f->type = f->func_decl->retTy;
 
   // check argument type match
-  for (size_t i = 0; i < f->funcDecl->args.size(); i++) {
+  for (size_t i = 0; i < f->func_decl->args.size(); i++) {
     assert(f->args[i]->type);
     // TODO: proper type comparison
-    if (f->args[i]->type != f->funcDecl->args[i]->type) {
+    if (f->args[i]->type != f->func_decl->args[i]->type) {
       sema.error(f->args[i]->pos,
                  fmt::format("argument type mismatch: expects '{}', got '{}'",
-                             f->funcDecl->args[i]->type->name->str(),
+                             f->func_decl->args[i]->type->name->str(),
                              f->args[i]->type->name->str()));
     }
   }
+}
+
+void TypeChecker::visitStructDefExpr(StructDefExpr *s) {
+  assert(false && "not implemented");
 }
 
 // MemberExprs cannot be namebinded completely without type checking (e.g.
@@ -596,7 +600,7 @@ void TypeChecker::visitFuncDecl(FuncDeclNode *f) {
       return;
     f->func_decl->retTy = f->retTypeExpr->type;
   } else {
-    f->func_decl->retTy = sema.context.voidTy;
+    f->func_decl->retTy = sema.context.void_type;
   }
 
   // FIXME: what about type_table?
@@ -773,7 +777,7 @@ void CodeGenerator::visitDeclRefExpr(DeclRefExpr *d) {
 }
 
 void CodeGenerator::visitFuncCallExpr(FuncCallExpr *f) {
-  emitCont("{}(", f->funcName->str());
+  emitCont("{}(", f->func_name->str());
 
   for (size_t i = 0; i < f->args.size(); i++) {
     visitExpr(f->args[i]);
@@ -823,7 +827,7 @@ void CodeGenerator::visitBinaryExpr(BinaryExpr *b) {
 
 // Generate C source representation of a Type.
 std::string CodeGenerator::cStringify(const Type *t) {
-  if (t == sema.context.stringTy) {
+  if (t == sema.context.string_type) {
     // For now, strings are aliased to char *.  This works as long as strings
     // are immutable and doesn't contain unicode characters.
     return "char*";

@@ -291,13 +291,13 @@ struct DeclRefExpr : public Expr {
 };
 
 struct FuncCallExpr : public Expr {
-    Name *funcName = nullptr;
+    Name *func_name = nullptr;
     std::vector<Expr *> args;
     // Decl for the function name, 'func'.
-    FuncDecl *funcDecl = nullptr;
+    FuncDecl *func_decl = nullptr;
 
     FuncCallExpr(Name *name, const std::vector<Expr *> &args)
-        : Expr(ExprKind::func_call), funcName(name),
+        : Expr(ExprKind::func_call), func_name(name),
           args(args) {}
     void print() const override;
 };
@@ -637,10 +637,9 @@ public:
     return RetTy();
   }
   RetTy visitExpr(Expr *e, Args... args) {
-    // Rather than calling walk_expr() here, we do a switch-case, because
-    // the visiting logic in a specialized visitor is likely to be different
-    // for each type of Expr and thus be implemented using a switch-case
-    // anyway.
+    // Rather than calling walk_expr() here, we do a switch-case, because the
+    // visiting logic in a specialized visitor is likely to be different for
+    // each type of Expr and thus a similar switch-case will be used anyway.
     switch (e->kind) {
     case ExprKind::integer_literal:
       return dis()->visitIntegerLiteral(static_cast<IntegerLiteral *>(e),
@@ -657,6 +656,9 @@ public:
     case ExprKind::func_call:
       return dis()->visitFuncCallExpr(static_cast<FuncCallExpr *>(e),
                                          args...);
+      break;
+    case ExprKind::struct_def:
+      return dis()->visitStructDefExpr(static_cast<StructDefExpr *>(e), args...);
       break;
     case ExprKind::member:
       return dis()->visitMemberExpr(static_cast<MemberExpr *>(e), args...);
@@ -693,6 +695,10 @@ public:
   }
   RetTy visitFuncCallExpr(FuncCallExpr *f, Args... args) {
     walk_func_call_expr(*dis(), f, args...);
+    return RetTy();
+  }
+  RetTy visitStructDefExpr(StructDefExpr *s, Args... args) {
+    walk_struct_def_expr(*dis(), s, args...);
     return RetTy();
   }
   RetTy visitMemberExpr(MemberExpr *m, Args... args) {
@@ -826,22 +832,28 @@ void walk_func_call_expr(Visitor &v, FuncCallExpr *f, Args... args) {
     v.visitExpr(arg, args...);
 }
 template <typename Visitor, typename... Args>
-void walk_paren_expr(Visitor &v, ParenExpr *p, Args... args) {
-  v.visitExpr(p->operand, args...);
-}
-template <typename Visitor, typename... Args>
-void walk_binary_expr(Visitor &v, BinaryExpr *b, Args... args) {
-  v.visitExpr(b->lhs, args...);
-  v.visitExpr(b->rhs, args...);
+void walk_struct_def_expr(Visitor &v, StructDefExpr *s, Args... args) {
+    v.visitExpr(s->name_expr, args...);
+    for (auto d : s->desigs)
+        v.visitExpr(d.expr, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_member_expr(Visitor &v, MemberExpr *m, Args... args) {
-  v.visitExpr(m->lhs_expr, args...);
+    v.visitExpr(m->lhs_expr, args...);
+}
+template <typename Visitor, typename... Args>
+void walk_paren_expr(Visitor &v, ParenExpr *p, Args... args) {
+    v.visitExpr(p->operand, args...);
+}
+template <typename Visitor, typename... Args>
+void walk_binary_expr(Visitor &v, BinaryExpr *b, Args... args) {
+    v.visitExpr(b->lhs, args...);
+    v.visitExpr(b->rhs, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_type_expr(Visitor &v, TypeExpr *t, Args... args) {
-  if (t->subexpr)
-    v.visitExpr(t->subexpr, args...);
+    if (t->subexpr)
+        v.visitExpr(t->subexpr, args...);
 }
 
 } // namespace cmp

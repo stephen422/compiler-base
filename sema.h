@@ -126,10 +126,10 @@ struct Context {
     // Builtin types.
     // voidType exists to differentiate the type of FuncCallExprs whose
     // function no return values, from expressions that failed to typecheck.
-    Type *voidTy = nullptr;
-    Type *intTy = nullptr;
-    Type *charTy = nullptr;
-    Type *stringTy = nullptr;
+    Type *void_type = nullptr;
+    Type *int_type = nullptr;
+    Type *char_type = nullptr;
+    Type *string_type = nullptr;
 };
 
 // Scoped symbol table.
@@ -274,6 +274,7 @@ public:
     void visitStringLiteral(StringLiteral *s);
     void visitDeclRefExpr(DeclRefExpr *d);
     void visitFuncCallExpr(FuncCallExpr *f);
+    void visitStructDefExpr(StructDefExpr *s);
     void visitMemberExpr(MemberExpr *m);
     void visitUnaryExpr(UnaryExpr *u);
     void visitParenExpr(ParenExpr *p);

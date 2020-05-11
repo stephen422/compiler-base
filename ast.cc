@@ -197,8 +197,8 @@ void DeclRefExpr::print() const {
 void FuncCallExpr::print() const {
     out() << "[FuncCallExpr] "
           << "(Name:";
-    printf("%04x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(funcName)));
-    std::cout << ") " << funcName->text;
+    printf("%04x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(func_name)));
+    std::cout << ") " << func_name->text;
     if (type)
         std::cout << " '" << type->name->text << "'";
     std::cout << std::endl;
