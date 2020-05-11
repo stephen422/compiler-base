@@ -285,7 +285,7 @@ void NameBinder::visitEnumDecl(EnumDeclNode *e) {
 // on the actual type of the expression, not just its kind; e.g. (v) or (3).
 //
 //                 3 = 4
-void TypeChecker::visitAssignStmt(AssignStmt *as) {
+Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
   walk_assign_stmt(*this, as);
 
   auto lhs_ty = as->lhs->type;
@@ -293,30 +293,32 @@ void TypeChecker::visitAssignStmt(AssignStmt *as) {
 
   // XXX: is this the best way to early-exit?
   if (!lhs_ty || !rhs_ty)
-    return;
+    return nullptr;
 
   // L-value check.
   // XXX: It's not obvious that r-values correspond to expressions that don't
   // have an associated Decl object. Maybe make an isRValue() function.
   if (!as->lhs->decl()) {
     sema.error(as->pos, fmt::format("LHS is not assignable"));
-    return;
+    return nullptr;
   }
 
   // Only allow exact equality for assignment for now (TODO).
   if (lhs_ty != rhs_ty)
     sema.error(as->pos, fmt::format("cannot assign '{}' type to '{}'",
                                     rhs_ty->name->str(), lhs_ty->name->str()));
+
+  return lhs_ty;
 }
 
 bool FuncDecl::isVoid(Sema &sema) const {
-  return retTy == sema.context.void_type;
+  return ret_ty == sema.context.void_type;
 }
 
-void TypeChecker::visitReturnStmt(ReturnStmt *rs) {
+Type *TypeChecker::visitReturnStmt(ReturnStmt *rs) {
   walk_return_stmt(*this, rs);
   if (!rs->expr->type)
-    return;
+    return nullptr;
 
   assert(!sema.context.func_decl_stack.empty());
   auto func_decl = sema.context.func_decl_stack.back();
@@ -324,28 +326,32 @@ void TypeChecker::visitReturnStmt(ReturnStmt *rs) {
     sema.error(rs->expr->pos,
                fmt::format("function '{}' should not return a value",
                            func_decl->name->str()));
-    return;
+    return nullptr;
   }
 
-  if (rs->expr->type != func_decl->retTy) {
+  if (rs->expr->type != func_decl->ret_ty) {
     sema.error(
         rs->expr->pos,
         fmt::format("return type mismatch: function returns '{}', but got '{}'",
-                    func_decl->retTy->name->str(),
+                    func_decl->ret_ty->name->str(),
                     rs->expr->type->name->str()));
-    return;
+    return nullptr;
   }
+
+  return rs->expr->type;
 }
 
-void TypeChecker::visitIntegerLiteral(IntegerLiteral *i) {
+Type *TypeChecker::visitIntegerLiteral(IntegerLiteral *i) {
   i->type = sema.context.int_type;
+  return i->type;
 }
 
-void TypeChecker::visitStringLiteral(StringLiteral *s) {
+Type *TypeChecker::visitStringLiteral(StringLiteral *s) {
   s->type = sema.context.string_type;
+  return s->type;
 }
 
-void TypeChecker::visitDeclRefExpr(DeclRefExpr *d) {
+Type *TypeChecker::visitDeclRefExpr(DeclRefExpr *d) {
   // For varibles, since there is no type inference now, the type is determined
   // at the same time the variable is declared. So if a variable succeeded
   // namebinding, its type is guaranteed to be determined.
@@ -361,6 +367,8 @@ void TypeChecker::visitDeclRefExpr(DeclRefExpr *d) {
   } else {
     assert(false);
   }
+
+  return d->type;
 }
 
 // The VarDecl of a function call's return value is temporary.  Only when it is
@@ -393,11 +401,11 @@ void TypeChecker::visitDeclRefExpr(DeclRefExpr *d) {
 // * let v = (f())
 // * let v = f().mem
 //
-void TypeChecker::visitFuncCallExpr(FuncCallExpr *f) {
+Type *TypeChecker::visitFuncCallExpr(FuncCallExpr *f) {
   walk_func_call_expr(*this, f);
 
-  assert(f->func_decl->retTy);
-  f->type = f->func_decl->retTy;
+  assert(f->func_decl->ret_ty);
+  f->type = f->func_decl->ret_ty;
 
   // check argument type match
   for (size_t i = 0; i < f->func_decl->args.size(); i++) {
@@ -408,31 +416,34 @@ void TypeChecker::visitFuncCallExpr(FuncCallExpr *f) {
                  fmt::format("argument type mismatch: expects '{}', got '{}'",
                              f->func_decl->args[i]->type->name->str(),
                              f->args[i]->type->name->str()));
+      return nullptr;
     }
   }
+
+  return f->type;
 }
 
-void TypeChecker::visitStructDefExpr(StructDefExpr *s) {
+Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
   assert(false && "not implemented");
 }
 
 // MemberExprs cannot be namebinded completely without type checking (e.g.
 // func().mem).  So we defer their namebinding to the type checking phase,
 // which is done here.
-void TypeChecker::visitMemberExpr(MemberExpr *m) {
+Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
   // propagate typecheck from left to right (struct -> .mem)
   walk_member_expr(*this, m);
 
   // if the struct side failed to typecheck, we cannot proceed
   if (!m->lhs_expr->type)
-    return;
+    return nullptr;
 
   // make sure the LHS is actually a struct
   auto lhs_type = m->lhs_expr->type;
   if (!lhs_type->is_member_accessible()) {
     sema.error(m->lhs_expr->pos,
                fmt::format("type '{}' is not a struct", lhs_type->name->str()));
-    return;
+    return nullptr;
   }
 
   // find a member with the same name
@@ -461,12 +472,14 @@ void TypeChecker::visitMemberExpr(MemberExpr *m) {
     sema.error(m->lhs_expr->pos,
                fmt::format("'{}' is not a member of '{}'",
                            m->member_name->str(), lhs_type->name->str()));
-    return;
+    return nullptr;
   }
 
   // the fields are already typechecked
   assert(decl_get_type(m->decl));
   m->type = *decl_get_type(m->decl);
+
+  return m->type;
 }
 
 // Get or make a reference type of a given type.
@@ -480,74 +493,78 @@ Type *getReferenceType(Sema &sema, Type *type) {
   return *sema.type_table.insert(name, refTy);
 }
 
-void TypeChecker::visitUnaryExpr(UnaryExpr *u) {
-    switch (u->unaryKind) {
-    case UnaryExprKind::paren:
-        visitParenExpr(static_cast<ParenExpr *>(u));
-        break;
-    case UnaryExprKind::deref:
-        visitExpr(u->operand);
-        // XXX: arbitrary
-        if (!u->operand->type)
-            return;
+Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
+  switch (u->unaryKind) {
+  case UnaryExprKind::paren:
+    visitParenExpr(static_cast<ParenExpr *>(u));
+    break;
+  case UnaryExprKind::deref:
+    visitExpr(u->operand);
+    // XXX: arbitrary
+    if (!u->operand->type)
+      return nullptr;
 
-        if (u->operand->type->kind != TypeKind::ref) {
-            sema.error(u->operand->pos,
-                       fmt::format("dereference of a non-reference type '{}'",
-                                   u->operand->type->name->str()));
-            return;
-        }
-        u->type = u->operand->type->base_type;
-        break;
-    case UnaryExprKind::address:
-        visitExpr(u->operand);
-        // XXX: arbitrary
-        if (!u->operand->type)
-            return;
-
-        // taking address of an rvalue is prohibited
-        // TODO: proper l-value check
-        if (!u->operand->decl()) {
-            sema.error(u->operand->pos, "cannot take address of an rvalue");
-            return;
-        }
-        u->type = getReferenceType(sema, u->operand->type);
-        break;
-    default:
-        assert(false);
-        break;
+    if (u->operand->type->kind != TypeKind::ref) {
+      sema.error(u->operand->pos,
+                 fmt::format("dereference of a non-reference type '{}'",
+                             u->operand->type->name->str()));
+      return nullptr;
     }
+    u->type = u->operand->type->base_type;
+    break;
+  case UnaryExprKind::address:
+    visitExpr(u->operand);
+    // XXX: arbitrary
+    if (!u->operand->type)
+      return nullptr;
+
+    // taking address of an rvalue is prohibited
+    // TODO: proper l-value check
+    if (!u->operand->decl()) {
+      sema.error(u->operand->pos, "cannot take address of an rvalue");
+      return nullptr;
+    }
+    u->type = getReferenceType(sema, u->operand->type);
+    break;
+  default:
+    assert(false);
+    break;
+  }
+
+  return u->type;
 }
 
-void TypeChecker::visitParenExpr(ParenExpr *p) {
-    walk_paren_expr(*this, p);
+Type *TypeChecker::visitParenExpr(ParenExpr *p) {
+  walk_paren_expr(*this, p);
 
-    if (!p->operand->type)
-        return;
+  if (!p->operand->type)
+    return nullptr;
 
-    p->type = p->operand->type;
+  p->type = p->operand->type;
+  return p->type;
 }
 
-void TypeChecker::visitBinaryExpr(BinaryExpr *b) {
+Type *TypeChecker::visitBinaryExpr(BinaryExpr *b) {
   walk_binary_expr(*this, b);
 
   if (!b->lhs->type || !b->rhs->type)
-    return;
+    return nullptr;
 
   if (b->lhs->type != b->rhs->type) {
     sema.error(
         b->pos,
         fmt::format("incompatible types to binary expression ('{}' and '{}')",
                     b->lhs->type->name->str(), b->rhs->type->name->str()));
-    return;
+    return nullptr;
   }
 
   b->type = b->lhs->type;
+  return b->type;
 }
 
 // Type checking TypeExpr concerns with finding the Type object whose syntactic
 // representation matches the TypeExpr.
-void TypeChecker::visitTypeExpr(TypeExpr *t) {
+Type *TypeChecker::visitTypeExpr(TypeExpr *t) {
   walk_type_expr(*this, t);
 
   if (t->kind == TypeExprKind::value) {
@@ -570,9 +587,11 @@ void TypeChecker::visitTypeExpr(TypeExpr *t) {
   } else {
     assert(false && "whooops");
   }
+
+  return t->type;
 }
 
-void TypeChecker::visitVarDecl(VarDeclNode *v) {
+Type *TypeChecker::visitVarDecl(VarDeclNode *v) {
     walk_var_decl(*this, v);
 
     if (v->type_expr) {
@@ -583,9 +602,11 @@ void TypeChecker::visitVarDecl(VarDeclNode *v) {
     } else {
         assert(false && "unreachable");
     }
+
+    return v->var_decl->type;
 }
 
-void TypeChecker::visitFuncDecl(FuncDeclNode *f) {
+Type *TypeChecker::visitFuncDecl(FuncDeclNode *f) {
   // We need to do return type typecheck before walking the body, so we can't
   // use the generic walk_func_decl function here.
 
@@ -597,19 +618,22 @@ void TypeChecker::visitFuncDecl(FuncDeclNode *f) {
   if (f->retTypeExpr) {
     // XXX: confusing flow
     if (!f->retTypeExpr->type)
-      return;
-    f->func_decl->retTy = f->retTypeExpr->type;
+      return nullptr;
+    f->func_decl->ret_ty = f->retTypeExpr->type;
   } else {
-    f->func_decl->retTy = sema.context.void_type;
+    f->func_decl->ret_ty = sema.context.void_type;
   }
 
   // FIXME: what about type_table?
   sema.context.func_decl_stack.push_back(f->func_decl);
   visitCompoundStmt(f->body);
   sema.context.func_decl_stack.pop_back();
+
+  // FIXME: necessary?
+  return f->func_decl->ret_ty;
 }
 
-void TypeChecker::visitStructDecl(StructDeclNode *s) {
+Type *TypeChecker::visitStructDecl(StructDeclNode *s) {
   // Create a new type for this struct.
   auto type = make_value_type(sema, s->name, s->struct_decl);
   s->struct_decl->type = type;
@@ -617,9 +641,11 @@ void TypeChecker::visitStructDecl(StructDeclNode *s) {
   // This is a pre-order walk so that recursive struct definitions are made
   // possible.
   walk_struct_decl(*this, s);
+
+  return s->struct_decl->type;
 }
 
-void TypeChecker::visitEnumVariantDecl(EnumVariantDeclNode *v) {
+Type *TypeChecker::visitEnumVariantDecl(EnumVariantDeclNode *v) {
   // Create a new type for this struct.
   auto type = make_value_type(sema, v->name, v->struct_decl);
   v->struct_decl->type = type;
@@ -627,15 +653,19 @@ void TypeChecker::visitEnumVariantDecl(EnumVariantDeclNode *v) {
   // This is a pre-order walk so that recursive struct definitions are made
   // possible.
   walk_enum_variant_decl(*this, v);
+
+  return v->struct_decl->type;
 }
 
-void TypeChecker::visitEnumDecl(EnumDeclNode *e) {
+Type *TypeChecker::visitEnumDecl(EnumDeclNode *e) {
   auto type = make_value_type(sema, e->name, e->enum_decl);
   e->enum_decl->type = type;
 
   // This is a pre-order walk so that recursive enum definitions are made
   // possible.
   walk_enum_decl(*this, e);
+
+  return e->enum_decl->type;
 }
 
 BasicBlock *ReturnChecker::visitStmt(Stmt *s, BasicBlock *bb) {
@@ -917,7 +947,7 @@ void CodeGenerator::visitStructDecl(StructDeclNode *s) {
 
 void CodeGenerator::visitFuncDecl(FuncDeclNode *f) {
   if (f->retTypeExpr)
-    emit("{}", cStringify(f->func_decl->retTy));
+    emit("{}", cStringify(f->func_decl->ret_ty));
   else
     emit("void");
 

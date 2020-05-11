@@ -92,7 +92,7 @@ struct EnumDecl {
 // Declaration of a function.
 struct FuncDecl {
     Name *name = nullptr;
-    Type *retTy = nullptr;
+    Type *ret_ty = nullptr;
     std::vector<VarDecl *> args;
 
     FuncDecl(Name *n) : name(n) {}
@@ -260,32 +260,32 @@ public:
 };
 
 // Type checking pass.
-class TypeChecker : public AstVisitor<TypeChecker, void> {
-    Sema &sema;
+class TypeChecker : public AstVisitor<TypeChecker, Type *> {
+  Sema &sema;
 
 public:
-    TypeChecker(Sema &s) : sema{s} {}
-    bool success() const { return sema.errors.empty(); }
+  TypeChecker(Sema &s) : sema{s} {}
+  bool success() const { return sema.errors.empty(); }
 
-    void visitAssignStmt(AssignStmt *as);
-    void visitReturnStmt(ReturnStmt *rs);
+  Type *visitAssignStmt(AssignStmt *as);
+  Type *visitReturnStmt(ReturnStmt *rs);
 
-    void visitIntegerLiteral(IntegerLiteral *i);
-    void visitStringLiteral(StringLiteral *s);
-    void visitDeclRefExpr(DeclRefExpr *d);
-    void visitFuncCallExpr(FuncCallExpr *f);
-    void visitStructDefExpr(StructDefExpr *s);
-    void visitMemberExpr(MemberExpr *m);
-    void visitUnaryExpr(UnaryExpr *u);
-    void visitParenExpr(ParenExpr *p);
-    void visitBinaryExpr(BinaryExpr *b);
-    void visitTypeExpr(TypeExpr *t);
+  Type *visitIntegerLiteral(IntegerLiteral *i);
+  Type *visitStringLiteral(StringLiteral *s);
+  Type *visitDeclRefExpr(DeclRefExpr *d);
+  Type *visitFuncCallExpr(FuncCallExpr *f);
+  Type *visitStructDefExpr(StructDefExpr *s);
+  Type *visitMemberExpr(MemberExpr *m);
+  Type *visitUnaryExpr(UnaryExpr *u);
+  Type *visitParenExpr(ParenExpr *p);
+  Type *visitBinaryExpr(BinaryExpr *b);
+  Type *visitTypeExpr(TypeExpr *t);
 
-    void visitVarDecl(VarDeclNode *v);
-    void visitFuncDecl(FuncDeclNode *f);
-    void visitStructDecl(StructDeclNode *s);
-    void visitEnumVariantDecl(EnumVariantDeclNode *e);
-    void visitEnumDecl(EnumDeclNode *e);
+  Type *visitVarDecl(VarDeclNode *v);
+  Type *visitFuncDecl(FuncDeclNode *f);
+  Type *visitStructDecl(StructDeclNode *s);
+  Type *visitEnumVariantDecl(EnumVariantDeclNode *e);
+  Type *visitEnumDecl(EnumDeclNode *e);
 };
 
 class ReturnChecker
