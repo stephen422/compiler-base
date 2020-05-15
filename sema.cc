@@ -19,26 +19,32 @@ std::string Type::str() const { return name->text; }
 // }
 
 void Sema::error(size_t pos, const std::string &msg) {
-    Error e(source.locate(pos), msg);
-    errors.push_back(e);
+  Error e(source.locate(pos), msg);
+  errors.push_back(e);
 }
 
-Type *make_value_type(Sema &sema, Name *n, Type::TypeDecl decl) {
-    Type *t = new Type(TypeKind::value, n, nullptr, decl);
-    sema.type_pool.push_back(t);
-    return t;
+Type *make_builtin_type(Sema &sema, Name *n) {
+  Type *t = new Type(n);
+  sema.type_pool.push_back(t);
+  return t;
+}
+
+Type *make_value_type(Sema &sema, Name *n, Decl decl) {
+  Type *t = new Type(TypeKind::value, n, decl);
+  sema.type_pool.push_back(t);
+  return t;
 }
 
 Type *make_ref_type(Sema &sema, Name *n, Type *base_type) {
-    Type *t = new Type(TypeKind::ref, n, base_type, std::monostate{});
-    sema.type_pool.push_back(t);
-    return t;
+  Type *t = new Type(TypeKind::ref, n, base_type);
+  sema.type_pool.push_back(t);
+  return t;
 }
 
 Type *push_builtin_type_from_name(Sema &s, const std::string &str) {
   Name *name = s.name_table.get_or_add(str);
   auto struct_decl = s.make_decl<StructDecl>(name);
-  struct_decl->type = make_value_type(s, name, std::monostate{});
+  struct_decl->type = make_builtin_type(s, name);
   s.decl_table.insert(name, struct_decl);
   return struct_decl->type;
 }
@@ -46,21 +52,21 @@ Type *push_builtin_type_from_name(Sema &s, const std::string &str) {
 // Push Decls for the builtin types into the global scope of decl_table, so
 // that they are visible from any point in the AST.
 void setup_builtin_types(Sema &s) {
-    s.context.void_type = push_builtin_type_from_name(s, "void");
-    s.context.int_type = push_builtin_type_from_name(s, "int");
-    s.context.char_type = push_builtin_type_from_name(s, "char");
-    s.context.string_type = push_builtin_type_from_name(s, "string");
+  s.context.void_type = push_builtin_type_from_name(s, "void");
+  s.context.int_type = push_builtin_type_from_name(s, "int");
+  s.context.char_type = push_builtin_type_from_name(s, "char");
+  s.context.string_type = push_builtin_type_from_name(s, "string");
 }
 
 Sema::Sema(Parser &p) : Sema(p.lexer.source(), p.names, p.errors, p.beacons) {}
 
 Sema::~Sema() {
-    for (auto d : decl_pool)
-        delete d;
-    for (auto t : type_pool)
-        delete t;
-    for (auto b : bb_pool)
-        delete b;
+  for (auto d : decl_pool)
+    delete d;
+  for (auto t : type_pool)
+    delete t;
+  for (auto b : bb_pool)
+    delete b;
 }
 
 void Sema::scope_open() {
@@ -183,8 +189,7 @@ void NameBinder::visitVarDecl(VarDeclNode *v) {
   walk_var_decl(*this, v);
 
   v->var_decl = declare<VarDecl>(sema, v->name, v->pos);
-  if (!v->var_decl)
-    return;
+  if (!v->var_decl) return;
 
   // struct member declarations are also parsed as VarDecls.
   if (v->kind == VarDeclNodeKind::struct_) {
@@ -200,8 +205,7 @@ void NameBinder::visitVarDecl(VarDeclNode *v) {
 
 void NameBinder::visitFuncDecl(FuncDeclNode *f) {
   f->func_decl = declare<FuncDecl>(sema, f->name, f->pos);
-  if (!f->func_decl)
-    return;
+  if (!f->func_decl) return;
 
   sema.decl_table.scope_open(); // for argument variables
   sema.context.func_decl_stack.push_back(f->func_decl);
@@ -214,8 +218,7 @@ void NameBinder::visitFuncDecl(FuncDeclNode *f) {
 
 void NameBinder::visitStructDecl(StructDeclNode *s) {
   s->struct_decl = declare<StructDecl>(sema, s->name, s->pos);
-  if (!s->struct_decl)
-    return;
+  if (!s->struct_decl) return;
 
   // Decl table is used for checking redefinition when parsing the member
   // list.
@@ -725,25 +728,27 @@ BasicBlock *ReturnChecker::visitIfStmt(IfStmt *is, BasicBlock *bb) {
 namespace {
 
 // Do the iterative solution for the dataflow analysis.
-void returnCheckSolve(const std::vector<BasicBlock *> &walkList) {
-  for (auto bb : walkList)
+void returnCheckSolve(const std::vector<BasicBlock *> &walklist) {
+  for (auto bb : walklist) {
     bb->returned_so_far = false;
+  }
 
   bool changed = true;
   while (changed) {
     changed = false;
 
-    for (auto bbI = walkList.rbegin(); bbI != walkList.rend(); bbI++) {
+    for (auto bbI = walklist.rbegin(); bbI != walklist.rend(); bbI++) {
       auto bb = *bbI;
 
-      bool allPredReturns = false;
+      bool all_pred_returns = false;
       if (!bb->pred.empty()) {
-        allPredReturns = true;
-        for (auto pbb : bb->pred)
-          allPredReturns &= pbb->returned_so_far;
+        all_pred_returns = true;
+        for (auto pbb : bb->pred) {
+          all_pred_returns &= pbb->returned_so_far;
+        }
       }
 
-      auto t = bb->returns() || allPredReturns;
+      auto t = bb->returns() || all_pred_returns;
       if (t != bb->returned_so_far) {
         changed = true;
         bb->returned_so_far = t;
@@ -755,21 +760,20 @@ void returnCheckSolve(const std::vector<BasicBlock *> &walkList) {
 } // namespace
 
 BasicBlock *ReturnChecker::visitFuncDecl(FuncDeclNode *f, BasicBlock *bb) {
-  if (!f->ret_type_expr)
-    return nullptr;
+  if (!f->ret_type_expr) return nullptr;
 
-  auto entryPoint = sema.make_basic_block();
-  auto exitPoint = visitCompoundStmt(f->body, entryPoint);
+  auto entry_point = sema.make_basic_block();
+  auto exit_point = visitCompoundStmt(f->body, entry_point);
 
   std::vector<BasicBlock *> walkList;
-  entryPoint->enumeratePostOrder(walkList);
+  entry_point->enumeratePostOrder(walkList);
 
   // for (auto bb : walkList)
   //   fmt::print("BasicBlock: {} stmts\n", bb->stmts.size());
 
   returnCheckSolve(walkList);
 
-  if (!exitPoint->returned_so_far)
+  if (!exit_point->returned_so_far)
     sema.error(f->pos, "function not guaranteed to return a value");
 
   return nullptr;

@@ -525,7 +525,6 @@ public:
       return dis()->visitDecl(static_cast<DeclNode *>(a), args...);
       break;
     default:
-      fmt::print("AstKind: {}\n", a->kind);
       assert(false && "not a toplevel node");
     }
     return RetTy();
@@ -545,8 +544,7 @@ public:
       return dis()->visitReturnStmt(static_cast<ReturnStmt *>(s), args...);
       break;
     case StmtKind::compound:
-      return dis()->visitCompoundStmt(static_cast<CompoundStmt *>(s),
-                                        args...);
+      return dis()->visitCompoundStmt(static_cast<CompoundStmt *>(s), args...);
       break;
     case StmtKind::if_:
       return dis()->visitIfStmt(static_cast<IfStmt *>(s), args...);
@@ -643,22 +641,22 @@ public:
     switch (e->kind) {
     case ExprKind::integer_literal:
       return dis()->visitIntegerLiteral(static_cast<IntegerLiteral *>(e),
-                                          args...);
+                                        args...);
       break;
     case ExprKind::string_literal:
       return dis()->visitStringLiteral(static_cast<StringLiteral *>(e),
-                                         args...);
+                                       args...);
       // do nothing
       break;
     case ExprKind::decl_ref:
       return dis()->visitDeclRefExpr(static_cast<DeclRefExpr *>(e), args...);
       break;
     case ExprKind::func_call:
-      return dis()->visitFuncCallExpr(static_cast<FuncCallExpr *>(e),
-                                         args...);
+      return dis()->visitFuncCallExpr(static_cast<FuncCallExpr *>(e), args...);
       break;
     case ExprKind::struct_def:
-      return dis()->visitStructDefExpr(static_cast<StructDefExpr *>(e), args...);
+      return dis()->visitStructDefExpr(static_cast<StructDefExpr *>(e),
+                                       args...);
       break;
     case ExprKind::member:
       return dis()->visitMemberExpr(static_cast<MemberExpr *>(e), args...);

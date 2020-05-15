@@ -11,58 +11,6 @@
 
 namespace cmp {
 
-// 'Type' represents a type, whether it be built-in, user-defined, or a
-// reference to another type.  It exists separately from the AST node TypeExpr.
-// Similar to Names, Types are designed to be comparable by simply comparing
-// the value of raw Type pointers.
-//
-// TODO: switch to union/variant?
-enum class TypeKind {
-    value, // built-in, struct
-    ref,
-    array,
-};
-
-struct Type {
-  // There are several Decl kinds that can have a type. This is a union type
-  // used to store those kinds of Decl objects as a single member.
-  // XXX: why not just use Decl?
-  using TypeDecl = std::variant<std::monostate, StructDecl *, EnumDecl *>;
-
-  TypeKind kind;
-  // Name of the type. TODO: include & or [] in the name?
-  Name *name = nullptr;
-  // The type that this type refers to.  If it is a non-reference type, this
-  // should be null.
-  Type *base_type = nullptr;
-  // Back-reference to the decl object that defines this type.
-  TypeDecl type_decl = std::monostate{};
-
-  Type(TypeKind k, Name *n, Type *bt, TypeDecl td)
-      : kind(k), name(n), base_type(bt), type_decl(td) {}
-
-  std::string str() const;
-
-  bool is_struct() const {
-    // TODO: should base_type be null too?
-    return std::holds_alternative<StructDecl *>(type_decl);
-  }
-  bool is_enum() const {
-    // TODO: should base_type be null too?
-    return std::holds_alternative<EnumDecl *>(type_decl);
-  }
-  bool is_member_accessible() const { return is_struct() || is_enum(); }
-
-  StructDecl *get_struct_decl() {
-    assert(std::holds_alternative<StructDecl *>(type_decl));
-    return std::get<StructDecl *>(type_decl);
-  }
-  EnumDecl *get_enum_decl() {
-    assert(std::holds_alternative<EnumDecl *>(type_decl));
-    return std::get<EnumDecl *>(type_decl);
-  }
-};
-
 // Declaration of a variable. Includes struct field variables.
 struct VarDecl {
     Name *name = nullptr;
@@ -111,12 +59,68 @@ using Decl = std::variant<VarDecl *, StructDecl *, EnumDecl *, FuncDecl *>;
 using DeclMemBlock = std::variant<VarDecl, StructDecl, EnumDecl, FuncDecl>;
 
 template <typename T> T *decl_as(const Decl decl) {
-    if (std::holds_alternative<T *>(decl))
-        return std::get<T *>(decl);
-    else
-        return nullptr;
+  if (std::holds_alternative<T *>(decl))
+    return std::get<T *>(decl);
+  else
+    return nullptr;
 }
 std::optional<Type *> decl_get_type(const Decl decl);
+
+// 'Type' represents a type, whether it be built-in, user-defined, or a
+// reference to another type.  It exists separately from the AST node TypeExpr.
+// Similar to Names, Types are designed to be comparable by simply comparing
+// the value of raw Type pointers.
+//
+// TODO: switch to union/variant?
+enum class TypeKind {
+    value, // built-in, struct
+    ref,
+    array,
+};
+
+struct Type {
+  TypeKind kind;
+  // Name of the type. TODO: include & or [] in the name?
+  Name *name = nullptr;
+  // Is this a builtin type?
+  bool builtin = false;
+  union {
+    // The type that this type refers to.  If it is a non-reference type, this
+    // should be null.
+    Type *base_type = nullptr;
+    // Back-reference to the decl object that defines this value type.
+    Decl type_decl;
+  };
+
+  Type(Name *n) : kind(TypeKind::value), name(n), builtin(true) {}
+  Type(TypeKind k, Name *n, Type *bt) : kind(k), name(n), base_type(bt) {}
+  Type(TypeKind k, Name *n, Decl td) : kind(k), name(n), type_decl(td) {}
+
+  std::string str() const;
+
+  bool is_struct() const {
+    // TODO: should base_type be null too?
+    return kind == TypeKind::value &&
+           std::holds_alternative<StructDecl *>(type_decl);
+  }
+  bool is_enum() const {
+    // TODO: should base_type be null too?
+    return kind == TypeKind::value &&
+           std::holds_alternative<EnumDecl *>(type_decl);
+  }
+  bool is_member_accessible() const { return is_struct() || is_enum(); }
+
+  StructDecl *get_struct_decl() {
+    assert(kind == TypeKind::value);
+    assert(std::holds_alternative<StructDecl *>(type_decl));
+    return std::get<StructDecl *>(type_decl);
+  }
+  EnumDecl *get_enum_decl() {
+    assert(kind == TypeKind::value);
+    assert(std::holds_alternative<EnumDecl *>(type_decl));
+    return std::get<EnumDecl *>(type_decl);
+  }
+};
 
 struct Context {
     // Current enclosing decls.
