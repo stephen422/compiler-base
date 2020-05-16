@@ -3,8 +3,6 @@
 
 #include "lexer.h"
 #include <cassert>
-#include <iostream>
-#include <memory>
 #include <unordered_map>
 #include <variant> // FIXME
 
@@ -20,7 +18,6 @@ enum class AstKind {
 // Forward-declare stuff so that we don't have to include sema.h.
 struct AstNode;
 struct File;
-struct Toplevel;
 struct Stmt;
 struct Expr;
 struct DeclNode;
@@ -95,13 +92,7 @@ struct AstNode {
     virtual void print() const = 0;
     // Convenience ostream for AST printing.
     // Handles indentation, tree drawing, etc.
-    std::ostream &out() const {
-        if (indent > 0) {
-            std::cout << std::string(indent - 2, ' ');
-            std::cout << "`-";
-        }
-        return std::cout;
-    }
+    std::ostream &out() const;
 
     // RAII trick to handle indentation.
     static int indent;

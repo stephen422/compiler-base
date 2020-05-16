@@ -19,3 +19,7 @@ func main() {
     // } else {
     // }
 }
+
+func f() {
+    Token {.pos = "3"} // ERROR: noj
+}

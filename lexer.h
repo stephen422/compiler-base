@@ -3,10 +3,6 @@
 #define LEXER_H
 
 #include "source.h"
-#include <algorithm>
-#include <map>
-#include <string>
-#include <string_view>
 
 namespace cmp {
 

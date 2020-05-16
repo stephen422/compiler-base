@@ -78,22 +78,22 @@ void ScopedTable<T>::scope_close() {
     scope_level--;
 }
 
-template <typename T>
-void ScopedTable<T>::print() const {
-    for (int i = 0; i < SYMBOL_TABLE_BUCKET_COUNT; i++) {
-        auto *p = keys[i];
-        if (!p)
-            continue;
-        std::cout << "[" << i << "]";
-        for (; p; p = p->next)
-            fmt::print("{{{}}}", p->value.str());
-        std::cout << std::endl;
-    }
-    for (size_t i = 0; i < scope_stack.size(); i++) {
-        std::cout << "Scope " << i << ":";
-        for (Symbol *p = scope_stack[i]; p; p = p->cross)
-            fmt::print("{{{}}}", p->value.str());
-        std::cout << std::endl;
-    }
-}
+template <typename T> void ScopedTable<T>::print() const {
+  for (int i = 0; i < SYMBOL_TABLE_BUCKET_COUNT; i++) {
+    auto *p = keys[i];
+    if (!p) continue;
 
+    printf("[%d]", i);
+    for (; p; p = p->next) {
+      printf("{%s}", p->value.str());
+    }
+    printf("\n");
+  }
+  for (size_t i = 0; i < scope_stack.size(); i++) {
+    printf("Scope %d:", i);
+    for (Symbol *p = scope_stack[i]; p; p = p->cross) {
+      printf("{%s}", p->value.str());
+    }
+    printf("\n");
+  }
+}

@@ -1,11 +1,20 @@
 #include "ast.h"
 #include "sema.h"
-#include <cassert>
+#include <iostream>
 #include <sstream>
+#include <cassert>
 
 namespace cmp {
 
 int AstNode::indent = 0;
+
+std::ostream &AstNode::out() const {
+  if (indent > 0) {
+    std::cout << std::string(indent - 2, ' ');
+    std::cout << "`-";
+  }
+  return std::cout;
+}
 
 // Gets the union of the source ranges of nodes.
 std::pair<size_t, size_t>

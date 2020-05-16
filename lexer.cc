@@ -208,8 +208,8 @@ void Lexer::skip_whitespace() {
 
 void Lexer::error(const std::string &msg) {
     auto loc = src.locate(pos());
-    std::cout << loc.filename << ":" << loc.line << ":" << loc.col << ": ";
-    std::cout << "lex error: " << msg << std::endl;
+    printf("%s:%d:%d: ", loc.filename.c_str(), loc.line, loc.col);
+    printf("lex error: %s\n", msg.c_str());
     exit(1);
 }
 
