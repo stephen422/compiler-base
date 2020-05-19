@@ -74,37 +74,44 @@ struct Ast {
 
 struct Sema;
 
-struct AstNode {
-    AstKind kind;   // node kind
-    size_t pos = 0; // start pos of this AST in the source text
-
-    AstNode() {}
-    AstNode(AstKind kind) : kind(kind) {}
-    virtual ~AstNode() = default;
-
-    // Casts to the *pointer* of the given type.  Not checked.
-    template <typename T> T *as() { return static_cast<T *>(this); }
-    template <typename T> const T *as() const {
-        return static_cast<const T *>(this);
-    }
-
-    // AST printing.
-    virtual void print() const = 0;
-    // Convenience ostream for AST printing.
-    // Handles indentation, tree drawing, etc.
-    std::ostream &out() const;
-
-    // RAII trick to handle indentation.
-    static int indent;
-    struct PrintScope {
-        PrintScope() { indent += 2; }
-        ~PrintScope() { indent -= 2; }
-    };
+enum class Pass {
+  none,
+  parse,
+  namebind,
+  typecheck,
+  // returncheck?
+  codegen,
 };
 
-// ========
-//   File
-// ========
+struct AstNode {
+  AstKind kind;               // node kind
+  size_t pos = 0;             // start pos of this AST in the source text
+  Pass progress = Pass::none; // latest pass that this node got through
+  bool failed = false;
+
+  AstNode() {}
+  AstNode(AstKind kind) : kind(kind) {}
+  virtual ~AstNode() = default;
+
+  // Casts to the *pointer* of the given type.  Not checked.
+  template <typename T> T *as() { return static_cast<T *>(this); }
+  template <typename T> const T *as() const {
+    return static_cast<const T *>(this);
+  }
+
+  // AST printing.
+  virtual void print() const = 0;
+  // Convenience ostream for AST printing.
+  // Handles indentation, tree drawing, etc.
+  std::ostream &out() const;
+
+  // RAII trick to handle indentation.
+  static int indent;
+  struct PrintScope {
+    PrintScope() { indent += 2; }
+    ~PrintScope() { indent -= 2; }
+  };
+};
 
 // File is simply a group of Toplevels.
 struct File : public AstNode {
@@ -114,9 +121,9 @@ struct File : public AstNode {
     std::vector<AstNode *> toplevels;
 };
 
-// =============
-//   Statement
-// =============
+//
+// Statements
+// ==========
 
 enum class StmtKind {
     decl,
@@ -204,9 +211,8 @@ struct BadStmt : public Stmt {
 };
 
 
-// ==============
-//   Expression
-// ==============
+// Expressions
+// ===========
 
 enum class ExprKind {
     integer_literal,
@@ -385,9 +391,8 @@ struct BadExpr : public Expr {
     void print() const override;
 };
 
-// ================
-//   Declarations
-// ================
+// Declarations
+// ============
 
 enum class DeclNodeKind {
     var,
@@ -488,7 +493,8 @@ struct BadDeclNode : public DeclNode {
 // Curiously-recurring template pattern (CRTP) is used to enable calling the
 // visitor function of the derived class from the that of the parent class
 // defined here.  See commit log b7e6113.
-template <typename Derived, typename RetTy, typename... Args> class AstVisitor {
+template <typename Derived, typename RetTy = void, typename... Args>
+class AstVisitor {
   // 'Derived this'. By calling visitors and walkers through the return
   // pointer of this function, the base class can access the derived visitor
   // implementations.

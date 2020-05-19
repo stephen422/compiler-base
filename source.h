@@ -1,9 +1,6 @@
-// -*- C++ -*-
 #ifndef SOURCE_H
 #define SOURCE_H
 
-#include "fmt/core.h"
-#include "fmt/format.h"
 #include <string>
 #include <vector>
 

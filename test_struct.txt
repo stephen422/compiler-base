@@ -21,5 +21,5 @@ func main() {
 }
 
 func f() {
-    Token {.pos = "3"} // ERROR: noj
+    Token {.pos = "3"} // ERROR: type error
 }

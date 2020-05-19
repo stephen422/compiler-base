@@ -146,26 +146,25 @@ void NameBinder::visitFuncCallExpr(FuncCallExpr *f) {
 }
 
 void NameBinder::visitTypeExpr(TypeExpr *t) {
-    walk_type_expr(*this, t);
+  walk_type_expr(*this, t);
 
-    // Namebinding for TypeExprs only include linking existing Decls to the
-    // type names used in the expression, not declaring new ones.  The
-    // declaration would be done when visiting VarDecls and StructDecls, etc.
+  // Namebinding for TypeExprs only include linking existing Decls to the
+  // type names used in the expression, not declaring new ones.  The
+  // declaration would be done when visiting VarDecls and StructDecls, etc.
 
-    // For pointers and arrays, proper typechecking will be done in the later
-    // stages.
-    if (t->subexpr)
-        return;
+  // For pointers and arrays, proper typechecking will be done in the later
+  // stages.
+  if (t->subexpr) return;
 
-    auto sym = sema.decl_table.find(t->name);
-    if (sym && decl_get_type(sym->value)) {
-        assert(t->kind == TypeExprKind::value);
-        t->decl = sym->value;
-    } else {
-        sema.error(t->pos,
-                   fmt::format("use of undeclared type '{}'", t->name->str()));
-        return;
-    }
+  auto sym = sema.decl_table.find(t->name);
+  if (sym && decl_get_type(sym->value)) {
+    assert(t->kind == TypeExprKind::value);
+    t->decl = sym->value;
+  } else {
+    sema.error(t->pos,
+               fmt::format("use of undeclared type '{}'", t->name->str()));
+    return;
+  }
 }
 
 // Semantically declare a 'name' at a 'pos', whose Decl type is T.
@@ -204,16 +203,23 @@ void NameBinder::visitVarDecl(VarDeclNode *v) {
 }
 
 void NameBinder::visitFuncDecl(FuncDeclNode *f) {
+  auto err_count = sema.errors.size();
+
   f->func_decl = declare<FuncDecl>(sema, f->name, f->pos);
   if (!f->func_decl) return;
 
-  sema.decl_table.scope_open(); // for argument variables
+  // scope for argument variables
+  sema.decl_table.scope_open();
   sema.context.func_decl_stack.push_back(f->func_decl);
 
   walk_func_decl(*this, f);
 
   sema.context.func_decl_stack.pop_back();
   sema.decl_table.scope_close();
+
+  if (sema.errors.size() != err_count) {
+    f->failed = true;
+  }
 }
 
 void NameBinder::visitStructDecl(StructDeclNode *s) {
@@ -234,7 +240,7 @@ void NameBinder::visitStructDecl(StructDeclNode *s) {
 namespace {
 
 // Generate a name for the anonymous fields in each enum variant structs.
-// For now, these are named as "_0", "_1", etc.
+// For now, these are named "_0", "_1", and so on.
 Name *gen_anonymous_field_name(Sema &sema, size_t index) {
   auto text = fmt::format("_{}", index);
   return sema.name_table.get_or_add(text);
@@ -304,7 +310,7 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
 
   // L-value check.
   // XXX: It's not obvious that r-values correspond to expressions that don't
-  // have an associated Decl object. Maybe make an isRValue() function.
+  // have an associated Decl object. Maybe make an is_rvalue() function.
   if (!as->lhs->decl()) {
     sema.error(as->pos, fmt::format("LHS is not assignable"));
     return nullptr;
@@ -323,9 +329,8 @@ bool FuncDecl::is_void(Sema &sema) const {
 }
 
 Type *TypeChecker::visitReturnStmt(ReturnStmt *rs) {
-  walk_return_stmt(*this, rs);
-  if (!rs->expr->type)
-    return nullptr;
+  visitExpr(rs->expr);
+  if (!rs->expr->type) return nullptr; // TODO
 
   assert(!sema.context.func_decl_stack.empty());
   auto func_decl = sema.context.func_decl_stack.back();
@@ -614,18 +619,19 @@ Type *TypeChecker::visitVarDecl(VarDeclNode *v) {
 }
 
 Type *TypeChecker::visitFuncDecl(FuncDeclNode *f) {
+  if (f->failed) return nullptr;
+  auto err_count = sema.errors.size();
+
   // We need to do return type typecheck before walking the body, so we can't
   // use the generic walk_func_decl function here.
 
-  if (f->ret_type_expr)
-    visitExpr(f->ret_type_expr);
+  if (f->ret_type_expr) visitExpr(f->ret_type_expr);
   for (auto arg : f->args)
     visitDecl(arg);
 
   if (f->ret_type_expr) {
     // XXX: confusing flow
-    if (!f->ret_type_expr->type)
-      return nullptr;
+    if (!f->ret_type_expr->type) return nullptr;
     f->func_decl->ret_ty = f->ret_type_expr->type;
   } else {
     f->func_decl->ret_ty = sema.context.void_type;
@@ -635,6 +641,10 @@ Type *TypeChecker::visitFuncDecl(FuncDeclNode *f) {
   sema.context.func_decl_stack.push_back(f->func_decl);
   visitCompoundStmt(f->body);
   sema.context.func_decl_stack.pop_back();
+
+  if (sema.errors.size() != err_count) {
+    f->failed = true;
+  }
 
   // FIXME: necessary?
   return f->func_decl->ret_ty;
@@ -760,6 +770,7 @@ void returnCheckSolve(const std::vector<BasicBlock *> &walklist) {
 } // namespace
 
 BasicBlock *ReturnChecker::visitFuncDecl(FuncDeclNode *f, BasicBlock *bb) {
+  if (f->failed) return nullptr;
   if (!f->ret_type_expr) return nullptr;
 
   auto entry_point = sema.make_basic_block();
@@ -958,6 +969,8 @@ void CodeGenerator::visitStructDecl(StructDeclNode *s) {
 }
 
 void CodeGenerator::visitFuncDecl(FuncDeclNode *f) {
+  if (f->failed) return;
+
   if (f->ret_type_expr)
     emit("{}", cStringify(f->func_decl->ret_ty));
   else

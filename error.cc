@@ -1,5 +1,6 @@
 #include "error.h"
 #include <algorithm>
+#include "fmt/format.h"
 
 namespace cmp {
 
@@ -28,34 +29,34 @@ bool verify(const std::string &filename, std::vector<Error> &errors,
       std::regex regex{beacon.message};
       if (!std::regex_search(error.message, regex)) {
         success = false;
-        fmt::print("< {}\n> {}\n", error.str(), beacon.str());
+        printf("< %s\n> %s\n", error.str().c_str(), beacon.str().c_str());
       }
       i++;
       j++;
     } else if (error.loc.line < beacon.loc.line) {
       success = false;
-      fmt::print("< {}\n", error.str());
+      printf("< %s\n", error.str().c_str());
       i++;
     } else {
       success = false;
-      fmt::print("> {}\n", beacon.str());
+      printf("> %s\n", beacon.str().c_str());
       j++;
     }
   }
   for (; i < errors.size(); i++) {
     success = false;
-    fmt::print("< {}\n", errors[i].str());
+    printf("< %s\n", errors[i].str().c_str());
   }
   for (; j < beacons.size(); j++) {
     success = false;
-    fmt::print("> {}\n", beacons[j].str());
+    printf("> %s\n", beacons[j].str().c_str());
   }
 
   // fmt::print("{} {}\n",
   //            success ? "\033[0;32msuccess\033[0m" : "\033[0;31mfail\033[0m",
   //            filename);
   if (!success) {
-    fmt::print("{} {}\n", "\033[0;31mfail\033[0m", filename);
+    printf("%s %s\n", "\033[0;31mfail\033[0m", filename.c_str());
   }
 
   return success;

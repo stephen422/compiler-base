@@ -245,7 +245,7 @@ template <typename T> T *declare(Sema &sema, Name *name, size_t pos);
 // It handles variable/function/struct declaration, redefinition/undeclared-uses
 // checks, number of function arguments checks, etc.
 // TODO: doc more.
-class NameBinder : public AstVisitor<NameBinder, void> {
+class NameBinder : public AstVisitor<NameBinder> {
   Sema &sema;
 
 public:
