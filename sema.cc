@@ -100,21 +100,13 @@ void NameBinder::visitCompoundStmt(CompoundStmt *cs) {
 }
 
 void NameBinder::visitDeclRefExpr(DeclRefExpr *d) {
-    auto sym = sema.decl_table.find(d->name);
-    if (!sym) {
-        sema.error(d->pos, fmt::format("use of undeclared identifier '{}'",
-                                       d->name->str()));
-        return;
-    }
-    if (auto vd = decl_as<VarDecl>(sym->value)) {
-        d->kind = DeclRefKind::var;
-        d->var_decl = vd;
-    } else if (auto ed = decl_as<EnumDecl>(sym->value)) {
-        d->kind = DeclRefKind::enum_;
-        d->enum_decl = ed;
-    } else {
-        assert(false && "not implemented");
-    }
+  auto sym = sema.decl_table.find(d->name);
+  if (!sym) {
+    sema.error(d->pos, fmt::format("use of undeclared identifier '{}'",
+                                   d->name->str()));
+    return;
+  }
+  d->decl = sym->value;
 }
 
 // Only binds the function name part of the call, e.g. 'func' of func().
@@ -364,22 +356,15 @@ Type *TypeChecker::visitStringLiteral(StringLiteral *s) {
 }
 
 Type *TypeChecker::visitDeclRefExpr(DeclRefExpr *d) {
-  // For varibles, since there is no type inference now, the type is determined
+  // For variables, since there is no type inference now, the type is determined
   // at the same time the variable is declared. So if a variable succeeded
   // namebinding, its type is guaranteed to be determined.
   //
   // For struct and enum names, they are not handled in the namebinding stage
   // and so should be taken care of here.
-  if (d->kind == DeclRefKind::var) {
-    assert(d->var_decl->type);
-    d->type = d->var_decl->type;
-  } else if (d->kind == DeclRefKind::enum_) {
-    assert(d->enum_decl->type);
-    d->type = d->enum_decl->type;
-  } else {
-    assert(false);
-  }
-
+  auto opt_type = decl_get_type(d->decl);
+  assert(opt_type.has_value() && "tried to typecheck a non-typed DeclRef");
+  d->type = *opt_type;
   return d->type;
 }
 
@@ -436,7 +421,8 @@ Type *TypeChecker::visitFuncCallExpr(FuncCallExpr *f) {
 }
 
 Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
-  assert(false && "not implemented");
+  s->name_expr;
+  assert(false && "TODO");
 }
 
 // MemberExprs cannot be namebinded completely without type checking (e.g.

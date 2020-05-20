@@ -3,22 +3,22 @@ struct Token {
     text: string
 }
 
-func main() {
-    Token {.pos} // ERROR: expected '='
-    Token {.pos = } // ERROR: expected an expression
-    Token {.pos 3} // ERROR: expected '='
-    Token {.pos = 3, .text = "hi"}
-
-    Token {pos} // ERROR: expected '='
-
-    if Token {.pos = 3} {
-    } else {
-    }
-
-    // if Token {} {
-    // } else {
-    // }
-}
+// func main() {
+//     Token {.pos} // ERROR: expected '='
+//     Token {.pos = } // ERROR: expected an expression
+//     Token {.pos 3} // ERROR: expected '='
+//     Token {.pos = 3, .text = "hi"}
+// 
+//     Token {pos} // ERROR: expected '='
+// 
+//     if Token {.pos = 3} {
+//     } else {
+//     }
+// 
+//     // if Token {} {
+//     // } else {
+//     // }
+// }
 
 func f() {
     Token {.pos = "3"} // ERROR: type error

@@ -33,21 +33,21 @@ get_ast_range(std::initializer_list<AstNode *> nodes) {
 }
 
 std::optional<Decl> Expr::decl() const {
-    switch (kind) {
-    case ExprKind::decl_ref:
-        return as<DeclRefExpr>()->var_decl;
-    case ExprKind::member:
-      return as<MemberExpr>()->decl;
-    case ExprKind::unary:
-        if (as<UnaryExpr>()->unaryKind == UnaryExprKind::paren)
-            return as<UnaryExpr>()->as<ParenExpr>()->decl();
-        else if (as<UnaryExpr>()->unaryKind == UnaryExprKind::deref)
-            return as<UnaryExpr>()->varDecl;
-        break;
-    default:
-        break;
-    }
-    return {};
+  switch (kind) {
+  case ExprKind::decl_ref:
+    return as<DeclRefExpr>()->decl;
+  case ExprKind::member:
+    return as<MemberExpr>()->decl;
+  case ExprKind::unary:
+    if (as<UnaryExpr>()->unaryKind == UnaryExprKind::paren)
+      return as<UnaryExpr>()->as<ParenExpr>()->decl();
+    else if (as<UnaryExpr>()->unaryKind == UnaryExprKind::deref)
+      return as<UnaryExpr>()->varDecl;
+    break;
+  default:
+    break;
+  }
+  return {};
 }
 
 //

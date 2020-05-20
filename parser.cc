@@ -512,7 +512,7 @@ Expr *Parser::parse_funccall_or_declref_expr() {
     } else {
         // Whether this is a variable or a struct/enum name can only be decided
         // in the type checking stage.
-        return make_node_pos<DeclRefExpr>(pos, DeclRefKind::undecided, name);
+        return make_node_pos<DeclRefExpr>(pos, name);
     }
 }
 

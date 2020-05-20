@@ -274,16 +274,10 @@ enum class DeclRefKind {
 // A unary expression that references a declaration object, e.g. a variable or
 // a function.
 struct DeclRefExpr : public Expr {
-  DeclRefKind kind;
   Name *name = nullptr;
-  union {
-    VarDecl *var_decl = nullptr;
-    StructDecl *struct_decl;
-    EnumDecl *enum_decl;
-  };
+  Decl decl;
 
-  DeclRefExpr(DeclRefKind k, Name *n)
-      : Expr(ExprKind::decl_ref), kind(k), name(n) {}
+  DeclRefExpr(Name *n) : Expr(ExprKind::decl_ref), name(n) {}
   void print() const override;
 };
 
