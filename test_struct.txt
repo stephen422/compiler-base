@@ -21,5 +21,7 @@ struct Token {
 // }
 
 func f() {
-    Token {.pos = "3"} // ERROR: type error
+    Token {.notthere = 0} // ERROR: no field named 'notthere'
+    Token {.pos = "3"} // ERROR: cannot assign 'string' .* 'int'
+    Token {.pos = 3, .text = "hi"}
 }

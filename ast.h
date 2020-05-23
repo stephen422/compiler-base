@@ -264,13 +264,6 @@ struct StringLiteral : public Expr {
     void print() const override;
 };
 
-enum class DeclRefKind {
-  undecided,
-  var,
-  struct_,
-  enum_,
-};
-
 // A unary expression that references a declaration object, e.g. a variable or
 // a function.
 struct DeclRefExpr : public Expr {
@@ -301,12 +294,12 @@ struct StructFieldDesignator {
 
 // 'Struct { .m1 = .e1, .m2 = e2, ... }'
 struct StructDefExpr : public Expr {
-    Expr *name_expr; // could be DeclRefs or MemberExprs
-    std::vector<StructFieldDesignator> desigs;
+  Expr *name_expr; // either a DeclRefExpr or a MemberExpr
+  std::vector<StructFieldDesignator> desigs;
 
-    StructDefExpr(Expr *e, const std::vector<StructFieldDesignator> &ds)
-        : Expr(ExprKind::struct_def), name_expr(e), desigs(ds) {}
-    void print() const override;
+  StructDefExpr(Expr *e, const std::vector<StructFieldDesignator> &ds)
+      : Expr(ExprKind::struct_def), name_expr(e), desigs(ds) {}
+  void print() const override;
 };
 
 // 'struct.mem'
@@ -817,14 +810,16 @@ void walk_if_stmt(Visitor &v, IfStmt *is, Args... args) {
 }
 template <typename Visitor, typename... Args>
 void walk_func_call_expr(Visitor &v, FuncCallExpr *f, Args... args) {
-  for (auto arg : f->args)
+  for (auto arg : f->args) {
     v.visitExpr(arg, args...);
+  }
 }
 template <typename Visitor, typename... Args>
 void walk_struct_def_expr(Visitor &v, StructDefExpr *s, Args... args) {
-    v.visitExpr(s->name_expr, args...);
-    for (auto d : s->desigs)
-        v.visitExpr(d.expr, args...);
+  v.visitExpr(s->name_expr, args...);
+  for (auto d : s->desigs) {
+    v.visitExpr(d.expr, args...);
+  }
 }
 template <typename Visitor, typename... Args>
 void walk_member_expr(Visitor &v, MemberExpr *m, Args... args) {

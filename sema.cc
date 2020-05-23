@@ -285,6 +285,12 @@ void NameBinder::visitEnumDecl(EnumDeclNode *e) {
   sema.decl_table.scope_close();
 }
 
+// Typecheck assignment statement of 'lhs = rhs'.
+bool typecheck_assignment(Type *lhs, Type *rhs) {
+  // only allow exact equality for assignment for now (TODO)
+  return lhs == rhs;
+}
+
 // Assignments should check that the LHS is an l-value.
 // This check cannot be done reliably in the parsing stage because it depends
 // on the actual type of the expression, not just its kind; e.g. (v) or (3).
@@ -297,8 +303,7 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
   auto rhs_ty = as->rhs->type;
 
   // XXX: is this the best way to early-exit?
-  if (!lhs_ty || !rhs_ty)
-    return nullptr;
+  if (!lhs_ty || !rhs_ty) return nullptr;
 
   // L-value check.
   // XXX: It's not obvious that r-values correspond to expressions that don't
@@ -308,10 +313,11 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
     return nullptr;
   }
 
-  // Only allow exact equality for assignment for now (TODO).
-  if (lhs_ty != rhs_ty)
+  if (!typecheck_assignment(lhs_ty, rhs_ty)) {
     sema.error(as->pos, fmt::format("cannot assign '{}' type to '{}'",
                                     rhs_ty->name->str(), lhs_ty->name->str()));
+    return nullptr;
+  }
 
   return lhs_ty;
 }
@@ -363,7 +369,9 @@ Type *TypeChecker::visitDeclRefExpr(DeclRefExpr *d) {
   // For struct and enum names, they are not handled in the namebinding stage
   // and so should be taken care of here.
   auto opt_type = decl_get_type(d->decl);
-  assert(opt_type.has_value() && "tried to typecheck a non-typed DeclRef");
+  assert(
+      opt_type.has_value() &&
+      "tried to typecheck a non-typed DeclRef (first-class functions TODO?)");
   d->type = *opt_type;
   return d->type;
 }
@@ -421,8 +429,44 @@ Type *TypeChecker::visitFuncCallExpr(FuncCallExpr *f) {
 }
 
 Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
-  s->name_expr;
-  assert(false && "TODO");
+  walk_struct_def_expr(*this, s);
+
+  auto lhs_type = s->name_expr->type;
+  if (!lhs_type) return nullptr;
+  if (!lhs_type->is_struct()) {
+    sema.error(s->name_expr->pos,
+               fmt::format("type '{}' is not a struct", lhs_type->name->str()));
+    return nullptr;
+  }
+
+  // typecheck each field
+  // XXX: copy-paste from visitMemberExpr
+  for (auto desig : s->desigs) {
+    VarDecl *found_field = nullptr;
+    for (auto field : lhs_type->get_struct_decl()->fields) {
+      if (desig.name == field->name) {
+        found_field = field;
+        break;
+      }
+    }
+
+    if (!found_field) {
+      sema.error(desig.expr->pos, // FIXME: wrong pos
+                 fmt::format("no field named '{}' in struct '{}'",
+                             desig.name->str(),
+                             lhs_type->get_struct_decl()->name->str()));
+      return nullptr;
+    }
+
+    if (!typecheck_assignment(found_field->type, desig.expr->type)) {
+      sema.error(desig.expr->pos, fmt::format("cannot assign '{}' type to '{}'",
+                                              desig.expr->type->name->str(),
+                                              found_field->type->name->str()));
+      return nullptr;
+    }
+  }
+
+  return lhs_type;
 }
 
 // MemberExprs cannot be namebinded completely without type checking (e.g.
