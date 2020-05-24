@@ -466,6 +466,7 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
     }
   }
 
+  s->type = lhs_type;
   return lhs_type;
 }
 
@@ -979,6 +980,7 @@ void CodeGenerator::visitVarDecl(VarDeclNode *v) {
     emit("{} {}", cStringify(v->var_decl->type), v->name->str());
   } else {
     emit("{} {};\n", cStringify(v->var_decl->type), v->name->str());
+
     if (v->assign_expr) {
       emit("{} = ", v->name->str());
       visitExpr(v->assign_expr);
