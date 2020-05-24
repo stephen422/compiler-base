@@ -467,7 +467,7 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
   }
 
   s->type = lhs_type;
-  return lhs_type;
+  return s->type;
 }
 
 // MemberExprs cannot be namebinded completely without type checking (e.g.
@@ -870,6 +870,20 @@ void CodeGenerator::visitFuncCallExpr(FuncCallExpr *f) {
   }
 
   emitCont(")");
+}
+
+void CodeGenerator::visitStructDefExpr(StructDefExpr *s) {
+  emitCont("(");
+  visitExpr(s->name_expr);
+  emitCont(")");
+
+  emitCont(" {{");
+  for (const auto desig : s->desigs) {
+    emitCont(".{} = ", desig.name->str());
+    visitExpr(desig.expr);
+    emitCont(", ");
+  }
+  emitCont("}}");
 }
 
 void CodeGenerator::visitMemberExpr(MemberExpr *m) {

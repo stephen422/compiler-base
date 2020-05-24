@@ -73,3 +73,9 @@ TEST_CASE("Return checking") {
   d.compile();
   REQUIRE(d.verify());
 }
+
+TEST_CASE("Codegen") {
+  auto d = Driver::from_path(Path{"../test_codegen.txt"});
+  d.compile();
+  REQUIRE(d.verify());
+}

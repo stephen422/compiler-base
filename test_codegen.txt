@@ -1,6 +1,6 @@
-struct Car {
+struct Token {
   name: string
-  a: int
+  pos: int
 }
 
 func swap(a: *int, b: *int) {
@@ -22,5 +22,9 @@ func main() -> int {
   let b = 4
   swap(&a, &b)
   #printf("%d\n", a)
-  return a
+
+  // structs
+  let tok = Token {.name = "comma", .pos = 256}
+  #printf("%s, %d\n", tok.name, tok.pos)
+  return 0
 }

@@ -310,15 +310,16 @@ public:
 class CodeGenerator : public AstVisitor<CodeGenerator, void> {
   Sema &sema;
   int indent = 0;
+  FILE *file = nullptr;
 
   template <typename... Args> void emit(Args &&... args) {
-    fmt::print("{:{}}", "", indent);
-    fmt::print(std::forward<Args>(args)...);
+    fmt::print(file, "{:{}}", "", indent);
+    fmt::print(file, std::forward<Args>(args)...);
   }
   template <typename... Args> void emitCont(Args &&... args) {
-    fmt::print(std::forward<Args>(args)...);
+    fmt::print(file, std::forward<Args>(args)...);
   }
-  void emitIndent() { fmt::print("{:{}}", "", indent); };
+  void emitIndent() { fmt::print(file, "{:{}}", "", indent); };
 
   struct IndentBlock {
     CodeGenerator &c;
@@ -329,7 +330,8 @@ class CodeGenerator : public AstVisitor<CodeGenerator, void> {
   std::string cStringify(const Type *t);
 
 public:
-  CodeGenerator(Sema &s) : sema{s} {}
+  CodeGenerator(Sema &s) : sema{s} { file = fopen("test_codegen.c", "w"); }
+  ~CodeGenerator() { fclose(file); }
   bool success() const { return sema.errors.empty(); }
 
   void visitFile(File *f);
@@ -338,6 +340,7 @@ public:
   void visitStringLiteral(StringLiteral *s);
   void visitDeclRefExpr(DeclRefExpr *d);
   void visitFuncCallExpr(FuncCallExpr *f);
+  void visitStructDefExpr(StructDefExpr *s);
   void visitMemberExpr(MemberExpr *m);
   void visitUnaryExpr(UnaryExpr *u);
   void visitParenExpr(ParenExpr *p);
