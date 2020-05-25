@@ -537,7 +537,7 @@ Type *getReferenceType(Sema &sema, Type *type) {
 }
 
 Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
-  switch (u->unaryKind) {
+  switch (u->kind) {
   case UnaryExprKind::paren:
     visitParenExpr(static_cast<ParenExpr *>(u));
     break;
@@ -893,7 +893,7 @@ void CodeGenerator::visitMemberExpr(MemberExpr *m) {
 }
 
 void CodeGenerator::visitUnaryExpr(UnaryExpr *u) {
-  switch (u->unaryKind) {
+  switch (u->kind) {
   case UnaryExprKind::paren:
     return visitParenExpr(u->as<ParenExpr>());
     break;

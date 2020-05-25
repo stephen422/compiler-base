@@ -101,7 +101,7 @@ private:
     File *parseFile();
 
     // Parse a toplevel statement.
-    AstNode *parseToplevel();
+    AstNode *parse_toplevel();
 
     // Statement parsers.
     Stmt *parse_stmt();

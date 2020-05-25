@@ -790,7 +790,7 @@ void Parser::skip_newlines() {
         next();
 }
 
-AstNode *Parser::parseToplevel() {
+AstNode *Parser::parse_toplevel() {
   switch (tok.kind) {
   case Tok::kw_func:
     return parseFuncDecl();
@@ -799,7 +799,9 @@ AstNode *Parser::parseToplevel() {
   case Tok::kw_enum:
     return parseEnumDecl();
   default:
-    assert(false && "unrecognized toplevel");
+    error(fmt::format("unexpected '{}' at toplevel", tok.text));
+    skip_to_next_line();
+    return nullptr;
   }
 }
 
@@ -809,9 +811,8 @@ File *Parser::parseFile() {
   skip_newlines();
 
   while (!is_eos()) {
-    auto toplevel = parseToplevel();
-    if (!toplevel)
-      continue;
+    auto toplevel = parse_toplevel();
+    if (!toplevel) continue;
     file->toplevels.push_back(toplevel);
     skip_newlines();
   }

@@ -39,10 +39,10 @@ std::optional<Decl> Expr::decl() const {
   case ExprKind::member:
     return as<MemberExpr>()->decl;
   case ExprKind::unary:
-    if (as<UnaryExpr>()->unaryKind == UnaryExprKind::paren)
+    if (as<UnaryExpr>()->kind == UnaryExprKind::paren)
       return as<UnaryExpr>()->as<ParenExpr>()->decl();
-    else if (as<UnaryExpr>()->unaryKind == UnaryExprKind::deref)
-      return as<UnaryExpr>()->varDecl;
+    else if (as<UnaryExpr>()->kind == UnaryExprKind::deref)
+      return as<UnaryExpr>()->var_decl;
     break;
   default:
     break;
@@ -167,7 +167,7 @@ void BinaryExpr::print() const {
 void UnaryExpr::print() const {
     out() << "[UnaryExpr] ";
 
-    switch (unaryKind) {
+    switch (kind) {
     case UnaryExprKind::deref: {
         std::cout << "Deref\n";
         PrintScope start;

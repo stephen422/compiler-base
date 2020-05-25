@@ -314,13 +314,13 @@ struct MemberExpr : public Expr {
 };
 
 struct UnaryExpr : public Expr {
-    UnaryExprKind unaryKind;
-    Expr *operand;
-    VarDecl *varDecl = nullptr;
+  UnaryExprKind kind;
+  Expr *operand;
+  VarDecl *var_decl = nullptr;
 
-    UnaryExpr(UnaryExprKind k, Expr *oper)
-        : Expr(ExprKind::unary), unaryKind(k), operand(oper) {}
-    void print() const override;
+  UnaryExpr(UnaryExprKind k, Expr *oper)
+      : Expr(ExprKind::unary), kind(k), operand(oper) {}
+  void print() const override;
 };
 
 struct ParenExpr : public UnaryExpr {
@@ -688,7 +688,7 @@ public:
     return RetTy();
   }
   RetTy visitUnaryExpr(UnaryExpr *u, Args... args) {
-    switch (u->unaryKind) {
+    switch (u->kind) {
     case UnaryExprKind::paren:
       return dis()->visitParenExpr(static_cast<ParenExpr *>(u), args...);
       break;
