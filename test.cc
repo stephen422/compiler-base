@@ -68,6 +68,12 @@ TEST_CASE("Type checking") {
   REQUIRE(d.verify());
 }
 
+TEST_CASE("Borrow checking") {
+  auto d = Driver::from_path(Path{"../test_borrowck.txt"});
+  d.compile();
+  REQUIRE(d.verify());
+}
+
 TEST_CASE("Return checking") {
   auto d = Driver::from_path(Path{"../test_returnck.txt"});
   d.compile();

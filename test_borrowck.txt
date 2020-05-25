@@ -1,0 +1,8 @@
+func main() {
+    let x: *int
+    {
+        let a = 4
+        x = &a
+    }
+    *x // ERROR: lifetime error
+}
