@@ -395,11 +395,8 @@ static void error(Parser *p, const char *fmt, ...)
 	addError(p, loc, msg);
 }
 
-static char *errorstr(const Error e, char *buf, size_t len)
-{
-    snprintf(buf, len, "%s:%d:%d: error: %s", e.loc.filename, e.loc.line,
-                     e.loc.col, e.msg);
-    return buf;
+static void error_print(const Error e) {
+  printf("%s:%d:%d: error: %s\n", e.loc.filename, e.loc.line, e.loc.col, e.msg);
 }
 
 void parserReportErrors(const Parser *p)
@@ -867,23 +864,19 @@ void parserVerify(const Parser *p) {
 
   int i = 0, j = 0;
   while (i < sb_count(p->errors) || j < sb_count(p->beacons)) {
-    char ebuf[ERRLEN];
-    char bbuf[ERRLEN];
-
     int both_in_range = i < sb_count(p->errors) && j < sb_count(p->beacons);
     if (both_in_range && p->errors[i].loc.line == p->beacons[j].loc.line) {
       success = 0;
-      printf("index: %d\n", j);
-      printf("[%s]\n", p->beacons[j].msg);
       sds rs = sdsnew(p->beacons[j].msg);
       sdstrim(rs, "\"");
       regex_t preg;
       if (regcomp(&preg, rs, REG_NOSUB) == 0) {
         int match = regexec(&preg, p->errors[i].msg, 0, NULL, 0);
         if (match != 0) {
-          errorstr(p->errors[i], ebuf, sizeof(ebuf));
-          errorstr(p->beacons[j], bbuf, sizeof(bbuf));
-          printf("< %s\n> %s\n", ebuf, bbuf);
+          printf("< ");
+          error_print(p->errors[i]);
+          printf("> ");
+          error_print(p->beacons[j]);
         }
         regfree(&preg);
       } else {
@@ -896,15 +889,15 @@ void parserVerify(const Parser *p) {
                 p->errors[i].loc.line < p->beacons[j].loc.line) ||
                i < sb_count(p->errors)) {
       success = 0;
-      errorstr(p->errors[i], ebuf, sizeof(ebuf));
-      printf("< %s\n", ebuf);
+      printf("< ");
+      error_print(p->errors[i]);
       i++;
     } else if ((both_in_range &&
                 p->errors[i].loc.line > p->beacons[j].loc.line) ||
                j < sb_count(p->beacons)) {
       success = 0;
-      errorstr(p->beacons[j], bbuf, sizeof(bbuf));
-      printf("> %s\n", bbuf);
+      printf("> ");
+      error_print(p->beacons[j]);
       j++;
     }
   }
