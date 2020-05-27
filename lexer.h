@@ -64,7 +64,7 @@ typedef enum TokenType {
 } TokenType;
 
 #define TOKLEN 100
-char *token_names[NUM_TOKENTYPES];
+extern char *token_names[NUM_TOKENTYPES];
 
 struct token_map {
 	const char *text;
