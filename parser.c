@@ -367,14 +367,18 @@ static void next(Parser *p)
         }
 
         // Push keywords that we come by into the name table.
-        if (is_keyword(p->tok))
+        if (is_keyword(p->tok)) {
             push_name_from_token(p, p->tok);
+        }
     }
 }
 
 static void addError(Parser *p, SrcLoc loc, const char *msg)
 {
-    Error error = {.loc = loc, .msg = strdup(msg)};
+    int len = strlen(msg);
+    char *msgcpy = malloc(len + 1);
+    memcpy(msgcpy, msg, len + 1);
+    Error error = {.loc = loc, .msg = msgcpy};
     sb_push(p->errors, error);
 }
 
@@ -858,73 +862,80 @@ static Node *parseTopLevel(Parser *p)
 }
 
 void parserVerify(const Parser *p) {
+  int success = 1;
+  printf("\033[0;32mtest\033[0m %s:\n", p->lexer.filename);
+
+  int i = 0, j = 0;
+  while (i < sb_count(p->errors) || j < sb_count(p->beacons)) {
     char ebuf[ERRLEN];
     char bbuf[ERRLEN];
-    int success = 1;
-    printf("\033[0;32mtest\033[0m %s:\n", p->lexer.filename);
 
-    int i = 0, j = 0;
-    while (i < sb_count(p->errors) || j < sb_count(p->beacons)) {
-        int bothInRange = i < sb_count(p->errors) && j < sb_count(p->beacons);
-        if (bothInRange && p->errors[i].loc.line == p->beacons[j].loc.line) {
-            success = 0;
-            sds rs = sdsnew(p->beacons[j].msg);
-            sdstrim(rs, "\"");
-            regex_t preg;
-            if (regcomp(&preg, rs, REG_NOSUB) == 0) {
-                int match = regexec(&preg, p->errors[i].msg, 0, NULL, 0);
-                if (match != 0) {
-                    errorstr(p->errors[i], ebuf, sizeof(ebuf));
-                    errorstr(p->beacons[j], bbuf, sizeof(bbuf));
-                    printf("< %s\n> %s\n", ebuf, bbuf);
-                }
-                regfree(&preg);
-            } else {
-                fatal("invalid regex in beacon: %s", p->beacons[j].msg);
-            }
-            sdsfree(rs);
-            i++;
-            j++;
-        } else if ((bothInRange &&
-                    p->errors[i].loc.line < p->beacons[j].loc.line) ||
-                   i < sb_count(p->errors)) {
-            success = 0;
-            errorstr(p->errors[i], ebuf, sizeof(ebuf));
-            printf("< %s\n", ebuf);
-            i++;
-        } else if ((bothInRange &&
-                    p->errors[i].loc.line > p->beacons[j].loc.line) ||
-                   j < sb_count(p->beacons)) {
-            success = 0;
-            errorstr(p->beacons[j], bbuf, sizeof(bbuf));
-            printf("> %s\n", bbuf);
-            j++;
+    int both_in_range = i < sb_count(p->errors) && j < sb_count(p->beacons);
+    if (both_in_range && p->errors[i].loc.line == p->beacons[j].loc.line) {
+      success = 0;
+      printf("index: %d\n", j);
+      printf("[%s]\n", p->beacons[j].msg);
+      sds rs = sdsnew(p->beacons[j].msg);
+      sdstrim(rs, "\"");
+      regex_t preg;
+      if (regcomp(&preg, rs, REG_NOSUB) == 0) {
+        int match = regexec(&preg, p->errors[i].msg, 0, NULL, 0);
+        if (match != 0) {
+          errorstr(p->errors[i], ebuf, sizeof(ebuf));
+          errorstr(p->beacons[j], bbuf, sizeof(bbuf));
+          printf("< %s\n> %s\n", ebuf, bbuf);
         }
+        regfree(&preg);
+      } else {
+        fatal("invalid regex in beacon: %s", p->beacons[j].msg);
+      }
+      sdsfree(rs);
+      i++;
+      j++;
+    } else if ((both_in_range &&
+                p->errors[i].loc.line < p->beacons[j].loc.line) ||
+               i < sb_count(p->errors)) {
+      success = 0;
+      errorstr(p->errors[i], ebuf, sizeof(ebuf));
+      printf("< %s\n", ebuf);
+      i++;
+    } else if ((both_in_range &&
+                p->errors[i].loc.line > p->beacons[j].loc.line) ||
+               j < sb_count(p->beacons)) {
+      success = 0;
+      errorstr(p->beacons[j], bbuf, sizeof(bbuf));
+      printf("> %s\n", bbuf);
+      j++;
     }
+  }
 
-    printf("%s %s\n", success ? "\033[0;32msuccess\033[0m" : "\033[0;31mfail\033[0m", p->lexer.filename);
+  printf("%s %s\n",
+         success ? "\033[0;32msuccess\033[0m" : "\033[0;31mfail\033[0m",
+         p->lexer.filename);
 }
 
 // Parse a single error beacon ([error: "regex"]).
 Error parse_beacon(Parser *p) {
-    char buf[TOKLEN];
-    char *msg;
+  char buf[TOKLEN];
+  char *msg;
 
-    expect(p, TOK_LBRACKET);
-    expect(p, TOK_ERROR);
-    expect(p, TOK_COLON);
+  expect(p, TOK_LBRACKET);
+  expect(p, TOK_ERROR);
+  expect(p, TOK_COLON);
 
-    tokenstr(&p->lexer, p->tok, buf, sizeof(buf));
-    msg = strdup(buf);
+  tokenstr(&p->lexer, p->tok, buf, sizeof(buf));
+  int len = strlen(buf);
+  msg = malloc(len + 1);
+  memcpy(msg, buf, len + 1);
 
-    next(p);
+  next(p);
 
-    expect(p, TOK_RBRACKET);
+  expect(p, TOK_RBRACKET);
 
-    return (Error){
-        .loc = {0}, // overrided
-        .msg = msg,
-    };
+  return (Error){
+      .loc = {0}, // overrided
+      .msg = msg,
+  };
 }
 
 Node *parse(Parser *p)
