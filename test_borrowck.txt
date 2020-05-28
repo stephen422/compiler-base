@@ -4,5 +4,5 @@ func main() {
         let a = 4
         x = &a
     }
-    *x // ERROR: lifetime error
+    *x // ERROR: 'a' does not live long enough
 }

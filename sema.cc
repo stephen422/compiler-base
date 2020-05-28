@@ -826,6 +826,12 @@ void BasicBlock::enumerate_post_order(std::vector<BasicBlock *> &walklist) {
     walklist.push_back(this);
 }
 
+void BorrowChecker::visitCompoundStmt(CompoundStmt *cs) {
+    sema.scope_open();
+    walk_compound_stmt(*this, cs);
+    sema.scope_close();
+}
+
 void BorrowChecker::visitAssignStmt(AssignStmt *as) {
     walk_assign_stmt(*this, as);
 
@@ -842,9 +848,6 @@ void BorrowChecker::visitAssignStmt(AssignStmt *as) {
         decl_as<VarDecl>(*as->rhs->as<UnaryExpr>()->operand->decl());
 
     lhs_decl->borrowee = borrowee_decl;
-
-    // TODO: for debug
-    sema.error(as->pos, "borrow happens here");
 }
 
 // Rule: a variable of lifetime 'a should only refer to a variable whose
@@ -856,7 +859,12 @@ void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
 
     auto var = decl_as<VarDecl>(d->decl);
     if (var->borrowee) {
-        printf("name of borrowee: %s\n", var->borrowee->name->str());
+        auto sym = sema.live_list.find(var->borrowee->name);
+        if (!sym || sym->value != var->borrowee) {
+            sema.error(d->pos, "'{}' does not live long enough",
+                       var->borrowee->name->str());
+            return;
+        }
     }
 }
 

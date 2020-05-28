@@ -144,13 +144,13 @@ struct Context {
 constexpr int SYMBOL_TABLE_BUCKET_COUNT = 512;
 template <typename T> struct ScopedTable {
     struct Symbol {
-        Symbol(Name *n, const T &v) : name(n), value(v) {}
-
         Name *name;              // name of this symbol
         T value;                 // semantic value of this symbol
         Symbol *next = nullptr;  // next symbol in the hash table bucket
         Symbol *cross = nullptr; // next symbol in the same scope
         int scope_level = 0;
+
+        Symbol(Name *n, const T &v) : name(n), value(v) {}
     };
 
     ScopedTable();
@@ -329,6 +329,7 @@ public:
   BorrowChecker(Sema &s) : sema{s} {}
   bool success() const { return sema.errors.empty(); }
 
+  void visitCompoundStmt(CompoundStmt *cs);
   void visitAssignStmt(AssignStmt *as);
 
   void visitDeclRefExpr(DeclRefExpr *d);

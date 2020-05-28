@@ -52,9 +52,9 @@ template <typename T> T *ScopedTable<T>::insert(Name *name, const T &value) {
 template <typename T>
 typename ScopedTable<T>::Symbol *ScopedTable<T>::find(Name *name) const {
     int index = hash(name) % SYMBOL_TABLE_BUCKET_COUNT;
-    for (Symbol *s = keys[index]; s; s = s->next)
-        if (s->name == name)
-            return s;
+    for (Symbol *s = keys[index]; s; s = s->next) {
+        if (s->name == name) return s;
+    }
     return nullptr;
 }
 
