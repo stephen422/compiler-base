@@ -208,7 +208,7 @@ struct Sema {
   Sema(const Sema &) = delete;
   Sema(Sema &&) = delete;
   ~Sema();
-  void error(size_t pos, const std::string &msg);
+  template <typename... Args> void error(size_t pos, Args &&... args);
   void scope_open();
   void scope_close();
 

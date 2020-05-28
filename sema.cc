@@ -18,8 +18,8 @@ std::string Type::str() const { return name->text; }
 //     return name->text;
 // }
 
-void Sema::error(size_t pos, const std::string &msg) {
-  Error e(source.locate(pos), msg);
+template <typename... Args> void Sema::error(size_t pos, Args &&... args) {
+  Error e(source.locate(pos), fmt::format(std::forward<Args>(args)...));
   errors.push_back(e);
 }
 
@@ -102,8 +102,7 @@ void NameBinder::visitCompoundStmt(CompoundStmt *cs) {
 void NameBinder::visitDeclRefExpr(DeclRefExpr *d) {
   auto sym = sema.decl_table.find(d->name);
   if (!sym) {
-    sema.error(d->pos, fmt::format("use of undeclared identifier '{}'",
-                                   d->name->text));
+    sema.error(d->pos, "use of undeclared identifier '{}'", d->name->text);
     return;
   }
   d->decl = sym->value;
@@ -114,14 +113,12 @@ void NameBinder::visitFuncCallExpr(FuncCallExpr *f) {
     // resolve function name
     auto sym = sema.decl_table.find(f->func_name);
     if (!sym) {
-        sema.error(f->pos, fmt::format("undeclared function '{}'",
-                                       f->func_name->text));
-        return;
+      sema.error(f->pos, "undeclared function '{}'", f->func_name->text);
+      return;
     }
     if (!decl_as<FuncDecl>(sym->value)) {
-        sema.error(f->pos,
-                   fmt::format("'{}' is not a function", f->func_name->text));
-        return;
+      sema.error(f->pos, "'{}' is not a function", f->func_name->text);
+      return;
     }
     f->func_decl = decl_as<FuncDecl>(sym->value);
     assert(f->func_decl);
@@ -130,10 +127,9 @@ void NameBinder::visitFuncCallExpr(FuncCallExpr *f) {
 
     // check if argument count matches
     if (f->func_decl->args_count() != f->args.size()) {
-        sema.error(f->pos,
-                   fmt::format("'{}' accepts {} arguments, got {}",
-                               f->func_name->text, f->func_decl->args_count(),
-                               f->args.size()));
+      sema.error(f->pos, "'{}' accepts {} arguments, got {}",
+                 f->func_name->text, f->func_decl->args_count(),
+                 f->args.size());
     }
 }
 
@@ -153,8 +149,7 @@ void NameBinder::visitTypeExpr(TypeExpr *t) {
     assert(t->kind == TypeExprKind::value);
     t->decl = sym->value;
   } else {
-    sema.error(t->pos,
-               fmt::format("use of undeclared type '{}'", t->name->text));
+    sema.error(t->pos, "use of undeclared type '{}'", t->name->text);
     return;
   }
 }
@@ -165,7 +160,7 @@ template <typename T> T *declare(Sema &sema, Name *name, size_t pos) {
   auto found = sema.decl_table.find(name);
   if (found && decl_as<T>(found->value) &&
       found->scope_level <= sema.decl_table.scope_level) {
-    sema.error(pos, fmt::format("redefinition of '{}'", name->text));
+    sema.error(pos, "redefinition of '{}'", name->text);
     return nullptr;
   }
 
@@ -299,13 +294,13 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
   // XXX: It's not obvious that r-values correspond to expressions that don't
   // have an associated Decl object. Maybe make an is_rvalue() function.
   if (!as->lhs->decl()) {
-    sema.error(as->pos, fmt::format("LHS is not assignable"));
+    sema.error(as->pos, "LHS is not assignable");
     return nullptr;
   }
 
   if (!typecheck_assignment(lhs_ty, rhs_ty)) {
-    sema.error(as->pos, fmt::format("cannot assign '{}' type to '{}'",
-                                    rhs_ty->name->text, lhs_ty->name->text));
+    sema.error(as->pos, "cannot assign '{}' type to '{}'", rhs_ty->name->text,
+               lhs_ty->name->text);
     return nullptr;
   }
 
@@ -323,18 +318,15 @@ Type *TypeChecker::visitReturnStmt(ReturnStmt *rs) {
   assert(!sema.context.func_decl_stack.empty());
   auto func_decl = sema.context.func_decl_stack.back();
   if (func_decl->is_void(sema)) {
-    sema.error(rs->expr->pos,
-               fmt::format("function '{}' should not return a value",
-                           func_decl->name->text));
+    sema.error(rs->expr->pos, "function '{}' should not return a value",
+               func_decl->name->text);
     return nullptr;
   }
 
   if (rs->expr->type != func_decl->ret_ty) {
-    sema.error(
-        rs->expr->pos,
-        fmt::format("return type mismatch: function returns '{}', but got '{}'",
-                    func_decl->ret_ty->name->text,
-                    rs->expr->type->name->text));
+    sema.error(rs->expr->pos,
+               "return type mismatch: function returns '{}', but got '{}'",
+               func_decl->ret_ty->name->text, rs->expr->type->name->text);
     return nullptr;
   }
 
@@ -408,9 +400,9 @@ Type *TypeChecker::visitFuncCallExpr(FuncCallExpr *f) {
     // TODO: proper type comparison
     if (f->args[i]->type != f->func_decl->args[i]->type) {
       sema.error(f->args[i]->pos,
-                 fmt::format("argument type mismatch: expects '{}', got '{}'",
-                             f->func_decl->args[i]->type->name->text,
-                             f->args[i]->type->name->text));
+                 "argument type mismatch: expects '{}', got '{}'",
+                 f->func_decl->args[i]->type->name->text,
+                 f->args[i]->type->name->text);
       return nullptr;
     }
   }
@@ -424,8 +416,8 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
   auto lhs_type = s->name_expr->type;
   if (!lhs_type) return nullptr;
   if (!lhs_type->is_struct()) {
-    sema.error(s->name_expr->pos,
-               fmt::format("type '{}' is not a struct", lhs_type->name->text));
+    sema.error(s->name_expr->pos, "type '{}' is not a struct",
+               lhs_type->name->text);
     return nullptr;
   }
 
@@ -442,16 +434,14 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
 
     if (!found_field) {
       sema.error(desig.expr->pos, // FIXME: wrong pos
-                 fmt::format("no field named '{}' in struct '{}'",
-                             desig.name->text,
-                             lhs_type->get_struct_decl()->name->text));
+                 "no field named '{}' in struct '{}'", desig.name->text,
+                 lhs_type->get_struct_decl()->name->text);
       return nullptr;
     }
 
     if (!typecheck_assignment(found_field->type, desig.expr->type)) {
-      sema.error(desig.expr->pos, fmt::format("cannot assign '{}' type to '{}'",
-                                              desig.expr->type->name->text,
-                                              found_field->type->name->text));
+      sema.error(desig.expr->pos, "cannot assign '{}' type to '{}'",
+                 desig.expr->type->name->text, found_field->type->name->text);
       return nullptr;
     }
   }
@@ -474,8 +464,8 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
   // make sure the LHS is actually a struct
   auto lhs_type = m->lhs_expr->type;
   if (!lhs_type->is_member_accessible()) {
-    sema.error(m->lhs_expr->pos,
-               fmt::format("type '{}' is not a struct", lhs_type->name->text));
+    sema.error(m->lhs_expr->pos, "type '{}' is not a struct",
+               lhs_type->name->text);
     return nullptr;
   }
 
@@ -502,9 +492,8 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
   }
   if (!found) {
     // TODO: pos for member
-    sema.error(m->lhs_expr->pos,
-               fmt::format("'{}' is not a member of '{}'",
-                           m->member_name->text, lhs_type->name->text));
+    sema.error(m->lhs_expr->pos, "'{}' is not a member of '{}'",
+               m->member_name->text, lhs_type->name->text);
     return nullptr;
   }
 
@@ -538,9 +527,8 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
       return nullptr;
 
     if (u->operand->type->kind != TypeKind::ref) {
-      sema.error(u->operand->pos,
-                 fmt::format("dereference of a non-reference type '{}'",
-                             u->operand->type->name->text));
+      sema.error(u->operand->pos, "dereference of a non-reference type '{}'",
+                 u->operand->type->name->text);
       return nullptr;
     }
     u->type = u->operand->type->base_type;
@@ -584,10 +572,9 @@ Type *TypeChecker::visitBinaryExpr(BinaryExpr *b) {
     return nullptr;
 
   if (b->lhs->type != b->rhs->type) {
-    sema.error(
-        b->pos,
-        fmt::format("incompatible types to binary expression ('{}' and '{}')",
-                    b->lhs->type->name->text, b->rhs->type->name->text));
+    sema.error(b->pos,
+               "incompatible types to binary expression ('{}' and '{}')",
+               b->lhs->type->name->text, b->rhs->type->name->text);
     return nullptr;
   }
 
