@@ -4,7 +4,6 @@
 #include "ast.h"
 #include "error.h"
 #include "fmt/core.h"
-#include "fmt/format.h"
 #include <assert.h>
 #include <variant>
 #include <vector>
