@@ -61,25 +61,31 @@ void setup_builtin_types(Sema &s) {
 Sema::Sema(Parser &p) : Sema(p.lexer.source(), p.names, p.errors, p.beacons) {}
 
 Sema::~Sema() {
-  for (auto d : decl_pool)
-    delete d;
-  for (auto t : type_pool)
-    delete t;
-  for (auto b : bb_pool)
-    delete b;
+    for (auto d : decl_pool) {
+        delete d;
+    }
+    for (auto t : type_pool) {
+        delete t;
+    }
+    for (auto b : basic_block_pool) {
+        delete b;
+    }
 }
 
 void Sema::scope_open() {
     decl_table.scope_open();
     type_table.scope_open();
+    live_list.scope_open();
 }
 
 void Sema::scope_close() {
     decl_table.scope_close();
     type_table.scope_close();
+    live_list.scope_close();
 }
 
-// Return 'type' member of Decl, or nullptr if this Decl kind doesn't have any.
+// Return optional of 'type' member of Decl, or None if this Decl kind doesn't
+// have any.
 std::optional<Type *> decl_get_type(const Decl decl) {
     if (auto d = decl_as<VarDecl>(decl)) {
         return d->type;
@@ -157,18 +163,18 @@ void NameBinder::visitTypeExpr(TypeExpr *t) {
 // Semantically declare a 'name' at a 'pos', whose Decl type is T.
 // Returns nullptr if declaration failed due to e.g. redeclaration.
 template <typename T> T *declare(Sema &sema, Name *name, size_t pos) {
-  auto found = sema.decl_table.find(name);
-  if (found && decl_as<T>(found->value) &&
-      found->scope_level <= sema.decl_table.scope_level) {
-    sema.error(pos, "redefinition of '{}'", name->text);
-    return nullptr;
-  }
+    auto found = sema.decl_table.find(name);
+    if (found && decl_as<T>(found->value) &&
+        found->scope_level <= sema.decl_table.curr_scope_level) {
+        sema.error(pos, "redefinition of '{}'", name->text);
+        return nullptr;
+    }
 
-  T *decl = sema.make_decl<T>(name);
-  // binding of name and decl
-  sema.decl_table.insert(name, decl);
+    T *decl = sema.make_decl<T>(name);
+    // bind decl to name
+    sema.decl_table.insert(name, decl);
 
-  return decl;
+    return decl;
 }
 
 void NameBinder::visitVarDecl(VarDeclNode *v) {
@@ -533,7 +539,7 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
     }
     u->type = u->operand->type->base_type;
     break;
-  case UnaryExprKind::address:
+  case UnaryExprKind::ref:
     visitExpr(u->operand);
     // XXX: arbitrary
     if (!u->operand->type)
@@ -785,7 +791,7 @@ BasicBlock *ReturnChecker::visitFuncDecl(FuncDeclNode *f, BasicBlock *bb) {
   auto exit_point = visitCompoundStmt(f->body, entry_point);
 
   std::vector<BasicBlock *> walkList;
-  entry_point->enumeratePostOrder(walkList);
+  entry_point->enumerate_post_order(walkList);
 
   // for (auto bb : walkList)
   //   fmt::print("BasicBlock: {} stmts\n", bb->stmts.size());
@@ -798,23 +804,66 @@ BasicBlock *ReturnChecker::visitFuncDecl(FuncDeclNode *f, BasicBlock *bb) {
   return nullptr;
 }
 
+// Checks if contains a return statement.
 bool BasicBlock::returns() const {
-  for (auto stmt : stmts)
-    if (stmt->kind == StmtKind::return_)
-      return true;
-  return false;
+    for (auto stmt : stmts) {
+        if (stmt->kind == StmtKind::return_) {
+            return true;
+        }
+    }
+    return false;
 }
 
-void BasicBlock::enumeratePostOrder(std::vector<BasicBlock *> &walkList) {
-  if (walked)
-    return;
+void BasicBlock::enumerate_post_order(std::vector<BasicBlock *> &walklist) {
+    if (walked) return;
 
-  for (auto s : succ)
-    s->enumeratePostOrder(walkList);
+    for (auto s : succ) {
+        s->enumerate_post_order(walklist);
+    }
 
-  // post-order traversal
-  walked = true;
-  walkList.push_back(this);
+    // post-order traversal
+    walked = true;
+    walklist.push_back(this);
+}
+
+void BorrowChecker::visitAssignStmt(AssignStmt *as) {
+    walk_assign_stmt(*this, as);
+
+    // sort out only the borrowing assignments
+    if (as->rhs->kind != ExprKind::unary ||
+        as->rhs->as<UnaryExpr>()->kind != UnaryExprKind::ref)
+        return;
+
+    assert(as->lhs->decl().has_value());
+    auto lhs_decl = decl_as<VarDecl>(*as->lhs->decl());
+
+    assert(as->rhs->as<UnaryExpr>()->operand->decl().has_value());
+    auto borrowee_decl =
+        decl_as<VarDecl>(*as->rhs->as<UnaryExpr>()->operand->decl());
+
+    lhs_decl->borrowee = borrowee_decl;
+
+    // TODO: for debug
+    sema.error(as->pos, "borrow happens here");
+}
+
+// Rule: a variable of lifetime 'a should only refer to a variable whose
+// lifetime is larger than 'a.
+//
+// In other words, at the point of use, the borrowee should be alive.
+void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
+    if (!decl_is<VarDecl>(d->decl)) return;
+
+    auto var = decl_as<VarDecl>(d->decl);
+    if (var->borrowee) {
+        printf("name of borrowee: %s\n", var->borrowee->name->str());
+    }
+}
+
+void BorrowChecker::visitVarDecl(VarDeclNode *v) {
+    walk_var_decl(*this, v);
+
+    sema.live_list.insert(v->name, v->var_decl);
 }
 
 void CodeGenerator::visitFile(File *f) {
@@ -874,7 +923,7 @@ void CodeGenerator::visitUnaryExpr(UnaryExpr *u) {
   case UnaryExprKind::paren:
     return visitParenExpr(u->as<ParenExpr>());
     break;
-  case UnaryExprKind::address:
+  case UnaryExprKind::ref:
     emitCont("&");
     visitExpr(u->operand);
     break;

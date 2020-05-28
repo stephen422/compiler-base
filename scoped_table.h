@@ -30,8 +30,8 @@ ScopedTable<T>::~ScopedTable() {
     }
 }
 
-template <typename T>
-T *ScopedTable<T>::insert(Name *name, const T &value) {
+// Insert symbol at the current scope level.
+template <typename T> T *ScopedTable<T>::insert(Name *name, const T &value) {
     // memory for T is stored inside the symbol
     // FIXME: bad allocator
     Symbol *head = new Symbol(name, value);
@@ -44,7 +44,7 @@ T *ScopedTable<T>::insert(Name *name, const T &value) {
 
     // set the scope chain
     head->cross = scope_stack.back();
-    head->scope_level = scope_level;
+    head->scope_level = curr_scope_level;
     scope_stack.back() = head;
     return &head->value;
 }
@@ -61,7 +61,7 @@ typename ScopedTable<T>::Symbol *ScopedTable<T>::find(Name *name) const {
 template <typename T>
 void ScopedTable<T>::scope_open() {
     scope_stack.push_back(nullptr);
-    scope_level++;
+    curr_scope_level++;
 }
 
 template <typename T>
@@ -75,7 +75,7 @@ void ScopedTable<T>::scope_close() {
         p = cross;
     }
     scope_stack.pop_back();
-    scope_level--;
+    curr_scope_level--;
 }
 
 template <typename T> void ScopedTable<T>::print() const {

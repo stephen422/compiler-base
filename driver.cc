@@ -22,6 +22,10 @@ bool Driver::compile() {
   rc.visitFile(static_cast<File *>(ast.root), nullptr);
   if (!no_errors()) return false;
 
+  BorrowChecker bc{sema};
+  bc.visitFile(static_cast<File *>(ast.root));
+  if (!no_errors()) return false;
+
   CodeGenerator cgen{sema};
   cgen.visitFile(static_cast<File *>(ast.root));
   if (!no_errors()) return false;

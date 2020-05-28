@@ -33,21 +33,21 @@ get_ast_range(std::initializer_list<AstNode *> nodes) {
 }
 
 std::optional<Decl> Expr::decl() const {
-  switch (kind) {
-  case ExprKind::decl_ref:
-    return as<DeclRefExpr>()->decl;
-  case ExprKind::member:
-    return as<MemberExpr>()->decl;
-  case ExprKind::unary:
-    if (as<UnaryExpr>()->kind == UnaryExprKind::paren)
-      return as<UnaryExpr>()->as<ParenExpr>()->decl();
-    else if (as<UnaryExpr>()->kind == UnaryExprKind::deref)
-      return as<UnaryExpr>()->var_decl;
-    break;
-  default:
-    break;
-  }
-  return {};
+    switch (kind) {
+    case ExprKind::decl_ref:
+        return as<DeclRefExpr>()->decl;
+    case ExprKind::member:
+        return as<MemberExpr>()->decl;
+    case ExprKind::unary:
+        if (as<UnaryExpr>()->kind == UnaryExprKind::paren)
+            return as<UnaryExpr>()->as<ParenExpr>()->decl();
+        else if (as<UnaryExpr>()->kind == UnaryExprKind::deref)
+            return as<UnaryExpr>()->var_decl;
+        break;
+    default:
+        break;
+    }
+    return {};
 }
 
 //
@@ -174,7 +174,7 @@ void UnaryExpr::print() const {
         operand->print();
         break;
     }
-    case UnaryExprKind::address: {
+    case UnaryExprKind::ref: {
         std::cout << "Address\n";
         PrintScope start;
         operand->print();

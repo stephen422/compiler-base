@@ -587,7 +587,7 @@ Expr *Parser::parse_unary_expr() {
     case Tok::ampersand: {
         next();
         auto expr = parse_unary_expr();
-        return make_node_pos<UnaryExpr>(pos, UnaryExprKind::address, expr);
+        return make_node_pos<UnaryExpr>(pos, UnaryExprKind::ref, expr);
     }
     case Tok::lparen: {
         expect(Tok::lparen);

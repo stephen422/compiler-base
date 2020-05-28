@@ -14,17 +14,19 @@ namespace cmp {
 struct VarDecl {
     Name *name = nullptr;
     Type *type = nullptr;
+    // Decl of the var that this var references to.  Used for borrow checking.
+    VarDecl *borrowee = nullptr;
 
     VarDecl(Name *n) : name(n) {}
 };
 
 // Declaration of a type, e.g. struct or enum.
 struct StructDecl {
-  Name *name = nullptr;
-  Type *type = nullptr;
-  std::vector<VarDecl *> fields;
+    Name *name = nullptr;
+    Type *type = nullptr;
+    std::vector<VarDecl *> fields;
 
-  StructDecl(Name *n) : name(n) {}
+    StructDecl(Name *n) : name(n) {}
 };
 
 // Declaration of an enum.
@@ -38,14 +40,14 @@ struct EnumDecl {
 
 // Declaration of a function.
 struct FuncDecl {
-  Name *name = nullptr;
-  Type *ret_ty = nullptr;
-  std::vector<VarDecl *> args;
+    Name *name = nullptr;
+    Type *ret_ty = nullptr;
+    std::vector<VarDecl *> args;
 
-  FuncDecl(Name *n) : name(n) {}
-  size_t args_count() const { return args.size(); }
-  // XXX: might false-report before typecheck is completed
-  bool is_void(Sema &sema) const;
+    FuncDecl(Name *n) : name(n) {}
+    size_t args_count() const { return args.size(); }
+    // XXX: might false-report before typecheck is completed
+    bool is_void(Sema &sema) const;
 };
 
 // 'Decl' represents declaration of a variable, a function, or a type.
@@ -57,6 +59,9 @@ struct FuncDecl {
 using Decl = std::variant<VarDecl *, StructDecl *, EnumDecl *, FuncDecl *>;
 using DeclMemBlock = std::variant<VarDecl, StructDecl, EnumDecl, FuncDecl>;
 
+template <typename T> bool decl_is(const Decl decl) {
+    return std::holds_alternative<T *>(decl);
+}
 template <typename T> T *decl_as(const Decl decl) {
   if (std::holds_alternative<T *>(decl))
     return std::get<T *>(decl);
@@ -161,7 +166,7 @@ template <typename T> struct ScopedTable {
 
     std::array<Symbol *, SYMBOL_TABLE_BUCKET_COUNT> keys;
     std::vector<Symbol *> scope_stack = {};
-    int scope_level = 0;
+    int curr_scope_level = 0;
 };
 
 #include "scoped_table.h"
@@ -183,46 +188,57 @@ struct BasicBlock {
 
   // Walk and enumerate all children nodes and itself in post-order.
   // Used to implement the the reverse post-order traversal.
-  void enumeratePostOrder(std::vector<BasicBlock *> &walkList);
+  void enumerate_post_order(std::vector<BasicBlock *> &walkList);
 };
 
 // Stores all of the semantic information necessary for semantic analysis
 // phase.
 struct Sema {
-  const Source &source; // source text
-  NameTable &name_table; // name table
-  std::vector<DeclMemBlock *> decl_pool;
-  std::vector<Type *> type_pool;
-  std::vector<BasicBlock *> bb_pool;
-  ScopedTable<Decl> decl_table;   // scoped declaration table
-  ScopedTable<Type *> type_table; // scoped type table
-  Context context;
-  std::vector<Error> &errors;  // error list
-  std::vector<Error> &beacons; // error beacon list
+    const Source &source;  // source text
+    NameTable &name_table; // name table
 
-  Sema(const Source &s, NameTable &n, std::vector<Error> &es,
-       std::vector<Error> &bs)
-      : source(s), name_table(n), errors(es), beacons(bs) {}
-  Sema(Parser &p);
-  Sema(const Sema &) = delete;
-  Sema(Sema &&) = delete;
-  ~Sema();
-  template <typename... Args> void error(size_t pos, Args &&... args);
-  void scope_open();
-  void scope_close();
+    // Memory pointer pools.
+    std::vector<DeclMemBlock *> decl_pool;
+    std::vector<Type *> type_pool;
+    std::vector<BasicBlock *> basic_block_pool;
 
-  // Allocator function for Decls and Types.
-  template <typename T, typename... Args> T *make_decl(Args &&... args) {
-    DeclMemBlock *mem_block = new DeclMemBlock(T{std::forward<Args>(args)...});
-    decl_pool.push_back(mem_block);
-    auto ptr = &std::get<T>(*decl_pool.back());
-    return ptr;
-  }
-  BasicBlock *make_basic_block() {
-    BasicBlock *bb = new BasicBlock;
-    bb_pool.push_back(bb);
-    return bb;
-  }
+    // Declarations visible at the current scope.
+    ScopedTable<Decl> decl_table;
+    // XXX: needed?
+    ScopedTable<Type *> type_table;
+    // Live variables at the current scope.
+    ScopedTable<VarDecl *> live_list;
+
+    Context context;
+    std::vector<Error> &errors;  // error list
+    std::vector<Error> &beacons; // error beacon list
+
+    Sema(const Source &s, NameTable &n, std::vector<Error> &es,
+         std::vector<Error> &bs)
+        : source(s), name_table(n), errors(es), beacons(bs) {}
+    Sema(Parser &p);
+    Sema(const Sema &) = delete;
+    Sema(Sema &&) = delete;
+    ~Sema();
+
+    void scope_open();
+    void scope_close();
+
+    template <typename... Args> void error(size_t pos, Args &&... args);
+
+    // Allocator function for Decls and Types.
+    template <typename T> T *make_decl(Name *name) {
+        DeclMemBlock *mem_block = new DeclMemBlock(T{name});
+        auto typed_decl = &std::get<T>(*mem_block);
+        typed_decl->name = name;
+        decl_pool.push_back(mem_block);
+        return typed_decl;
+    }
+    BasicBlock *make_basic_block() {
+        BasicBlock *bb = new BasicBlock;
+        basic_block_pool.push_back(bb);
+        return bb;
+    }
 };
 
 void setup_builtin_types(Sema &s);
@@ -304,6 +320,20 @@ public:
   BasicBlock *visitIfStmt(IfStmt *is, BasicBlock *bb);
 
   BasicBlock *visitFuncDecl(FuncDeclNode *f, BasicBlock *bb);
+};
+
+class BorrowChecker : public AstVisitor<BorrowChecker, void> {
+  Sema &sema;
+
+public:
+  BorrowChecker(Sema &s) : sema{s} {}
+  bool success() const { return sema.errors.empty(); }
+
+  void visitAssignStmt(AssignStmt *as);
+
+  void visitDeclRefExpr(DeclRefExpr *d);
+
+  void visitVarDecl(VarDeclNode *v);
 };
 
 class CodeGenerator : public AstVisitor<CodeGenerator, void> {

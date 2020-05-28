@@ -34,6 +34,8 @@ using Decl = std::variant<VarDecl *, StructDecl *, EnumDecl *, FuncDecl *>;
 // one instance of the matching Name can reside in the name table.
 struct Name {
   std::string text;
+
+  const char *str() const { return text.c_str(); }
 };
 
 // 'NameTable' is a hash table of Names queried by their string value.  It
@@ -240,7 +242,7 @@ struct Expr : public AstNode {
 
 enum class UnaryExprKind {
     paren,
-    address,
+    ref,
     deref,
     plus, // TODO
     minus, // TODO
@@ -689,7 +691,7 @@ public:
     case UnaryExprKind::paren:
       return dis()->visitParenExpr(static_cast<ParenExpr *>(u), args...);
       break;
-    case UnaryExprKind::address:
+    case UnaryExprKind::ref:
       return dis()->visitExpr(u->operand, args...);
       break;
     case UnaryExprKind::deref:
