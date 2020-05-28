@@ -714,20 +714,16 @@ fail:
 
 // Parse '.memb = expr' part in Struct { .m1 = e1, .m2 = e2, ... }.
 std::optional<StructFieldDesignator> Parser::parse_struct_def_field() {
-    if (!expect(Tok::dot))
-        return {};
+  if (!expect(Tok::dot)) return {};
+  auto name = names.get_or_add(std::string{tok.text});
+  next();
 
-    auto name = names.get_or_add(std::string{tok.text});
-    next();
+  if (!expect(Tok::equals)) return {};
 
-    if (!expect(Tok::equals))
-        return {};
+  auto expr = parse_expr();
+  if (!expr) return {};
 
-    auto expr = parse_expr();
-    if (!expr)
-        return {};
-
-    return StructFieldDesignator{name, expr};
+  return StructFieldDesignator{name, expr};
 }
 
 // If this expression has a trailing {...}, parse as a struct definition

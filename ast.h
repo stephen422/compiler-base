@@ -33,10 +33,7 @@ using Decl = std::variant<VarDecl *, StructDecl *, EnumDecl *, FuncDecl *>;
 // There may be multiple occurrences of a string in the source text, but only
 // one instance of the matching Name can reside in the name table.
 struct Name {
-    std::string text;
-
-    Name(const std::string &s) : text(s) {}
-    std::string str() const { return text; }
+  std::string text;
 };
 
 // 'NameTable' is a hash table of Names queried by their string value.  It

@@ -103,7 +103,7 @@ void NameBinder::visitDeclRefExpr(DeclRefExpr *d) {
   auto sym = sema.decl_table.find(d->name);
   if (!sym) {
     sema.error(d->pos, fmt::format("use of undeclared identifier '{}'",
-                                   d->name->str()));
+                                   d->name->text));
     return;
   }
   d->decl = sym->value;
@@ -115,12 +115,12 @@ void NameBinder::visitFuncCallExpr(FuncCallExpr *f) {
     auto sym = sema.decl_table.find(f->func_name);
     if (!sym) {
         sema.error(f->pos, fmt::format("undeclared function '{}'",
-                                       f->func_name->str()));
+                                       f->func_name->text));
         return;
     }
     if (!decl_as<FuncDecl>(sym->value)) {
         sema.error(f->pos,
-                   fmt::format("'{}' is not a function", f->func_name->str()));
+                   fmt::format("'{}' is not a function", f->func_name->text));
         return;
     }
     f->func_decl = decl_as<FuncDecl>(sym->value);
@@ -132,7 +132,7 @@ void NameBinder::visitFuncCallExpr(FuncCallExpr *f) {
     if (f->func_decl->args_count() != f->args.size()) {
         sema.error(f->pos,
                    fmt::format("'{}' accepts {} arguments, got {}",
-                               f->func_name->str(), f->func_decl->args_count(),
+                               f->func_name->text, f->func_decl->args_count(),
                                f->args.size()));
     }
 }
@@ -154,7 +154,7 @@ void NameBinder::visitTypeExpr(TypeExpr *t) {
     t->decl = sym->value;
   } else {
     sema.error(t->pos,
-               fmt::format("use of undeclared type '{}'", t->name->str()));
+               fmt::format("use of undeclared type '{}'", t->name->text));
     return;
   }
 }
@@ -165,7 +165,7 @@ template <typename T> T *declare(Sema &sema, Name *name, size_t pos) {
   auto found = sema.decl_table.find(name);
   if (found && decl_as<T>(found->value) &&
       found->scope_level <= sema.decl_table.scope_level) {
-    sema.error(pos, fmt::format("redefinition of '{}'", name->str()));
+    sema.error(pos, fmt::format("redefinition of '{}'", name->text));
     return nullptr;
   }
 
@@ -179,8 +179,7 @@ template <typename T> T *declare(Sema &sema, Name *name, size_t pos) {
 void NameBinder::visitVarDecl(VarDeclNode *v) {
   walk_var_decl(*this, v);
 
-  v->var_decl = declare<VarDecl>(sema, v->name, v->pos);
-  if (!v->var_decl) return;
+  if (!(v->var_decl = declare<VarDecl>(sema, v->name, v->pos))) return;
 
   // struct member declarations are also parsed as VarDecls.
   if (v->kind == VarDeclNodeKind::struct_) {
@@ -197,8 +196,7 @@ void NameBinder::visitVarDecl(VarDeclNode *v) {
 void NameBinder::visitFuncDecl(FuncDeclNode *f) {
   auto err_count = sema.errors.size();
 
-  f->func_decl = declare<FuncDecl>(sema, f->name, f->pos);
-  if (!f->func_decl) return;
+  if (!(f->func_decl = declare<FuncDecl>(sema, f->name, f->pos))) return;
 
   // scope for argument variables
   sema.decl_table.scope_open();
@@ -215,8 +213,7 @@ void NameBinder::visitFuncDecl(FuncDeclNode *f) {
 }
 
 void NameBinder::visitStructDecl(StructDeclNode *s) {
-  s->struct_decl = declare<StructDecl>(sema, s->name, s->pos);
-  if (!s->struct_decl) return;
+  if (!(s->struct_decl = declare<StructDecl>(sema, s->name, s->pos))) return;
 
   // Decl table is used for checking redefinition when parsing the member
   // list.
@@ -244,9 +241,7 @@ void NameBinder::visitEnumVariantDecl(EnumVariantDeclNode *v) {
   walk_enum_variant_decl(*this, v);
 
   // first, declare a struct of this name
-  v->struct_decl = declare<StructDecl>(sema, v->name, v->pos);
-  if (!v->struct_decl)
-    return;
+  if (!(v->struct_decl = declare<StructDecl>(sema, v->name, v->pos))) return;
 
   // then, add fields to this struct, whose names are anonymous
   // and only types are specified (e.g. Pos(int, int))
@@ -254,13 +249,10 @@ void NameBinder::visitEnumVariantDecl(EnumVariantDeclNode *v) {
     // so that anonymous field names don't clash
     sema.decl_table.scope_open();
 
-    // TODO cast should be removed in the future
-    auto field_decl = declare<VarDecl>(sema, gen_anonymous_field_name(sema, i),
-                                       v->fields[i]->pos);
-    if (!field_decl)
-      return;
-
-    v->struct_decl->fields.push_back(field_decl);
+    if (auto field_decl = declare<VarDecl>(
+            sema, gen_anonymous_field_name(sema, i), v->fields[i]->pos)) {
+      v->struct_decl->fields.push_back(field_decl);
+    }
 
     sema.decl_table.scope_close();
   }
@@ -272,9 +264,7 @@ void NameBinder::visitEnumVariantDecl(EnumVariantDeclNode *v) {
 }
 
 void NameBinder::visitEnumDecl(EnumDeclNode *e) {
-  e->enum_decl = declare<EnumDecl>(sema, e->name, e->pos);
-  if (!e->enum_decl)
-    return;
+  if (!(e->enum_decl = declare<EnumDecl>(sema, e->name, e->pos))) return;
 
   sema.decl_table.scope_open();
   sema.context.enum_decl_stack.push_back(e->enum_decl);
@@ -315,7 +305,7 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
 
   if (!typecheck_assignment(lhs_ty, rhs_ty)) {
     sema.error(as->pos, fmt::format("cannot assign '{}' type to '{}'",
-                                    rhs_ty->name->str(), lhs_ty->name->str()));
+                                    rhs_ty->name->text, lhs_ty->name->text));
     return nullptr;
   }
 
@@ -335,7 +325,7 @@ Type *TypeChecker::visitReturnStmt(ReturnStmt *rs) {
   if (func_decl->is_void(sema)) {
     sema.error(rs->expr->pos,
                fmt::format("function '{}' should not return a value",
-                           func_decl->name->str()));
+                           func_decl->name->text));
     return nullptr;
   }
 
@@ -343,8 +333,8 @@ Type *TypeChecker::visitReturnStmt(ReturnStmt *rs) {
     sema.error(
         rs->expr->pos,
         fmt::format("return type mismatch: function returns '{}', but got '{}'",
-                    func_decl->ret_ty->name->str(),
-                    rs->expr->type->name->str()));
+                    func_decl->ret_ty->name->text,
+                    rs->expr->type->name->text));
     return nullptr;
   }
 
@@ -419,8 +409,8 @@ Type *TypeChecker::visitFuncCallExpr(FuncCallExpr *f) {
     if (f->args[i]->type != f->func_decl->args[i]->type) {
       sema.error(f->args[i]->pos,
                  fmt::format("argument type mismatch: expects '{}', got '{}'",
-                             f->func_decl->args[i]->type->name->str(),
-                             f->args[i]->type->name->str()));
+                             f->func_decl->args[i]->type->name->text,
+                             f->args[i]->type->name->text));
       return nullptr;
     }
   }
@@ -435,7 +425,7 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
   if (!lhs_type) return nullptr;
   if (!lhs_type->is_struct()) {
     sema.error(s->name_expr->pos,
-               fmt::format("type '{}' is not a struct", lhs_type->name->str()));
+               fmt::format("type '{}' is not a struct", lhs_type->name->text));
     return nullptr;
   }
 
@@ -453,15 +443,15 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
     if (!found_field) {
       sema.error(desig.expr->pos, // FIXME: wrong pos
                  fmt::format("no field named '{}' in struct '{}'",
-                             desig.name->str(),
-                             lhs_type->get_struct_decl()->name->str()));
+                             desig.name->text,
+                             lhs_type->get_struct_decl()->name->text));
       return nullptr;
     }
 
     if (!typecheck_assignment(found_field->type, desig.expr->type)) {
       sema.error(desig.expr->pos, fmt::format("cannot assign '{}' type to '{}'",
-                                              desig.expr->type->name->str(),
-                                              found_field->type->name->str()));
+                                              desig.expr->type->name->text,
+                                              found_field->type->name->text));
       return nullptr;
     }
   }
@@ -485,7 +475,7 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
   auto lhs_type = m->lhs_expr->type;
   if (!lhs_type->is_member_accessible()) {
     sema.error(m->lhs_expr->pos,
-               fmt::format("type '{}' is not a struct", lhs_type->name->str()));
+               fmt::format("type '{}' is not a struct", lhs_type->name->text));
     return nullptr;
   }
 
@@ -514,7 +504,7 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
     // TODO: pos for member
     sema.error(m->lhs_expr->pos,
                fmt::format("'{}' is not a member of '{}'",
-                           m->member_name->str(), lhs_type->name->str()));
+                           m->member_name->text, lhs_type->name->text));
     return nullptr;
   }
 
@@ -550,7 +540,7 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
     if (u->operand->type->kind != TypeKind::ref) {
       sema.error(u->operand->pos,
                  fmt::format("dereference of a non-reference type '{}'",
-                             u->operand->type->name->str()));
+                             u->operand->type->name->text));
       return nullptr;
     }
     u->type = u->operand->type->base_type;
@@ -597,7 +587,7 @@ Type *TypeChecker::visitBinaryExpr(BinaryExpr *b) {
     sema.error(
         b->pos,
         fmt::format("incompatible types to binary expression ('{}' and '{}')",
-                    b->lhs->type->name->str(), b->rhs->type->name->str()));
+                    b->lhs->type->name->text, b->rhs->type->name->text));
     return nullptr;
   }
 
@@ -857,11 +847,11 @@ void CodeGenerator::visitStringLiteral(StringLiteral *s) {
 }
 
 void CodeGenerator::visitDeclRefExpr(DeclRefExpr *d) {
-  emitCont("{}", d->name->str());
+  emitCont("{}", d->name->text);
 }
 
 void CodeGenerator::visitFuncCallExpr(FuncCallExpr *f) {
-  emitCont("{}(", f->func_name->str());
+  emitCont("{}(", f->func_name->text);
 
   for (size_t i = 0; i < f->args.size(); i++) {
     visitExpr(f->args[i]);
@@ -879,7 +869,7 @@ void CodeGenerator::visitStructDefExpr(StructDefExpr *s) {
 
   emitCont(" {{");
   for (const auto desig : s->desigs) {
-    emitCont(".{} = ", desig.name->str());
+    emitCont(".{} = ", desig.name->text);
     visitExpr(desig.expr);
     emitCont(", ");
   }
@@ -889,7 +879,7 @@ void CodeGenerator::visitStructDefExpr(StructDefExpr *s) {
 void CodeGenerator::visitMemberExpr(MemberExpr *m) {
   visitExpr(m->lhs_expr);
   emitCont(".");
-  emitCont("{}", m->member_name->str());
+  emitCont("{}", m->member_name->text);
 }
 
 void CodeGenerator::visitUnaryExpr(UnaryExpr *u) {
@@ -934,7 +924,7 @@ std::string CodeGenerator::cStringify(const Type *t) {
     auto base = cStringify(t->base_type);
     return base + "*";
   } else {
-    return t->name->str();
+    return t->name->text;
   }
 }
 
@@ -991,12 +981,12 @@ void CodeGenerator::visitBuiltinStmt(BuiltinStmt *b) {
 
 void CodeGenerator::visitVarDecl(VarDeclNode *v) {
   if (v->kind == VarDeclNodeKind::param) {
-    emit("{} {}", cStringify(v->var_decl->type), v->name->str());
+    emit("{} {}", cStringify(v->var_decl->type), v->name->text);
   } else {
-    emit("{} {};\n", cStringify(v->var_decl->type), v->name->str());
+    emit("{} {};\n", cStringify(v->var_decl->type), v->name->text);
 
     if (v->assign_expr) {
-      emit("{} = ", v->name->str());
+      emit("{} = ", v->name->text);
       visitExpr(v->assign_expr);
       emitCont(";\n");
     }
@@ -1004,13 +994,13 @@ void CodeGenerator::visitVarDecl(VarDeclNode *v) {
 }
 
 void CodeGenerator::visitStructDecl(StructDeclNode *s) {
-  emit("typedef struct {} {{\n", s->name->str());
+  emit("typedef struct {} {{\n", s->name->text);
   {
     IndentBlock ib{*this};
     for (auto memb : s->members)
       visitDecl(memb);
   }
-  emit("}} {};\n", s->name->str());
+  emit("}} {};\n", s->name->text);
   emit("\n");
 }
 
@@ -1022,7 +1012,7 @@ void CodeGenerator::visitFuncDecl(FuncDeclNode *f) {
   else
     emit("void");
 
-  emit(" {}(", f->name->str());
+  emit(" {}(", f->name->text);
   if (f->args.empty()) {
     emitCont("void");
   } else {
