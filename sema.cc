@@ -100,9 +100,9 @@ std::optional<Type *> decl_get_type(const Decl decl) {
 }
 
 void NameBinder::visitCompoundStmt(CompoundStmt *cs) {
-    sema.decl_table.scope_open();
+    sema.scope_open();
     walk_compound_stmt(*this, cs);
-    sema.decl_table.scope_close();
+    sema.scope_close();
 }
 
 void NameBinder::visitDeclRefExpr(DeclRefExpr *d) {
@@ -164,8 +164,8 @@ void NameBinder::visitTypeExpr(TypeExpr *t) {
 // Returns nullptr if declaration failed due to e.g. redeclaration.
 template <typename T> T *declare(Sema &sema, Name *name, size_t pos) {
     auto found = sema.decl_table.find(name);
-    if (found && decl_as<T>(found->value) &&
-        found->scope_level <= sema.decl_table.curr_scope_level) {
+    if (found && decl_is<T>(found->value) &&
+        found->scope_level == sema.decl_table.curr_scope_level) {
         sema.error(pos, "redefinition of '{}'", name->text);
         return nullptr;
     }
@@ -840,20 +840,33 @@ void BorrowChecker::visitAssignStmt(AssignStmt *as) {
         as->rhs->as<UnaryExpr>()->kind != UnaryExprKind::ref)
         return;
 
+    // check multiple borrowing rule
+    // TODO: mutable and immutable
     assert(as->lhs->decl().has_value());
-    auto lhs_decl = decl_as<VarDecl>(*as->lhs->decl());
-
     assert(as->rhs->as<UnaryExpr>()->operand->decl().has_value());
+    auto lhs_decl = decl_as<VarDecl>(*as->lhs->decl());
     auto borrowee_decl =
         decl_as<VarDecl>(*as->rhs->as<UnaryExpr>()->operand->decl());
 
+    if (borrowee_decl->borrow_count > 0) {
+        sema.error(as->rhs->pos, "cannot borrow '{}' more than once",
+                   borrowee_decl->name->text);
+        return;
+    }
+
     lhs_decl->borrowee = borrowee_decl;
+    borrowee_decl->borrow_count++;
 }
 
 // Rule: a variable of lifetime 'a should only refer to a variable whose
 // lifetime is larger than 'a.
-//
 // In other words, at the point of use, the borrowee should be alive.
+//
+// Possible borrowing occasions:
+// - let x = &a
+// - x = &a
+// - x = S {.m = &a}
+// - f(&a)
 void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
     if (!decl_is<VarDecl>(d->decl)) return;
 

@@ -16,6 +16,8 @@ struct VarDecl {
     Type *type = nullptr;
     // Decl of the var that this var references to.  Used for borrow checking.
     VarDecl *borrowee = nullptr;
+    // number of occasions that this variable was borrowed
+    int borrow_count = 0;
 
     VarDecl(Name *n) : name(n) {}
 };
@@ -63,10 +65,10 @@ template <typename T> bool decl_is(const Decl decl) {
     return std::holds_alternative<T *>(decl);
 }
 template <typename T> T *decl_as(const Decl decl) {
-  if (std::holds_alternative<T *>(decl))
-    return std::get<T *>(decl);
-  else
-    return nullptr;
+    if (std::holds_alternative<T *>(decl))
+        return std::get<T *>(decl);
+    else
+        return nullptr;
 }
 std::optional<Type *> decl_get_type(const Decl decl);
 

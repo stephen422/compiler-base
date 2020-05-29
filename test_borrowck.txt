@@ -1,8 +1,21 @@
 func main() {
     let x: *int
+    let a = 42
     {
         let a = 4
         x = &a
     }
     *x // ERROR: 'a' does not live long enough
+}
+
+func multiple_borrows() {
+    let a = 42
+    let x = &a
+    let y = &a // ERROR: multiple borrow
+    // TODO: assignment and vardecl
+}
+
+func stack_ref() -> *int {
+    let x = 3
+    return &x // ERROR: lifetime error
 }
