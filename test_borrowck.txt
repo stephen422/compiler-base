@@ -11,7 +11,7 @@ func main() {
 func multiple_borrows() {
     let a = 42
     let x = &a
-    let y = &a // ERROR: multiple borrow
+    let y = &a // ERROR: cannot borrow 'a' more than once
     // TODO: assignment and vardecl
 }
 

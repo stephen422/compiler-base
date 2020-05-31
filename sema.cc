@@ -849,7 +849,8 @@ void BorrowChecker::visitCompoundStmt(CompoundStmt *cs) {
 // - x = &a
 // - x = S {.m = &a}
 // - f(&a)
-void borrow(Sema &sema, VarDecl *borrower, VarDecl *borrowee, size_t borrowee_pos) {
+void borrow(Sema &sema, VarDecl *borrower, VarDecl *borrowee,
+            size_t borrowee_pos) {
     if (borrowee->borrow_count > 0) {
         sema.error(borrowee_pos, "cannot borrow '%s' more than once",
                    borrowee->name->str());
@@ -860,23 +861,26 @@ void borrow(Sema &sema, VarDecl *borrower, VarDecl *borrowee, size_t borrowee_po
     borrowee->borrow_count++;
 }
 
+// Checks if expr starts with '&'.
+bool is_ref_expr(const Expr *expr) {
+    return expr->kind == ExprKind::unary &&
+           expr->as<UnaryExpr>()->kind == UnaryExprKind::ref;
+}
+
 void BorrowChecker::visitAssignStmt(AssignStmt *as) {
     walk_assign_stmt(*this, as);
 
-    // sort out only the borrowing assignments
-    if (as->rhs->kind != ExprKind::unary ||
-        as->rhs->as<UnaryExpr>()->kind != UnaryExprKind::ref)
-        return;
+    if (is_ref_expr(as->rhs)) {
+        // check multiple borrowing rule
+        // TODO: mutable and immutable
+        auto rhs_deref = as->rhs->as<UnaryExpr>()->operand;
+        assert(as->lhs->decl().has_value());
+        assert(rhs_deref->decl().has_value());
+        auto lhs_decl = decl_as<VarDecl>(*as->lhs->decl());
+        auto rhs_deref_decl = decl_as<VarDecl>(*rhs_deref->decl());
 
-    // check multiple borrowing rule
-    // TODO: mutable and immutable
-    assert(as->lhs->decl().has_value());
-    assert(as->rhs->as<UnaryExpr>()->operand->decl().has_value());
-    auto lhs_decl = decl_as<VarDecl>(*as->lhs->decl());
-    auto borrowee_decl =
-        decl_as<VarDecl>(*as->rhs->as<UnaryExpr>()->operand->decl());
-
-    borrow(sema, lhs_decl, borrowee_decl, as->rhs->pos);
+        borrow(sema, lhs_decl, rhs_deref_decl, as->rhs->pos);
+    }
 }
 
 // Rule: a variable of lifetime 'a should only refer to a variable whose
@@ -902,7 +906,12 @@ void BorrowChecker::visitVarDecl(VarDeclNode *v) {
 
     sema.live_list.insert(v->name, v->var_decl);
 
-    if (v->assign_expr) {
+    if (v->assign_expr && is_ref_expr(v->assign_expr)) {
+        // type checking guarantees that lhs has a decl
+        auto rhs_deref = v->assign_expr->as<UnaryExpr>()->operand;
+        assert(rhs_deref->decl().has_value());
+        borrow(sema, v->var_decl, decl_as<VarDecl>(*rhs_deref->decl()),
+               v->assign_expr->pos);
     }
 }
 

@@ -98,12 +98,8 @@ struct Type {
         Type *base_type;
     };
 
-    Type(Name *n) : kind(TypeKind::value), name(n), builtin(true) {
-        //memset(&type_decl, 0, sizeof(type_decl));
-    }
-    Type(TypeKind k, Name *n, Type *bt) : kind(k), name(n), base_type(bt) {
-        //memset(&type_decl, 0, sizeof(type_decl));
-    }
+    Type(Name *n) : kind(TypeKind::value), name(n), builtin(true) {}
+    Type(TypeKind k, Name *n, Type *bt) : kind(k), name(n), base_type(bt) {}
     Type(TypeKind k, Name *n, Decl td) : kind(k), name(n), type_decl(td) {}
 
     const char *str() const { return name->str(); }
