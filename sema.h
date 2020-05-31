@@ -226,7 +226,7 @@ struct Sema {
     void scope_open();
     void scope_close();
 
-    template <typename... Args> void error(size_t pos, Args &&... args);
+    void error(size_t pos, const char *fmt, ...);
 
     // Allocator function for Decls and Types.
     template <typename T> T *make_decl(Name *name) {

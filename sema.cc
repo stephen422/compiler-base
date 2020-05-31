@@ -1,26 +1,37 @@
 #include "sema.h"
 #include "ast.h"
 #include "parser.h"
-#include "fmt/core.h"
 #include "source.h"
 #include <cassert>
 
+#define BUFSIZE 100
+
 namespace cmp {
 
-std::string Type::str() const { return name->text; }
+std::string Type::str() const { return name->str(); }
 
 // TODO: Decl::str()
 // std::string VarDecl::str() const {
-//     return name->text;
+//     return name->str();
 // }
 // 
 // std::string StructDecl::str() const {
-//     return name->text;
+//     return name->str();
 // }
 
-template <typename... Args> void Sema::error(size_t pos, Args &&... args) {
-  Error e(source.locate(pos), fmt::format(std::forward<Args>(args)...));
-  errors.push_back(e);
+void Sema::error(size_t pos, const char *fmt, ...) {
+    char buf[BUFSIZE];
+    memset(buf, 0, BUFSIZE);
+
+    va_list args;
+    va_start(args, fmt);
+    int wlen = vsnprintf(buf, BUFSIZE, fmt, args);
+    va_end(args);
+
+    if (wlen >= BUFSIZE) assert(false && "snprintf overflow");
+
+    Error e{source.locate(pos), std::string{buf}};
+    errors.push_back(e);
 }
 
 Type *make_builtin_type(Sema &sema, Name *n) {
@@ -108,7 +119,7 @@ void NameBinder::visitCompoundStmt(CompoundStmt *cs) {
 void NameBinder::visitDeclRefExpr(DeclRefExpr *d) {
   auto sym = sema.decl_table.find(d->name);
   if (!sym) {
-    sema.error(d->pos, "use of undeclared identifier '{}'", d->name->text);
+    sema.error(d->pos, "use of undeclared identifier '%s'", d->name->str());
     return;
   }
   d->decl = sym->value;
@@ -119,11 +130,11 @@ void NameBinder::visitFuncCallExpr(FuncCallExpr *f) {
     // resolve function name
     auto sym = sema.decl_table.find(f->func_name);
     if (!sym) {
-      sema.error(f->pos, "undeclared function '{}'", f->func_name->text);
+      sema.error(f->pos, "undeclared function '%s'", f->func_name->str());
       return;
     }
     if (!decl_as<FuncDecl>(sym->value)) {
-      sema.error(f->pos, "'{}' is not a function", f->func_name->text);
+      sema.error(f->pos, "'%s' is not a function", f->func_name->str());
       return;
     }
     f->func_decl = decl_as<FuncDecl>(sym->value);
@@ -133,9 +144,10 @@ void NameBinder::visitFuncCallExpr(FuncCallExpr *f) {
 
     // check if argument count matches
     if (f->func_decl->args_count() != f->args.size()) {
-      sema.error(f->pos, "'{}' accepts {} arguments, got {}",
-                 f->func_name->text, f->func_decl->args_count(),
+      sema.error(f->pos, "'%s' accepts %lu arguments, got %lu",
+                 f->func_name->str(), f->func_decl->args_count(),
                  f->args.size());
+      return;
     }
 }
 
@@ -155,7 +167,7 @@ void NameBinder::visitTypeExpr(TypeExpr *t) {
     assert(t->kind == TypeExprKind::value);
     t->decl = sym->value;
   } else {
-    sema.error(t->pos, "use of undeclared type '{}'", t->name->text);
+    sema.error(t->pos, "use of undeclared type '%s'", t->name->str());
     return;
   }
 }
@@ -166,7 +178,7 @@ template <typename T> T *declare(Sema &sema, Name *name, size_t pos) {
     auto found = sema.decl_table.find(name);
     if (found && decl_is<T>(found->value) &&
         found->scope_level == sema.decl_table.curr_scope_level) {
-        sema.error(pos, "redefinition of '{}'", name->text);
+        sema.error(pos, "redefinition of '%s'", name->str());
         return nullptr;
     }
 
@@ -232,8 +244,9 @@ namespace {
 // Generate a name for the anonymous fields in each enum variant structs.
 // For now, these are named "_0", "_1", and so on.
 Name *gen_anonymous_field_name(Sema &sema, size_t index) {
-  auto text = fmt::format("_{}", index);
-  return sema.name_table.get_or_add(text);
+    char buf[BUFSIZE];
+    snprintf(buf, BUFSIZE, "_%lu", index);
+    return sema.name_table.get_or_add(std::string{buf});
 }
 
 } // namespace
@@ -305,8 +318,8 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
   }
 
   if (!typecheck_assignment(lhs_ty, rhs_ty)) {
-    sema.error(as->pos, "cannot assign '{}' type to '{}'", rhs_ty->name->text,
-               lhs_ty->name->text);
+    sema.error(as->pos, "cannot assign '%s' type to '%s'", rhs_ty->name->str(),
+               lhs_ty->name->str());
     return nullptr;
   }
 
@@ -324,15 +337,15 @@ Type *TypeChecker::visitReturnStmt(ReturnStmt *rs) {
   assert(!sema.context.func_decl_stack.empty());
   auto func_decl = sema.context.func_decl_stack.back();
   if (func_decl->is_void(sema)) {
-    sema.error(rs->expr->pos, "function '{}' should not return a value",
-               func_decl->name->text);
+    sema.error(rs->expr->pos, "function '%s' should not return a value",
+               func_decl->name->str());
     return nullptr;
   }
 
   if (rs->expr->type != func_decl->ret_ty) {
     sema.error(rs->expr->pos,
-               "return type mismatch: function returns '{}', but got '{}'",
-               func_decl->ret_ty->name->text, rs->expr->type->name->text);
+               "return type mismatch: function returns '%s', but got '%s'",
+               func_decl->ret_ty->name->str(), rs->expr->type->name->str());
     return nullptr;
   }
 
@@ -406,9 +419,9 @@ Type *TypeChecker::visitFuncCallExpr(FuncCallExpr *f) {
     // TODO: proper type comparison
     if (f->args[i]->type != f->func_decl->args[i]->type) {
       sema.error(f->args[i]->pos,
-                 "argument type mismatch: expects '{}', got '{}'",
-                 f->func_decl->args[i]->type->name->text,
-                 f->args[i]->type->name->text);
+                 "argument type mismatch: expects '%s', got '%s'",
+                 f->func_decl->args[i]->type->name->str(),
+                 f->args[i]->type->name->str());
       return nullptr;
     }
   }
@@ -422,8 +435,8 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
   auto lhs_type = s->name_expr->type;
   if (!lhs_type) return nullptr;
   if (!lhs_type->is_struct()) {
-    sema.error(s->name_expr->pos, "type '{}' is not a struct",
-               lhs_type->name->text);
+    sema.error(s->name_expr->pos, "type '%s' is not a struct",
+               lhs_type->name->str());
     return nullptr;
   }
 
@@ -439,15 +452,16 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
     }
 
     if (!found_field) {
-      sema.error(desig.expr->pos, // FIXME: wrong pos
-                 "no field named '{}' in struct '{}'", desig.name->text,
-                 lhs_type->get_struct_decl()->name->text);
-      return nullptr;
+        const char *fmt = "no field named '%s' in struct '%s'";
+        sema.error(desig.expr->pos, // FIXME: wrong pos
+                   fmt, desig.name->str(),
+                   lhs_type->get_struct_decl()->name->str());
+        return nullptr;
     }
 
     if (!typecheck_assignment(found_field->type, desig.expr->type)) {
-      sema.error(desig.expr->pos, "cannot assign '{}' type to '{}'",
-                 desig.expr->type->name->text, found_field->type->name->text);
+      sema.error(desig.expr->pos, "cannot assign '%s' type to '%s'",
+                 desig.expr->type->name->str(), found_field->type->name->str());
       return nullptr;
     }
   }
@@ -470,8 +484,8 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
   // make sure the LHS is actually a struct
   auto lhs_type = m->lhs_expr->type;
   if (!lhs_type->is_member_accessible()) {
-    sema.error(m->lhs_expr->pos, "type '{}' is not a struct",
-               lhs_type->name->text);
+    sema.error(m->lhs_expr->pos, "type '%s' is not a struct",
+               lhs_type->name->str());
     return nullptr;
   }
 
@@ -498,8 +512,8 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
   }
   if (!found) {
     // TODO: pos for member
-    sema.error(m->lhs_expr->pos, "'{}' is not a member of '{}'",
-               m->member_name->text, lhs_type->name->text);
+    sema.error(m->lhs_expr->pos, "'%s' is not a member of '%s'",
+               m->member_name->str(), lhs_type->name->str());
     return nullptr;
   }
 
@@ -533,8 +547,8 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
       return nullptr;
 
     if (u->operand->type->kind != TypeKind::ref) {
-      sema.error(u->operand->pos, "dereference of a non-reference type '{}'",
-                 u->operand->type->name->text);
+      sema.error(u->operand->pos, "dereference of a non-reference type '%s'",
+                 u->operand->type->name->str());
       return nullptr;
     }
     u->type = u->operand->type->base_type;
@@ -579,8 +593,8 @@ Type *TypeChecker::visitBinaryExpr(BinaryExpr *b) {
 
   if (b->lhs->type != b->rhs->type) {
     sema.error(b->pos,
-               "incompatible types to binary expression ('{}' and '{}')",
-               b->lhs->type->name->text, b->rhs->type->name->text);
+               "incompatible types to binary expression ('%s' and '%s')",
+               b->lhs->type->name->str(), b->rhs->type->name->str());
     return nullptr;
   }
 
@@ -618,18 +632,18 @@ Type *TypeChecker::visitTypeExpr(TypeExpr *t) {
 }
 
 Type *TypeChecker::visitVarDecl(VarDeclNode *v) {
-  walk_var_decl(*this, v);
+    walk_var_decl(*this, v);
 
-  if (v->type_expr) {
-    v->var_decl->type = v->type_expr->type;
-    assert(v->var_decl->type);
-  } else if (v->assign_expr) {
-    v->var_decl->type = v->assign_expr->type;
-  } else {
-    assert(false && "unreachable");
-  }
+    if (v->type_expr) {
+        v->var_decl->type = v->type_expr->type;
+        assert(v->var_decl->type);
+    } else if (v->assign_expr) {
+        v->var_decl->type = v->assign_expr->type;
+    } else {
+        assert(false && "unreachable");
+    }
 
-  return v->var_decl->type;
+    return v->var_decl->type;
 }
 
 Type *TypeChecker::visitFuncDecl(FuncDeclNode *f) {
@@ -832,6 +846,22 @@ void BorrowChecker::visitCompoundStmt(CompoundStmt *cs) {
     sema.scope_close();
 }
 
+// Possible borrowing occasions:
+// - let x = &a
+// - x = &a
+// - x = S {.m = &a}
+// - f(&a)
+void borrow(Sema &sema, VarDecl *borrower, VarDecl *borrowee, size_t borrowee_pos) {
+    if (borrowee->borrow_count > 0) {
+        sema.error(borrowee_pos, "cannot borrow '%s' more than once",
+                   borrowee->name->str());
+        return;
+    }
+
+    borrower->borrowee = borrowee;
+    borrowee->borrow_count++;
+}
+
 void BorrowChecker::visitAssignStmt(AssignStmt *as) {
     walk_assign_stmt(*this, as);
 
@@ -848,33 +878,21 @@ void BorrowChecker::visitAssignStmt(AssignStmt *as) {
     auto borrowee_decl =
         decl_as<VarDecl>(*as->rhs->as<UnaryExpr>()->operand->decl());
 
-    if (borrowee_decl->borrow_count > 0) {
-        sema.error(as->rhs->pos, "cannot borrow '{}' more than once",
-                   borrowee_decl->name->text);
-        return;
-    }
-
-    lhs_decl->borrowee = borrowee_decl;
-    borrowee_decl->borrow_count++;
+    borrow(sema, lhs_decl, borrowee_decl, as->rhs->pos);
 }
 
 // Rule: a variable of lifetime 'a should only refer to a variable whose
 // lifetime is larger than 'a.
 // In other words, at the point of use, the borrowee should be alive.
-//
-// Possible borrowing occasions:
-// - let x = &a
-// - x = &a
-// - x = S {.m = &a}
-// - f(&a)
 void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
     if (!decl_is<VarDecl>(d->decl)) return;
 
     auto var = decl_as<VarDecl>(d->decl);
     if (var->borrowee) {
+        // TODO: refactor into find_exact()
         auto sym = sema.live_list.find(var->borrowee->name);
         if (!sym || sym->value != var->borrowee) {
-            sema.error(d->pos, "'{}' does not live long enough",
+            sema.error(d->pos, "'%s' does not live long enough",
                        var->borrowee->name->str());
             return;
         }
@@ -885,6 +903,9 @@ void BorrowChecker::visitVarDecl(VarDeclNode *v) {
     walk_var_decl(*this, v);
 
     sema.live_list.insert(v->name, v->var_decl);
+
+    if (v->assign_expr) {
+    }
 }
 
 void CodeGenerator::visitFile(File *f) {
@@ -904,11 +925,11 @@ void CodeGenerator::visitStringLiteral(StringLiteral *s) {
 }
 
 void CodeGenerator::visitDeclRefExpr(DeclRefExpr *d) {
-  emitCont("{}", d->name->text);
+  emitCont("{}", d->name->str());
 }
 
 void CodeGenerator::visitFuncCallExpr(FuncCallExpr *f) {
-  emitCont("{}(", f->func_name->text);
+  emitCont("{}(", f->func_name->str());
 
   for (size_t i = 0; i < f->args.size(); i++) {
     visitExpr(f->args[i]);
@@ -926,7 +947,7 @@ void CodeGenerator::visitStructDefExpr(StructDefExpr *s) {
 
   emitCont(" {{");
   for (const auto desig : s->desigs) {
-    emitCont(".{} = ", desig.name->text);
+    emitCont(".{} = ", desig.name->str());
     visitExpr(desig.expr);
     emitCont(", ");
   }
@@ -936,7 +957,7 @@ void CodeGenerator::visitStructDefExpr(StructDefExpr *s) {
 void CodeGenerator::visitMemberExpr(MemberExpr *m) {
   visitExpr(m->lhs_expr);
   emitCont(".");
-  emitCont("{}", m->member_name->text);
+  emitCont("{}", m->member_name->str());
 }
 
 void CodeGenerator::visitUnaryExpr(UnaryExpr *u) {
@@ -981,7 +1002,7 @@ std::string CodeGenerator::cStringify(const Type *t) {
     auto base = cStringify(t->base_type);
     return base + "*";
   } else {
-    return t->name->text;
+    return t->name->str();
   }
 }
 
@@ -1038,12 +1059,12 @@ void CodeGenerator::visitBuiltinStmt(BuiltinStmt *b) {
 
 void CodeGenerator::visitVarDecl(VarDeclNode *v) {
   if (v->kind == VarDeclNodeKind::param) {
-    emit("{} {}", cStringify(v->var_decl->type), v->name->text);
+    emit("{} {}", cStringify(v->var_decl->type), v->name->str());
   } else {
-    emit("{} {};\n", cStringify(v->var_decl->type), v->name->text);
+    emit("{} {};\n", cStringify(v->var_decl->type), v->name->str());
 
     if (v->assign_expr) {
-      emit("{} = ", v->name->text);
+      emit("{} = ", v->name->str());
       visitExpr(v->assign_expr);
       emitCont(";\n");
     }
@@ -1051,13 +1072,13 @@ void CodeGenerator::visitVarDecl(VarDeclNode *v) {
 }
 
 void CodeGenerator::visitStructDecl(StructDeclNode *s) {
-  emit("typedef struct {} {{\n", s->name->text);
+  emit("typedef struct {} {{\n", s->name->str());
   {
     IndentBlock ib{*this};
     for (auto memb : s->members)
       visitDecl(memb);
   }
-  emit("}} {};\n", s->name->text);
+  emit("}} {};\n", s->name->str());
   emit("\n");
 }
 
@@ -1069,7 +1090,7 @@ void CodeGenerator::visitFuncDecl(FuncDeclNode *f) {
   else
     emit("void");
 
-  emit(" {}(", f->name->text);
+  emit(" {}(", f->name->str());
   if (f->args.empty()) {
     emitCont("void");
   } else {
