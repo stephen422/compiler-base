@@ -428,44 +428,48 @@ Type *TypeChecker::visitFuncCallExpr(FuncCallExpr *f) {
 }
 
 Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
-  walk_struct_def_expr(*this, s);
+    walk_struct_def_expr(*this, s);
 
-  auto lhs_type = s->name_expr->type;
-  if (!lhs_type) return nullptr;
-  if (!lhs_type->is_struct()) {
-    sema.error(s->name_expr->pos, "type '%s' is not a struct",
-               lhs_type->name->str());
-    return nullptr;
-  }
-
-  // typecheck each field
-  // XXX: copy-paste from visitMemberExpr
-  for (auto desig : s->desigs) {
-    VarDecl *found_field = nullptr;
-    for (auto field : lhs_type->get_struct_decl()->fields) {
-      if (desig.name == field->name) {
-        found_field = field;
-        break;
-      }
-    }
-
-    if (!found_field) {
-        const char *fmt = "no field named '%s' in struct '%s'";
-        sema.error(desig.expr->pos, // FIXME: wrong pos
-                   fmt, desig.name->str(),
-                   lhs_type->get_struct_decl()->name->str());
+    // check Name is a struct
+    auto lhs_type = s->name_expr->type;
+    if (!lhs_type) return nullptr;
+    if (!lhs_type->is_struct()) {
+        sema.error(s->name_expr->pos, "type '%s' is not a struct",
+                   lhs_type->name->str());
         return nullptr;
     }
 
-    if (!typecheck_assignment(found_field->type, desig.expr->type)) {
-      sema.error(desig.expr->pos, "cannot assign '%s' type to '%s'",
-                 desig.expr->type->name->str(), found_field->type->name->str());
-      return nullptr;
-    }
-  }
+    // typecheck each field
+    // XXX: copy-paste from visitMemberExpr
+    for (auto &desig : s->desigs) {
+        for (auto field : lhs_type->get_struct_decl()->fields) {
+            if (desig.name == field->name) {
+                desig.decl = field;
+                break;
+            }
+        }
 
-  s->type = lhs_type;
-  return s->type;
+        if (!desig.decl) {
+            const char *fmt = "no field named '%s' in struct '%s'";
+            sema.error(desig.expr->pos, // FIXME: wrong pos
+                       fmt, desig.name->str(),
+                       lhs_type->get_struct_decl()->name->str());
+            return nullptr;
+        }
+
+        // skip if earlier typecheck error
+        if (!desig.expr->type) return nullptr;
+
+        if (!typecheck_assignment(desig.decl->type, desig.expr->type)) {
+            sema.error(desig.expr->pos, "cannot assign '%s' type to '%s'",
+                       desig.expr->type->name->str(),
+                       desig.decl->type->name->str());
+            return nullptr;
+        }
+    }
+
+    s->type = lhs_type;
+    return s->type;
 }
 
 // MemberExprs cannot be namebinded completely without type checking (e.g.
@@ -861,7 +865,7 @@ void borrow(Sema &sema, VarDecl *borrower, VarDecl *borrowee,
     borrowee->borrow_count++;
 }
 
-// Checks if expr starts with '&'.
+// Checks if 'expr' starts with '&'.
 bool is_ref_expr(const Expr *expr) {
     return expr->kind == ExprKind::unary &&
            expr->as<UnaryExpr>()->kind == UnaryExprKind::ref;
@@ -898,6 +902,18 @@ void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
                        var->borrowee->name->str());
             return;
         }
+    }
+}
+
+void BorrowChecker::visitStructDefExpr(StructDefExpr *s) {
+    walk_struct_def_expr(*this, s);
+
+    for (auto desig : s->desigs) {
+        if (!is_ref_expr(desig.expr)) continue;
+        
+        auto rhs_deref = desig.expr->as<UnaryExpr>()->operand;
+        borrow(sema, desig.decl, decl_as<VarDecl>(*rhs_deref->decl()),
+               desig.expr->pos);
     }
 }
 

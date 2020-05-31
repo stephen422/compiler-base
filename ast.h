@@ -287,8 +287,9 @@ struct FuncCallExpr : public Expr {
 
 // '.memb = expr' part in Struct { ... }.
 struct StructFieldDesignator {
-    Name *name;
-    Expr *expr;
+    Name *name = nullptr;
+    VarDecl *decl = nullptr;
+    Expr *expr = nullptr;
 };
 
 // 'Struct { .m1 = .e1, .m2 = e2, ... }'

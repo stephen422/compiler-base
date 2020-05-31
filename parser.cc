@@ -723,7 +723,7 @@ std::optional<StructFieldDesignator> Parser::parse_struct_def_field() {
   auto expr = parse_expr();
   if (!expr) return {};
 
-  return StructFieldDesignator{name, expr};
+  return StructFieldDesignator{name, nullptr, expr};
 }
 
 // If this expression has a trailing {...}, parse as a struct definition

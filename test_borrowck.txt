@@ -8,11 +8,19 @@ func main() {
     *x // ERROR: 'a' does not live long enough
 }
 
+struct S {
+    ptr: *int
+}
+
+func f(ptr: *int) {
+}
+
 func multiple_borrows() {
     let a = 42
     let x = &a
     let y = &a // ERROR: cannot borrow 'a' more than once
-    // TODO: assignment and vardecl
+    let s = S{.ptr = &a} // ERROR: cannot borrow 'a' more than once
+    f(&a) // ERROR: cannot borrow 'a' more than once
 }
 
 func stack_ref() -> *int {

@@ -335,18 +335,19 @@ public:
   void visitAssignStmt(AssignStmt *as);
 
   void visitDeclRefExpr(DeclRefExpr *d);
+  void visitStructDefExpr(StructDefExpr *s);
 
   void visitVarDecl(VarDeclNode *v);
 };
 
 class CodeGenerator : public AstVisitor<CodeGenerator, void> {
-  Sema &sema;
-  int indent = 0;
-  FILE *file = nullptr;
+    Sema &sema;
+    int indent = 0;
+    FILE *file = nullptr;
 
-  template <typename... Args> void emit(Args &&... args) {
-    fmt::print(file, "{:{}}", "", indent);
-    fmt::print(file, std::forward<Args>(args)...);
+    template <typename... Args> void emit(Args &&... args) {
+        fmt::print(file, "{:{}}", "", indent);
+        fmt::print(file, std::forward<Args>(args)...);
   }
   template <typename... Args> void emitCont(Args &&... args) {
     fmt::print(file, std::forward<Args>(args)...);
