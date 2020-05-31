@@ -4,11 +4,9 @@
 #include "source.h"
 #include <cassert>
 
-#define BUFSIZE 100
+#define BUFSIZE 1024
 
 namespace cmp {
-
-std::string Type::str() const { return name->str(); }
 
 // TODO: Decl::str()
 // std::string VarDecl::str() const {
@@ -993,17 +991,19 @@ void CodeGenerator::visitBinaryExpr(BinaryExpr *b) {
 
 // Generate C source representation of a Type.
 std::string CodeGenerator::cStringify(const Type *t) {
-  if (t == sema.context.string_type) {
-    // For now, strings are aliased to char *.  This works as long as strings
-    // are immutable and doesn't contain unicode characters.
-    return "char*";
-  }
-  if (t->kind == TypeKind::ref) {
-    auto base = cStringify(t->base_type);
-    return base + "*";
-  } else {
-    return t->name->str();
-  }
+    assert(t);
+
+    if (t == sema.context.string_type) {
+        // For now, strings are aliased to char *.  This works as long as
+        // strings are immutable and doesn't contain unicode characters.
+        return "char*";
+    }
+    if (t->kind == TypeKind::ref) {
+        auto base = cStringify(t->base_type);
+        return base + "*";
+    } else {
+        return t->name->str();
+    }
 }
 
 void CodeGenerator::visitExprStmt(ExprStmt *e) {

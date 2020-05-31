@@ -85,47 +85,51 @@ enum class TypeKind {
 };
 
 struct Type {
-  TypeKind kind;
-  // Name of the type. TODO: include & or [] in the name?
-  Name *name = nullptr;
-  // Is this a builtin type?
-  bool builtin = false;
-  union {
-    // The type that this type refers to.  If it is a non-reference type, this
-    // should be null.
-    Type *base_type = nullptr;
-    // Back-reference to the decl object that defines this value type.
-    Decl type_decl;
-  };
+    TypeKind kind;
+    // Name of the type. TODO: include & or [] in the name?
+    Name *name = nullptr;
+    // Is this a builtin type?
+    bool builtin = false;
+    union {
+        // Back-reference to the decl object that defines this value type.
+        Decl type_decl{};
+        // The type that this type refers to.  If it is a non-reference type,
+        // this should be null.
+        Type *base_type;
+    };
 
-  Type(Name *n) : kind(TypeKind::value), name(n), builtin(true) {}
-  Type(TypeKind k, Name *n, Type *bt) : kind(k), name(n), base_type(bt) {}
-  Type(TypeKind k, Name *n, Decl td) : kind(k), name(n), type_decl(td) {}
+    Type(Name *n) : kind(TypeKind::value), name(n), builtin(true) {
+        //memset(&type_decl, 0, sizeof(type_decl));
+    }
+    Type(TypeKind k, Name *n, Type *bt) : kind(k), name(n), base_type(bt) {
+        //memset(&type_decl, 0, sizeof(type_decl));
+    }
+    Type(TypeKind k, Name *n, Decl td) : kind(k), name(n), type_decl(td) {}
 
-  std::string str() const;
+    const char *str() const { return name->str(); }
 
-  bool is_struct() const {
-    // TODO: should base_type be null too?
-    return kind == TypeKind::value &&
-           std::holds_alternative<StructDecl *>(type_decl);
-  }
-  bool is_enum() const {
-    // TODO: should base_type be null too?
-    return kind == TypeKind::value &&
-           std::holds_alternative<EnumDecl *>(type_decl);
-  }
-  bool is_member_accessible() const { return is_struct() || is_enum(); }
+    bool is_struct() const {
+        // TODO: should base_type be null too?
+        return kind == TypeKind::value &&
+               std::holds_alternative<StructDecl *>(type_decl);
+    }
+    bool is_enum() const {
+        // TODO: should base_type be null too?
+        return kind == TypeKind::value &&
+               std::holds_alternative<EnumDecl *>(type_decl);
+    }
+    bool is_member_accessible() const { return is_struct() || is_enum(); }
 
-  StructDecl *get_struct_decl() {
-    assert(kind == TypeKind::value);
-    assert(std::holds_alternative<StructDecl *>(type_decl));
-    return std::get<StructDecl *>(type_decl);
-  }
-  EnumDecl *get_enum_decl() {
-    assert(kind == TypeKind::value);
-    assert(std::holds_alternative<EnumDecl *>(type_decl));
-    return std::get<EnumDecl *>(type_decl);
-  }
+    StructDecl *get_struct_decl() {
+        assert(kind == TypeKind::value);
+        assert(std::holds_alternative<StructDecl *>(type_decl));
+        return std::get<StructDecl *>(type_decl);
+    }
+    EnumDecl *get_enum_decl() {
+        assert(kind == TypeKind::value);
+        assert(std::holds_alternative<EnumDecl *>(type_decl));
+        return std::get<EnumDecl *>(type_decl);
+    }
 };
 
 struct Context {
