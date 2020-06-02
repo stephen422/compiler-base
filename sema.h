@@ -335,6 +335,7 @@ public:
   void visitAssignStmt(AssignStmt *as);
 
   void visitDeclRefExpr(DeclRefExpr *d);
+  void visitFuncCallExpr(FuncCallExpr *f);
   void visitStructDefExpr(StructDefExpr *s);
 
   void visitVarDecl(VarDeclNode *v);

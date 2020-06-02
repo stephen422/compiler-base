@@ -276,7 +276,6 @@ struct DeclRefExpr : public Expr {
 struct FuncCallExpr : public Expr {
     Name *func_name = nullptr;
     std::vector<Expr *> args;
-    // Decl for the function name, 'func'.
     FuncDecl *func_decl = nullptr;
 
     FuncCallExpr(Name *name, const std::vector<Expr *> &args)

@@ -128,12 +128,12 @@ void NameBinder::visitFuncCallExpr(FuncCallExpr *f) {
     // resolve function name
     auto sym = sema.decl_table.find(f->func_name);
     if (!sym) {
-      sema.error(f->pos, "undeclared function '%s'", f->func_name->str());
-      return;
+        sema.error(f->pos, "undeclared function '%s'", f->func_name->str());
+        return;
     }
     if (!decl_as<FuncDecl>(sym->value)) {
-      sema.error(f->pos, "'%s' is not a function", f->func_name->str());
-      return;
+        sema.error(f->pos, "'%s' is not a function", f->func_name->str());
+        return;
     }
     f->func_decl = decl_as<FuncDecl>(sym->value);
     assert(f->func_decl);
@@ -142,10 +142,10 @@ void NameBinder::visitFuncCallExpr(FuncCallExpr *f) {
 
     // check if argument count matches
     if (f->func_decl->args_count() != f->args.size()) {
-      sema.error(f->pos, "'%s' accepts %lu arguments, got %lu",
-                 f->func_name->str(), f->func_decl->args_count(),
-                 f->args.size());
-      return;
+        sema.error(f->pos, "'%s' accepts %lu arguments, got %lu",
+                   f->func_name->str(), f->func_decl->args_count(),
+                   f->args.size());
+        return;
     }
 }
 
@@ -375,36 +375,6 @@ Type *TypeChecker::visitDeclRefExpr(DeclRefExpr *d) {
   return d->type;
 }
 
-// The VarDecl of a function call's return value is temporary.  Only when it is
-// binded to a variable does it become accessible from later positions in the
-// code.
-//
-// How do we model this temporariness?  Let's think in terms of lifetimes
-// ('ribs' in Rust). A function return value is a value whose lifetime starts
-// and ends in the same statement.
-//
-// For now, the tool that we can use for starting and ending a Decl's lifetime
-// is scopes.  Therefore, if we reshape this problem into something that
-// involves a variable that lives in a microscopic scope confined in a single
-// statement, we can model the temporary lifetime:
-//
-//     let v = f()
-//  -> let v = { var temp = f() }
-//
-// Normally, this micro scope thing would only be needed if a statement
-// contains a function call (or any other kind of expressions that spawn a
-// temporary Decl).  However, we cannot know this when we are visiting the
-// encompassing statement node unless we do some look-ahead.  So we just do
-// this pushing and popping of micro scopes for every kind of statements.  This
-// indicates that the scope_open/scope_close function should be implemented
-// reasonably efficiently.
-//
-// Some interesting cases to think about:
-//
-// * let v = f()
-// * let v = (f())
-// * let v = f().mem
-//
 Type *TypeChecker::visitFuncCallExpr(FuncCallExpr *f) {
   walk_func_call_expr(*this, f);
 
@@ -533,8 +503,8 @@ Type *getReferenceType(Sema &sema, Type *type) {
     return found->value;
 
   // FIXME: scope_level
-  auto refTy = make_ref_type(sema, name, type);
-  return *sema.type_table.insert(name, refTy);
+  auto ref_type = make_ref_type(sema, name, type);
+  return *sema.type_table.insert(name, ref_type);
 }
 
 Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
@@ -861,7 +831,7 @@ void borrow(Sema &sema, VarDecl *borrower, VarDecl *borrowee,
         return;
     }
 
-    borrower->borrowee = borrowee;
+    if (borrower) borrower->borrowee = borrowee;
     borrowee->borrow_count++;
 }
 
@@ -902,6 +872,57 @@ void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
                        var->borrowee->name->str());
             return;
         }
+    }
+}
+
+// The VarDecl of a function call's return value is temporary.  Only when it is
+// binded to a variable does it become accessible from later positions in the
+// code.
+//
+// How do we model this temporariness?  Let's think in terms of lifetimes
+// ('ribs' in Rust). A function return value is a value whose lifetime starts
+// and ends in the same statement.
+//
+// For now, the tool that we can use for starting and ending a Decl's lifetime
+// is scopes.  Therefore, if we reshape this problem into something that
+// involves a variable that lives in a microscopic scope confined in a single
+// statement, we can model the temporary lifetime:
+//
+//     let v = f()
+//  -> let v = { var temp = f() }
+//
+// Normally, this micro scope thing would only be needed if a statement
+// contains a function call (or any other kind of expressions that spawn a
+// temporary Decl).  However, we cannot know this when we are visiting the
+// encompassing statement node unless we do some look-ahead.  So we just do
+// this pushing and popping of micro scopes for every kind of statements.  This
+// indicates that the scope_open/scope_close function should be implemented
+// reasonably efficiently.
+//
+// Some interesting cases to think about:
+//
+// * let v = f()
+// * let v = (f())
+// * let v = f().mem
+//
+//
+// Lifetime of function arguments
+// ==============================
+//
+// The language has a call-by-value semantics.  This means that every argument
+// to a function is copied its value to the stack frame of the called function.
+// For a pointer variable, this means that a new reference to the same memory
+// is created.  We don't want this (???) so we use move semantics.
+//
+void BorrowChecker::visitFuncCallExpr(FuncCallExpr *f) {
+    walk_func_call_expr(*this, f);
+
+    for (auto arg : f->args) {
+        if (!is_ref_expr(arg)) continue;
+
+        auto rhs_deref = arg->as<UnaryExpr>()->operand;
+        borrow(sema, nullptr, decl_as<VarDecl>(*rhs_deref->decl()),
+               arg->pos);
     }
 }
 
