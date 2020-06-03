@@ -85,12 +85,14 @@ void Sema::scope_open() {
     decl_table.scope_open();
     type_table.scope_open();
     live_list.scope_open();
+    borrow_table.scope_open();
 }
 
 void Sema::scope_close() {
     decl_table.scope_close();
     type_table.scope_close();
     live_list.scope_close();
+    borrow_table.scope_close();
 }
 
 // Return optional of 'type' member of Decl, or None if this Decl kind doesn't
@@ -825,14 +827,23 @@ void BorrowChecker::visitCompoundStmt(CompoundStmt *cs) {
 // - f(&a)
 void borrow(Sema &sema, VarDecl *borrower, VarDecl *borrowee,
             size_t borrowee_pos) {
-    if (borrowee->borrow_count > 0) {
+    int old_borrow_count = 0;
+    auto found = sema.borrow_table.find(borrowee->name);
+    if (found) {
+        old_borrow_count = found->value.borrow_count;
+    }
+
+    if (old_borrow_count > 0) {
         sema.error(borrowee_pos, "cannot borrow '%s' more than once",
                    borrowee->name->str());
         return;
     }
 
+    sema.borrow_table.insert(borrowee->name,
+                             BorrowMap{borrowee, old_borrow_count + 1});
+
+    // TODO: need to put this here?
     if (borrower) borrower->borrowee = borrowee;
-    borrowee->borrow_count++;
 }
 
 // Checks if 'expr' starts with '&'.

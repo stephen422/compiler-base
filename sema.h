@@ -16,8 +16,6 @@ struct VarDecl {
     Type *type = nullptr;
     // Decl of the var that this var references to.  Used for borrow checking.
     VarDecl *borrowee = nullptr;
-    // number of occasions that this variable was borrowed
-    int borrow_count = 0;
 
     VarDecl(Name *n) : name(n) {}
 };
@@ -173,7 +171,13 @@ template <typename T> struct ScopedTable {
 
 #include "scoped_table.h"
 
-class Parser;
+// Maps a VarDecl to its borrow count in the current scope.
+// To be stored inside a ScopedTable.
+struct BorrowMap {
+    VarDecl *decl = nullptr;
+    // number of occasions that this variable was borrowed
+    int borrow_count = 0;
+};
 
 struct BasicBlock {
   std::vector<Stmt *> stmts;
@@ -193,6 +197,8 @@ struct BasicBlock {
   void enumerate_post_order(std::vector<BasicBlock *> &walkList);
 };
 
+class Parser;
+
 // Stores all of the semantic information necessary for semantic analysis
 // phase.
 struct Sema {
@@ -210,6 +216,8 @@ struct Sema {
     ScopedTable<Type *> type_table;
     // Live variables at the current scope.
     ScopedTable<VarDecl *> live_list;
+    // TODO: doc
+    ScopedTable<BorrowMap> borrow_table;
 
     Context context;
     std::vector<Error> &errors;  // error list
@@ -248,12 +256,6 @@ void setup_builtin_types(Sema &s);
 // Get a reference type of a given type.
 // Constructs the type if it wasn't in the type table beforehand.
 Type *getReferenceType(Sema &sema, Type *type);
-
-struct Ast;
-struct AstNode;
-
-void walkAST(Sema &sema, AstNode *node, bool (*pre_fn)(Sema &sema, AstNode *),
-              bool (*post_fn)(Sema &sema, AstNode *));
 
 template <typename T> T *declare(Sema &sema, Name *name, size_t pos);
 

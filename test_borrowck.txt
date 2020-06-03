@@ -22,10 +22,14 @@ func multiple_borrows() {
         let y = &a // ERROR: cannot borrow 'a' more than once
     }
     {
+        // previous borrow should be dropped
+        let x = &a
+    }
+    {
         let s = S{.ptr = &a}
     }
     {
-        f(&a) // ERROR: cannot borrow 'a' more than once
+        f(&a)
     }
 }
 
