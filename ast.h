@@ -266,11 +266,11 @@ struct StringLiteral : public Expr {
 // A unary expression that references a declaration object, e.g. a variable or
 // a function.
 struct DeclRefExpr : public Expr {
-  Name *name = nullptr;
-  Decl decl;
+    Name *name = nullptr;
+    Decl decl;
 
-  DeclRefExpr(Name *n) : Expr(ExprKind::decl_ref), name(n) {}
-  void print() const override;
+    DeclRefExpr(Name *n) : Expr(ExprKind::decl_ref), name(n) {}
+    void print() const override;
 };
 
 struct FuncCallExpr : public Expr {
@@ -293,33 +293,33 @@ struct StructFieldDesignator {
 
 // 'Struct { .m1 = .e1, .m2 = e2, ... }'
 struct StructDefExpr : public Expr {
-  Expr *name_expr; // either a DeclRefExpr or a MemberExpr
-  std::vector<StructFieldDesignator> desigs;
+    Expr *name_expr; // either a DeclRefExpr or a MemberExpr
+    std::vector<StructFieldDesignator> desigs;
 
-  StructDefExpr(Expr *e, const std::vector<StructFieldDesignator> &ds)
-      : Expr(ExprKind::struct_def), name_expr(e), desigs(ds) {}
-  void print() const override;
+    StructDefExpr(Expr *e, const std::vector<StructFieldDesignator> &ds)
+        : Expr(ExprKind::struct_def), name_expr(e), desigs(ds) {}
+    void print() const override;
 };
 
 // 'struct.mem'
 struct MemberExpr : public Expr {
-  Expr *lhs_expr = nullptr;    // 'struct' part
-  Name *member_name = nullptr; // 'mem' part
-  Decl decl;                   // decl of 'mem'
+    Expr *lhs_expr = nullptr;    // 'struct' part
+    Name *member_name = nullptr; // 'mem' part
+    Decl decl;                   // decl of 'mem'
 
-  MemberExpr(Expr *e, Name *m)
-      : Expr(ExprKind::member), lhs_expr(e), member_name(m) {}
-  void print() const override;
+    MemberExpr(Expr *e, Name *m)
+        : Expr(ExprKind::member), lhs_expr(e), member_name(m) {}
+    void print() const override;
 };
 
 struct UnaryExpr : public Expr {
-  UnaryExprKind kind;
-  Expr *operand;
-  VarDecl *var_decl = nullptr;
+    UnaryExprKind kind;
+    Expr *operand;
+    VarDecl *var_decl = nullptr;
 
-  UnaryExpr(UnaryExprKind k, Expr *oper)
-      : Expr(ExprKind::unary), kind(k), operand(oper) {}
-  void print() const override;
+    UnaryExpr(UnaryExprKind k, Expr *oper)
+        : Expr(ExprKind::unary), kind(k), operand(oper) {}
+    void print() const override;
 };
 
 struct ParenExpr : public UnaryExpr {

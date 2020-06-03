@@ -224,7 +224,15 @@ void ParenExpr::print() const {
 }
 
 void StructDefExpr::print() const {
-    out() << "[StructDefExpr] TODO" << std::endl;
+    out() << "[StructDefExpr]" << std::endl;
+    PrintScope start;
+    name_expr->print();
+
+    for (auto desig : desigs) {
+        out() << fmt::format(".{}", desig.name->str()) << std::endl;
+        PrintScope start;
+        desig.expr->print();
+    }
 }
 
 void MemberExpr::print() const {
