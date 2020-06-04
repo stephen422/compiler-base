@@ -378,25 +378,25 @@ Type *TypeChecker::visitDeclRefExpr(DeclRefExpr *d) {
 }
 
 Type *TypeChecker::visitFuncCallExpr(FuncCallExpr *f) {
-  walk_func_call_expr(*this, f);
+    walk_func_call_expr(*this, f);
 
-  assert(f->func_decl->ret_ty);
-  f->type = f->func_decl->ret_ty;
+    assert(f->func_decl->ret_ty);
+    f->type = f->func_decl->ret_ty;
 
-  // check argument type match
-  for (size_t i = 0; i < f->func_decl->args.size(); i++) {
-    assert(f->args[i]->type);
-    // TODO: proper type comparison
-    if (f->args[i]->type != f->func_decl->args[i]->type) {
-      sema.error(f->args[i]->pos,
-                 "argument type mismatch: expects '%s', got '%s'",
-                 f->func_decl->args[i]->type->name->str(),
-                 f->args[i]->type->name->str());
-      return nullptr;
+    // check argument type match
+    for (size_t i = 0; i < f->func_decl->args.size(); i++) {
+        assert(f->args[i]->type);
+        // TODO: proper type comparison
+        if (f->args[i]->type != f->func_decl->args[i]->type) {
+            sema.error(f->args[i]->pos,
+                       "argument type mismatch: expects '%s', got '%s'",
+                       f->func_decl->args[i]->type->name->str(),
+                       f->args[i]->type->name->str());
+            return nullptr;
+        }
     }
-  }
 
-  return f->type;
+    return f->type;
 }
 
 Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
@@ -820,13 +820,14 @@ void BorrowChecker::visitCompoundStmt(CompoundStmt *cs) {
     sema.scope_close();
 }
 
+// Mark a variable that it is borrowed in the current scope.
+//
 // Possible borrowing occasions:
 // - let x = &a
 // - x = &a
 // - x = S {.m = &a}
 // - f(&a)
-void borrow(Sema &sema, VarDecl *borrower, VarDecl *borrowee,
-            size_t borrowee_pos) {
+void register_borrow(Sema &sema, VarDecl *borrowee, size_t borrowee_pos) {
     int old_borrow_count = 0;
     auto found = sema.borrow_table.find(borrowee->name);
     if (found) {
@@ -841,9 +842,6 @@ void borrow(Sema &sema, VarDecl *borrower, VarDecl *borrowee,
 
     sema.borrow_table.insert(borrowee->name,
                              BorrowMap{borrowee, old_borrow_count + 1});
-
-    // TODO: need to put this here?
-    if (borrower) borrower->borrowee = borrowee;
 }
 
 // Checks if 'expr' starts with '&'.
@@ -863,8 +861,7 @@ void BorrowChecker::visitAssignStmt(AssignStmt *as) {
         assert(rhs_deref->decl().has_value());
         auto lhs_decl = decl_as<VarDecl>(*as->lhs->decl());
         auto rhs_deref_decl = decl_as<VarDecl>(*rhs_deref->decl());
-
-        borrow(sema, lhs_decl, rhs_deref_decl, as->rhs->pos);
+        lhs_decl->borrowee = rhs_deref_decl;
     }
 }
 
@@ -873,12 +870,13 @@ void BorrowChecker::visitAssignStmt(AssignStmt *as) {
 // In other words, at the point of use, the borrowee should be alive.
 void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
     if (!decl_is<VarDecl>(d->decl)) return;
-
     auto var = decl_as<VarDecl>(d->decl);
+
+    // at each use of a reference variable, check if its borrowee is alive
     if (var->borrowee) {
         // TODO: refactor into find_exact()
         auto sym = sema.live_list.find(var->borrowee->name);
-        if (!sym || sym->value != var->borrowee) {
+        if (!(sym && sym->value == var->borrowee)) {
             sema.error(d->pos, "'%s' does not live long enough",
                        var->borrowee->name->str());
             return;
@@ -927,14 +925,6 @@ void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
 //
 void BorrowChecker::visitFuncCallExpr(FuncCallExpr *f) {
     walk_func_call_expr(*this, f);
-
-    for (auto arg : f->args) {
-        if (!is_ref_expr(arg)) continue;
-
-        auto rhs_deref = arg->as<UnaryExpr>()->operand;
-        borrow(sema, nullptr, decl_as<VarDecl>(*rhs_deref->decl()),
-               arg->pos);
-    }
 }
 
 void BorrowChecker::visitStructDefExpr(StructDefExpr *s) {
@@ -943,9 +933,27 @@ void BorrowChecker::visitStructDefExpr(StructDefExpr *s) {
     for (auto desig : s->desigs) {
         if (!is_ref_expr(desig.expr)) continue;
         
+        // FIXME: touching desig.decl might be pointless
         auto rhs_deref = desig.expr->as<UnaryExpr>()->operand;
-        borrow(sema, desig.decl, decl_as<VarDecl>(*rhs_deref->decl()),
-               desig.expr->pos);
+        desig.decl->borrowee = decl_as<VarDecl>(*rhs_deref->decl());
+    }
+}
+
+void BorrowChecker::visitUnaryExpr(UnaryExpr *u) {
+    switch (u->kind) {
+    case UnaryExprKind::paren:
+        visitParenExpr(static_cast<ParenExpr *>(u));
+        break;
+    case UnaryExprKind::ref:
+        visitExpr(u->operand);
+        register_borrow(sema, decl_as<VarDecl>(*u->operand->decl()), u->pos);
+        break;
+    case UnaryExprKind::deref:
+        visitExpr(u->operand);
+        break;
+    default:
+        assert(false);
+        break;
     }
 }
 
@@ -955,11 +963,9 @@ void BorrowChecker::visitVarDecl(VarDeclNode *v) {
     sema.live_list.insert(v->name, v->var_decl);
 
     if (v->assign_expr && is_ref_expr(v->assign_expr)) {
-        // type checking guarantees that lhs has a decl
+        // store borrowee relationship
         auto rhs_deref = v->assign_expr->as<UnaryExpr>()->operand;
-        assert(rhs_deref->decl().has_value());
-        borrow(sema, v->var_decl, decl_as<VarDecl>(*rhs_deref->decl()),
-               v->assign_expr->pos);
+        v->var_decl->borrowee = decl_as<VarDecl>(*rhs_deref->decl());
     }
 }
 

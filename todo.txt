@@ -4,6 +4,8 @@
   object lives and dies in the code.
   - How would the lifetime annotation look like?
 
+- Remove visitParenExpr
+
 !! Idea: 'match' syntax in function(method) declaration
 
   Similar to how functional languages like Haskell allow function declaration

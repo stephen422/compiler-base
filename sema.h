@@ -339,6 +339,7 @@ public:
   void visitDeclRefExpr(DeclRefExpr *d);
   void visitFuncCallExpr(FuncCallExpr *f);
   void visitStructDefExpr(StructDefExpr *s);
+  void visitUnaryExpr(UnaryExpr *u);
 
   void visitVarDecl(VarDeclNode *v);
 };
