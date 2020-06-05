@@ -1,5 +1,5 @@
-CFLAGS += -g -std=c11 -fsanitize=address,leak,undefined -Wall -Wextra -Wno-unused-function
-# CFLAGS += -g -std=c11 -Wall -Wextra -Wno-unused-function
+CFLAGS += -g -std=c11 -Wall -Wextra -Wno-unused-function
+CFLAGS += -fsanitize=address,leak,undefined 
 PROG := qc
 SRCS := main.c sema.c parser.c lexer.c sds.c
 OBJS := $(SRCS:.c=.o)
