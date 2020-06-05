@@ -611,10 +611,11 @@ static Node *parse_funccall_maybe(Parser *p, Node *expr)
 
     expect(p, TOK_LPAREN);
 
-    parse_expr(p);
-    while (p->tok.type == TOK_COMMA) {
-        next(p);
+    while (p->tok.type != TOK_RPAREN) {
         parse_expr(p);
+        if (p->tok.type == TOK_COMMA) {
+            next(p);
+        }
     }
 
     expect(p, TOK_RPAREN);
@@ -909,26 +910,26 @@ void parserVerify(const Parser *p) {
 
 // Parse a single error beacon ([error: "regex"]).
 Error parse_beacon(Parser *p) {
-  char buf[TOKLEN];
-  char *msg;
+    char *msg;
 
-  expect(p, TOK_LBRACKET);
-  expect(p, TOK_ERROR);
-  expect(p, TOK_COLON);
+    expect(p, TOK_LBRACKET);
+    expect(p, TOK_ERROR);
+    expect(p, TOK_COLON);
 
-  tokenstr(&p->lexer, p->tok, buf, sizeof(buf));
-  int len = strlen(buf);
-  msg = malloc(len + 1);
-  memcpy(msg, buf, len + 1);
+    char buf[TOKLEN];
+    tokenstr(&p->lexer, p->tok, buf, sizeof(buf));
+    size_t len = strlen(buf);
+    msg = malloc(len + 1);
+    memcpy(msg, buf, len + 1);
 
-  next(p);
+    next(p);
 
-  expect(p, TOK_RBRACKET);
+    expect(p, TOK_RBRACKET);
 
-  return (Error){
-      .loc = {0}, // overrided
-      .msg = msg,
-  };
+    return (Error){
+        .loc = {0}, // overrided
+        .msg = msg,
+    };
 }
 
 Node *parse(Parser *p)
