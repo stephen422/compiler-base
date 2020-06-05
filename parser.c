@@ -351,17 +351,17 @@ static void next(Parser *p)
         p->tok = p->lexer.tok;
 
         if (p->tok.type == TOK_COMMENT) {
-            char buf[TOKLEN];
-            tokenstr(&p->lexer, p->tok, buf, sizeof(buf));
-            char *found = strstr(buf, "[error:");
-            if (found) {
-                Parser p0;
-                parserInitText(&p0, found, strlen(found));
-                Error e = parse_beacon(&p0);
-                parserCleanup(&p0);
+            char comment_buf[TOKLEN];
+            tokenstr(&p->lexer, p->tok, comment_buf, sizeof(comment_buf));
 
-                // override loc
-                e.loc = lexer_locate(&p->lexer, p->tok.range.start);
+            const char *marker =  "// ERROR: ";
+            char *found = strstr(comment_buf, marker);
+            if (found == comment_buf) {
+                char *regex_start = found + strlen(marker);
+                char *msg = malloc(strlen(regex_start) + 1);
+                memcpy(msg, regex_start, strlen(regex_start) + 1);
+                Error e = {.loc = lexer_locate(&p->lexer, p->tok.range.start),
+                           .msg = msg};
                 sb_push(p->beacons, e);
             }
         }
@@ -859,7 +859,7 @@ static Node *parseTopLevel(Parser *p)
     }
 }
 
-void parserVerify(const Parser *p) {
+void parser_verify(const Parser *p) {
     int success = 1;
     printf("\033[0;32mtest\033[0m %s:\n", p->lexer.filename);
 

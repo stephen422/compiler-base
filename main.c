@@ -30,7 +30,7 @@ int main(int argc, char **argv)
     Parser p;
     parserInit(&p, argv[1]);
     Node *root = parse(&p);
-    parserVerify(&p);
+    parser_verify(&p);
     // printAst(&p, root);
     // sema(&p.nametable, root);
     parserCleanup(&p);

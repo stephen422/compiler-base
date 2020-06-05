@@ -4,37 +4,37 @@
 
 fn main() {
     let a = 3 + 4
-    let b: int // [error: "initial value required"]
+    let b: int // ERROR: initial value required
     var b: int
-    let c *int // [error: "expected ':'.*got '*'"]
-    var c: int blah // [error: "expected '\\n'.*blah"]
-    var d: * // [error: "expected type name"]
+    let c *int // ERROR: expected ':'.*got '*'
+    var c: int blah // ERROR: expected '\\n'.*blah
+    var d: * // ERROR: expected type name
     var d: *Car
-    var d: *Car Sedan // [error: "expected '\\n'.*Sedan"]
+    var d: *Car Sedan // ERROR: expected '\\n'.*Sedan
 
     1 * 2 + 3 + 4 * 5
     3 + (a - (b + a * 3)) * 2
 
-    b a // [error: "expected '\\n'.*'a'"]
-    b = // [error: "expected.*expr"]
+    b a // ERROR: expected '\\n'.*'a'
+    b = // ERROR: expected.*expr
     b = a
     c = &b
 
     f(3, 4)
     f(3, 4,)
-    f(3, 4, ,) // [error: "expected an expression"]
+    f(3, 4, ,) // ERROR: expected an expression
     f(3, 4, 2 + 5)
 }
 
-// fn f(a: int) int { // [error: "expected.*'->'.*got 'int'"]
+// fn f(a: int) int { // ERROR: expected.*'->'.*got 'int'
 // }
 // 
-// fn f(a: int, b int, c: int) -> int { // [error: "expected.*':'"]
-//     return * // [error: "expected.*expression"]
+// fn f(a: int, b int, c: int) -> int { // ERROR: expected.*':'
+//     return * // ERROR: expected.*expression
 // }
 
-// struct Car // [error: "expected.*\{"]
+// struct Car // ERROR: expected.*\{
 //     a: i64,
 //     b: int
 //     c: int, // comma is permitted
-// // [error: "unterminated struct"]
+// // ERROR: unterminated struct

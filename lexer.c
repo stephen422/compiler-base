@@ -267,8 +267,9 @@ int lexerNext(Lexer *l) {
         case '/': {
             step(l);
             if (l->ch == '/') {
-                while (l->ch != '\n')
+                while (l->ch != '\n') {
                     step(l);
+                }
                 makeToken(l, TOK_COMMENT);
                 return 0;
             } else {
@@ -314,6 +315,9 @@ SrcLoc lexer_locate(Lexer *l, size_t pos)
     return (SrcLoc){l->filename, line + 1, col};
 }
 
+// Print 'tok' as string into buf.
+// Needs lexer because it needs the source text.
+// FIXME: Just accept Source.
 char *tokenstr(Lexer *lex, Token tok, char *buf, size_t len)
 {
     size_t tlen = tok.range.end - tok.range.start;
