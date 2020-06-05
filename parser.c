@@ -434,6 +434,10 @@ static Token expect(Parser *p, TokenType t) {
     return tok;
 }
 
+static int is_eof(const Parser *p) {
+    return p->tok.type == TOK_EOF;
+}
+
 static int isEndOfLine(const Parser *p) {
     return p->tok.type == TOK_NEWLINE || p->tok.type == TOK_COMMENT;
 }
@@ -442,16 +446,22 @@ static void expectEndOfLine(Parser *p) {
     if (!isEndOfLine(p)) expect(p, TOK_NEWLINE);
 }
 
-static void skip_invisibles(Parser *p) {
+static void skip_newlines(Parser *p) {
     while (p->tok.type == TOK_NEWLINE || p->tok.type == TOK_COMMENT) {
         next(p);
     }
 }
 
-static void skipToEndOfLine(Parser *p)
-{
-    while (p->tok.type != TOK_NEWLINE)
+static void skip_until(Parser *p, TokenType type) {
+    while (!is_eof(p) && p->tok.type != type) {
         next(p);
+    }
+}
+
+static void skip_until_end_of_line(Parser *p) {
+    while (p->tok.type != TOK_NEWLINE) {
+        next(p);
+    }
 }
 
 // Assignment statements start with an expression, so we cannot easily
@@ -469,7 +479,7 @@ static Node *parseAssignOrExprStmt(Parser *p, Node *expr)
         stmt = makeExprStmt(p, expr);
     }
     expectEndOfLine(p);
-    skipToEndOfLine(p);
+    skip_until_end_of_line(p);
     return stmt;
 }
 
@@ -488,7 +498,7 @@ static Node *parseReturnStmt(Parser *p) {
 static Node *parse_stmt(Parser *p) {
     Node *stmt;
 
-    skip_invisibles(p);
+    skip_newlines(p);
 
     // try all possible productions and use the first successful one
     switch (p->tok.type) {
@@ -773,7 +783,7 @@ static Node *parse_vardecl(Parser *p)
         return make_vardecl(p, NULL, mut, name, assign);
     } else {
         error_expected(p, "':' or '='");
-        skipToEndOfLine(p);
+        skip_until_end_of_line(p);
         Node *typeexpr = make_badtypeexpr(p);
         return make_vardecl(p, typeexpr, mut, name, NULL);
     }
@@ -812,35 +822,39 @@ static Node *parse_decl(Parser *p)
     return decl;
 }
 
-static Node *parseFuncDecl(Parser *p)
-{
+static Node *parseFuncDecl(Parser *p) {
     expect(p, TOK_FN);
 
     Name *name = push_name_from_token(p, p->tok);
     Node *func = make_funcdecl(p, name);
     next(p);
 
-    // parameter list
+    // argument list
     expect(p, TOK_LPAREN);
     func->paramdecls = parse_paramdecllist(p);
     expect(p, TOK_RPAREN);
 
     // return type
+    func->rettypeexpr = NULL;
     if (p->tok.type == TOK_ARROW) {
         expect(p, TOK_ARROW);
         func->rettypeexpr = parse_typeexpr(p);
-    } else {
-        func->rettypeexpr = NULL;
+    }
+
+    if (p->tok.type != TOK_LBRACE) {
+        error_expected(p, "'->' or '{'");
+        skip_until(p, TOK_LBRACE);
     }
 
     func->body = parseCompoundStmt(p);
+    // TODO: func->pos = 
 
     return func;
 }
 
 static Node *parse_toplevel(Parser *p)
 {
-    skip_invisibles(p);
+    skip_newlines(p);
 
     switch (p->tok.type) {
     case TOK_FN:
@@ -938,7 +952,7 @@ Node *parse(Parser *p)
     while (p->tok.type != TOK_EOF) {
         Node *func = parse_toplevel(p);
         sb_push(nodes, func);
-        skip_invisibles(p);
+        skip_newlines(p);
     }
 
     return makeFile(p, nodes);
