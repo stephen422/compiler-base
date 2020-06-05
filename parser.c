@@ -373,7 +373,7 @@ static void next(Parser *p)
     }
 }
 
-static void addError(Parser *p, SrcLoc loc, const char *msg)
+static void add_error(Parser *p, SrcLoc loc, const char *msg)
 {
     int len = strlen(msg);
     char *msgcpy = malloc(len + 1);
@@ -392,7 +392,7 @@ static void error(Parser *p, const char *fmt, ...)
 	va_end(args);
 
 	SrcLoc loc = lexer_locate(&p->lexer, p->tok.range.start);
-	addError(p, loc, msg);
+	add_error(p, loc, msg);
 }
 
 static void error_print(const Error e) {
@@ -439,16 +439,13 @@ static int isEndOfLine(const Parser *p) {
 }
 
 static void expectEndOfLine(Parser *p) {
-    if (!isEndOfLine(p))
-        expect(p, TOK_NEWLINE);
-    // make progress
-    next(p);
+    if (!isEndOfLine(p)) expect(p, TOK_NEWLINE);
 }
 
-static void skipInvisibles(Parser *p)
-{
-    while (p->tok.type == TOK_NEWLINE || p->tok.type == TOK_COMMENT)
+static void skip_invisibles(Parser *p) {
+    while (p->tok.type == TOK_NEWLINE || p->tok.type == TOK_COMMENT) {
         next(p);
+    }
 }
 
 static void skipToEndOfLine(Parser *p)
@@ -488,11 +485,10 @@ static Node *parseReturnStmt(Parser *p) {
     return makeRetstmt(p, expr);
 }
 
-static Node *parseStmt(Parser *p)
-{
+static Node *parse_stmt(Parser *p) {
     Node *stmt;
 
-    skipInvisibles(p);
+    skip_invisibles(p);
 
     // try all possible productions and use the first successful one
     switch (p->tok.type) {
@@ -515,8 +511,7 @@ static Node *parseStmt(Parser *p)
 
     // all productions from now on start with an expression
     Node *expr = parse_expr(p);
-    if (expr)
-        return parseAssignOrExprStmt(p, expr);
+    if (expr) return parseAssignOrExprStmt(p, expr);
 
     // no production has succeeded
     // TODO: unreachable?
@@ -529,8 +524,9 @@ static Node *parseCompoundStmt(Parser *p)
 
     Node *compound = makeCompoundstmt(p);
     Node *stmt;
-    while ((stmt = parseStmt(p)) != NULL)
+    while ((stmt = parse_stmt(p)) != NULL) {
         sb_push(compound->nodes, stmt);
+    }
 
     expect(p, TOK_RBRACE);
 
@@ -565,9 +561,7 @@ static Node *parse_typeexpr(Parser *p) {
         ref = 1;
 
         subtype = parse_typeexpr(p);
-        if (subtype->kind == ND_BADTYPEEXPR)
-            return subtype;
-        printf("subtype kind=%d\n", subtype->kind);
+        if (subtype->kind == ND_BADTYPEEXPR) return subtype;
 
         assert(subtype->t.name);
         name = push_refname(&p->nametable, subtype->t.name);
@@ -844,9 +838,9 @@ static Node *parseFuncDecl(Parser *p)
     return func;
 }
 
-static Node *parseTopLevel(Parser *p)
+static Node *parse_toplevel(Parser *p)
 {
-    skipInvisibles(p);
+    skip_invisibles(p);
 
     switch (p->tok.type) {
     case TOK_FN:
@@ -942,9 +936,9 @@ Node *parse(Parser *p)
     Node **nodes = NULL;
 
     while (p->tok.type != TOK_EOF) {
-        Node *func = parseTopLevel(p);
+        Node *func = parse_toplevel(p);
         sb_push(nodes, func);
-        skipInvisibles(p);
+        skip_invisibles(p);
     }
 
     return makeFile(p, nodes);
