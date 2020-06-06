@@ -915,13 +915,37 @@ void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
 // * let v = f().mem
 //
 //
-// Lifetime of function arguments
-// ==============================
+// Move vs Copy
+// ============
 //
-// The language has a call-by-value semantics.  This means that every argument
-// to a function is copied its value to the stack frame of the called function.
-// For a pointer variable, this means that a new reference to the same memory
-// is created.  We don't want this (???) so we use move semantics.
+// We are considering adding 'owning pointer' as a language-native type.  This
+// type is essentially the same as Rust's Box<T> or C++'s std::unique_ptr<T>.
+//
+// The language has a stance on assignments which is the opposite to Rust's
+// 'move by default'.  In Rust, all assignments are treated as move, unless the
+// involving types implement 'Copy' trait. This makes transferring of ownership
+// less visible, because it is not easy to see if the type at hand is copyable
+// or not without looking up its declaration.
+//
+// In our language, we essentially distinguish moves from copies syntactically.
+// We interpret all assignments as copying, but if the type of the value being
+// copied contains a non-copyable type (e.g. an owning pointer or a mutable
+// reference), we disallow the copy.  Instead, only move assignments are
+// allowed on those types, which have a distinct syntax from the usual copy
+// assignment.
+//
+// This design has several advantages: 1. It makes the transfer of ownership
+// more explicitly visible, which is a good thing.  2. It makes the language
+// feel less foreign to people coming from C or C++, as those languages engage
+// the copy-by-default semantics too.
+//
+// Function calls
+// ==============
+//
+// The language has a call-by-value semantics.  This means that every
+// argument to a function is copied its value to the stack frame of the called
+// function.  If we want to pass in a variable of a non-copyable type, we again
+// need to use a separate syntax; maybe <-var. (TODO)
 //
 void BorrowChecker::visitFuncCallExpr(FuncCallExpr *f) {
     walk_func_call_expr(*this, f);
