@@ -283,9 +283,9 @@ VarDeclNode *Parser::parse_var_decl(VarDeclNodeKind kind) {
 }
 
 // Parses a comma separated list of AST nodes whose type is T*.  Parser
-// function for the node type should be provided as 'parseFn' so that this
+// function for the node type should be provided as 'parse_fn' so that this
 // function knows how to parse the elements.
-// Doesn't parse the enclosing parentheses or braces.
+// Doesn't account for the enclosing parentheses or braces.
 template <typename T, typename F>
 std::vector<T> Parser::parse_comma_separated_list(F &&parse_fn) {
     auto finishers = {Tok::rparen, Tok::rbrace};
@@ -317,7 +317,8 @@ std::vector<T> Parser::parse_comma_separated_list(F &&parse_fn) {
             skip_until_any(delimiters);
         }
 
-        // skip comma if any
+        // Skip comma if any. This allows trailing comma at the end, e.g.
+        // '(a,)'.
         if (tok.kind == Tok::comma)
             next();
     }
@@ -524,43 +525,45 @@ Expr *Parser::parse_funccall_or_declref_expr() {
 //     '&' TypeExpr
 //     'mut'? ident
 Expr *Parser::parse_type_expr() {
-  auto pos = tok.pos;
-  bool mut = false;
-  TypeExprKind type_kind = TypeExprKind::none;
-  Expr *subexpr = nullptr;
+    auto pos = tok.pos;
+    bool mut = false;
+    TypeExprKind type_kind = TypeExprKind::none;
+    Expr *subexpr = nullptr;
 
-  // XXX OUTDATED: Encode each type into a unique Name, so that they are easy
-  // to find in the type table in the semantic analysis phase.
-  std::string text;
-  if (tok.kind == Tok::star) {
-    next();
-    type_kind = TypeExprKind::ref;
-    subexpr = parse_type_expr();
-    if (subexpr->kind == ExprKind::type) {
-      text = "*" + subexpr->as<TypeExpr>()->name->text;
+    // XXX OUTDATED: Encode each type into a unique Name, so that they are easy
+    // to find in the type table in the semantic analysis phase.
+    std::string text;
+    if (tok.kind == Tok::ampersand) {
+        next();
+        type_kind = TypeExprKind::ref;
+        subexpr = parse_type_expr();
+        if (subexpr->kind == ExprKind::type) {
+            text = "*" + subexpr->as<TypeExpr>()->name->text;
+        }
+    } else if (is_ident_or_keyword(tok)) {
+        // could be keyword ('mut') or ident
+        if (tok.kind == Tok::kw_mut) {
+            expect(Tok::kw_mut);
+            mut = true;
+        }
+        // can now only be ident
+        if (!is_ident_or_keyword(tok)) {
+            // FIXME: type name? expression?
+            error_expected("type name");
+            return make_node_pos<BadExpr>(pos);
+        }
+        type_kind = TypeExprKind::value;
+        subexpr = nullptr;
+        text = tok.text;
+        next();
+    } else {
+        error_expected("type expression");
+        return make_node_pos<BadExpr>(pos);
     }
-  } else if (isIdentOrKeyword(tok)) {
-    if (tok.kind == Tok::kw_mut) {
-      expect(Tok::kw_mut);
-      mut = true;
-    }
-    if (!isIdentOrKeyword(tok)) {
-      // FIXME: type name? expression?
-      error_expected("type name");
-      return make_node_pos<BadExpr>(pos);
-    }
-    type_kind = TypeExprKind::value;
-    subexpr = nullptr;
-    text = tok.text;
-    next();
-  } else {
-    error_expected("type expression");
-    return make_node_pos<BadExpr>(pos);
-  }
 
-  Name *name = names.get_or_add(text);
+    Name *name = names.get_or_add(text);
 
-  return make_node_pos<TypeExpr>(pos, type_kind, name, subexpr);
+    return make_node_pos<TypeExpr>(pos, type_kind, name, subexpr);
 }
 
 Expr *Parser::parse_unary_expr() {

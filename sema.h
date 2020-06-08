@@ -88,6 +88,10 @@ struct Type {
     Name *name = nullptr;
     // Is this a builtin type?
     bool builtin = false;
+    // True if this type is copyable, e.g. can be used in the RHS of a regular
+    // assignment statement (=). Precise value will be determined in the type
+    // checking phase.
+    bool copyable = true;
     union {
         // Back-reference to the decl object that defines this value type.
         Decl type_decl{};
@@ -97,7 +101,9 @@ struct Type {
     };
 
     Type(Name *n) : kind(TypeKind::value), name(n), builtin(true) {}
-    Type(TypeKind k, Name *n, Type *bt) : kind(k), name(n), base_type(bt) {}
+    // TODO: copyable?
+    Type(TypeKind k, Name *n, Type *bt)
+        : kind(k), name(n), copyable(true), base_type(bt) {}
     Type(TypeKind k, Name *n, Decl td) : kind(k), name(n), type_decl(td) {}
 
     const char *str() const { return name->str(); }
@@ -255,7 +261,7 @@ void setup_builtin_types(Sema &s);
 
 // Get a reference type of a given type.
 // Constructs the type if it wasn't in the type table beforehand.
-Type *getReferenceType(Sema &sema, Type *type);
+Type *get_reference_type(Sema &sema, Type *type);
 
 template <typename T> T *declare(Sema &sema, Name *name, size_t pos);
 

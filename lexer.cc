@@ -18,7 +18,7 @@ std::string tokenTypeToString(Tok kind) {
     return "";
 }
 
-bool isIdentOrKeyword(const Token tok) {
+bool is_ident_or_keyword(const Token tok) {
   return tok.kind == Tok::ident ||
          (tok.kind > Tok::KWSTART && tok.kind < Tok::KWEND);
 }

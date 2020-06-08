@@ -301,29 +301,36 @@ bool typecheck_assignment(Type *lhs, Type *rhs) {
 //
 //                 3 = 4
 Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
-  walk_assign_stmt(*this, as);
+    walk_assign_stmt(*this, as);
 
-  auto lhs_ty = as->lhs->type;
-  auto rhs_ty = as->rhs->type;
+    auto lhs_ty = as->lhs->type;
+    auto rhs_ty = as->rhs->type;
 
-  // XXX: is this the best way to early-exit?
-  if (!lhs_ty || !rhs_ty) return nullptr;
+    // XXX: is this the best way to early-exit?
+    if (!lhs_ty || !rhs_ty) return nullptr;
 
-  // L-value check.
-  // XXX: It's not obvious that r-values correspond to expressions that don't
-  // have an associated Decl object. Maybe make an is_rvalue() function.
-  if (!as->lhs->decl()) {
-    sema.error(as->pos, "LHS is not assignable");
-    return nullptr;
-  }
+    // L-value check.
+    // XXX: It's not obvious (and even correct) that r-values correspond to
+    // expressions that don't have an associated Decl object. Maybe make an
+    // is_rvalue() function.
+    if (!as->lhs->decl()) {
+        sema.error(as->pos, "LHS is not assignable");
+        return nullptr;
+    }
 
-  if (!typecheck_assignment(lhs_ty, rhs_ty)) {
-    sema.error(as->pos, "cannot assign '%s' type to '%s'", rhs_ty->name->str(),
-               lhs_ty->name->str());
-    return nullptr;
-  }
+    // Copyability check.
+    if (!rhs_ty->copyable) {
+        sema.error(as->rhs->pos, "cannot copy '%s'", rhs_ty->name->str());
+        return nullptr;
+    }
 
-  return lhs_ty;
+    if (!typecheck_assignment(lhs_ty, rhs_ty)) {
+        sema.error(as->pos, "cannot assign '%s' type to '%s'",
+                   rhs_ty->name->str(), lhs_ty->name->str());
+        return nullptr;
+    }
+
+    return lhs_ty;
 }
 
 bool FuncDecl::is_void(Sema &sema) const {
@@ -499,14 +506,13 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
 }
 
 // Get or make a reference type of a given type.
-Type *getReferenceType(Sema &sema, Type *type) {
-  Name *name = sema.name_table.get_or_add("*" + type->name->text);
-  if (auto found = sema.type_table.find(name))
-    return found->value;
+Type *get_reference_type(Sema &sema, Type *type) {
+    Name *name = sema.name_table.get_or_add("*" + type->name->text);
+    if (auto found = sema.type_table.find(name)) return found->value;
 
-  // FIXME: scope_level
-  auto ref_type = make_ref_type(sema, name, type);
-  return *sema.type_table.insert(name, ref_type);
+    // FIXME: scope_level
+    auto ref_type = make_ref_type(sema, name, type);
+    return *sema.type_table.insert(name, ref_type);
 }
 
 Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
@@ -539,7 +545,7 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
       sema.error(u->operand->pos, "cannot take address of an rvalue");
       return nullptr;
     }
-    u->type = getReferenceType(sema, u->operand->type);
+    u->type = get_reference_type(sema, u->operand->type);
     break;
   default:
     assert(false);
@@ -579,30 +585,29 @@ Type *TypeChecker::visitBinaryExpr(BinaryExpr *b) {
 // Type checking TypeExpr concerns with finding the Type object whose syntactic
 // representation matches the TypeExpr.
 Type *TypeChecker::visitTypeExpr(TypeExpr *t) {
-  walk_type_expr(*this, t);
+    walk_type_expr(*this, t);
 
-  if (t->kind == TypeExprKind::value) {
-    // t->decl should be non-null after the name binding stage.
-    // And since we are currently doing single-pass (TODO), its type should
-    // also be resolved by now.
-    t->type = *decl_get_type(t->decl);
-    assert(t->type && "type not resolved in corresponding *Decl");
-  } else if (t->kind == TypeExprKind::ref) {
-    // Derived types are only present in the type table if they occur in the
-    // source code.  Trying to push them every time we see one is sufficient to
-    // keep this invariant.
-    assert(t->subexpr->type);
-    if (auto found = sema.type_table.find(t->name)) {
-      t->type = found->value;
+    if (t->kind == TypeExprKind::value) {
+        // t->decl should be non-null after the name binding stage.
+        // And since we are currently doing single-pass (TODO), its type should
+        // also be resolved by now.
+        t->type = *decl_get_type(t->decl);
+        assert(t->type && "type not resolved in corresponding *Decl");
+    } else if (t->kind == TypeExprKind::ref) {
+        // Derived types are only present in the type table if they occur in the
+        // source code.  Trying to push them every time we see one is sufficient
+        // to keep this invariant.
+        assert(t->subexpr->type);
+        if (auto found = sema.type_table.find(t->name)) {
+            t->type = found->value;
+        } else {
+            t->type = get_reference_type(sema, t->subexpr->type);
+        }
     } else {
-      t->type = make_ref_type(sema, t->name, t->subexpr->type);
-      sema.type_table.insert(t->name, t->type);
+        assert(false && "whooops");
     }
-  } else {
-    assert(false && "whooops");
-  }
 
-  return t->type;
+    return t->type;
 }
 
 Type *TypeChecker::visitVarDecl(VarDeclNode *v) {
@@ -653,15 +658,23 @@ Type *TypeChecker::visitFuncDecl(FuncDeclNode *f) {
 }
 
 Type *TypeChecker::visitStructDecl(StructDeclNode *s) {
-  // Create a new type for this struct.
-  auto type = make_value_type(sema, s->name, s->struct_decl);
-  s->struct_decl->type = type;
+    s->struct_decl->type = make_value_type(sema, s->name, s->struct_decl);
 
-  // This is a pre-order walk so that recursive struct definitions are made
-  // possible.
-  walk_struct_decl(*this, s);
+    // Do pre-order walk so that recursive struct definitions are possible.
+    walk_struct_decl(*this, s);
 
-  return s->struct_decl->type;
+    for (auto field : s->struct_decl->fields) {
+        if (!field->type) return nullptr;
+
+        // Containing one or more non-copyable field makes the struct
+        // non-copyable as well.  For example, a struct that contains a mutable
+        // reference as its field cannot be trivially copied in the same
+        // lexical scope.
+        if (!field->type->copyable) {
+            s->struct_decl->type->copyable = false;
+        }
+    }
+    return s->struct_decl->type;
 }
 
 Type *TypeChecker::visitEnumVariantDecl(EnumVariantDeclNode *v) {

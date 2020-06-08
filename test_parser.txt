@@ -12,10 +12,10 @@ func main() {
     let b: int = 3 + 4
     let c *int // ERROR: expected.*':'.*found '\*'
     let c: int blah // ERROR: expected '\\n'.*'blah'
-    let car: * // ERROR: expected type expression
-    let car: *mut // ERROR: expected type name
-    let car: *mut Car
-    let car: *mut Car Sedan // ERROR: expected '\\n'.*found 'Sedan'
+    let car: & // ERROR: expected type expression
+    let car: &mut // ERROR: expected type name
+    let car: &mut Car
+    let car: &mut Car Sedan // ERROR: expected '\\n'.*found 'Sedan'
 
     let str = "hello there"
 
@@ -27,7 +27,7 @@ func main() {
     c = &b
 
     // pointers and derefs
-    let p: *int
+    let p: &int
 
     f(3, 4)
     f(3, 4,)

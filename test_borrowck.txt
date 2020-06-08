@@ -1,5 +1,5 @@
 func main() {
-    let x: *int
+    let x: &int
     let a = 42
     {
         let a = 4
@@ -9,10 +9,10 @@ func main() {
 }
 
 struct S {
-    ptr: *int
+    ptr: &int
 }
 
-func f(ptr: *int) {
+func f(ptr: &int) {
 }
 
 func fs(s: S) {
@@ -49,7 +49,7 @@ func multiple_borrows() {
     }
 }
 
-func stack_ref() -> *int {
+func stack_ref() -> &int {
     let x = 3
     return &x // ERROR: TODO: lifetime error
 }

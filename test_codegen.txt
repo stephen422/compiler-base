@@ -3,7 +3,7 @@ struct Token {
   pos: int
 }
 
-func swap(a: *int, b: *int) {
+func swap(a: &int, b: &int) {
   let t = *a
   *a = *b
   *b = t

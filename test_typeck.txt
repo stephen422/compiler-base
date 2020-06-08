@@ -23,7 +23,7 @@ func g() -> int {
     return 98
 }
 
-func h(a: int, b: *int) -> int {
+func h(a: int, b: &int) -> int {
     return 1
 }
 
@@ -65,14 +65,14 @@ func main() {
 
     // ref and deref
     *i // ERROR: dereference.*'int'
-    let ptr: *int
+    let ptr: &int
     *ptr = 3
     *ptr = car // ERROR: cannot assign 'Car'.*'int'
     ptr = &i
     &24 // ERROR: take address of an rvalue
     &g() // ERROR: take address of an rvalue
 
-    let pcar: *Car
+    let pcar: &Car
     (*pcar).wheel
     *(pcar.wheel) // ERROR: '\*Car'.*not a struct
 
