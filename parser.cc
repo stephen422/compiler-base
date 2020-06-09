@@ -180,7 +180,7 @@ IfStmt *Parser::parse_if_stmt() {
 
 // Parse 'let a = ...'
 DeclStmt *Parser::parseDeclStmt() {
-    auto decl = parseDecl();
+    auto decl = parse_decl();
     if (!is_end_of_stmt()) {
         // XXX: remove bad check
         if (decl && decl->kind != DeclNodeKind::bad)
@@ -453,11 +453,19 @@ bool Parser::isStartOfDecl() const {
 }
 
 // 'let a = ...'
-DeclNode *Parser::parseDecl() {
+DeclNode *Parser::parse_decl() {
     switch (tok.kind) {
-    case Tok::kw_let:
+    case Tok::kw_let: {
         next();
-        return parse_var_decl(VarDeclNodeKind::local);
+        auto v = parse_var_decl(VarDeclNodeKind::local);
+        return v;
+    }
+    case Tok::kw_var: {
+        next();
+        auto v = parse_var_decl(VarDeclNodeKind::local);
+        v->mut = true;
+        return v;
+    }
     // TODO: 'var'
     default:
         assert(false && "not a start of a declaration");
@@ -520,50 +528,43 @@ Expr *Parser::parse_funccall_or_declref_expr() {
 // Parse a type expression.
 // A type expression is simply every stream of tokens in the source that can
 // represent a type.
-//
-// TypeExpr:
-//     '&' TypeExpr
-//     'mut'? ident
 Expr *Parser::parse_type_expr() {
     auto pos = tok.pos;
+
     bool mut = false;
-    TypeExprKind type_kind = TypeExprKind::none;
-    Expr *subexpr = nullptr;
+    if (tok.kind == Tok::kw_var) {
+        next();
+        mut = true;
+    }
 
     // XXX OUTDATED: Encode each type into a unique Name, so that they are easy
     // to find in the type table in the semantic analysis phase.
+    TypeExprKind type_kind = TypeExprKind::none;
+    Expr *subexpr = nullptr;
     std::string text;
     if (tok.kind == Tok::ampersand) {
-        next();
+        expect(Tok::ampersand);
         type_kind = TypeExprKind::ref;
+
         subexpr = parse_type_expr();
         if (subexpr->kind == ExprKind::type) {
             text = "*" + subexpr->as<TypeExpr>()->name->text;
         }
     } else if (is_ident_or_keyword(tok)) {
-        // could be keyword ('mut') or ident
-        if (tok.kind == Tok::kw_mut) {
-            expect(Tok::kw_mut);
-            mut = true;
-        }
-        // can now only be ident
-        if (!is_ident_or_keyword(tok)) {
-            // FIXME: type name? expression?
-            error_expected("type name");
-            return make_node_pos<BadExpr>(pos);
-        }
         type_kind = TypeExprKind::value;
-        subexpr = nullptr;
+
         text = tok.text;
         next();
+
+        subexpr = nullptr;
     } else {
-        error_expected("type expression");
+        error_expected("type name"); 
         return make_node_pos<BadExpr>(pos);
     }
 
     Name *name = names.get_or_add(text);
 
-    return make_node_pos<TypeExpr>(pos, type_kind, name, subexpr);
+    return make_node_pos<TypeExpr>(pos, type_kind, name, mut, subexpr);
 }
 
 Expr *Parser::parse_unary_expr() {

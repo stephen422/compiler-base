@@ -1,21 +1,28 @@
 // TODO:
-// string literals
-// & -> *
-// if/for
+// for
 // arrays []T
-// struct declaration
-// struct fields
 
 func main() {
     let a = 3 + 4
     let b: int
-    let b: int = 3 + 4
+    var b: int = 3 + 4
     let c *int // ERROR: expected.*':'.*found '\*'
     let c: int blah // ERROR: expected '\\n'.*'blah'
     let car: & // ERROR: expected type expression
-    let car: &mut // ERROR: expected type name
-    let car: &mut Car
-    let car: &mut Car Sedan // ERROR: expected '\\n'.*found 'Sedan'
+    let car: var & // ERROR: expected type name
+    let car: var &Car
+    let car: var var var &Car // ERROR: expected '\\n', found 'var'
+    let car: &var Car // TODO: disallow this
+    let car: var &Car Sedan // ERROR: expected '\\n', found 'Sedan'
+
+    // TODO: Currently there are two ways to declare mutable reference
+    // variables: 'var x = &Ty' and 'let x = var &Ty'.  Preferably,
+    // only the first one should be allowed syntactically.
+    var car: &Car
+
+    // var &Car vs. &(var Car) ??
+    // &Vec(var &Car) ??
+    // : immutable vector whose elements' addresses are stable, but
 
     let str = "hello there"
 
@@ -54,11 +61,11 @@ func main() {
 func f(a: int) int { // ERROR: expected '->'.*found 'int'
 }
 
-func f(a: int, b int, c: int) -> int { // ERROR: expected .* ':'
+func f(a: int, b int, c: &int) -> int { // ERROR: expected .* ':'
     return * // ERROR: expected expression
 }
 
-func f(a: int#, b: int, c: int) -> int { // ERROR: trailing token '#'
+func f(a: int#, b: int, c: &int) -> int { // ERROR: trailing token '#'
 }
 
 struct Token {

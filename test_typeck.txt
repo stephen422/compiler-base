@@ -36,6 +36,11 @@ func main() {
     let car: Car
     car = 3 // ERROR: cannot assign 'int'.*'Car'
 
+    // immutability
+    let immut = 4
+    immut = "nope" // ERROR: cannot assign .* to 'int'
+    immut = immut + 1 // ERROR: 'immut' is immutable
+
     // member access
     3.engine // ERROR: 'int'.*not a struct
     car.wing // ERROR: 'wing'.*not.*member.*'Car'

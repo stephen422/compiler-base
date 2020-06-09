@@ -1,5 +1,5 @@
-#include "sema.h"
 #include "ast.h"
+#include "sema.h"
 #include "parser.h"
 #include "source.h"
 #include <cassert>
@@ -16,6 +16,8 @@ namespace cmp {
 // std::string StructDecl::str() const {
 //     return name->str();
 // }
+
+const char *Type::str() const { return name->str(); }
 
 void Sema::error(size_t pos, const char *fmt, ...) {
     char buf[BUFSIZE];
@@ -318,6 +320,9 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
         return nullptr;
     }
 
+    // Mutability check.
+    // TODO
+
     // Copyability check.
     if (!rhs_ty->copyable) {
         sema.error(as->rhs->pos, "cannot copy '%s'", rhs_ty->name->str());
@@ -613,10 +618,16 @@ Type *TypeChecker::visitTypeExpr(TypeExpr *t) {
 Type *TypeChecker::visitVarDecl(VarDeclNode *v) {
     walk_var_decl(*this, v);
 
+    // assert(!!v->mut && "TODO");
+
     if (v->type_expr) {
+        // XXX: maybe we can use just assertions, rather than if-not-returns,
+        // because typecheck of type_expr always succeeds because namebinding
+        // handles all of the type errors for them?
+        assert(v->type_expr->type);
         v->var_decl->type = v->type_expr->type;
-        assert(v->var_decl->type);
     } else if (v->assign_expr) {
+        assert(v->assign_expr->type);
         v->var_decl->type = v->assign_expr->type;
     } else {
         assert(false && "unreachable");

@@ -1,6 +1,7 @@
 #include "driver.h"
 #include "parser.h"
 #include "sema.h"
+#include "ast.h"
 
 bool Driver::compile() {
   Lexer lexer{source};

@@ -115,7 +115,7 @@ private:
     bool is_eos() const;
 
     // Declaration parsers
-    DeclNode *parseDecl();
+    DeclNode *parse_decl();
     VarDeclNode *parse_var_decl(VarDeclNodeKind kind);
     template <typename T, typename F>
     std::vector<T> parse_comma_separated_list(F &&parseFn);
