@@ -1,5 +1,5 @@
 func main() {
-    let x: &int
+    var x: &int // TODO: 'let' should be legal too
     let a = 42
     {
         let a = 4

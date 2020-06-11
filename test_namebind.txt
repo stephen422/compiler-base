@@ -15,10 +15,10 @@ func front_func(a: int, b: int, c: int) -> int {
 func main() {
     let a: int = 3 + 4
     let a = 4 // ERROR: redefinition.*'a'
+
+    // immutability check
     let car: Car
-    a = "hi"
-    car.a = 5
-    (car).a = 5
+    a = "hi" // ERROR: LHS is immutable
 
     new_kid // ERROR: undeclared.*'new_kid'
 

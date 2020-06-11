@@ -199,7 +199,7 @@ struct Expr : public AstNode {
     // TODO: I think this function is somehow related to lvalue determination.
     std::optional<Decl> decl() const;
 
-    Expr(ExprKind e) : AstNode(AstKind::expr), kind(e) {}
+    Expr(ExprKind e) : AstNode(AstKind::expr), kind(e), type(nullptr) {}
 };
 
 enum class UnaryExprKind {

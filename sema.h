@@ -118,8 +118,9 @@ struct Sema {
     void error(size_t pos, const char *fmt, ...);
 
     // Allocator function for Decls and Types.
-    template <typename T> T *make_decl(Name *name) {
-        DeclMemBlock *mem_block = new DeclMemBlock(T{name});
+    template <typename T, typename... Args>
+    T *make_decl(Name *name, Args &&... args) {
+        DeclMemBlock *mem_block = new DeclMemBlock(T{name, std::forward<Args>(args)...});
         auto typed_decl = &std::get<T>(*mem_block);
         typed_decl->name = name;
         decl_pool.push_back(mem_block);
@@ -138,7 +139,8 @@ void setup_builtin_types(Sema &s);
 // Constructs the type if it wasn't in the type table beforehand.
 Type *get_reference_type(Sema &sema, Type *type);
 
-template <typename T> T *declare(Sema &sema, Name *name, size_t pos);
+template <typename T, typename... Args>
+T *declare(Sema &sema, size_t pos, Name *name, Args &&... args);
 
 // Name binding pass.
 // Name binding basically is a pass that simply links each Name to a Decl.
@@ -153,6 +155,7 @@ public:
   bool success() const { return sema.errors.empty(); }
 
   void visitCompoundStmt(CompoundStmt *cs);
+  void visitAssignStmt(AssignStmt *as);
   void visitDeclRefExpr(DeclRefExpr *d);
   void visitFuncCallExpr(FuncCallExpr *f);
   void visitTypeExpr(TypeExpr *t);

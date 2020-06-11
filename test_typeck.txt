@@ -31,13 +31,13 @@ func main() {
     // var decl and assignment
     1 = 3 // ERROR: not assignable
     f() = 3 // ERROR: not assignable
-    let s: string
+    var s: string
     s = "hi"
-    let car: Car
+    var car: Car
     car = 3 // ERROR: cannot assign 'int'.*'Car'
 
     // immutability
-    let immut = 4
+    var immut = 4
     immut = "nope" // ERROR: cannot assign .* to 'int'
     immut = immut + 1 // ERROR: 'immut' is immutable
 
@@ -55,7 +55,7 @@ func main() {
 
     // function calls
     car = f()
-    let i: int
+    var i: int
     i = f() // ERROR: cannot assign 'Car'.*'int'
     f() + g() // ERROR: incompatible.*binary.*'Car'.*'int'
     f().engine
@@ -70,7 +70,7 @@ func main() {
 
     // ref and deref
     *i // ERROR: dereference.*'int'
-    let ptr: &int
+    var ptr: &int
     *ptr = 3
     *ptr = car // ERROR: cannot assign 'Car'.*'int'
     ptr = &i

@@ -2,6 +2,7 @@
 #include "sema.h"
 #include "parser.h"
 #include "source.h"
+#include "types.h"
 #include <cassert>
 
 #define BUFSIZE 1024
@@ -16,8 +17,6 @@ namespace cmp {
 // std::string StructDecl::str() const {
 //     return name->str();
 // }
-
-const char *Type::str() const { return name->str(); }
 
 void Sema::error(size_t pos, const char *fmt, ...) {
     char buf[BUFSIZE];
@@ -35,29 +34,29 @@ void Sema::error(size_t pos, const char *fmt, ...) {
 }
 
 Type *make_builtin_type(Sema &sema, Name *n) {
-  Type *t = new Type(n);
-  sema.type_pool.push_back(t);
-  return t;
+    Type *t = new Type(n);
+    sema.type_pool.push_back(t);
+    return t;
 }
 
 Type *make_value_type(Sema &sema, Name *n, Decl decl) {
-  Type *t = new Type(TypeKind::value, n, decl);
-  sema.type_pool.push_back(t);
-  return t;
+    Type *t = new Type(TypeKind::value, n, decl);
+    sema.type_pool.push_back(t);
+    return t;
 }
 
 Type *make_ref_type(Sema &sema, Name *n, Type *base_type) {
-  Type *t = new Type(TypeKind::ref, n, base_type);
-  sema.type_pool.push_back(t);
-  return t;
+    Type *t = new Type(TypeKind::ref, n, base_type);
+    sema.type_pool.push_back(t);
+    return t;
 }
 
 Type *push_builtin_type_from_name(Sema &s, const std::string &str) {
-  Name *name = s.name_table.get_or_add(str);
-  auto struct_decl = s.make_decl<StructDecl>(name);
-  struct_decl->type = make_builtin_type(s, name);
-  s.decl_table.insert(name, struct_decl);
-  return struct_decl->type;
+    Name *name = s.name_table.get_or_add(str);
+    auto struct_decl = s.make_decl<StructDecl>(name);
+    struct_decl->type = make_builtin_type(s, name);
+    s.decl_table.insert(name, struct_decl);
+    return struct_decl->type;
 }
 
 // Push Decls for the builtin types into the global scope of decl_table, so
@@ -118,6 +117,29 @@ void NameBinder::visitCompoundStmt(CompoundStmt *cs) {
     sema.scope_close();
 }
 
+void NameBinder::visitAssignStmt(AssignStmt *as) {
+    walk_assign_stmt(*this, as);
+
+    // See TypeChecker::visitAssignStmt.
+    auto decl_opt = as->lhs->decl();
+    if (!decl_opt) {
+        sema.error(as->pos, "LHS is not assignable");
+        return;
+    }
+
+    auto var_decl = decl_as<VarDecl>(*decl_opt);
+    // Name binding on LHS may have been failed.
+    if (!var_decl) {
+        assert(false);
+        return;
+    }
+
+    if (!var_decl->mut) {
+        sema.error(as->pos, "LHS is immutable");
+        return;
+    }
+}
+
 void NameBinder::visitDeclRefExpr(DeclRefExpr *d) {
   auto sym = sema.decl_table.find(d->name);
   if (!sym) {
@@ -176,7 +198,8 @@ void NameBinder::visitTypeExpr(TypeExpr *t) {
 
 // Semantically declare a 'name' at a 'pos', whose Decl type is T.
 // Returns nullptr if declaration failed due to e.g. redeclaration.
-template <typename T> T *declare(Sema &sema, Name *name, size_t pos) {
+template <typename T, typename... Args>
+T *declare(Sema &sema, size_t pos, Name *name, Args &&... args) {
     auto found = sema.decl_table.find(name);
     if (found && decl_is<T>(found->value) &&
         found->scope_level == sema.decl_table.curr_scope_level) {
@@ -184,7 +207,7 @@ template <typename T> T *declare(Sema &sema, Name *name, size_t pos) {
         return nullptr;
     }
 
-    T *decl = sema.make_decl<T>(name);
+    T *decl = sema.make_decl<T>(name, std::forward<Args>(args)...);
     // bind decl to name
     sema.decl_table.insert(name, decl);
 
@@ -192,53 +215,54 @@ template <typename T> T *declare(Sema &sema, Name *name, size_t pos) {
 }
 
 void NameBinder::visitVarDecl(VarDeclNode *v) {
-  walk_var_decl(*this, v);
+    walk_var_decl(*this, v);
 
-  if (!(v->var_decl = declare<VarDecl>(sema, v->name, v->pos))) return;
+    if (!(v->var_decl = declare<VarDecl>(sema, v->pos, v->name, v->mut)))
+        return;
 
-  // struct member declarations are also parsed as VarDecls.
-  if (v->kind == VarDeclNodeKind::struct_) {
-    assert(!sema.context.struct_decl_stack.empty());
-    auto enclosing_struct = sema.context.struct_decl_stack.back();
-    enclosing_struct->fields.push_back(v->var_decl);
-  } else if (v->kind == VarDeclNodeKind::param) {
-    assert(!sema.context.func_decl_stack.empty());
-    auto enclosing_func = sema.context.func_decl_stack.back();
-    enclosing_func->args.push_back(v->var_decl);
-  }
+    // struct member declarations are also parsed as VarDecls.
+    if (v->kind == VarDeclNodeKind::struct_) {
+        assert(!sema.context.struct_decl_stack.empty());
+        auto enclosing_struct = sema.context.struct_decl_stack.back();
+        enclosing_struct->fields.push_back(v->var_decl);
+    } else if (v->kind == VarDeclNodeKind::param) {
+        assert(!sema.context.func_decl_stack.empty());
+        auto enclosing_func = sema.context.func_decl_stack.back();
+        enclosing_func->args.push_back(v->var_decl);
+    }
 }
 
 void NameBinder::visitFuncDecl(FuncDeclNode *f) {
-  auto err_count = sema.errors.size();
+    auto err_count = sema.errors.size();
 
-  if (!(f->func_decl = declare<FuncDecl>(sema, f->name, f->pos))) return;
+    if (!(f->func_decl = declare<FuncDecl>(sema, f->pos, f->name))) return;
 
-  // scope for argument variables
-  sema.decl_table.scope_open();
-  sema.context.func_decl_stack.push_back(f->func_decl);
+    // scope for argument variables
+    sema.decl_table.scope_open();
+    sema.context.func_decl_stack.push_back(f->func_decl);
 
-  walk_func_decl(*this, f);
+    walk_func_decl(*this, f);
 
-  sema.context.func_decl_stack.pop_back();
-  sema.decl_table.scope_close();
+    sema.context.func_decl_stack.pop_back();
+    sema.decl_table.scope_close();
 
-  if (sema.errors.size() != err_count) {
-    f->failed = true;
-  }
+    if (sema.errors.size() != err_count) {
+        f->failed = true;
+    }
 }
 
 void NameBinder::visitStructDecl(StructDeclNode *s) {
-  if (!(s->struct_decl = declare<StructDecl>(sema, s->name, s->pos))) return;
+    if (!(s->struct_decl = declare<StructDecl>(sema, s->pos, s->name))) return;
 
-  // Decl table is used for checking redefinition when parsing the member
-  // list.
-  sema.decl_table.scope_open();
-  sema.context.struct_decl_stack.push_back(s->struct_decl);
+    // Decl table is used for checking redefinition when parsing the member
+    // list.
+    sema.decl_table.scope_open();
+    sema.context.struct_decl_stack.push_back(s->struct_decl);
 
-  walk_struct_decl(*this, s);
+    walk_struct_decl(*this, s);
 
-  sema.context.struct_decl_stack.pop_back();
-  sema.decl_table.scope_close();
+    sema.context.struct_decl_stack.pop_back();
+    sema.decl_table.scope_close();
 }
 
 namespace {
@@ -257,7 +281,7 @@ void NameBinder::visitEnumVariantDecl(EnumVariantDeclNode *v) {
   walk_enum_variant_decl(*this, v);
 
   // first, declare a struct of this name
-  if (!(v->struct_decl = declare<StructDecl>(sema, v->name, v->pos))) return;
+  if (!(v->struct_decl = declare<StructDecl>(sema, v->pos, v->name))) return;
 
   // then, add fields to this struct, whose names are anonymous
   // and only types are specified (e.g. Pos(int, int))
@@ -265,9 +289,10 @@ void NameBinder::visitEnumVariantDecl(EnumVariantDeclNode *v) {
     // so that anonymous field names don't clash
     sema.decl_table.scope_open();
 
-    if (auto field_decl = declare<VarDecl>(
-            sema, gen_anonymous_field_name(sema, i), v->fields[i]->pos)) {
-      v->struct_decl->fields.push_back(field_decl);
+    if (auto field_decl = declare<VarDecl>(sema, v->fields[i]->pos,
+                                           gen_anonymous_field_name(sema, i),
+                                           false /*TODO: mut*/)) {
+        v->struct_decl->fields.push_back(field_decl);
     }
 
     sema.decl_table.scope_close();
@@ -280,7 +305,7 @@ void NameBinder::visitEnumVariantDecl(EnumVariantDeclNode *v) {
 }
 
 void NameBinder::visitEnumDecl(EnumDeclNode *e) {
-  if (!(e->enum_decl = declare<EnumDecl>(sema, e->name, e->pos))) return;
+  if (!(e->enum_decl = declare<EnumDecl>(sema, e->pos, e->name))) return;
 
   sema.decl_table.scope_open();
   sema.context.enum_decl_stack.push_back(e->enum_decl);
@@ -292,9 +317,9 @@ void NameBinder::visitEnumDecl(EnumDeclNode *e) {
 }
 
 // Typecheck assignment statement of 'lhs = rhs'.
-bool typecheck_assignment(Type *lhs, Type *rhs) {
-  // only allow exact equality for assignment for now (TODO)
-  return lhs == rhs;
+bool typecheck_assignment(const Type *lhs, const Type *rhs) {
+    // only allow exact equality for assignment for now (TODO)
+    return lhs == rhs;
 }
 
 // Assignments should check that the LHS is an l-value.
@@ -354,7 +379,7 @@ Type *TypeChecker::visitReturnStmt(ReturnStmt *rs) {
     return nullptr;
   }
 
-  if (rs->expr->type != func_decl->ret_ty) {
+  if (!typecheck_assignment(func_decl->ret_ty, rs->expr->type)) {
     sema.error(rs->expr->pos,
                "return type mismatch: function returns '%s', but got '%s'",
                func_decl->ret_ty->name->str(), rs->expr->type->name->str());
