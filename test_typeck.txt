@@ -78,7 +78,7 @@ func main() {
 
     let pcar: &Car
     (*pcar).wheel
-    *(pcar.wheel) // ERROR: '\*Car'.*not a struct
+    *(pcar.wheel) // ERROR: '&Car' is not a struct
 
     // others that skip typeck
     #printf("hello, world\n")

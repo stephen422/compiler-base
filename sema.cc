@@ -142,13 +142,15 @@ void NameBinder::visitAssignStmt(AssignStmt *as) {
   // checking mutability of an assignment to a MemberExpr equates to simply
   // checking the *leftmost* variable that appears the first in the MemberExpr
   // chain, e.g. 'a' of 'a.b.c.d.e = 42'.
-
   auto var_decl = declCast<VarDecl>(*decl_opt);
   if (var_decl && !var_decl->mut) {
     sema.error(as->pos, "'%s' is not declared as mutable", var_decl->name->str());
     return;
   }
 
+  // For MemberExprs, since their Decl object is not binded until type checking
+  // phase, they are not caught by the above check. For those cases, manually
+  // look up the leftmost parent variable to complete the check.
   if (as->lhs->kind == ExprKind::member) {
     auto leftmost_decl = *as->lhs->as<MemberExpr>()->lhs_expr->decl();
     // Account for name bind fail.
@@ -548,25 +550,25 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
 }
 
 // Get or make a reference type of a given type.
-Type *get_reference_type(Sema &sema, Type *type) {
-    Name *name = sema.name_table.get_or_add("*" + type->name->text);
-    if (auto found = sema.type_table.find(name)) return found->value;
+Type *getReferenceType(Sema &sema, Type *type) {
+  Name *name = sema.name_table.get_or_add("&" + type->name->text);
+  if (auto found = sema.type_table.find(name)) return found->value;
 
-    // FIXME: scope_level
-    auto ref_type = make_ref_type(sema, name, type);
-    return *sema.type_table.insert(name, ref_type);
+  // FIXME: scope_level
+  auto ref_type = make_ref_type(sema, name, type);
+  return *sema.type_table.insert(name, ref_type);
 }
 
 Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
   switch (u->kind) {
-  case UnaryExprKind::paren:
+  case UnaryExprKind::paren: {
     visitParenExpr(static_cast<ParenExpr *>(u));
     break;
-  case UnaryExprKind::deref:
+  }
+  case UnaryExprKind::deref: {
     visitExpr(u->operand);
     // XXX: arbitrary
-    if (!u->operand->type)
-      return nullptr;
+    if (!u->operand->type) return nullptr;
 
     if (u->operand->type->kind != TypeKind::ref) {
       sema.error(u->operand->pos, "dereference of a non-reference type '%s'",
@@ -575,11 +577,11 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
     }
     u->type = u->operand->type->base_type;
     break;
-  case UnaryExprKind::ref:
+  }
+  case UnaryExprKind::ref: {
     visitExpr(u->operand);
     // XXX: arbitrary
-    if (!u->operand->type)
-      return nullptr;
+    if (!u->operand->type) return nullptr;
 
     // taking address of an rvalue is prohibited
     // TODO: proper l-value check
@@ -587,11 +589,13 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
       sema.error(u->operand->pos, "cannot take address of an rvalue");
       return nullptr;
     }
-    u->type = get_reference_type(sema, u->operand->type);
+    u->type = getReferenceType(sema, u->operand->type);
     break;
-  default:
+  }
+  default: {
     assert(false);
     break;
+  }
   }
 
   return u->type;
@@ -643,7 +647,7 @@ Type *TypeChecker::visitTypeExpr(TypeExpr *t) {
         if (auto found = sema.type_table.find(t->name)) {
             t->type = found->value;
         } else {
-            t->type = get_reference_type(sema, t->subexpr->type);
+            t->type = getReferenceType(sema, t->subexpr->type);
         }
     } else {
         assert(false && "whooops");

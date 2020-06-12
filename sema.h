@@ -137,7 +137,7 @@ void setup_builtin_types(Sema &s);
 
 // Get a reference type of a given type.
 // Constructs the type if it wasn't in the type table beforehand.
-Type *get_reference_type(Sema &sema, Type *type);
+Type *getReferenceType(Sema &sema, Type *type);
 
 template <typename T, typename... Args>
 T *declare(Sema &sema, size_t pos, Name *name, Args &&... args);

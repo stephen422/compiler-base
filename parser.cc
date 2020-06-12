@@ -548,7 +548,7 @@ Expr *Parser::parse_type_expr() {
 
         subexpr = parse_type_expr();
         if (subexpr->kind == ExprKind::type) {
-            text = "*" + subexpr->as<TypeExpr>()->name->text;
+            text = "&" + subexpr->as<TypeExpr>()->name->text;
         }
     } else if (is_ident_or_keyword(tok)) {
         type_kind = TypeExprKind::value;
