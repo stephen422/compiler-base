@@ -118,33 +118,47 @@ void NameBinder::visitCompoundStmt(CompoundStmt *cs) {
 }
 
 void NameBinder::visitAssignStmt(AssignStmt *as) {
-    walk_assign_stmt(*this, as);
+  walk_assign_stmt(*this, as);
 
-    // Checking if an AST node has an associated Decl object is a purely
-    // syntactical check, and therefore can be done in the name binding phase.
-    //
-    // XXX: It's not obvious (and not even correct?) that r-values correspond to
-    // expressions that don't have an associated Decl object. Maybe make an
-    // is_rvalue() function.
-    auto decl_opt = as->lhs->decl();
-    if (!decl_opt) {
-        sema.error(as->pos, "LHS is not assignable");
-        return;
+  // Checking if an AST node has an associated Decl object is a purely
+  // syntactical check, and therefore can be done in the name binding phase.
+  //
+  // XXX: It's not obvious (and not even correct?) that r-values correspond to
+  // expressions that don't have an associated Decl object. Maybe make an
+  // is_rvalue() function.
+  auto decl_opt = as->lhs->decl();
+  if (!decl_opt) {
+    sema.error(as->pos, "LHS is not assignable");
+    return;
+  }
+
+  // Note about mutability check and MemberExprs:
+  //
+  // Since the language handles the mutability checking using the name binding
+  // information, there is no such thing as mutable or immutable 'types'. This
+  // also means that individual fields of a struct cannot be mutable separately
+  // from others.  Therefore, their mutation is only possible by accessing them
+  // through a mutable variable at the LHS of a MemberExpr. And by recursion,
+  // checking mutability of an assignment to a MemberExpr equates to simply
+  // checking the *leftmost* variable that appears the first in the MemberExpr
+  // chain, e.g. 'a' of 'a.b.c.d.e = 42'.
+
+  auto var_decl = declCast<VarDecl>(*decl_opt);
+  if (var_decl && !var_decl->mut) {
+    sema.error(as->pos, "'%s' is not declared as mutable", var_decl->name->str());
+    return;
+  }
+
+  if (as->lhs->kind == ExprKind::member) {
+    auto leftmost_decl = *as->lhs->as<MemberExpr>()->lhs_expr->decl();
+    // Account for name bind fail.
+    auto leftmost_vardecl = declCast<VarDecl>(leftmost_decl);
+    if (leftmost_vardecl && !leftmost_vardecl->mut) {
+      sema.error(as->pos, "'%s' is not declared as mutable",
+                 leftmost_vardecl->name->str());
+      return;
     }
-
-    auto var_decl = declCast<VarDecl>(*decl_opt);
-
-    // XXX: What about MemberExprs?
-    // Name binding on LHS may have been failed.
-    // if (!var_decl) {
-    //     assert(false);
-    //     return;
-    // }
-
-    if (var_decl && !var_decl->mut) {
-        sema.error(as->pos, "'%s' is immutable", var_decl->name->str());
-        return;
-    }
+  }
 }
 
 void NameBinder::visitDeclRefExpr(DeclRefExpr *d) {

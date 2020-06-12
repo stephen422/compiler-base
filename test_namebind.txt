@@ -25,7 +25,8 @@ func main() {
 
     // immutability check
     let car: Car
-    a = "hi" // ERROR: 'a' is immutable
+    a = "hi" // ERROR: 'a' is not declared as mutable
+    a.wheel = 3 // ERROR: 'a' is not declared as mutable
 
     new_kid // ERROR: undeclared.*'new_kid'
 
