@@ -63,7 +63,7 @@ using DeclMemBlock = std::variant<VarDecl, StructDecl, EnumDecl, FuncDecl>;
 template <typename T> bool decl_is(const Decl decl) {
     return std::holds_alternative<T *>(decl);
 }
-template <typename T> T *decl_as(const Decl decl) {
+template <typename T> T *declCast(const Decl decl) {
     if (std::holds_alternative<T *>(decl))
         return std::get<T *>(decl);
     else
@@ -187,7 +187,7 @@ struct FuncDecl {
     FuncDecl(Name *n) : name(n) {}
     size_t args_count() const { return args.size(); }
     // XXX: might false-report before typecheck is completed
-    bool is_void(Sema &sema) const;
+    bool isVoid(Sema &sema) const;
 };
 
 } // namespace cmp

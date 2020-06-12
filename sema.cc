@@ -99,13 +99,13 @@ void Sema::scope_close() {
 // Return optional of 'type' member of Decl, or None if this Decl kind doesn't
 // have any.
 std::optional<Type *> decl_get_type(const Decl decl) {
-    if (auto d = decl_as<VarDecl>(decl)) {
+    if (auto d = declCast<VarDecl>(decl)) {
         return d->type;
-    } else if (auto d = decl_as<StructDecl>(decl)) {
+    } else if (auto d = declCast<StructDecl>(decl)) {
         return d->type;
-    } else if (auto d = decl_as<EnumDecl>(decl)) {
+    } else if (auto d = declCast<EnumDecl>(decl)) {
         return d->type;
-    } else if (auto d = decl_as<FuncDecl>(decl)) {
+    } else if (auto d = declCast<FuncDecl>(decl)) {
         return {};
     }
     assert(false && "not all decl kinds handled");
@@ -120,22 +120,29 @@ void NameBinder::visitCompoundStmt(CompoundStmt *cs) {
 void NameBinder::visitAssignStmt(AssignStmt *as) {
     walk_assign_stmt(*this, as);
 
-    // See TypeChecker::visitAssignStmt.
+    // Checking if an AST node has an associated Decl object is a purely
+    // syntactical check, and therefore can be done in the name binding phase.
+    //
+    // XXX: It's not obvious (and not even correct?) that r-values correspond to
+    // expressions that don't have an associated Decl object. Maybe make an
+    // is_rvalue() function.
     auto decl_opt = as->lhs->decl();
     if (!decl_opt) {
         sema.error(as->pos, "LHS is not assignable");
         return;
     }
 
-    auto var_decl = decl_as<VarDecl>(*decl_opt);
-    // Name binding on LHS may have been failed.
-    if (!var_decl) {
-        assert(false);
-        return;
-    }
+    auto var_decl = declCast<VarDecl>(*decl_opt);
 
-    if (!var_decl->mut) {
-        sema.error(as->pos, "LHS is immutable");
+    // XXX: What about MemberExprs?
+    // Name binding on LHS may have been failed.
+    // if (!var_decl) {
+    //     assert(false);
+    //     return;
+    // }
+
+    if (var_decl && !var_decl->mut) {
+        sema.error(as->pos, "'%s' is immutable", var_decl->name->str());
         return;
     }
 }
@@ -157,11 +164,11 @@ void NameBinder::visitFuncCallExpr(FuncCallExpr *f) {
         sema.error(f->pos, "undeclared function '%s'", f->func_name->str());
         return;
     }
-    if (!decl_as<FuncDecl>(sym->value)) {
+    if (!declCast<FuncDecl>(sym->value)) {
         sema.error(f->pos, "'%s' is not a function", f->func_name->str());
         return;
     }
-    f->func_decl = decl_as<FuncDecl>(sym->value);
+    f->func_decl = declCast<FuncDecl>(sym->value);
     assert(f->func_decl);
 
     walk_func_call_expr(*this, f);
@@ -336,15 +343,6 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
     // XXX: is this the best way to early-exit?
     if (!lhs_ty || !rhs_ty) return nullptr;
 
-    // L-value check.
-    // XXX: It's not obvious (and even correct) that r-values correspond to
-    // expressions that don't have an associated Decl object. Maybe make an
-    // is_rvalue() function.
-    if (!as->lhs->decl()) {
-        sema.error(as->pos, "LHS is not assignable");
-        return nullptr;
-    }
-
     // Mutability check.
     // TODO
 
@@ -363,7 +361,7 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
     return lhs_ty;
 }
 
-bool FuncDecl::is_void(Sema &sema) const {
+bool FuncDecl::isVoid(Sema &sema) const {
   return ret_ty == sema.context.void_type;
 }
 
@@ -373,7 +371,7 @@ Type *TypeChecker::visitReturnStmt(ReturnStmt *rs) {
 
   assert(!sema.context.func_decl_stack.empty());
   auto func_decl = sema.context.func_decl_stack.back();
-  if (func_decl->is_void(sema)) {
+  if (func_decl->isVoid(sema)) {
     sema.error(rs->expr->pos, "function '%s' should not return a value",
                func_decl->name->str());
     return nullptr;
@@ -908,8 +906,8 @@ void BorrowChecker::visitAssignStmt(AssignStmt *as) {
         auto rhs_deref = as->rhs->as<UnaryExpr>()->operand;
         assert(as->lhs->decl().has_value());
         assert(rhs_deref->decl().has_value());
-        auto lhs_decl = decl_as<VarDecl>(*as->lhs->decl());
-        auto rhs_deref_decl = decl_as<VarDecl>(*rhs_deref->decl());
+        auto lhs_decl = declCast<VarDecl>(*as->lhs->decl());
+        auto rhs_deref_decl = declCast<VarDecl>(*rhs_deref->decl());
         lhs_decl->borrowee = rhs_deref_decl;
     }
 }
@@ -919,7 +917,7 @@ void BorrowChecker::visitAssignStmt(AssignStmt *as) {
 // In other words, at the point of use, the borrowee should be alive.
 void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
     if (!decl_is<VarDecl>(d->decl)) return;
-    auto var = decl_as<VarDecl>(d->decl);
+    auto var = declCast<VarDecl>(d->decl);
 
     // at each use of a reference variable, check if its borrowee is alive
     if (var->borrowee) {
@@ -1008,7 +1006,7 @@ void BorrowChecker::visitStructDefExpr(StructDefExpr *s) {
         
         // FIXME: touching desig.decl might be pointless
         auto rhs_deref = desig.expr->as<UnaryExpr>()->operand;
-        desig.decl->borrowee = decl_as<VarDecl>(*rhs_deref->decl());
+        desig.decl->borrowee = declCast<VarDecl>(*rhs_deref->decl());
     }
 }
 
@@ -1019,7 +1017,7 @@ void BorrowChecker::visitUnaryExpr(UnaryExpr *u) {
         break;
     case UnaryExprKind::ref:
         visitExpr(u->operand);
-        register_borrow(sema, decl_as<VarDecl>(*u->operand->decl()), u->pos);
+        register_borrow(sema, declCast<VarDecl>(*u->operand->decl()), u->pos);
         break;
     case UnaryExprKind::deref:
         visitExpr(u->operand);
@@ -1038,7 +1036,7 @@ void BorrowChecker::visitVarDecl(VarDeclNode *v) {
     if (v->assign_expr && is_ref_expr(v->assign_expr)) {
         // store borrowee relationship
         auto rhs_deref = v->assign_expr->as<UnaryExpr>()->operand;
-        v->var_decl->borrowee = decl_as<VarDecl>(*rhs_deref->decl());
+        v->var_decl->borrowee = declCast<VarDecl>(*rhs_deref->decl());
     }
 }
 

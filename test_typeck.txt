@@ -3,6 +3,7 @@
 struct Car {
     engine: int,
     wheel: int,
+    gear: &int,
 }
 
 func void_ret() {
@@ -29,8 +30,6 @@ func h(a: int, b: &int) -> int {
 
 func main() {
     // var decl and assignment
-    1 = 3 // ERROR: not assignable
-    f() = 3 // ERROR: not assignable
     var s: string
     s = "hi"
     var car: Car
@@ -39,7 +38,6 @@ func main() {
     // immutability
     var immut = 4
     immut = "nope" // ERROR: cannot assign .* to 'int'
-    immut = immut + 1 // ERROR: 'immut' is immutable
 
     // member access
     3.engine // ERROR: 'int'.*not a struct
@@ -47,6 +45,7 @@ func main() {
     car.engine
 
     car.engine = car // ERROR: cannot assign 'Car'.*'int'
+    *(car.gear) = 4
 
     // binary expressions
     (3 + car) // ERROR: incompatible.*binary.*'int'.*'Car'
