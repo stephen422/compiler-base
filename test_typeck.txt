@@ -70,7 +70,7 @@ func main() {
     // ref and deref
     *i // ERROR: dereference.*'int'
     var ptr: &int
-    *ptr = 3
+    *ptr = 3 // ERROR: TODO immutable reference
     *ptr = car // ERROR: cannot assign 'Car'.*'int'
     ptr = &i
     &24 // ERROR: take address of an rvalue

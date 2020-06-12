@@ -120,18 +120,17 @@ struct Sema {
     void error(size_t pos, const char *fmt, ...);
 
     // Allocator function for Decls and Types.
-    template <typename T, typename... Args>
-    T *make_decl(Name *name, Args &&... args) {
-        DeclMemBlock *mem_block = new DeclMemBlock(T{name, std::forward<Args>(args)...});
-        auto typed_decl = &std::get<T>(*mem_block);
-        typed_decl->name = name;
-        decl_pool.push_back(mem_block);
-        return typed_decl;
+    template <typename T, typename... Args> T *makeDecl(Args &&... args) {
+      DeclMemBlock *mem_block =
+          new DeclMemBlock(T{std::forward<Args>(args)...});
+      auto typed_decl = &std::get<T>(*mem_block);
+      decl_pool.push_back(mem_block);
+      return typed_decl;
     }
-    BasicBlock *make_basic_block() {
-        BasicBlock *bb = new BasicBlock;
-        basic_block_pool.push_back(bb);
-        return bb;
+    BasicBlock *makeBasicBlock() {
+      BasicBlock *bb = new BasicBlock;
+      basic_block_pool.push_back(bb);
+      return bb;
     }
 };
 

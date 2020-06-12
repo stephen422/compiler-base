@@ -9,7 +9,7 @@ func main() {
 }
 
 struct S {
-    ptr: &int
+    ptr: var &int
 }
 
 func f(ptr: &int) {

@@ -69,7 +69,7 @@ template <typename T> T *declCast(const Decl decl) {
     else
         return nullptr;
 }
-std::optional<Type *> decl_get_type(const Decl decl);
+std::optional<Type *> declGetType(const Decl decl);
 
 // Elementary types, stripped of informations such as reference.
 // They include built-in value types such as int and bool, and user-declared
@@ -100,68 +100,71 @@ enum class TypeKind {
 //
 // TODO: switch to union/variant?
 struct Type {
-    TypeKind kind = TypeKind::value;
-    // Name of the type. TODO: include & or [] in the name?
-    Name *name = nullptr;
-    // Whether this is a builtin type or not.
-    bool builtin = false;
-    // True if this type is copyable, e.g. can be used in the RHS of a regular
-    // assignment statement (=). Precise value will be determined in the type
-    // checking phase.
-    bool copyable = true;
-    union {
-        // Back-reference to the decl object that defines this value type.
-        Decl type_decl{};
-        // The target type of this reference type.  If this is a non-reference
-        // type, the value should be null.
-        Type *referee_type;
-    };
+  TypeKind kind = TypeKind::value;
+  // Name of the type. TODO: include & or [] in the name?
+  Name *name = nullptr;
+  // Whether this is a builtin type or not.
+  bool builtin = false;
+  // True if this type is copyable, e.g. can be used in the RHS of a regular
+  // assignment statement (=). Precise value will be determined in the type
+  // checking phase.
+  bool copyable = true;
+  union {
+    // Back-reference to the decl object that defines this value type.
+    Decl type_decl{};
+    // The target type of this reference type.  If this is a non-reference
+    // type, the value should be null.
+    Type *referee_type;
+  };
 
-    // Built-in value types.
-    Type(Name *n) : kind(TypeKind::value), name(n), builtin(true) {}
-    // Struct types.
-    Type(TypeKind k, Name *n, Decl td) : kind(k), name(n), type_decl(td) {}
-    // Reference types.
-    // TODO: copyable?
-    Type(Name *n, bool mut, Type *bt);
+  // Built-in value types.
+  Type(Name *n) : kind(TypeKind::value), name(n), builtin(true) {}
+  // Struct types.
+  Type(TypeKind k, Name *n, Decl td) : kind(k), name(n), type_decl(td) {}
+  // Reference types.
+  // TODO: copyable?
+  Type(Name *n, bool mut, Type *bt);
 
-    const char *str() const { return name->str(); }
+  const char *str() const { return name->str(); }
 
-    bool is_struct() const {
-        // TODO: should base_type be null too?
-        return kind == TypeKind::value &&
-               std::holds_alternative<StructDecl *>(type_decl);
-    }
-    bool is_enum() const {
-        // TODO: should base_type be null too?
-        return kind == TypeKind::value &&
-               std::holds_alternative<EnumDecl *>(type_decl);
-    }
-    bool is_member_accessible() const { return is_struct() || is_enum(); }
+  bool isReferenceType() const {
+    return kind == TypeKind::ref || kind == TypeKind::var_ref;
+  }
+  bool isStruct() const {
+    // TODO: should base_type be null too?
+    return kind == TypeKind::value &&
+           std::holds_alternative<StructDecl *>(type_decl);
+  }
+  bool isEnum() const {
+    // TODO: should base_type be null too?
+    return kind == TypeKind::value &&
+           std::holds_alternative<EnumDecl *>(type_decl);
+  }
+  bool isMemberAccessible() const { return isStruct() || isEnum(); }
 
-    StructDecl *get_struct_decl() {
-        assert(kind == TypeKind::value);
-        assert(std::holds_alternative<StructDecl *>(type_decl));
-        return std::get<StructDecl *>(type_decl);
-    }
-    EnumDecl *get_enum_decl() {
-        assert(kind == TypeKind::value);
-        assert(std::holds_alternative<EnumDecl *>(type_decl));
-        return std::get<EnumDecl *>(type_decl);
-    }
+  StructDecl *getStructDecl() {
+    assert(kind == TypeKind::value);
+    assert(std::holds_alternative<StructDecl *>(type_decl));
+    return std::get<StructDecl *>(type_decl);
+  }
+  EnumDecl *getEnumDecl() {
+    assert(kind == TypeKind::value);
+    assert(std::holds_alternative<EnumDecl *>(type_decl));
+    return std::get<EnumDecl *>(type_decl);
+  }
 };
 
 Type *getReferenceType(Sema &sema, bool mut, Type *type);
 
 // Declaration of a variable. Includes struct field variables.
 struct VarDecl {
-    Name *name = nullptr;
-    Type *type = nullptr;
-    // Decl of the var that this var references to.  Used for borrow checking.
-    VarDecl *borrowee = nullptr;
-    bool mut = false;
+  Name *name = nullptr;
+  Type *type = nullptr;
+  // Decl of the var that this var references to.  Used for borrow checking.
+  VarDecl *borrowee = nullptr;
+  bool mut = false;
 
-    VarDecl(Name *n, bool m) : name(n), mut(m) {}
+  VarDecl(Name *n, bool m) : name(n), mut(m) {}
 };
 
 // Declaration of a type, e.g. struct or enum.
