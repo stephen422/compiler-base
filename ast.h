@@ -205,6 +205,7 @@ struct Expr : public AstNode {
 enum class UnaryExprKind {
     paren,
     ref,
+    var_ref,
     deref,
     plus, // TODO
     minus, // TODO
@@ -313,6 +314,7 @@ enum class TypeExprKind {
   none,
   value,
   ref,
+  var_ref,
   array,
 };
 

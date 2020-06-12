@@ -34,7 +34,9 @@ func main() {
     c = &b
 
     // pointers and derefs
+    let i: int
     let p: &int
+    p = var &i
 
     f(3, 4)
     f(3, 4,)

@@ -127,16 +127,16 @@ private:
     bool isStartOfDecl() const;
 
     // Expression parsers
-    Expr *parse_expr();
-    Expr *parse_unary_expr();
-    Expr *parse_literal_expr();
-    Expr *parse_funccall_or_declref_expr();
-    Expr *parse_type_expr();
-    Expr *parse_binary_expr_rhs(Expr *lhs, int precedence);
-    Expr *parse_member_expr_maybe(Expr *expr);
-    std::optional<StructFieldDesignator> parse_struct_def_field();
-    bool lookahead_struct_def();
-    Expr *parse_struct_def_maybe(Expr *expr);
+    Expr *parseExpr();
+    Expr *parseUnaryExpr();
+    Expr *parseLiteralExpr();
+    Expr *parseFuncCallOrDeclRefExpr();
+    Expr *parseTypeExpr();
+    Expr *parseBinaryExprRhs(Expr *lhs, int precedence);
+    Expr *parseMemberExprMaybe(Expr *expr);
+    std::optional<StructFieldDesignator> parseStructDefField();
+    bool lookaheadStructDef();
+    Expr *parseStructDefMaybe(Expr *expr);
 
     // Error handling
     void error(const std::string &msg);

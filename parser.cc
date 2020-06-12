@@ -129,7 +129,7 @@ Stmt *Parser::parse_return_stmt() {
     // optional
     Expr *expr = nullptr;
     if (!is_end_of_stmt()) {
-      expr = parse_expr();
+      expr = parseExpr();
     }
     if (!is_end_of_stmt()) {
       skip_until_end_of_line();
@@ -149,7 +149,7 @@ IfStmt *Parser::parse_if_stmt() {
 
     expect(Tok::kw_if);
 
-    Expr *cond = parse_expr();
+    Expr *cond = parseExpr();
     CompoundStmt *cstmt = parseCompoundStmt();
 
     IfStmt *elseif = nullptr;
@@ -166,7 +166,7 @@ IfStmt *Parser::parse_if_stmt() {
             expect(Tok::lbrace);
 
             // do our best to recover
-            parse_expr();
+            parseExpr();
             if (tok.kind == Tok::lbrace) {
                 cstmt_false = parseCompoundStmt();
             } else {
@@ -197,7 +197,7 @@ DeclStmt *Parser::parseDeclStmt() {
 Stmt *Parser::parse_expr_or_assign_stmt() {
     auto pos = tok.pos;
 
-    auto lhs = parse_expr();
+    auto lhs = parseExpr();
     // ExprStmt: expression ends with a newline
     if (is_end_of_stmt()) {
       skip_until_end_of_line();
@@ -215,7 +215,7 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
 
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
-    auto rhs = parse_expr();
+    auto rhs = parseExpr();
     return make_node_pos<AssignStmt>(pos, lhs, rhs);
 }
 
@@ -263,12 +263,12 @@ VarDeclNode *Parser::parse_var_decl(VarDeclNodeKind kind) {
     // '=' comes either first, or after the ': type' part.
     if (tok.kind == Tok::colon) {
         next();
-        auto type_expr = parse_type_expr();
+        auto type_expr = parseTypeExpr();
         v = make_node_pos<VarDeclNode>(pos, name, kind, type_expr, nullptr);
     }
     if (tok.kind == Tok::equals) {
         next();
-        auto assign_expr = parse_expr();
+        auto assign_expr = parseExpr();
         if (v)
             static_cast<VarDeclNode *>(v)->assign_expr = assign_expr;
         else
@@ -348,7 +348,7 @@ FuncDeclNode *Parser::parseFuncDecl() {
   // return type (-> ...)
   if (tok.kind == Tok::arrow) {
     next();
-    func->ret_type_expr = parse_type_expr();
+    func->ret_type_expr = parseTypeExpr();
   }
 
   if (tok.kind != Tok::lbrace) {
@@ -397,7 +397,7 @@ EnumVariantDeclNode *Parser::parseEnumVariant() {
   std::vector<Expr *> fields;
   if (tok.kind == Tok::lparen) {
     expect(Tok::lparen);
-    fields = parse_comma_separated_list<Expr *>([this] { return parse_type_expr(); });
+    fields = parse_comma_separated_list<Expr *>([this] { return parseTypeExpr(); });
     expect(Tok::rparen);
   }
 
@@ -472,7 +472,7 @@ DeclNode *Parser::parse_decl() {
     }
 }
 
-Expr *Parser::parse_literal_expr() {
+Expr *Parser::parseLiteralExpr() {
     Expr *expr = nullptr;
     // TODO Literals other than integers?
     switch (tok.kind) {
@@ -502,7 +502,7 @@ Expr *Parser::parse_literal_expr() {
 //
 // TODO: maybe name it parse_ident_start_exprs?
 // TODO: add struct declaration here, e.g. Car {}
-Expr *Parser::parse_funccall_or_declref_expr() {
+Expr *Parser::parseFuncCallOrDeclRefExpr() {
     auto pos = tok.pos;
     assert(tok.kind == Tok::ident);
     auto name = names.get_or_add(std::string{tok.text});
@@ -512,7 +512,7 @@ Expr *Parser::parse_funccall_or_declref_expr() {
         expect(Tok::lparen);
         std::vector<Expr *> args;
         while (tok.kind != Tok::rparen) {
-            args.push_back(parse_expr());
+            args.push_back(parseExpr());
             if (tok.kind == Tok::comma)
                 next();
         }
@@ -528,85 +528,96 @@ Expr *Parser::parse_funccall_or_declref_expr() {
 // Parse a type expression.
 // A type expression is simply every stream of tokens in the source that can
 // represent a type.
-Expr *Parser::parse_type_expr() {
-    auto pos = tok.pos;
+//
+// type-expression:
+//     ('var'? '&')? ident
+Expr *Parser::parseTypeExpr() {
+  auto pos = tok.pos;
 
-    bool mut = false;
-    if (tok.kind == Tok::kw_var) {
-        next();
-        mut = true;
+  bool mut = false;
+  if (tok.kind == Tok::kw_var) {
+    next();
+    mut = true;
+  }
+
+  // XXX OUTDATED: Encode each type into a unique Name, so that they are easy
+  // to find in the type table in the semantic analysis phase.
+  TypeExprKind type_kind = TypeExprKind::none;
+  Expr *subexpr = nullptr;
+  std::string text;
+  if (tok.kind == Tok::ampersand) {
+    expect(Tok::ampersand);
+    type_kind = mut ? TypeExprKind::var_ref : TypeExprKind::ref;
+
+    subexpr = parseTypeExpr();
+    if (subexpr->kind == ExprKind::type) {
+      text = mut ? "var &" : "&" + subexpr->as<TypeExpr>()->name->text;
     }
+  } else if (is_ident_or_keyword(tok)) {
+    type_kind = TypeExprKind::value;
 
-    // XXX OUTDATED: Encode each type into a unique Name, so that they are easy
-    // to find in the type table in the semantic analysis phase.
-    TypeExprKind type_kind = TypeExprKind::none;
-    Expr *subexpr = nullptr;
-    std::string text;
-    if (tok.kind == Tok::ampersand) {
-        expect(Tok::ampersand);
-        type_kind = TypeExprKind::ref;
+    text = tok.text;
+    next();
 
-        subexpr = parse_type_expr();
-        if (subexpr->kind == ExprKind::type) {
-            text = "&" + subexpr->as<TypeExpr>()->name->text;
-        }
-    } else if (is_ident_or_keyword(tok)) {
-        type_kind = TypeExprKind::value;
+    subexpr = nullptr;
+  } else {
+    error_expected("type name");
+    return make_node_pos<BadExpr>(pos);
+  }
 
-        text = tok.text;
-        next();
+  Name *name = names.get_or_add(text);
 
-        subexpr = nullptr;
-    } else {
-        error_expected("type name"); 
-        return make_node_pos<BadExpr>(pos);
-    }
-
-    Name *name = names.get_or_add(text);
-
-    return make_node_pos<TypeExpr>(pos, type_kind, name, mut, subexpr);
+  return make_node_pos<TypeExpr>(pos, type_kind, name, mut, subexpr);
 }
 
-Expr *Parser::parse_unary_expr() {
-    auto pos = tok.pos;
+Expr *Parser::parseUnaryExpr() {
+  auto pos = tok.pos;
 
-    switch (tok.kind) {
-    case Tok::number:
-    case Tok::string:
-        return parse_literal_expr();
-    case Tok::ident: {
-        // TODO: Do proper op precedence parsing for right-hand-side unary
-        // operators, e.g. '.', '()' and '{...}'.
-        auto expr = parse_funccall_or_declref_expr();
-        expr = parse_member_expr_maybe(expr);
-        if (lookahead_struct_def())
-            expr = parse_struct_def_maybe(expr);
-        return expr;
+  switch (tok.kind) {
+  case Tok::number:
+  case Tok::string: {
+    return parseLiteralExpr();
+  }
+  case Tok::ident: {
+    // All UnaryExprKinds with postfix operators should go here.
+    // TODO: Do proper op precedence parsing for right-hand-side unary
+    // operators, e.g. '.', '()' and '{...}'.
+    auto expr = parseFuncCallOrDeclRefExpr();
+    expr = parseMemberExprMaybe(expr);
+    if (lookaheadStructDef()) expr = parseStructDefMaybe(expr);
+    return expr;
+  }
+  case Tok::star: {
+    next();
+    auto expr = parseUnaryExpr();
+    return make_node_pos<UnaryExpr>(pos, UnaryExprKind::deref, expr);
+  }
+  case Tok::kw_var:
+  case Tok::ampersand: {
+    auto kind = UnaryExprKind::ref;
+    if (tok.kind == Tok::kw_var) {
+      expect(Tok::kw_var);
+      kind = UnaryExprKind::var_ref;
     }
-    case Tok::star: {
-        next();
-        auto expr = parse_unary_expr();
-        return make_node_pos<UnaryExpr>(pos, UnaryExprKind::deref, expr);
-    }
-    case Tok::ampersand: {
-        next();
-        auto expr = parse_unary_expr();
-        return make_node_pos<UnaryExpr>(pos, UnaryExprKind::ref, expr);
-    }
-    case Tok::lparen: {
-        expect(Tok::lparen);
-        auto inside_expr = parse_expr();
-        expect(Tok::rparen);
-        return make_node_pos<ParenExpr>(pos, inside_expr);
-    }
-    // TODO: prefix (++), postfix, sign (+/-)
-    default:
-        // Because all expressions start with a unary expression, failing here
-        // means no other expression could be matched either, so just do a
-        // really generic report.
-        error_expected("an expression");
-        return make_node_pos<BadExpr>(pos);
-    }
+    expect(Tok::ampersand);
+    auto expr = parseUnaryExpr();
+    return make_node_pos<UnaryExpr>(pos, kind, expr);
+  }
+  case Tok::lparen: {
+    expect(Tok::lparen);
+    auto inside_expr = parseExpr();
+    expect(Tok::rparen);
+    return make_node_pos<ParenExpr>(pos, inside_expr);
+  }
+  // TODO: prefix (++), postfix, sign (+/-)
+  default: {
+    // Because all expressions start with a unary expression, failing here
+    // means no other expression could be matched either, so just do a
+    // really generic report.
+    error_expected("an expression");
+    return make_node_pos<BadExpr>(pos);
+  }
+  }
 }
 
 namespace {
@@ -636,7 +647,7 @@ int binary_op_precedence(const Token &op) {
 // or equal to 'precedence' are seen. Giving it 0 means that this function will
 // keep parsing until no more valid binary operators are seen (which has
 // negative precedence values).
-Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence = 0) {
+Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence = 0) {
     Expr *root = lhs;
 
     while (!is_eos()) {
@@ -652,7 +663,7 @@ Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence = 0) {
         next();
 
         // Parse the second term.
-        Expr *rhs = parse_unary_expr();
+        Expr *rhs = parseUnaryExpr();
 
         // We do not know if this term should associate to left or right; e.g.
         // "(a
@@ -664,7 +675,7 @@ Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence = 0) {
         // RHS as a single subexpression with elevated minimum precedence. Else
         // ("a * b + c"), just treat it as a unary expression.
         if (this_prec < next_prec)
-            rhs = parse_binary_expr_rhs(rhs, precedence + 1);
+            rhs = parseBinaryExprRhs(rhs, precedence + 1);
 
         // Create a new root with the old root as its LHS, and the recursion
         // result as RHS.  This implements left associativity.
@@ -677,7 +688,7 @@ Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence = 0) {
 // If this expression is a member expression with a dot (.) operator, parse as
 // such. If not, just pass along the original expression. This function is
 // called after the operand expression part is fully parsed.
-Expr *Parser::parse_member_expr_maybe(Expr *expr) {
+Expr *Parser::parseMemberExprMaybe(Expr *expr) {
     Expr *result = expr;
 
     while (tok.kind == Tok::dot) {
@@ -692,7 +703,7 @@ Expr *Parser::parse_member_expr_maybe(Expr *expr) {
     return result;
 }
 
-bool Parser::lookahead_struct_def() {
+bool Parser::lookaheadStructDef() {
     auto s = save_state();
 
     if (tok.kind != Tok::lbrace)
@@ -717,14 +728,14 @@ fail:
 }
 
 // Parse '.memb = expr' part in Struct { .m1 = e1, .m2 = e2, ... }.
-std::optional<StructFieldDesignator> Parser::parse_struct_def_field() {
+std::optional<StructFieldDesignator> Parser::parseStructDefField() {
   if (!expect(Tok::dot)) return {};
   auto name = names.get_or_add(std::string{tok.text});
   next();
 
   if (!expect(Tok::equals)) return {};
 
-  auto expr = parse_expr();
+  auto expr = parseExpr();
   if (!expr) return {};
 
   return StructFieldDesignator{name, nullptr, expr};
@@ -733,13 +744,13 @@ std::optional<StructFieldDesignator> Parser::parse_struct_def_field() {
 // If this expression has a trailing {...}, parse as a struct definition
 // expression.  If not, just pass along the original expression. This function
 // is called after the operand expression part is fully parsed.
-Expr *Parser::parse_struct_def_maybe(Expr *expr) {
+Expr *Parser::parseStructDefMaybe(Expr *expr) {
     auto pos = tok.pos;
 
     expect(Tok::lbrace);
 
     auto v = parse_comma_separated_list<std::optional<StructFieldDesignator>>(
-        [this] { return parse_struct_def_field(); });
+        [this] { return parseStructDefField(); });
 
     std::vector<StructFieldDesignator> desigs;
     for (auto opt_field : v) {
@@ -752,12 +763,12 @@ Expr *Parser::parse_struct_def_maybe(Expr *expr) {
     return make_node_pos<StructDefExpr>(pos, expr, desigs);
 }
 
-Expr *Parser::parse_expr() {
-    auto unary = parse_unary_expr();
+Expr *Parser::parseExpr() {
+    auto unary = parseUnaryExpr();
     if (!unary)
         return nullptr;
-    auto binary = parse_binary_expr_rhs(unary);
-    return parse_member_expr_maybe(binary);
+    auto binary = parseBinaryExprRhs(unary);
+    return parseMemberExprMaybe(binary);
 }
 
 void Parser::skip_until(Tok kind) {

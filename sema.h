@@ -7,18 +7,20 @@
 
 namespace cmp {
 
+inline void unreachable() { assert(false && "unreachable"); }
+
 struct Context {
-    // Current enclosing decls.
-    std::vector<FuncDecl *> func_decl_stack;
-    std::vector<StructDecl *> struct_decl_stack;
-    std::vector<EnumDecl *> enum_decl_stack;
-    // Builtin types.
-    // voidType exists to differentiate the type of FuncCallExprs whose
-    // function no return values, from expressions that failed to typecheck.
-    Type *void_type = nullptr;
-    Type *int_type = nullptr;
-    Type *char_type = nullptr;
-    Type *string_type = nullptr;
+  // Current enclosing decls.
+  std::vector<FuncDecl *> func_decl_stack;
+  std::vector<StructDecl *> struct_decl_stack;
+  std::vector<EnumDecl *> enum_decl_stack;
+  // Builtin types.
+  // voidType exists to differentiate the type of FuncCallExprs whose
+  // function no return values, from expressions that failed to typecheck.
+  Type *void_type = nullptr;
+  Type *int_type = nullptr;
+  Type *char_type = nullptr;
+  Type *string_type = nullptr;
 };
 
 // Scoped symbol table.
@@ -134,10 +136,6 @@ struct Sema {
 };
 
 void setup_builtin_types(Sema &s);
-
-// Get a reference type of a given type.
-// Constructs the type if it wasn't in the type table beforehand.
-Type *getReferenceType(Sema &sema, Type *type);
 
 template <typename T, typename... Args>
 T *declare(Sema &sema, size_t pos, Name *name, Args &&... args);

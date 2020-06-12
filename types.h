@@ -114,14 +114,16 @@ struct Type {
         Decl type_decl{};
         // The target type of this reference type.  If this is a non-reference
         // type, the value should be null.
-        Type *base_type;
+        Type *referee_type;
     };
 
+    // Built-in value types.
     Type(Name *n) : kind(TypeKind::value), name(n), builtin(true) {}
-    // TODO: copyable?
-    Type(TypeKind k, Name *n, Type *bt)
-        : kind(k), name(n), copyable(true), base_type(bt) {}
+    // Struct types.
     Type(TypeKind k, Name *n, Decl td) : kind(k), name(n), type_decl(td) {}
+    // Reference types.
+    // TODO: copyable?
+    Type(Name *n, bool mut, Type *bt);
 
     const char *str() const { return name->str(); }
 
@@ -148,6 +150,8 @@ struct Type {
         return std::get<EnumDecl *>(type_decl);
     }
 };
+
+Type *getReferenceType(Sema &sema, bool mut, Type *type);
 
 // Declaration of a variable. Includes struct field variables.
 struct VarDecl {
