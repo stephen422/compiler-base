@@ -65,110 +65,111 @@ using StmtResult = ParserResult<Stmt>;
 using DeclResult = ParserResult<DeclNode>;
 using ExprResult = ParserResult<Expr>;
 
+Name *getReferenceTypeName(NameTable &names, bool mut, Name *referee_name);
+
 class Parser {
 public:
-    Lexer &lexer;                 // owned lexer
-    Token tok;                    // lookahead token
-    std::vector<AstNode *> nodes; // node pointer pool
-    std::vector<Error> &errors;   // error list
-    std::vector<Error> &beacons;  // error beacon list
-    AstNode *ast = nullptr;       // resulting AST
-    NameTable names;              // name table
+  Lexer &lexer;                 // owned lexer
+  Token tok;                    // lookahead token
+  std::vector<AstNode *> nodes; // node pointer pool
+  std::vector<Error> &errors;   // error list
+  std::vector<Error> &beacons;  // error beacon list
+  AstNode *ast = nullptr;       // resulting AST
+  NameTable names;              // name table
 
-    // Token cache.
-    // These are data structures that enable flexible roll-back of the parsing
-    // state.
-    // Cache of the lookahead tokens.
-    std::vector<Token> token_cache;
-    // Index of the token to be read in the next next() call.
-    size_t next_read_pos = 0;
+  // Token cache.
+  // These are data structures that enable flexible roll-back of the parsing
+  // state.
+  // Cache of the lookahead tokens.
+  std::vector<Token> token_cache;
+  // Index of the token to be read in the next next() call.
+  size_t next_read_pos = 0;
 
-    struct State {
-        Token tok;
-        size_t next_read_pos;
-        size_t error_count;
-    };
-    State save_state();
-    void restore_state(State state);
+  struct State {
+    Token tok;
+    size_t next_read_pos;
+    size_t error_count;
+  };
+  State save_state();
+  void restore_state(State state);
 
-    Parser(Lexer &lexer, std::vector<Error> &errors,
-           std::vector<Error> &beacons);
-    ~Parser();
-    Ast parse();
+  Parser(Lexer &lexer, std::vector<Error> &errors, std::vector<Error> &beacons);
+  ~Parser();
+  Ast parse();
 
 private:
-    // Parse the whole file.
-    File *parseFile();
+  // Parse the whole file.
+  File *parseFile();
 
-    // Parse a toplevel statement.
-    AstNode *parse_toplevel();
+  // Parse a toplevel statement.
+  AstNode *parse_toplevel();
 
-    // Statement parsers.
-    Stmt *parse_stmt();
-    Stmt *parse_expr_or_assign_stmt();
-    Stmt *parse_return_stmt();
-    IfStmt *parse_if_stmt();
-    DeclStmt *parseDeclStmt();
-    CompoundStmt *parseCompoundStmt();
-    BuiltinStmt *parseBuiltinStmt();
-    bool is_end_of_stmt() const;
-    bool is_eos() const;
+  // Statement parsers.
+  Stmt *parse_stmt();
+  Stmt *parse_expr_or_assign_stmt();
+  Stmt *parse_return_stmt();
+  IfStmt *parse_if_stmt();
+  DeclStmt *parseDeclStmt();
+  CompoundStmt *parseCompoundStmt();
+  BuiltinStmt *parseBuiltinStmt();
+  bool is_end_of_stmt() const;
+  bool is_eos() const;
 
-    // Declaration parsers
-    DeclNode *parse_decl();
-    VarDeclNode *parse_var_decl(VarDeclNodeKind kind);
-    template <typename T, typename F>
-    std::vector<T> parse_comma_separated_list(F &&parseFn);
-    FuncDeclNode *parseFuncDecl();
-    StructDeclNode *parseStructDecl();
-    EnumVariantDeclNode *parseEnumVariant();
-    std::vector<EnumVariantDeclNode *> parseEnumVariantDeclList();
-    EnumDeclNode *parseEnumDecl();
-    bool isStartOfDecl() const;
+  // Declaration parsers
+  DeclNode *parse_decl();
+  VarDeclNode *parse_var_decl(VarDeclNodeKind kind);
+  template <typename T, typename F>
+  std::vector<T> parse_comma_separated_list(F &&parseFn);
+  FuncDeclNode *parseFuncDecl();
+  StructDeclNode *parseStructDecl();
+  EnumVariantDeclNode *parseEnumVariant();
+  std::vector<EnumVariantDeclNode *> parseEnumVariantDeclList();
+  EnumDeclNode *parseEnumDecl();
+  bool isStartOfDecl() const;
 
-    // Expression parsers
-    Expr *parseExpr();
-    Expr *parseUnaryExpr();
-    Expr *parseLiteralExpr();
-    Expr *parseFuncCallOrDeclRefExpr();
-    Expr *parseTypeExpr();
-    Expr *parseBinaryExprRhs(Expr *lhs, int precedence);
-    Expr *parseMemberExprMaybe(Expr *expr);
-    std::optional<StructFieldDesignator> parseStructDefField();
-    bool lookaheadStructDef();
-    Expr *parseStructDefMaybe(Expr *expr);
+  // Expression parsers
+  Expr *parseExpr();
+  Expr *parseUnaryExpr();
+  Expr *parseLiteralExpr();
+  Expr *parseFuncCallOrDeclRefExpr();
+  Expr *parseTypeExpr();
+  Expr *parseBinaryExprRhs(Expr *lhs, int precedence);
+  Expr *parseMemberExprMaybe(Expr *expr);
+  std::optional<StructFieldDesignator> parseStructDefField();
+  bool lookaheadStructDef();
+  Expr *parseStructDefMaybe(Expr *expr);
 
-    // Error handling
-    void error(const std::string &msg);
-    void error_expected(const std::string &msg);
+  // Error handling
+  void error(const std::string &msg);
+  void error_expected(const std::string &msg);
 
-    // Advance the lookahead token.
-    void next();
+  // Advance the lookahead token.
+  void next();
 
-    // Expect and consume functions.
-    bool expect(Tok kind, const std::string &msg);
+  // Expect and consume functions.
+  bool expect(Tok kind, const std::string &msg);
 
-    // Skip until a specific token(s) show up.
-    void skip_until(Tok kind);
-    void skip_until_any(std::initializer_list<Tok> &kinds);
-    void skip_until_end_of_line();
-    void skip_to_next_line();
-    void skip_newlines();
+  // Skip until a specific token(s) show up.
+  void skip_until(Tok kind);
+  void skip_until_any(std::initializer_list<Tok> &kinds);
+  void skip_until_end_of_line();
+  void skip_to_next_line();
+  void skip_newlines();
 
-    template <typename T, typename... Args> T *make_node(Args &&... args) {
-        nodes.emplace_back(new T{std::forward<Args>(args)...});
-        return static_cast<T *>(nodes.back());
-    }
+  template <typename T, typename... Args> T *make_node(Args &&... args) {
+    nodes.emplace_back(new T{std::forward<Args>(args)...});
+    return static_cast<T *>(nodes.back());
+  }
 
-    template <typename T, typename... Args>
-    T *make_node_pos(size_t pos, Args &&... args) {
-        auto node = make_node<T>(std::forward<Args>(args)...);
-        node->pos = pos;
-        return node;
-    }
+  template <typename T, typename... Args>
+  T *make_node_pos(size_t pos, Args &&... args) {
+    auto node = make_node<T>(std::forward<Args>(args)...);
+    node->pos = pos;
+    return node;
+  }
 
-    // Figure out the current location (line, col) in the source.
-    SourceLoc locate() const { return lexer.source().locate(tok.pos); }
+  // Figure out the current location (line, col) in the source.
+  SourceLoc locate() const { return lexer.source().locate(tok.pos); }
 };
 
 } // namespace cmp

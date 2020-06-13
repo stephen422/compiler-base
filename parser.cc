@@ -525,6 +525,13 @@ Expr *Parser::parseFuncCallOrDeclRefExpr() {
     }
 }
 
+// Get the Name handle that designates a reference type of a given referee type
+// name.  This function is used to query ready-made reference types from the
+// type table.
+Name *getReferenceTypeName(NameTable &names, bool mut, Name *referee_name) {
+  return names.get_or_add((mut ? "var &" : "&") + referee_name->text);
+}
+
 // Parse a type expression.
 // A type expression is simply every stream of tokens in the source that can
 // represent a type.
@@ -551,7 +558,7 @@ Expr *Parser::parseTypeExpr() {
 
     subexpr = parseTypeExpr();
     if (subexpr->kind == ExprKind::type) {
-      text = mut ? "var &" : "&" + subexpr->as<TypeExpr>()->name->text;
+      text = getReferenceTypeName(names, mut, subexpr->as<TypeExpr>()->name)->text;
     }
   } else if (is_ident_or_keyword(tok)) {
     type_kind = TypeExprKind::value;

@@ -39,7 +39,7 @@ template <typename T> struct ScopedTable {
     ScopedTable();
     ~ScopedTable();
     T *insert(Name *name, const T &value);
-    Symbol *find(Name *name) const;
+    Symbol *find(const Name *name) const;
     void print() const;
 
     // Start a new scope.

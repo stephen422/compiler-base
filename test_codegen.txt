@@ -3,7 +3,7 @@ struct Token {
   pos: int
 }
 
-func swap(a: &int, b: &int) {
+func swap(a: var &int, b: var &int) {
   let t = *a
   *a = *b
   *b = t
@@ -20,7 +20,7 @@ func f(n: int) -> int {
 func main() -> int {
   let a = 1
   let b = 4
-  swap(&a, &b)
+  swap(var &a, var &b)
   #printf("%d\n", a)
 
   // structs

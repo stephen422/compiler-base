@@ -451,70 +451,70 @@ Type *TypeChecker::visitDeclRefExpr(DeclRefExpr *d) {
 }
 
 Type *TypeChecker::visitFuncCallExpr(FuncCallExpr *f) {
-    walk_func_call_expr(*this, f);
+  walk_func_call_expr(*this, f);
 
-    assert(f->func_decl->ret_ty);
-    f->type = f->func_decl->ret_ty;
+  assert(f->func_decl->ret_ty);
+  f->type = f->func_decl->ret_ty;
 
-    // check argument type match
-    for (size_t i = 0; i < f->func_decl->args.size(); i++) {
-        assert(f->args[i]->type);
-        // TODO: proper type comparison
-        if (f->args[i]->type != f->func_decl->args[i]->type) {
-            sema.error(f->args[i]->pos,
-                       "argument type mismatch: expects '%s', got '%s'",
-                       f->func_decl->args[i]->type->name->str(),
-                       f->args[i]->type->name->str());
-            return nullptr;
-        }
+  // check argument type match
+  for (size_t i = 0; i < f->func_decl->args.size(); i++) {
+    if (!f->args[i]->type) return nullptr;
+
+    // TODO: proper type comparison
+    if (f->args[i]->type != f->func_decl->args[i]->type) {
+      sema.error(f->args[i]->pos,
+                 "argument type mismatch: expects '%s', got '%s'",
+                 f->func_decl->args[i]->type->name->str(),
+                 f->args[i]->type->name->str());
+      return nullptr;
     }
+  }
 
-    return f->type;
+  return f->type;
 }
 
 Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
-    walk_struct_def_expr(*this, s);
+  walk_struct_def_expr(*this, s);
 
-    // check Name is a struct
-    auto lhs_type = s->name_expr->type;
-    if (!lhs_type) return nullptr;
-    if (!lhs_type->isStruct()) {
-        sema.error(s->name_expr->pos, "type '%s' is not a struct",
-                   lhs_type->name->str());
-        return nullptr;
+  // check Name is a struct
+  auto lhs_type = s->name_expr->type;
+  if (!lhs_type) return nullptr;
+  if (!lhs_type->isStruct()) {
+    sema.error(s->name_expr->pos, "type '%s' is not a struct",
+               lhs_type->name->str());
+    return nullptr;
+  }
+
+  // typecheck each field
+  // XXX: copy-paste from visitMemberExpr
+  for (auto &desig : s->desigs) {
+    for (auto field : lhs_type->getStructDecl()->fields) {
+      if (desig.name == field->name) {
+        desig.decl = field;
+        break;
+      }
     }
 
-    // typecheck each field
-    // XXX: copy-paste from visitMemberExpr
-    for (auto &desig : s->desigs) {
-        for (auto field : lhs_type->getStructDecl()->fields) {
-            if (desig.name == field->name) {
-                desig.decl = field;
-                break;
-            }
-        }
-
-        if (!desig.decl) {
-            const char *fmt = "no field named '%s' in struct '%s'";
-            sema.error(desig.expr->pos, // FIXME: wrong pos
-                       fmt, desig.name->str(),
-                       lhs_type->getStructDecl()->name->str());
-            return nullptr;
-        }
-
-        // skip if earlier typecheck error
-        if (!desig.expr->type) return nullptr;
-
-        if (!typecheck_assignment(desig.decl->type, desig.expr->type)) {
-            sema.error(desig.expr->pos, "cannot assign '%s' type to '%s'",
-                       desig.expr->type->name->str(),
-                       desig.decl->type->name->str());
-            return nullptr;
-        }
+    if (!desig.decl) {
+      const char *fmt = "no field named '%s' in struct '%s'";
+      sema.error(desig.expr->pos, // FIXME: wrong pos
+                 fmt, desig.name->str(),
+                 lhs_type->getStructDecl()->name->str());
+      return nullptr;
     }
 
-    s->type = lhs_type;
-    return s->type;
+    // skip if earlier typecheck error
+    if (!desig.expr->type) return nullptr;
+
+    if (!typecheck_assignment(desig.decl->type, desig.expr->type)) {
+      sema.error(desig.expr->pos, "cannot assign '%s' type to '%s'",
+                 desig.expr->type->name->str(), desig.decl->type->name->str());
+      return nullptr;
+    }
+  }
+
+  s->type = lhs_type;
+  return s->type;
 }
 
 // MemberExprs cannot be namebinded completely without type checking (e.g.
@@ -574,7 +574,7 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
 // Get a reference type of a given type, or construct one if it didn't exist in
 // the type table.
 Type *getReferenceType(Sema &sema, bool mut, Type *type) {
-  Name *name = sema.name_table.get_or_add("&" + type->name->text);
+  auto name = getReferenceTypeName(sema.name_table, mut, type->name);
   if (auto found = sema.type_table.find(name)) return found->value;
 
   // FIXME: scope_level
@@ -647,7 +647,7 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
 
 Type *TypeChecker::visitParenExpr(ParenExpr *p) {
   walk_paren_expr(*this, p);
-  if (!p->operand->type) return nullptr;
+  // Passes along nullptr as well.
   return p->type = p->operand->type;
 }
 
@@ -694,22 +694,20 @@ Type *TypeChecker::visitTypeExpr(TypeExpr *t) {
 }
 
 Type *TypeChecker::visitVarDecl(VarDeclNode *v) {
-    walk_var_decl(*this, v);
+  walk_var_decl(*this, v);
 
-    if (v->type_expr) {
-        // XXX: maybe we can use just assertions, rather than if-not-returns,
-        // because typecheck of type_expr always succeeds because namebinding
-        // handles all of the type errors for them?
-        assert(v->type_expr->type);
-        v->var_decl->type = v->type_expr->type;
-    } else if (v->assign_expr) {
-        assert(v->assign_expr->type);
-        v->var_decl->type = v->assign_expr->type;
-    } else {
-        unreachable();
-    }
+  // The 'type's on the RHS below _may_ be nullptr, for cases such as RHS being
+  // StructDefExpr whose designator failed to typecheck its assignment.  We just
+  // pass along the nullptr for those cases.
+  if (v->type_expr) {
+    v->var_decl->type = v->type_expr->type;
+  } else if (v->assign_expr) {
+    v->var_decl->type = v->assign_expr->type;
+  } else {
+    unreachable();
+  }
 
-    return v->var_decl->type;
+  return v->var_decl->type;
 }
 
 Type *TypeChecker::visitFuncDecl(FuncDeclNode *f) {
@@ -1058,6 +1056,7 @@ void BorrowChecker::visitUnaryExpr(UnaryExpr *u) {
         visitParenExpr(static_cast<ParenExpr *>(u));
         break;
     case UnaryExprKind::ref:
+    case UnaryExprKind::var_ref: // TODO
         visitExpr(u->operand);
         register_borrow(sema, declCast<VarDecl>(*u->operand->decl()), u->pos);
         break;
@@ -1140,6 +1139,7 @@ void CodeGenerator::visitUnaryExpr(UnaryExpr *u) {
     return visitParenExpr(u->as<ParenExpr>());
     break;
   case UnaryExprKind::ref:
+  case UnaryExprKind::var_ref:
     emitCont("&");
     visitExpr(u->operand);
     break;

@@ -238,13 +238,12 @@ public:
             return dis()->visitParenExpr(static_cast<ParenExpr *>(u), args...);
             break;
         case UnaryExprKind::ref:
-            return dis()->visitExpr(u->operand, args...);
-            break;
+        case UnaryExprKind::var_ref:
         case UnaryExprKind::deref:
             return dis()->visitExpr(u->operand, args...);
             break;
         default:
-            assert(false);
+            assert(false && "inexhaustive kind");
             break;
         }
         return RetTy();
