@@ -29,27 +29,27 @@ bool verify(const std::string &filename, std::vector<Error> &errors,
       std::regex regex{beacon.message};
       if (!std::regex_search(error.message, regex)) {
         success = false;
-        printf("< %s\n> %s\n", error.str().c_str(), beacon.str().c_str());
+        printf("%s\n(expect) %s\n", error.str().c_str(), beacon.str().c_str());
       }
       i++;
       j++;
     } else if (error.loc.line < beacon.loc.line) {
       success = false;
-      printf("< %s\n", error.str().c_str());
+      printf("%s\n", error.str().c_str());
       i++;
     } else {
       success = false;
-      printf("> %s\n", beacon.str().c_str());
+      printf("(expect) %s\n", beacon.str().c_str());
       j++;
     }
   }
   for (; i < errors.size(); i++) {
     success = false;
-    printf("< %s\n", errors[i].str().c_str());
+    printf("%s\n", errors[i].str().c_str());
   }
   for (; j < beacons.size(); j++) {
     success = false;
-    printf("> %s\n", beacons[j].str().c_str());
+    printf("(expect) %s\n", beacons[j].str().c_str());
   }
 
   // fmt::print("{} {}\n",
