@@ -50,7 +50,7 @@ Type *make_value_type(Sema &sema, Name *n, Decl decl) {
   return t;
 }
 
-Type *make_ref_type(Sema &sema, Name *n, bool mut, Type *referee_type) {
+Type *makeReferenceType(Sema &sema, Name *n, bool mut, Type *referee_type) {
   Type *t = new Type(n, mut, referee_type);
   sema.type_pool.push_back(t);
   return t;
@@ -375,8 +375,9 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
   } else if (isDereferenceExpr(as->lhs)) {
     auto unary = as->lhs->as<UnaryExpr>();
     if (unary->operand->type->kind != TypeKind::var_ref) {
-      sema.error(unary->operand->pos,
+      sema.error(unary->pos,
                  "cannot assign to a dereference of an immutable reference");
+      return nullptr;
     }
   } else {
     auto decl_opt = as->lhs->decl();
@@ -577,7 +578,7 @@ Type *getReferenceType(Sema &sema, bool mut, Type *type) {
   if (auto found = sema.type_table.find(name)) return found->value;
 
   // FIXME: scope_level
-  auto ref_type = make_ref_type(sema, name, mut, type);
+  auto ref_type = makeReferenceType(sema, name, mut, type);
   return *sema.type_table.insert(name, ref_type);
 }
 
@@ -683,7 +684,8 @@ Type *TypeChecker::visitTypeExpr(TypeExpr *t) {
     // source code.  Trying to push them every time we see one is sufficient
     // to keep this invariant.
     assert(t->subexpr->type); // TODO: check if triggers
-    t->type = getReferenceType(sema, false, t->subexpr->type);
+    bool mut = t->kind == TypeExprKind::var_ref;
+    t->type = getReferenceType(sema, mut, t->subexpr->type);
   } else {
     unreachable();
   }

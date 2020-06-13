@@ -74,13 +74,18 @@ func main() {
     i = 3 + 4
 
     // ref and deref
-    *i // ERROR: dereference.*'int'
-    var ptr: &int
-    *ptr = 3 // ERROR: cannot assign .* immutable reference
-    *ptr = car // ERROR: cannot assign 'Car'.*'int'
-    ptr = &i
-    &24 // ERROR: take address of an rvalue
-    &g() // ERROR: take address of an rvalue
+    {
+        *i // ERROR: dereference.*'int'
+        &24 // ERROR: take address of an rvalue
+        &g() // ERROR: take address of an rvalue
+        var imm_ptr: &int
+        *imm_ptr = 3 // ERROR: cannot assign .* immutable reference
+        *(imm_ptr) = 3 // ERROR: cannot assign .* immutable reference
+        *imm_ptr = car // ERROR: cannot assign 'Car'.*'int'
+        imm_ptr = &i
+        let mut_ptr: var &int
+        *mut_ptr = 3
+    }
 
     let pcar: &Car
     (*pcar).wheel
