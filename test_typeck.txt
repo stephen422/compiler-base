@@ -79,12 +79,14 @@ func main() {
         &24 // ERROR: take address of an rvalue
         &g() // ERROR: take address of an rvalue
         var imm_ptr: &int
+        imm_ptr = var &i
         *imm_ptr = 3 // ERROR: cannot assign .* immutable reference
         *(imm_ptr) = 3 // ERROR: cannot assign .* immutable reference
-        *imm_ptr = car // ERROR: cannot assign 'Car'.*'int'
+        *imm_ptr = car // ERROR: cannot assign .* immutable reference
         imm_ptr = &i
         let mut_ptr: var &int
         *mut_ptr = 3
+        mut_ptr = i // ERROR: 'mut_ptr' is not declared as mutable
     }
 
     let pcar: &Car

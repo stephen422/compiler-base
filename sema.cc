@@ -346,12 +346,6 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
   // XXX: is this the best way to early-exit?
   if (!lhs_ty || !rhs_ty) return nullptr;
 
-  if (!typecheck_assignment(lhs_ty, rhs_ty)) {
-    sema.error(as->pos, "cannot assign '%s' type to '%s'", rhs_ty->name->str(),
-               lhs_ty->name->str());
-    return nullptr;
-  }
-
   // Mutability check.
   //
   // Some notes on MemberExprs:
@@ -387,6 +381,13 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
                  var_decl->name->str());
       return nullptr;
     }
+  }
+
+  // Type compatibility check.
+  if (!typecheck_assignment(lhs_ty, rhs_ty)) {
+    sema.error(as->pos, "cannot assign '%s' type to '%s'", rhs_ty->name->str(),
+               lhs_ty->name->str());
+    return nullptr;
   }
 
   // Copyability check.
