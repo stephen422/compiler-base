@@ -328,8 +328,11 @@ void NameBinding::visitEnumDecl(EnumDeclNode *e) {
 
 // Typecheck assignment statement of 'lhs = rhs'.
 bool typecheck_assignment(const Type *lhs, const Type *rhs) {
-    // only allow exact equality for assignment for now (TODO)
-    return lhs == rhs;
+  // Allow promotion from mutable to immutable reference.
+  if (lhs->kind == TypeKind::ref && rhs->isReferenceType()) {
+    return typecheck_assignment(lhs->referee_type, rhs->referee_type);
+  }
+  return lhs == rhs;
 }
 
 // Assignments should check that the LHS is an l-value.
