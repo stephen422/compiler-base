@@ -202,15 +202,6 @@ struct Expr : public AstNode {
     Expr(ExprKind e) : AstNode(AstKind::expr), kind(e), type(nullptr) {}
 };
 
-enum class UnaryExprKind {
-    paren,
-    ref,
-    var_ref,
-    deref,
-    plus, // TODO
-    minus, // TODO
-};
-
 struct IntegerLiteral : public Expr {
     int64_t value;
 
@@ -273,6 +264,15 @@ struct MemberExpr : public Expr {
     MemberExpr(Expr *e, Name *m)
         : Expr(ExprKind::member), lhs_expr(e), member_name(m) {}
     void print() const override;
+};
+
+enum class UnaryExprKind {
+    paren,
+    ref,
+    var_ref,
+    deref,
+    plus, // TODO
+    minus, // TODO
 };
 
 struct UnaryExpr : public Expr {

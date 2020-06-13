@@ -116,59 +116,29 @@ std::optional<Type *> declGetType(const Decl decl) {
     assert(false && "not all decl kinds handled");
 }
 
-void NameBinder::visitCompoundStmt(CompoundStmt *cs) {
-    sema.scope_open();
-    walk_compound_stmt(*this, cs);
-    sema.scope_close();
+void NameBinding::visitCompoundStmt(CompoundStmt *cs) {
+  sema.scope_open();
+  walk_compound_stmt(*this, cs);
+  sema.scope_close();
 }
 
-void NameBinder::visitAssignStmt(AssignStmt *as) {
+void NameBinding::visitAssignStmt(AssignStmt *as) {
   walk_assign_stmt(*this, as);
 
   // Checking if an AST node has an associated Decl object is a purely
   // syntactical check, and therefore can be done in the name binding phase.
   //
-  // XXX: It's not obvious (and not even correct?) that r-values correspond to
-  // expressions that don't have an associated Decl object. Maybe make an
+  // XXX: It's not obvious (and not even correct?) that r-values equal
+  // expressions that don't have an associated Decl object. Make a separate
   // is_rvalue() function.
   auto decl_opt = as->lhs->decl();
   if (!decl_opt) {
     sema.error(as->pos, "LHS is not assignable");
     return;
   }
-
-  // Note about mutability check and MemberExprs:
-  //
-  // Since the language handles the mutability checking using the name binding
-  // information, there is no such thing as mutable or immutable 'types'. This
-  // also means that individual fields of a struct cannot be mutable separately
-  // from others.  Therefore, their mutation is only possible by accessing them
-  // through a mutable variable at the LHS of a MemberExpr. And by recursion,
-  // checking mutability of an assignment to a MemberExpr equates to simply
-  // checking the *leftmost* variable that appears the first in the MemberExpr
-  // chain, e.g. 'a' of 'a.b.c.d.e = 42'.
-  auto var_decl = declCast<VarDecl>(*decl_opt);
-  if (var_decl && !var_decl->mut) {
-    sema.error(as->pos, "'%s' is not declared as mutable", var_decl->name->str());
-    return;
-  }
-
-  // For MemberExprs, since their Decl object is not binded until type checking
-  // phase, they are not caught by the above check. For those cases, manually
-  // look up the leftmost parent variable to complete the check.
-  if (as->lhs->kind == ExprKind::member) {
-    auto leftmost_decl = *as->lhs->as<MemberExpr>()->lhs_expr->decl();
-    // Account for name bind fail.
-    auto leftmost_vardecl = declCast<VarDecl>(leftmost_decl);
-    if (leftmost_vardecl && !leftmost_vardecl->mut) {
-      sema.error(as->pos, "'%s' is not declared as mutable",
-                 leftmost_vardecl->name->str());
-      return;
-    }
-  }
 }
 
-void NameBinder::visitDeclRefExpr(DeclRefExpr *d) {
+void NameBinding::visitDeclRefExpr(DeclRefExpr *d) {
   auto sym = sema.decl_table.find(d->name);
   if (!sym) {
     sema.error(d->pos, "use of undeclared identifier '%s'", d->name->str());
@@ -178,32 +148,31 @@ void NameBinder::visitDeclRefExpr(DeclRefExpr *d) {
 }
 
 // Only binds the function name part of the call, e.g. 'func' of func().
-void NameBinder::visitFuncCallExpr(FuncCallExpr *f) {
-    // resolve function name
-    auto sym = sema.decl_table.find(f->func_name);
-    if (!sym) {
-        sema.error(f->pos, "undeclared function '%s'", f->func_name->str());
-        return;
-    }
-    if (!declCast<FuncDecl>(sym->value)) {
-        sema.error(f->pos, "'%s' is not a function", f->func_name->str());
-        return;
-    }
-    f->func_decl = declCast<FuncDecl>(sym->value);
-    assert(f->func_decl);
+void NameBinding::visitFuncCallExpr(FuncCallExpr *f) {
+  // resolve function name
+  auto sym = sema.decl_table.find(f->func_name);
+  if (!sym) {
+    sema.error(f->pos, "undeclared function '%s'", f->func_name->str());
+    return;
+  }
+  if (!declCast<FuncDecl>(sym->value)) {
+    sema.error(f->pos, "'%s' is not a function", f->func_name->str());
+    return;
+  }
+  f->func_decl = declCast<FuncDecl>(sym->value);
+  assert(f->func_decl);
 
-    walk_func_call_expr(*this, f);
+  walk_func_call_expr(*this, f);
 
-    // check if argument count matches
-    if (f->func_decl->args_count() != f->args.size()) {
-        sema.error(f->pos, "'%s' accepts %lu arguments, got %lu",
-                   f->func_name->str(), f->func_decl->args_count(),
-                   f->args.size());
-        return;
-    }
+  // check if argument count matches
+  if (f->func_decl->args_count() != f->args.size()) {
+    sema.error(f->pos, "'%s' accepts %lu arguments, got %lu",
+               f->func_name->str(), f->func_decl->args_count(), f->args.size());
+    return;
+  }
 }
 
-void NameBinder::visitTypeExpr(TypeExpr *t) {
+void NameBinding::visitTypeExpr(TypeExpr *t) {
   walk_type_expr(*this, t);
 
   // Namebinding for TypeExprs only include linking existing Decls to the
@@ -242,70 +211,83 @@ T *declare(Sema &sema, size_t pos, Name *name, Args &&... args) {
     return decl;
 }
 
-void NameBinder::visitVarDecl(VarDeclNode *v) {
-    walk_var_decl(*this, v);
+void NameBinding::visitVarDecl(VarDeclNode *v) {
+  walk_var_decl(*this, v);
 
-    if (!(v->var_decl = declare<VarDecl>(sema, v->pos, v->name, v->mut)))
-        return;
+  if (!(v->var_decl = declare<VarDecl>(sema, v->pos, v->name, v->mut)))
+    return;
 
-    // struct member declarations are also parsed as VarDecls.
-    if (v->kind == VarDeclNodeKind::struct_) {
-        assert(!sema.context.struct_decl_stack.empty());
-        auto enclosing_struct = sema.context.struct_decl_stack.back();
-        enclosing_struct->fields.push_back(v->var_decl);
-    } else if (v->kind == VarDeclNodeKind::param) {
-        assert(!sema.context.func_decl_stack.empty());
-        auto enclosing_func = sema.context.func_decl_stack.back();
-        enclosing_func->args.push_back(v->var_decl);
-    }
+  // struct member declarations are also parsed as VarDecls.
+  if (v->kind == VarDeclNodeKind::struct_) {
+    assert(!sema.context.struct_decl_stack.empty());
+    auto enclosing_struct = sema.context.struct_decl_stack.back();
+    enclosing_struct->fields.push_back(v->var_decl);
+  } else if (v->kind == VarDeclNodeKind::param) {
+    assert(!sema.context.func_decl_stack.empty());
+    auto enclosing_func = sema.context.func_decl_stack.back();
+    enclosing_func->args.push_back(v->var_decl);
+  }
 }
 
-void NameBinder::visitFuncDecl(FuncDeclNode *f) {
-    auto err_count = sema.errors.size();
+void NameBinding::visitFuncDecl(FuncDeclNode *f) {
+  auto err_count = sema.errors.size();
 
-    if (!(f->func_decl = declare<FuncDecl>(sema, f->pos, f->name))) return;
+  if (!(f->func_decl = declare<FuncDecl>(sema, f->pos, f->name)))
+    return;
 
-    // scope for argument variables
-    sema.decl_table.scope_open();
-    sema.context.func_decl_stack.push_back(f->func_decl);
+  // scope for argument variables
+  sema.decl_table.scope_open();
+  sema.context.func_decl_stack.push_back(f->func_decl);
 
-    walk_func_decl(*this, f);
+  walk_func_decl(*this, f);
 
-    sema.context.func_decl_stack.pop_back();
-    sema.decl_table.scope_close();
+  sema.context.func_decl_stack.pop_back();
+  sema.decl_table.scope_close();
 
-    if (sema.errors.size() != err_count) {
-        f->failed = true;
-    }
+  if (sema.errors.size() != err_count) {
+    f->failed = true;
+  }
 }
 
-void NameBinder::visitStructDecl(StructDeclNode *s) {
-    if (!(s->struct_decl = declare<StructDecl>(sema, s->pos, s->name))) return;
+void NameBinding::visitStructDecl(StructDeclNode *s) {
+  if (!(s->struct_decl = declare<StructDecl>(sema, s->pos, s->name))) return;
 
-    // Decl table is used for checking redefinition when parsing the member
-    // list.
-    sema.decl_table.scope_open();
-    sema.context.struct_decl_stack.push_back(s->struct_decl);
+  // Decl table is used for checking redefinition when parsing the member
+  // list.
+  sema.decl_table.scope_open();
+  sema.context.struct_decl_stack.push_back(s->struct_decl);
 
-    walk_struct_decl(*this, s);
+  walk_struct_decl(*this, s);
 
-    sema.context.struct_decl_stack.pop_back();
-    sema.decl_table.scope_close();
+  sema.context.struct_decl_stack.pop_back();
+  sema.decl_table.scope_close();
 }
 
 namespace {
 
 // Generate a name for the anonymous fields in each enum variant structs.
 // For now, these are named "_0", "_1", and so on.
-Name *gen_anonymous_field_name(Sema &sema, size_t index) {
-    char buf[BUFSIZE];
-    snprintf(buf, BUFSIZE, "_%lu", index);
-    return sema.name_table.get_or_add(std::string{buf});
+Name *genAnonymousFieldName(Sema &sema, size_t index) {
+  char buf[BUFSIZE];
+  snprintf(buf, BUFSIZE, "_%lu", index);
+  return sema.name_table.get_or_add(std::string{buf});
+}
+
+// Checks if 'expr' is a borrowing expression.
+bool isReferenceExpr(const Expr *expr) {
+  return expr->kind == ExprKind::unary &&
+         expr->as<UnaryExpr>()->kind == UnaryExprKind::ref;
+}
+
+// Checks if 'expr' is a dereferencing expression, i.e.. '*expr'.
+bool isDereferenceExpr(const Expr *expr) {
+  return expr->kind == ExprKind::unary &&
+         expr->as<UnaryExpr>()->kind == UnaryExprKind::deref;
 }
 
 } // namespace
 
-void NameBinder::visitEnumVariantDecl(EnumVariantDeclNode *v) {
+void NameBinding::visitEnumVariantDecl(EnumVariantDeclNode *v) {
   walk_enum_variant_decl(*this, v);
 
   // first, declare a struct of this name
@@ -318,9 +300,9 @@ void NameBinder::visitEnumVariantDecl(EnumVariantDeclNode *v) {
     sema.decl_table.scope_open();
 
     if (auto field_decl = declare<VarDecl>(sema, v->fields[i]->pos,
-                                           gen_anonymous_field_name(sema, i),
+                                           genAnonymousFieldName(sema, i),
                                            false /*TODO: mut*/)) {
-        v->struct_decl->fields.push_back(field_decl);
+      v->struct_decl->fields.push_back(field_decl);
     }
 
     sema.decl_table.scope_close();
@@ -332,7 +314,7 @@ void NameBinder::visitEnumVariantDecl(EnumVariantDeclNode *v) {
   enclosing_enum->variants.push_back(v->struct_decl);
 }
 
-void NameBinder::visitEnumDecl(EnumDeclNode *e) {
+void NameBinding::visitEnumDecl(EnumDeclNode *e) {
   if (!(e->enum_decl = declare<EnumDecl>(sema, e->pos, e->name))) return;
 
   sema.decl_table.scope_open();
@@ -356,29 +338,64 @@ bool typecheck_assignment(const Type *lhs, const Type *rhs) {
 //
 //                 3 = 4
 Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
-    walk_assign_stmt(*this, as);
+  walk_assign_stmt(*this, as);
 
-    auto lhs_ty = as->lhs->type;
-    auto rhs_ty = as->rhs->type;
+  auto lhs_ty = as->lhs->type;
+  auto rhs_ty = as->rhs->type;
 
-    // XXX: is this the best way to early-exit?
-    if (!lhs_ty || !rhs_ty) return nullptr;
+  // XXX: is this the best way to early-exit?
+  if (!lhs_ty || !rhs_ty) return nullptr;
 
-    // Note that mutability check is done in the name binding.
+  if (!typecheck_assignment(lhs_ty, rhs_ty)) {
+    sema.error(as->pos, "cannot assign '%s' type to '%s'", rhs_ty->name->str(),
+               lhs_ty->name->str());
+    return nullptr;
+  }
 
-    if (!typecheck_assignment(lhs_ty, rhs_ty)) {
-        sema.error(as->pos, "cannot assign '%s' type to '%s'",
-                   rhs_ty->name->str(), lhs_ty->name->str());
-        return nullptr;
+  // Mutability check.
+  //
+  // Some notes on MemberExprs:
+  // Since the language handles the mutability checking using the name binding
+  // information, there is no such thing as mutable or immutable 'types'. This
+  // also means that individual fields of a struct cannot be mutable separately
+  // from others.  Therefore, their mutation is only possible by accessing them
+  // through a mutable variable at the LHS of a MemberExpr. And by recursion,
+  // checking mutability of an assignment to a MemberExpr equates to simply
+  // checking the *leftmost* variable that appears the first in the MemberExpr
+  // chain, e.g. 'a' of 'a.b.c.d.e = 42'.
+  if (as->lhs->kind == ExprKind::member) {
+    auto leftmost_decl = *as->lhs->as<MemberExpr>()->lhs_expr->decl();
+    // Account for name bind fail.
+    auto leftmost_vardecl = declCast<VarDecl>(leftmost_decl);
+    if (leftmost_vardecl && !leftmost_vardecl->mut) {
+      sema.error(as->pos, "'%s' is not declared as mutable",
+                 leftmost_vardecl->name->str());
+      return nullptr;
     }
-
-    // Copyability check.
-    if (!rhs_ty->copyable) {
-        sema.error(as->rhs->pos, "cannot copy non-copyable type '%s'", rhs_ty->name->str());
-        return nullptr;
+  } else if (isDereferenceExpr(as->lhs)) {
+    auto unary = as->lhs->as<UnaryExpr>();
+    if (unary->operand->type->kind != TypeKind::var_ref) {
+      sema.error(unary->operand->pos,
+                 "cannot assign to a dereference of an immutable reference");
     }
+  } else {
+    auto decl_opt = as->lhs->decl();
+    auto var_decl = declCast<VarDecl>(*decl_opt);
+    if (var_decl && !var_decl->mut) {
+      sema.error(as->pos, "'%s' is not declared as mutable",
+                 var_decl->name->str());
+      return nullptr;
+    }
+  }
 
-    return lhs_ty;
+  // Copyability check.
+  if (!rhs_ty->copyable) {
+    sema.error(as->rhs->pos, "cannot copy non-copyable type '%s'",
+               rhs_ty->name->str());
+    return nullptr;
+  }
+
+  return lhs_ty;
 }
 
 bool FuncDecl::isVoid(Sema &sema) const {
@@ -598,6 +615,7 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
       // assignable or not.
       bool mut = (u->operand->type->kind == TypeKind::var_ref);
       u->var_decl = makeTemporaryVarDecl(sema, u->type, mut);
+      // TODO
     }
     break;
   }
@@ -675,8 +693,6 @@ Type *TypeChecker::visitTypeExpr(TypeExpr *t) {
 
 Type *TypeChecker::visitVarDecl(VarDeclNode *v) {
     walk_var_decl(*this, v);
-
-    // assert(!!v->mut && "TODO");
 
     if (v->type_expr) {
         // XXX: maybe we can use just assertions, rather than if-not-returns,
@@ -919,12 +935,6 @@ void register_borrow(Sema &sema, VarDecl *borrowee, size_t borrowee_pos) {
 
     sema.borrow_table.insert(borrowee->name,
                              BorrowMap{borrowee, old_borrow_count + 1});
-}
-
-// Checks if 'expr' is a borrowing expression.
-bool isReferenceExpr(const Expr *expr) {
-  return expr->kind == ExprKind::unary &&
-         expr->as<UnaryExpr>()->kind == UnaryExprKind::ref;
 }
 
 void BorrowChecker::visitAssignStmt(AssignStmt *as) {

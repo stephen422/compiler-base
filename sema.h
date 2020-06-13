@@ -144,11 +144,11 @@ T *declare(Sema &sema, size_t pos, Name *name, Args &&... args);
 // It handles variable/function/struct declaration, redefinition/undeclared-uses
 // checks, number of function arguments checks, etc.
 // TODO: doc more.
-class NameBinder : public AstVisitor<NameBinder> {
+class NameBinding : public AstVisitor<NameBinding> {
   Sema &sema;
 
 public:
-  NameBinder(Sema &s) : sema{s} {}
+  NameBinding(Sema &s) : sema{s} {}
   bool success() const { return sema.errors.empty(); }
 
   void visitCompoundStmt(CompoundStmt *cs);

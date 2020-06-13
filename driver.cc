@@ -11,7 +11,7 @@ bool Driver::compile() {
 
   Sema sema{parser};
   setup_builtin_types(sema);
-  NameBinder nb{sema};
+  NameBinding nb{sema};
   nb.visitFile(static_cast<File *>(ast.root));
   if (!no_errors()) return false;
 

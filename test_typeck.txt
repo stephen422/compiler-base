@@ -34,8 +34,6 @@ func main() {
     s = "hi"
     var car: Car
     car = 3 // ERROR: cannot assign 'int'.*'Car'
-
-    // immutability
     var immut = 4
     immut = "nope" // ERROR: cannot assign .* to 'int'
 
@@ -45,7 +43,15 @@ func main() {
     car.engine
 
     car.engine = car // ERROR: cannot assign 'Car'.*'int'
-    *(car.gear) = 4
+    let _ = *(car.gear)
+
+    // immutability check
+    let c_imm: Car
+    c_imm = car // ERROR: 'c_imm' is not declared as mutable
+    c_imm.wheel = 3 // ERROR: 'c_imm' is not declared as mutable
+    *(c_imm.gear) = 4 // ERROR: cannot assign .* immutable reference
+    var c1: Car
+    c1.wheel = 3
 
     // binary expressions
     (3 + car) // ERROR: incompatible.*binary.*'int'.*'Car'
@@ -70,7 +76,7 @@ func main() {
     // ref and deref
     *i // ERROR: dereference.*'int'
     var ptr: &int
-    *ptr = 3 // ERROR: TODO immutable reference
+    *ptr = 3 // ERROR: cannot assign .* immutable reference
     *ptr = car // ERROR: cannot assign 'Car'.*'int'
     ptr = &i
     &24 // ERROR: take address of an rvalue

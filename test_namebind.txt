@@ -23,15 +23,9 @@ func main() {
     1 = 3 // ERROR: not assignable
     f() = 3 // ERROR: not assignable
 
-    // immutability check
-    let car: Car
-    car = "hi" // ERROR: 'car' is not declared as mutable
-    car.wheel = 3 // ERROR: 'car' is not declared as mutable
-    var c1: Car
-    c1.wheel = 3
-
     new_kid // ERROR: undeclared.*'new_kid'
 
+    let car: Car
     car(3) // ERROR: 'car'.*not a function
     front_func(1 + 2) // ERROR: 'front_func' accepts 3 arguments, got 1
     back_func(a, a) // ERROR: undeclared function 'back_func'
