@@ -79,7 +79,7 @@ func main() {
         &24 // ERROR: take address of an rvalue
         &g() // ERROR: take address of an rvalue
         var imm_ptr: &int
-        imm_ptr = var &i // ERROR: TODO: allow this copy
+        imm_ptr = var &i
         *imm_ptr = 3 // ERROR: cannot assign .* immutable reference
         *(imm_ptr) = 3 // ERROR: cannot assign .* immutable reference
         *imm_ptr = car // ERROR: cannot assign .* immutable reference
@@ -93,7 +93,7 @@ func main() {
     (*pcar).wheel
     *(pcar.wheel) // ERROR: '&Car' is not a struct
 
-    // others that skip typeck
+    // other constructs that skip typeck
     #printf("hello, world\n")
 }
 

@@ -328,7 +328,7 @@ void NameBinding::visitEnumDecl(EnumDeclNode *e) {
 }
 
 // Typecheck assignment statement of 'lhs = rhs'.
-bool typecheck_assignment(const Type *lhs, const Type *rhs) {
+bool typecheckAssignment(const Type *lhs, const Type *rhs) {
   // TODO: Typecheck assignment rules so far:
   //
   // 1. Reference <- mutable reference.
@@ -338,7 +338,7 @@ bool typecheck_assignment(const Type *lhs, const Type *rhs) {
   if (lhs->kind == TypeKind::ref && rhs->isReferenceType()) {
     // TODO: 'unification'? Ref:
     // http://smallcultfollowing.com/babysteps/blog/2017/03/25/unification-in-chalk-part-1/
-    return typecheck_assignment(lhs->referee_type, rhs->referee_type);
+    return typecheckAssignment(lhs->referee_type, rhs->referee_type);
   }
   return lhs == rhs;
 }
@@ -395,14 +395,20 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
   }
 
   // Type compatibility check.
-  if (!typecheck_assignment(lhs_ty, rhs_ty)) {
+  if (!typecheckAssignment(lhs_ty, rhs_ty)) {
     sema.error(as->pos, "cannot assign '%s' type to '%s'", rhs_ty->name->str(),
                lhs_ty->name->str());
     return nullptr;
   }
 
   // Copyability check.
-  if (!rhs_ty->copyable) {
+  //
+  // Even if RHS has a non-copyable type, if it is a temporary value, its copy
+  // becomes essentially the same as move and thus is allowed.
+  //
+  // TODO: verify ->decl() is the right way to determine if a value is
+  // temporary.
+  if (as->rhs->decl() && !rhs_ty->copyable) {
     sema.error(as->rhs->pos, "cannot copy non-copyable type '%s'",
                rhs_ty->name->str());
     return nullptr;
@@ -427,7 +433,7 @@ Type *TypeChecker::visitReturnStmt(ReturnStmt *rs) {
     return nullptr;
   }
 
-  if (!typecheck_assignment(func_decl->ret_ty, rs->expr->type)) {
+  if (!typecheckAssignment(func_decl->ret_ty, rs->expr->type)) {
     sema.error(rs->expr->pos,
                "return type mismatch: function returns '%s', but got '%s'",
                func_decl->ret_ty->name->str(), rs->expr->type->name->str());
@@ -518,7 +524,7 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
     // skip if earlier typecheck error
     if (!desig.expr->type) return nullptr;
 
-    if (!typecheck_assignment(desig.decl->type, desig.expr->type)) {
+    if (!typecheckAssignment(desig.decl->type, desig.expr->type)) {
       sema.error(desig.expr->pos, "cannot assign '%s' type to '%s'",
                  desig.expr->type->name->str(), desig.decl->type->name->str());
       return nullptr;
@@ -709,11 +715,20 @@ Type *TypeChecker::visitVarDecl(VarDeclNode *v) {
   walk_var_decl(*this, v);
 
   // The 'type's on the RHS below _may_ be nullptr, for cases such as RHS being
-  // StructDefExpr whose designator failed to typecheck its assignment.  We just
-  // pass along the nullptr for those cases.
+  // StructDefExpr whose designator failed to typecheck its assignment.  Below
+  // code passes along the nullptr for those cases.
   if (v->type_expr) {
     v->var_decl->type = v->type_expr->type;
   } else if (v->assign_expr) {
+    // Copyability check.
+    // FIXME: copy-paste from visitAssignStmt
+    if (v->assign_expr->decl() && v->assign_expr->type &&
+        !v->assign_expr->type->copyable) {
+      sema.error(v->assign_expr->pos, "cannot copy non-copyable type '%s'",
+                 v->assign_expr->type->name->str());
+      return nullptr;
+    }
+
     v->var_decl->type = v->assign_expr->type;
   } else {
     unreachable();
@@ -727,7 +742,7 @@ Type *TypeChecker::visitFuncDecl(FuncDeclNode *f) {
   auto err_count = sema.errors.size();
 
   // We need to do return type typecheck before walking the body, so we can't
-  // use the generic walk_func_decl function here.
+  // use walk_func_decl() here.
 
   if (f->ret_type_expr) visitExpr(f->ret_type_expr);
   for (auto arg : f->args)

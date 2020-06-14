@@ -36,7 +36,8 @@ func multiple_borrows() {
     {
         let s1 = S {.ptr = var &a}
         // copy makes a new borrow
-        let s2 = s1 // ERROR: cannot copy
+        // Note: this is caught in the type check phase.
+        // let s2 = s1
     }
     {
         let x = &a
