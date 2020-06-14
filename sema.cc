@@ -1,9 +1,10 @@
-#include "ast.h"
 #include "sema.h"
+#include "ast.h"
 #include "parser.h"
 #include "source.h"
 #include "types.h"
 #include <cassert>
+#include <cstdarg>
 
 #define BUFSIZE 1024
 
@@ -104,16 +105,16 @@ void Sema::scope_close() {
 // Return optional of 'type' member of Decl, or None if this Decl kind doesn't
 // have any.
 std::optional<Type *> declGetType(const Decl decl) {
-    if (auto d = declCast<VarDecl>(decl)) {
-        return d->type;
-    } else if (auto d = declCast<StructDecl>(decl)) {
-        return d->type;
-    } else if (auto d = declCast<EnumDecl>(decl)) {
-        return d->type;
-    } else if (auto d = declCast<FuncDecl>(decl)) {
-        return {};
-    }
-    assert(false && "not all decl kinds handled");
+  if (auto d = declCast<VarDecl>(decl)) {
+    return d->type;
+  } else if (auto d = declCast<StructDecl>(decl)) {
+    return d->type;
+  } else if (auto d = declCast<EnumDecl>(decl)) {
+    return d->type;
+  } else if (auto d = declCast<FuncDecl>(decl)) {
+    return {};
+  }
+  assert(false && "not all decl kinds handled");
 }
 
 void NameBinding::visitCompoundStmt(CompoundStmt *cs) {
@@ -328,8 +329,15 @@ void NameBinding::visitEnumDecl(EnumDeclNode *e) {
 
 // Typecheck assignment statement of 'lhs = rhs'.
 bool typecheck_assignment(const Type *lhs, const Type *rhs) {
+  // TODO: Typecheck assignment rules so far:
+  //
+  // 1. Reference <- mutable reference.
+  // 2. Exact same match.
+
   // Allow promotion from mutable to immutable reference.
   if (lhs->kind == TypeKind::ref && rhs->isReferenceType()) {
+    // TODO: 'unification'? Ref:
+    // http://smallcultfollowing.com/babysteps/blog/2017/03/25/unification-in-chalk-part-1/
     return typecheck_assignment(lhs->referee_type, rhs->referee_type);
   }
   return lhs == rhs;

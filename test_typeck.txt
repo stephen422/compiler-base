@@ -79,7 +79,7 @@ func main() {
         &24 // ERROR: take address of an rvalue
         &g() // ERROR: take address of an rvalue
         var imm_ptr: &int
-        imm_ptr = var &i
+        imm_ptr = var &i // ERROR: TODO: allow this copy
         *imm_ptr = 3 // ERROR: cannot assign .* immutable reference
         *(imm_ptr) = 3 // ERROR: cannot assign .* immutable reference
         *imm_ptr = car // ERROR: cannot assign .* immutable reference
@@ -95,4 +95,16 @@ func main() {
 
     // others that skip typeck
     #printf("hello, world\n")
+}
+
+struct NonCopy {
+    a: var &int,
+}
+
+func copyable() {
+    let i = 42
+    let nc1 = NonCopy {.a = var &i}
+    var nc2: NonCopy
+    nc2 = nc1 // ERROR: cannot copy non-copyable type 'NonCopy'
+    var nc3 = nc2 // ERROR: cannot copy non-copyable type 'NonCopy'
 }
