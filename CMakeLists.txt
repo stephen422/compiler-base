@@ -12,23 +12,31 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 list(APPEND MY_COMPILE_FLAGS -Wall -Wextra -Wno-unused-parameter
-  -fno-omit-frame-pointer -fdiagnostics-color=always $<$<CONFIG:DEBUG>:-glldb>)
+  -fno-omit-frame-pointer)
 list(APPEND MY_LINK_FLAGS -fno-omit-frame-pointer)
 
-# Selectively use LLD on Linux
-if(UNIX AND NOT APPLE)
-  list(APPEND MY_COMPILE_FLAGS -stdlib=libc++)
-  list(APPEND MY_LINK_FLAGS -fuse-ld=lld -stdlib=libc++ -rtlib=compiler-rt
-    -unwindlib=libunwind -Wl,-rpath=$ENV{HOME}/build/llvm/lib)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  list(APPEND MY_COMPILE_FLAGS -fdiagnostics-color=always $<$<CONFIG:DEBUG>:-glldb>)
 
+  # Selectively use LLD on Linux
+  if(UNIX AND NOT APPLE)
+    list(APPEND MY_COMPILE_FLAGS -stdlib=libc++)
+    list(APPEND MY_LINK_FLAGS -fuse-ld=lld -stdlib=libc++ -rtlib=compiler-rt
+      -unwindlib=libunwind -Wl,-rpath=$ENV{HOME}/build/llvm/lib)
+  else()
+    list(APPEND MY_LINK_FLAGS
+      -Wl,-L$ENV{HOME}/build/llvm/lib -Wl,-rpath,$ENV{HOME}/build/llvm/lib)
+  endif()
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  list(APPEND MY_COMPILE_FLAGS -fdiagnostics-color=always $<$<CONFIG:DEBUG>:-ggdb>)
+endif()
+
+if(UNIX AND NOT APPLE)
   list(APPEND MY_COMPILE_FLAGS
     "$<$<CONFIG:DEBUG>:-fsanitize=address,leak,undefined>")
   list(APPEND MY_LINK_FLAGS
     "$<$<CONFIG:DEBUG>:-fsanitize=address,leak,undefined>")
 else()
-  list(APPEND MY_LINK_FLAGS
-    -Wl,-L$ENV{HOME}/build/llvm/lib -Wl,-rpath,$ENV{HOME}/build/llvm/lib)
-
   # LeakSanitizer does not work on Darwin
   list(APPEND MY_COMPILE_FLAGS
     "$<$<CONFIG:DEBUG>:-fsanitize=address,undefined>")
