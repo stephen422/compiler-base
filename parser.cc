@@ -18,11 +18,6 @@ Parser::Parser(Lexer &l, std::vector<Error> &e, std::vector<Error> &b)
     next();
 }
 
-Parser::~Parser() {
-    for (auto n : nodes)
-        delete n;
-}
-
 void Parser::error(const std::string &msg) {
     errors.push_back({locate(), msg});
 }

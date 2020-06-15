@@ -50,7 +50,21 @@ func multiple_borrows() {
     }
 }
 
+struct StackRef {
+    a: int
+}
+
 func stack_ref() -> &int {
     let x = 3
     return &x // ERROR: TODO: lifetime error
+
+    let s = StackRef {.a = 3}
+    {
+        return &s.a // ERROR: TODO: lifetime error
+    }
+    {
+        // indirect reference to a stack variable
+        let p = &s.a
+        return p // ERROR: TODO: lifetime error
+    }
 }

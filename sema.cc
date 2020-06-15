@@ -1,5 +1,6 @@
 #include "sema.h"
 #include "ast.h"
+#include "ast_visitor.h"
 #include "parser.h"
 #include "source.h"
 #include "types.h"
@@ -8,7 +9,7 @@
 
 #define BUFSIZE 1024
 
-namespace cmp {
+using namespace cmp;
 
 // TODO: Decl::str()
 // std::string VarDecl::str() const {
@@ -60,6 +61,7 @@ Type *makeReferenceType(Sema &sema, Name *n, bool mut, Type *referee_type) {
 Type *push_builtin_type_from_name(Sema &s, const std::string &str) {
   Name *name = s.name_table.get_or_add(str);
   auto struct_decl = s.makeDecl<StructDecl>(name);
+
   struct_decl->type = make_builtin_type(s, name);
   s.decl_table.insert(name, struct_decl);
   return struct_decl->type;
@@ -67,14 +69,16 @@ Type *push_builtin_type_from_name(Sema &s, const std::string &str) {
 
 // Push Decls for the builtin types into the global scope of decl_table, so
 // that they are visible from any point in the AST.
-void setup_builtin_types(Sema &s) {
+void cmp::setup_builtin_types(Sema &s) {
   s.context.void_type = push_builtin_type_from_name(s, "void");
   s.context.int_type = push_builtin_type_from_name(s, "int");
   s.context.char_type = push_builtin_type_from_name(s, "char");
   s.context.string_type = push_builtin_type_from_name(s, "string");
 }
 
-Sema::Sema(Parser &p) : Sema(p.lexer.source(), p.names, p.errors, p.beacons) {}
+Sema::Sema(Parser &p)
+    : source(p.lexer.source()), name_table(p.names),
+      node_pool(std::move(p.nodes)), errors(p.errors), beacons(p.beacons) {}
 
 Sema::~Sema() {
     for (auto d : decl_pool) {
@@ -104,7 +108,7 @@ void Sema::scope_close() {
 
 // Return optional of 'type' member of Decl, or None if this Decl kind doesn't
 // have any.
-std::optional<Type *> declGetType(const Decl decl) {
+std::optional<Type *> cmp::declGetType(const Decl decl) {
   if (auto d = declCast<VarDecl>(decl)) {
     return d->type;
   } else if (auto d = declCast<StructDecl>(decl)) {
@@ -194,6 +198,9 @@ void NameBinding::visitTypeExpr(TypeExpr *t) {
   }
 }
 
+
+namespace {
+
 // Semantically declare a 'name' at a 'pos', whose Decl type is T.
 // Returns nullptr if declaration failed due to e.g. redeclaration.
 template <typename T, typename... Args>
@@ -211,6 +218,8 @@ T *declare(Sema &sema, size_t pos, Name *name, Args &&... args) {
 
     return decl;
 }
+
+} // namespace
 
 void NameBinding::visitVarDecl(VarDeclNode *v) {
   walk_var_decl(*this, v);
@@ -302,7 +311,9 @@ void NameBinding::visitEnumVariantDecl(EnumVariantDeclNode *v) {
 
     if (auto field_decl = declare<VarDecl>(sema, v->fields[i]->pos,
                                            genAnonymousFieldName(sema, i),
-                                           false /*TODO: mut*/)) {
+                                           false /* The language doesn't support
+                                                    mutability on the struct
+                                                    field level. */)) {
       v->struct_decl->fields.push_back(field_decl);
     }
 
@@ -327,6 +338,18 @@ void NameBinding::visitEnumDecl(EnumDeclNode *e) {
   sema.decl_table.scope_close();
 }
 
+namespace {
+
+VarDecl *makeTemporaryVarDecl(Sema &sema, Type *type, bool mut) {
+  // Temporary VarDecls are _not_ pushed to the scoped decl table, because they
+  // are not meant to be accessed later from a different position in the
+  // source. In the same sense, they don't have a name that can be used to query
+  // them.
+  auto v = sema.makeDecl<VarDecl>(nullptr, mut);
+  v->type = type;
+  return v;
+}
+
 // Typecheck assignment statement of 'lhs = rhs'.
 bool typecheckAssignment(const Type *lhs, const Type *rhs) {
   // TODO: Typecheck assignment rules so far:
@@ -342,6 +365,8 @@ bool typecheckAssignment(const Type *lhs, const Type *rhs) {
   }
   return lhs == rhs;
 }
+
+} // namespace
 
 // Assignments should check that the LHS is an l-value.
 // This check cannot be done reliably in the parsing stage because it depends
@@ -405,9 +430,13 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
   //
   // Even if RHS has a non-copyable type, if it is a temporary value, its copy
   // becomes essentially the same as move and thus is allowed.
+  // For example, with 'S' being a non-copyable type, the following is legal:
+  //
+  //     let s1 = S {...};
   //
   // TODO: verify ->decl() is the right way to determine if a value is
   // temporary.
+  // TODO: there's a copy-paste of this code somewhere else.
   if (as->rhs->decl() && !rhs_ty->copyable) {
     sema.error(as->rhs->pos, "cannot copy non-copyable type '%s'",
                rhs_ty->name->str());
@@ -514,7 +543,7 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
     }
 
     if (!desig.decl) {
-      const char *fmt = "no field named '%s' in struct '%s'";
+      auto fmt = "no field named '%s' in struct '%s'";
       sema.error(desig.expr->pos, // FIXME: wrong pos
                  fmt, desig.name->str(),
                  lhs_type->getStructDecl()->name->str());
@@ -600,20 +629,6 @@ Type *getReferenceType(Sema &sema, bool mut, Type *type) {
   return *sema.type_table.insert(name, ref_type);
 }
 
-namespace {
-
-VarDecl *makeTemporaryVarDecl(Sema &sema, Type *type, bool mut) {
-  // Temporary VarDecls are _not_ pushed to the scoped decl table, because they
-  // are not meant to be accessed later from a different position in the
-  // source. In the same sense, they don't have a name that can be used to query
-  // them.
-  auto v = sema.makeDecl<VarDecl>(nullptr, mut);
-  v->type = type;
-  return v;
-}
-
-} // namespace
-
 Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
   switch (u->kind) {
   case UnaryExprKind::paren: {
@@ -650,7 +665,7 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
         sema.error(u->operand->pos, "cannot take address of an rvalue");
         return nullptr;
       }
-      u->type = getReferenceType(sema, mut, u->operand->type);
+      u->type = ::getReferenceType(sema, mut, u->operand->type);
     }
     break;
   }
@@ -703,7 +718,7 @@ Type *TypeChecker::visitTypeExpr(TypeExpr *t) {
     // to keep this invariant.
     assert(t->subexpr->type); // TODO: check if triggers
     bool mut = t->kind == TypeExprKind::var_ref;
-    t->type = getReferenceType(sema, mut, t->subexpr->type);
+    t->type = ::getReferenceType(sema, mut, t->subexpr->type);
   } else {
     unreachable();
   }
@@ -979,6 +994,14 @@ void BorrowChecker::visitAssignStmt(AssignStmt *as) {
     }
 }
 
+void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
+  // A reference always points to an l-value.  This means we can always retrieve
+  // the Decl of the referee object. Thus, for every borrowing expressions in
+  // the return statement, we can check if the Decl of the referee is present in
+  // the current function scope to find lifetime errors.
+  walk_return_stmt(*this, rs);
+}
+
 // Rule: a variable of lifetime 'a should only refer to a variable whose
 // lifetime is larger than 'a.
 // In other words, at the point of use, the borrowee should be alive.
@@ -1070,7 +1093,7 @@ void BorrowChecker::visitStructDefExpr(StructDefExpr *s) {
 
     for (auto desig : s->desigs) {
         if (!isReferenceExpr(desig.expr)) continue;
-        
+
         // FIXME: touching desig.decl might be pointless
         auto rhs_deref = desig.expr->as<UnaryExpr>()->operand;
         desig.decl->borrowee = declCast<VarDecl>(*rhs_deref->decl());
@@ -1313,5 +1336,3 @@ void CodeGenerator::visitFuncDecl(FuncDeclNode *f) {
   emit("}}\n");
   emit("\n");
 }
-
-} // namespace cmp

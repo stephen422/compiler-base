@@ -69,13 +69,13 @@ Name *getReferenceTypeName(NameTable &names, bool mut, Name *referee_name);
 
 class Parser {
 public:
-  Lexer &lexer;                 // owned lexer
-  Token tok;                    // lookahead token
-  std::vector<AstNode *> nodes; // node pointer pool
-  std::vector<Error> &errors;   // error list
-  std::vector<Error> &beacons;  // error beacon list
-  AstNode *ast = nullptr;       // resulting AST
-  NameTable names;              // name table
+  Lexer &lexer;                                // owned lexer
+  Token tok;                                   // lookahead token
+  std::vector<std::unique_ptr<AstNode>> nodes; // node pointer pool
+  std::vector<Error> &errors;                  // error list
+  std::vector<Error> &beacons;                 // error beacon list
+  AstNode *ast = nullptr;                      // resulting AST
+  NameTable names;                             // name table
 
   // Token cache.
   // These are data structures that enable flexible roll-back of the parsing
@@ -94,7 +94,6 @@ public:
   void restore_state(State state);
 
   Parser(Lexer &lexer, std::vector<Error> &errors, std::vector<Error> &beacons);
-  ~Parser();
   Ast parse();
 
 private:
@@ -158,7 +157,7 @@ private:
 
   template <typename T, typename... Args> T *make_node(Args &&... args) {
     nodes.emplace_back(new T{std::forward<Args>(args)...});
-    return static_cast<T *>(nodes.back());
+    return static_cast<T *>(nodes.back().get());
   }
 
   template <typename T, typename... Args>

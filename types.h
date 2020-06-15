@@ -169,11 +169,16 @@ struct VarDecl {
 
 // Declaration of a type, e.g. struct or enum.
 struct StructDecl {
+  Name *name = nullptr;
+  Type *type = nullptr;
+
+  struct Field {
     Name *name = nullptr;
     Type *type = nullptr;
-    std::vector<VarDecl *> fields;
+  };
+  std::vector<VarDecl *> fields; // TODO: Why should this contain VarDecls?
 
-    StructDecl(Name *n) : name(n) {}
+  StructDecl(Name *n) : name(n) {}
 };
 
 // Declaration of an enum.

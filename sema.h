@@ -26,30 +26,30 @@ struct Context {
 // Scoped symbol table.
 constexpr int SYMBOL_TABLE_BUCKET_COUNT = 512;
 template <typename T> struct ScopedTable {
-    struct Symbol {
-        Name *name;              // name of this symbol
-        T value;                 // semantic value of this symbol
-        Symbol *next = nullptr;  // next symbol in the hash table bucket
-        Symbol *cross = nullptr; // next symbol in the same scope
-        int scope_level = 0;
+  struct Symbol {
+    Name *name;              // name of this symbol
+    T value;                 // semantic value of this symbol
+    Symbol *next = nullptr;  // next symbol in the hash table bucket
+    Symbol *cross = nullptr; // next symbol in the same scope
+    int scope_level = 0;
 
-        Symbol(Name *n, const T &v) : name(n), value(v) {}
-    };
+    Symbol(Name *n, const T &v) : name(n), value(v) {}
+  };
 
-    ScopedTable();
-    ~ScopedTable();
-    T *insert(Name *name, const T &value);
-    Symbol *find(const Name *name) const;
-    void print() const;
+  ScopedTable();
+  ~ScopedTable();
+  T *insert(Name *name, const T &value);
+  Symbol *find(const Name *name) const;
+  void print() const;
 
-    // Start a new scope.
-    void scope_open();
-    // Close current cope.
-    void scope_close();
+  // Start a new scope.
+  void scope_open();
+  // Close current cope.
+  void scope_close();
 
-    std::array<Symbol *, SYMBOL_TABLE_BUCKET_COUNT> keys;
-    std::vector<Symbol *> scope_stack = {};
-    int curr_scope_level = 0;
+  std::array<Symbol *, SYMBOL_TABLE_BUCKET_COUNT> keys;
+  std::vector<Symbol *> scope_stack = {};
+  int curr_scope_level = 0;
 };
 
 #include "scoped_table.h"
@@ -85,59 +85,54 @@ class Parser;
 // Stores all of the semantic information necessary for semantic analysis
 // phase.
 struct Sema {
-    const Source &source;  // source text
-    NameTable &name_table; // name table
+  const Source &source;  // source text
+  NameTable &name_table; // name table
 
-    // Memory pointer pools.
-    std::vector<DeclMemBlock *> decl_pool;
-    std::vector<Type *> type_pool;
-    std::vector<BasicBlock *> basic_block_pool;
+  // Memory pools.  Currently maintains simply a list of malloc()ed pointers for
+  // batch freeing.
+  std::vector<std::unique_ptr<AstNode>> node_pool;
+  std::vector<DeclMemBlock *> decl_pool;
+  std::vector<Type *> type_pool;
+  std::vector<BasicBlock *> basic_block_pool;
 
-    // Declarations visible at the current scope.
-    ScopedTable<Decl> decl_table;
-    // XXX: needed?
-    ScopedTable<Type *> type_table;
-    // Live variables at the current scope.
-    ScopedTable<VarDecl *> live_list;
-    // TODO: doc
-    ScopedTable<BorrowMap> borrow_table;
+  // Declarations visible at the current scope.
+  ScopedTable<Decl> decl_table;
+  // XXX: needed?
+  ScopedTable<Type *> type_table;
+  // Live variables at the current scope.
+  ScopedTable<VarDecl *> live_list;
+  // TODO: doc
+  ScopedTable<BorrowMap> borrow_table;
 
-    Context context;
-    std::vector<Error> &errors;  // error list
-    std::vector<Error> &beacons; // error beacon list
+  Context context;
+  std::vector<Error> &errors;  // error list
+  std::vector<Error> &beacons; // error beacon list
 
-    Sema(const Source &s, NameTable &n, std::vector<Error> &es,
-         std::vector<Error> &bs)
-        : source(s), name_table(n), errors(es), beacons(bs) {}
-    Sema(Parser &p);
-    Sema(const Sema &) = delete;
-    Sema(Sema &&) = delete;
-    ~Sema();
+  Sema(Parser &p);
+  Sema(const Sema &) = delete;
+  Sema(Sema &&) = delete;
+  ~Sema();
 
-    void scope_open();
-    void scope_close();
+  void scope_open();
+  void scope_close();
 
-    void error(size_t pos, const char *fmt, ...);
+  void error(size_t pos, const char *fmt, ...);
 
-    // Allocator function for Decls and Types.
-    template <typename T, typename... Args> T *makeDecl(Args &&... args) {
-      DeclMemBlock *mem_block =
-          new DeclMemBlock(T{std::forward<Args>(args)...});
-      auto typed_decl = &std::get<T>(*mem_block);
-      decl_pool.push_back(mem_block);
-      return typed_decl;
-    }
-    BasicBlock *makeBasicBlock() {
-      BasicBlock *bb = new BasicBlock;
-      basic_block_pool.push_back(bb);
-      return bb;
-    }
+  // Allocator function for Decls and Types.
+  template <typename T, typename... Args> T *makeDecl(Args &&... args) {
+    DeclMemBlock *mem_block = new DeclMemBlock(T{std::forward<Args>(args)...});
+    auto typed_decl = &std::get<T>(*mem_block);
+    decl_pool.push_back(mem_block);
+    return typed_decl;
+  }
+  BasicBlock *makeBasicBlock() {
+    BasicBlock *bb = new BasicBlock;
+    basic_block_pool.push_back(bb);
+    return bb;
+  }
 };
 
 void setup_builtin_types(Sema &s);
-
-template <typename T, typename... Args>
-T *declare(Sema &sema, size_t pos, Name *name, Args &&... args);
 
 // Name binding pass.
 // Name binding basically is a pass that simply links each Name to a Decl.
@@ -216,6 +211,7 @@ public:
 
   void visitCompoundStmt(CompoundStmt *cs);
   void visitAssignStmt(AssignStmt *as);
+  void visitReturnStmt(ReturnStmt *rs);
 
   void visitDeclRefExpr(DeclRefExpr *d);
   void visitFuncCallExpr(FuncCallExpr *f);
