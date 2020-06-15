@@ -1,9 +1,9 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include "lexer.h"
 #include "ast.h"
-#include "error.h"
+#include "lexer.h"
+#include "sema.h"
 #include <variant>
 
 namespace cmp {
@@ -155,21 +155,24 @@ private:
   void skip_to_next_line();
   void skip_newlines();
 
-  template <typename T, typename... Args> T *make_node(Args &&... args) {
-    nodes.emplace_back(new T{std::forward<Args>(args)...});
-    return static_cast<T *>(nodes.back().get());
-  }
-
-  template <typename T, typename... Args>
-  T *make_node_pos(size_t pos, Args &&... args) {
-    auto node = make_node<T>(std::forward<Args>(args)...);
-    node->pos = pos;
-    return node;
-  }
-
   // Figure out the current location (line, col) in the source.
   SourceLoc locate() const { return lexer.source().locate(tok.pos); }
 };
+
+template <typename T, typename... Args>
+T *make_node(std::vector<std::unique_ptr<AstNode>> &node_pool,
+             Args &&... args) {
+  node_pool.emplace_back(new T{std::forward<Args>(args)...});
+  return static_cast<T *>(node_pool.back().get());
+}
+
+template <typename T, typename... Args>
+T *make_node_pos(std::vector<std::unique_ptr<AstNode>> &node_pool, size_t pos,
+                 Args &&... args) {
+  auto node = make_node<T>(node_pool, std::forward<Args>(args)...);
+  node->pos = pos;
+  return node;
+}
 
 } // namespace cmp
 
