@@ -5,11 +5,12 @@
 
 bool Driver::compile() {
   Lexer lexer{source};
-  Parser parser{lexer, errors, beacons};
+  Sema sema{source, errors, beacons};
+  Parser parser{lexer, sema};
+
   auto ast = parser.parse();
   if (!no_errors()) return false;
 
-  Sema sema{parser};
   setup_builtin_types(sema);
   NameBinding nb{sema};
   nb.visitFile(static_cast<File *>(ast.root));

@@ -61,21 +61,15 @@ private:
     std::variant<T *, Error> result;
 };
 
-using StmtResult = ParserResult<Stmt>;
-using DeclResult = ParserResult<DeclNode>;
-using ExprResult = ParserResult<Expr>;
-
 Name *getReferenceTypeName(NameTable &names, bool mut, Name *referee_name);
 
 class Parser {
 public:
   Lexer &lexer;                                // owned lexer
+  Sema &sema;
   Token tok;                                   // lookahead token
   std::vector<std::unique_ptr<AstNode>> nodes; // node pointer pool
-  std::vector<Error> &errors;                  // error list
-  std::vector<Error> &beacons;                 // error beacon list
   AstNode *ast = nullptr;                      // resulting AST
-  NameTable names;                             // name table
 
   // Token cache.
   // These are data structures that enable flexible roll-back of the parsing
@@ -93,7 +87,7 @@ public:
   State save_state();
   void restore_state(State state);
 
-  Parser(Lexer &lexer, std::vector<Error> &errors, std::vector<Error> &beacons);
+  Parser(Lexer &lexer, Sema &sema);
   Ast parse();
 
 private:

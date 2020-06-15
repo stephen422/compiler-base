@@ -3,9 +3,6 @@
 
 #include "types.h"
 #include "lexer.h"
-#include <cassert>
-#include <unordered_map>
-#include <variant> // FIXME
 
 namespace cmp {
 

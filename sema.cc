@@ -76,10 +76,6 @@ void cmp::setup_builtin_types(Sema &s) {
   s.context.string_type = push_builtin_type_from_name(s, "string");
 }
 
-Sema::Sema(Parser &p)
-    : source(p.lexer.source()), name_table(p.names),
-      node_pool(std::move(p.nodes)), errors(p.errors), beacons(p.beacons) {}
-
 Sema::~Sema() {
     for (auto d : decl_pool) {
         delete d;

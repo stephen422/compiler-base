@@ -86,7 +86,7 @@ class Parser;
 // phase.
 struct Sema {
   const Source &source;  // source text
-  NameTable &name_table; // name table
+  NameTable name_table; // name table
 
   // Memory pools.  Currently maintains simply a list of malloc()ed pointers for
   // batch freeing.
@@ -108,7 +108,8 @@ struct Sema {
   std::vector<Error> &errors;  // error list
   std::vector<Error> &beacons; // error beacon list
 
-  Sema(Parser &p);
+  Sema(const Source &s, std::vector<Error> &e, std::vector<Error> &b)
+      : source(s), errors(e), beacons(b) {}
   Sema(const Sema &) = delete;
   Sema(Sema &&) = delete;
   ~Sema();
