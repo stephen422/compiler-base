@@ -117,23 +117,23 @@ Stmt *Parser::parse_stmt() {
 }
 
 Stmt *Parser::parse_return_stmt() {
-    auto pos = tok.pos;
+  auto pos = tok.pos;
 
-    expect(Tok::kw_return);
+  expect(Tok::kw_return);
 
-    // optional
-    Expr *expr = nullptr;
-    if (!is_end_of_stmt()) {
-      expr = parseExpr();
-    }
-    if (!is_end_of_stmt()) {
-      skip_until_end_of_line();
-      expect(Tok::newline);
-      return make_node_pos<BadStmt>(nodes, pos);
-    }
+  // optional
+  Expr *expr = nullptr;
+  if (!is_end_of_stmt()) {
+    expr = parseExpr();
+  }
+  if (!is_end_of_stmt()) {
     skip_until_end_of_line();
     expect(Tok::newline);
-    return make_node_pos<ReturnStmt>(nodes, pos, expr);
+    return sema.make_node_pos<BadStmt>(pos);
+  }
+  skip_until_end_of_line();
+  expect(Tok::newline);
+  return sema.make_node_pos<ReturnStmt>(pos, expr);
 }
 
 // Simplest way to represent the if-elseif-else chain is to view the else-if
@@ -170,7 +170,7 @@ IfStmt *Parser::parse_if_stmt() {
         }
     }
 
-    return make_node_pos<IfStmt>(nodes, pos, cond, cstmt, elseif, cstmt_false);
+    return sema.make_node_pos<IfStmt>(pos, cond, cstmt, elseif, cstmt_false);
 }
 
 // Parse 'let a = ...'
@@ -183,7 +183,7 @@ DeclStmt *Parser::parseDeclStmt() {
         // try to recover
         skip_until_end_of_line();
     }
-    return make_node<DeclStmt>(nodes, decl);
+    return sema.make_node<DeclStmt>(decl);
 }
 
 // Upon seeing an expression, we don't know yet if it is a simple expression
@@ -197,7 +197,7 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
     if (is_end_of_stmt()) {
       skip_until_end_of_line();
       expect(Tok::newline);
-      return make_node<ExprStmt>(nodes, lhs);
+      return sema.make_node<ExprStmt>(lhs);
     }
 
     // AssignStmt: expression is followed by equals
@@ -205,13 +205,13 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
     if (!expect(Tok::equals, "expected '=' or '\\n' after expression")) {
         skip_until_end_of_line();
         expect(Tok::newline);
-        return make_node_pos<BadStmt>(nodes, pos);
+        return sema.make_node_pos<BadStmt>(pos);
     }
 
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
     auto rhs = parseExpr();
-    return make_node_pos<AssignStmt>(nodes, pos, lhs, rhs);
+    return sema.make_node_pos<AssignStmt>(pos, lhs, rhs);
 }
 
 // Compound statement is a scoped block that consists of multiple statements.
@@ -222,7 +222,7 @@ Stmt *Parser::parse_expr_or_assign_stmt() {
 //     { Stmt* }
 CompoundStmt *Parser::parseCompoundStmt() {
     expect(Tok::lbrace);
-    auto compound = make_node<CompoundStmt>(nodes);
+    auto compound = sema.make_node<CompoundStmt>();
 
     while (!is_eos()) {
         skip_newlines();
@@ -241,7 +241,7 @@ BuiltinStmt *Parser::parseBuiltinStmt() {
     skip_until_end_of_line();
     auto end = tok.pos;
     std::string_view text{lexer.source().buf.data() + start, end - start};
-    return make_node_pos<BuiltinStmt>(nodes, start, text);
+    return sema.make_node_pos<BuiltinStmt>(start, text);
 }
 
 // Doesn't include 'let' or 'var'.
@@ -259,7 +259,7 @@ VarDeclNode *Parser::parse_var_decl(VarDeclNodeKind kind) {
     if (tok.kind == Tok::colon) {
         next();
         auto type_expr = parseTypeExpr();
-        v = make_node_pos<VarDeclNode>(nodes, pos, name, kind, type_expr, nullptr);
+        v = sema.make_node_pos<VarDeclNode>(pos, name, kind, type_expr, nullptr);
     }
     if (tok.kind == Tok::equals) {
         next();
@@ -267,8 +267,8 @@ VarDeclNode *Parser::parse_var_decl(VarDeclNodeKind kind) {
         if (v)
             static_cast<VarDeclNode *>(v)->assign_expr = assign_expr;
         else
-            v = make_node_pos<VarDeclNode>(nodes, pos, name, kind, nullptr,
-                                           assign_expr);
+          v = sema.make_node_pos<VarDeclNode>(pos, name, kind, nullptr,
+                                              assign_expr);
     }
     if (!v) {
         error_expected("'=' or ':' after var name");
@@ -327,7 +327,7 @@ FuncDeclNode *Parser::parseFuncDecl() {
   expect(Tok::kw_func);
 
   Name *name = sema.name_table.get_or_add(std::string{tok.text});
-  auto func = make_node<FuncDeclNode>(nodes, name);
+  auto func = sema.make_node<FuncDeclNode>(name);
   func->pos = tok.pos;
   next();
 
@@ -380,7 +380,7 @@ StructDeclNode *Parser::parseStructDecl() {
   expect(Tok::rbrace, "unterminated struct declaration");
   // TODO: recover
 
-  return make_node_pos<StructDeclNode>(nodes, pos, name, fields);
+  return sema.make_node_pos<StructDeclNode>(pos, name, fields);
 }
 
 EnumVariantDeclNode *Parser::parseEnumVariant() {
@@ -396,7 +396,7 @@ EnumVariantDeclNode *Parser::parseEnumVariant() {
     expect(Tok::rparen);
   }
 
-  return make_node_pos<EnumVariantDeclNode>(nodes, pos, name, fields);
+  return sema.make_node_pos<EnumVariantDeclNode>(pos, name, fields);
 }
 
 // Doesn't account for the enclosing {}s.
@@ -434,7 +434,7 @@ EnumDeclNode *Parser::parseEnumDecl() {
   expect(Tok::rbrace, "unterminated enum declaration");
   // TODO: recover
 
-  return make_node_pos<EnumDeclNode>(nodes, pos, name, fields);
+  return sema.make_node_pos<EnumDeclNode>(pos, name, fields);
 }
 
 bool Parser::isStartOfDecl() const {
@@ -474,11 +474,11 @@ Expr *Parser::parseLiteralExpr() {
     case Tok::number: {
         std::string s{tok.text};
         int value = std::stoi(s);
-        expr = make_node<IntegerLiteral>(nodes, value);
+        expr = sema.make_node<IntegerLiteral>(value);
         break;
     }
     case Tok::string:
-        expr = make_node<StringLiteral>(nodes, tok.text);
+        expr = sema.make_node<StringLiteral>(tok.text);
         break;
     default:
         assert(false && "non-integer literals not implemented");
@@ -512,11 +512,11 @@ Expr *Parser::parseFuncCallOrDeclRefExpr() {
                 next();
         }
         expect(Tok::rparen);
-        return make_node_pos<FuncCallExpr>(nodes, pos, name, args);
+        return sema.make_node_pos<FuncCallExpr>(pos, name, args);
     } else {
         // Whether this is a variable or a struct/enum name can only be decided
         // in the type checking stage.
-        return make_node_pos<DeclRefExpr>(nodes, pos, name);
+        return sema.make_node_pos<DeclRefExpr>(pos, name);
     }
 }
 
@@ -564,12 +564,12 @@ Expr *Parser::parseTypeExpr() {
     subexpr = nullptr;
   } else {
     error_expected("type name");
-    return make_node_pos<BadExpr>(nodes, pos);
+    return sema.make_node_pos<BadExpr>(pos);
   }
 
   Name *name = sema.name_table.get_or_add(text);
 
-  return make_node_pos<TypeExpr>(nodes, pos, type_kind, name, mut, subexpr);
+  return sema.make_node_pos<TypeExpr>(pos, type_kind, name, mut, subexpr);
 }
 
 Expr *Parser::parseUnaryExpr() {
@@ -592,7 +592,7 @@ Expr *Parser::parseUnaryExpr() {
   case Tok::star: {
     next();
     auto expr = parseUnaryExpr();
-    return make_node_pos<UnaryExpr>(nodes, pos, UnaryExprKind::deref, expr);
+    return sema.make_node_pos<UnaryExpr>(pos, UnaryExprKind::deref, expr);
   }
   case Tok::kw_var:
   case Tok::ampersand: {
@@ -603,13 +603,13 @@ Expr *Parser::parseUnaryExpr() {
     }
     expect(Tok::ampersand);
     auto expr = parseUnaryExpr();
-    return make_node_pos<UnaryExpr>(nodes, pos, kind, expr);
+    return sema.make_node_pos<UnaryExpr>(pos, kind, expr);
   }
   case Tok::lparen: {
     expect(Tok::lparen);
     auto inside_expr = parseExpr();
     expect(Tok::rparen);
-    return make_node_pos<ParenExpr>(nodes, pos, inside_expr);
+    return sema.make_node_pos<ParenExpr>(pos, inside_expr);
   }
   // TODO: prefix (++), postfix, sign (+/-)
   default: {
@@ -617,7 +617,7 @@ Expr *Parser::parseUnaryExpr() {
     // means no other expression could be matched either, so just do a
     // really generic report.
     error_expected("an expression");
-    return make_node_pos<BadExpr>(nodes, pos);
+    return sema.make_node_pos<BadExpr>(pos);
   }
   }
 }
@@ -681,7 +681,7 @@ Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence = 0) {
 
         // Create a new root with the old root as its LHS, and the recursion
         // result as RHS.  This implements left associativity.
-        root = make_node<BinaryExpr>(nodes, root, op, rhs);
+        root = sema.make_node<BinaryExpr>(root, op, rhs);
     }
 
     return root;
@@ -699,7 +699,7 @@ Expr *Parser::parseMemberExprMaybe(Expr *expr) {
         Name *member_name = sema.name_table.get_or_add(std::string{tok.text});
         next();
 
-        result = make_node_pos<MemberExpr>(nodes, result->pos, result, member_name);
+        result = sema.make_node_pos<MemberExpr>(result->pos, result, member_name);
     }
 
     return result;
@@ -762,7 +762,7 @@ Expr *Parser::parseStructDefMaybe(Expr *expr) {
 
     expect(Tok::rbrace);
 
-    return make_node_pos<StructDefExpr>(nodes, pos, expr, desigs);
+    return sema.make_node_pos<StructDefExpr>(pos, expr, desigs);
 }
 
 Expr *Parser::parseExpr() {
@@ -819,7 +819,7 @@ AstNode *Parser::parse_toplevel() {
 }
 
 File *Parser::parseFile() {
-  auto file = make_node<File>(nodes);
+  auto file = sema.make_node<File>();
 
   skip_newlines();
 

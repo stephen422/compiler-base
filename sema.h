@@ -119,6 +119,16 @@ struct Sema {
 
   void error(size_t pos, const char *fmt, ...);
 
+  template <typename T, typename... Args> T *make_node(Args &&... args) {
+    node_pool.emplace_back(new T{std::forward<Args>(args)...});
+    return static_cast<T *>(node_pool.back().get());
+  }
+  template <typename T, typename... Args>
+  T *make_node_pos(size_t pos, Args &&... args) {
+    auto node = make_node<T>(std::forward<Args>(args)...);
+    node->pos = pos;
+    return node;
+  }
   // Allocator function for Decls and Types.
   template <typename T, typename... Args> T *makeDecl(Args &&... args) {
     DeclMemBlock *mem_block = new DeclMemBlock(T{std::forward<Args>(args)...});

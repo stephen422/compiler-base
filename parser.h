@@ -153,21 +153,6 @@ private:
   SourceLoc locate() const { return lexer.source().locate(tok.pos); }
 };
 
-template <typename T, typename... Args>
-T *make_node(std::vector<std::unique_ptr<AstNode>> &node_pool,
-             Args &&... args) {
-  node_pool.emplace_back(new T{std::forward<Args>(args)...});
-  return static_cast<T *>(node_pool.back().get());
-}
-
-template <typename T, typename... Args>
-T *make_node_pos(std::vector<std::unique_ptr<AstNode>> &node_pool, size_t pos,
-                 Args &&... args) {
-  auto node = make_node<T>(node_pool, std::forward<Args>(args)...);
-  node->pos = pos;
-  return node;
-}
-
 } // namespace cmp
 
 #endif
