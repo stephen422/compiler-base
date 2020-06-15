@@ -178,7 +178,7 @@ DeclStmt *Parser::parseDeclStmt() {
     auto decl = parse_decl();
     if (!is_end_of_stmt()) {
         // XXX: remove bad check
-        if (decl && decl->kind != DeclNodeKind::bad)
+        if (decl && decl->kind != DeclKind::bad)
             expect(Tok::newline);
         // try to recover
         skip_until_end_of_line();
@@ -245,7 +245,7 @@ BuiltinStmt *Parser::parseBuiltinStmt() {
 }
 
 // Doesn't include 'let' or 'var'.
-VarDeclNode *Parser::parse_var_decl(VarDeclNodeKind kind) {
+VarDecl *Parser::parse_var_decl(VarDeclKind kind) {
     auto pos = tok.pos;
 
     if (tok.kind != Tok::ident) {
@@ -254,20 +254,20 @@ VarDeclNode *Parser::parse_var_decl(VarDeclNodeKind kind) {
     Name *name = sema.name_table.get_or_add(std::string{tok.text});
     next();
 
-    VarDeclNode *v = nullptr;
+    VarDecl *v = nullptr;
     // '=' comes either first, or after the ': type' part.
     if (tok.kind == Tok::colon) {
         next();
         auto type_expr = parseTypeExpr();
-        v = sema.make_node_pos<VarDeclNode>(pos, name, kind, type_expr, nullptr);
+        v = sema.make_node_pos<VarDecl>(pos, name, kind, type_expr, nullptr);
     }
     if (tok.kind == Tok::equals) {
         next();
         auto assign_expr = parseExpr();
         if (v)
-            static_cast<VarDeclNode *>(v)->assign_expr = assign_expr;
+            static_cast<VarDecl *>(v)->assign_expr = assign_expr;
         else
-          v = sema.make_node_pos<VarDeclNode>(pos, name, kind, nullptr,
+          v = sema.make_node_pos<VarDecl>(pos, name, kind, nullptr,
                                               assign_expr);
     }
     if (!v) {
@@ -321,20 +321,20 @@ std::vector<T> Parser::parse_comma_separated_list(F &&parse_fn) {
     return list;
 }
 
-FuncDeclNode *Parser::parseFuncDecl() {
+FuncDecl *Parser::parseFuncDecl() {
   auto pos = tok.pos;
 
   expect(Tok::kw_func);
 
   Name *name = sema.name_table.get_or_add(std::string{tok.text});
-  auto func = sema.make_node<FuncDeclNode>(name);
+  auto func = sema.make_node<FuncDecl>(name);
   func->pos = tok.pos;
   next();
 
   // argument list
   expect(Tok::lparen);
-  func->args = parse_comma_separated_list<VarDeclNode *>(
-      [this] { return parse_var_decl(VarDeclNodeKind::param); });
+  func->args = parse_comma_separated_list<VarDecl *>(
+      [this] { return parse_var_decl(VarDeclKind::param); });
   if (!expect(Tok::rparen)) {
     skip_until(Tok::rparen);
     expect(Tok::rparen);
@@ -358,7 +358,7 @@ FuncDeclNode *Parser::parseFuncDecl() {
   return func;
 }
 
-StructDeclNode *Parser::parseStructDecl() {
+StructDecl *Parser::parseStructDecl() {
   auto pos = tok.pos;
   Name *name = nullptr;
 
@@ -375,15 +375,15 @@ StructDeclNode *Parser::parseStructDecl() {
   if (!expect(Tok::lbrace))
     skip_until_end_of_line();
 
-  auto fields = parse_comma_separated_list<VarDeclNode *>(
-      [this] { return parse_var_decl(VarDeclNodeKind::struct_); });
+  auto fields = parse_comma_separated_list<VarDecl *>(
+      [this] { return parse_var_decl(VarDeclKind::struct_); });
   expect(Tok::rbrace, "unterminated struct declaration");
   // TODO: recover
 
-  return sema.make_node_pos<StructDeclNode>(pos, name, fields);
+  return sema.make_node_pos<StructDecl>(pos, name, fields);
 }
 
-EnumVariantDeclNode *Parser::parseEnumVariant() {
+EnumVariantDecl *Parser::parseEnumVariant() {
   auto pos = tok.pos;
 
   Name *name = sema.name_table.get_or_add(std::string{tok.text});
@@ -396,12 +396,12 @@ EnumVariantDeclNode *Parser::parseEnumVariant() {
     expect(Tok::rparen);
   }
 
-  return sema.make_node_pos<EnumVariantDeclNode>(pos, name, fields);
+  return sema.make_node_pos<EnumVariantDecl>(pos, name, fields);
 }
 
 // Doesn't account for the enclosing {}s.
-std::vector<EnumVariantDeclNode *> Parser::parseEnumVariantDeclList() {
-  std::vector<EnumVariantDeclNode *> list;
+std::vector<EnumVariantDecl *> Parser::parseEnumVariantDeclList() {
+  std::vector<EnumVariantDecl *> list;
 
   while (!is_eos()) {
     skip_newlines();
@@ -418,7 +418,7 @@ std::vector<EnumVariantDeclNode *> Parser::parseEnumVariantDeclList() {
   return list;
 }
 
-EnumDeclNode *Parser::parseEnumDecl() {
+EnumDecl *Parser::parseEnumDecl() {
   auto pos = tok.pos;
 
   expect(Tok::kw_enum);
@@ -434,7 +434,7 @@ EnumDeclNode *Parser::parseEnumDecl() {
   expect(Tok::rbrace, "unterminated enum declaration");
   // TODO: recover
 
-  return sema.make_node_pos<EnumDeclNode>(pos, name, fields);
+  return sema.make_node_pos<EnumDecl>(pos, name, fields);
 }
 
 bool Parser::isStartOfDecl() const {
@@ -448,16 +448,16 @@ bool Parser::isStartOfDecl() const {
 }
 
 // 'let a = ...'
-DeclNode *Parser::parse_decl() {
+Decl *Parser::parse_decl() {
     switch (tok.kind) {
     case Tok::kw_let: {
         next();
-        auto v = parse_var_decl(VarDeclNodeKind::local);
+        auto v = parse_var_decl(VarDeclKind::local);
         return v;
     }
     case Tok::kw_var: {
         next();
-        auto v = parse_var_decl(VarDeclNodeKind::local);
+        auto v = parse_var_decl(VarDeclKind::local);
         v->mut = true;
         return v;
     }

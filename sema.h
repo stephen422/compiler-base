@@ -91,12 +91,11 @@ struct Sema {
   // Memory pools.  Currently maintains simply a list of malloc()ed pointers for
   // batch freeing.
   std::vector<std::unique_ptr<AstNode>> node_pool;
-  std::vector<DeclMemBlock *> decl_pool;
   std::vector<Type *> type_pool;
   std::vector<BasicBlock *> basic_block_pool;
 
   // Declarations visible at the current scope.
-  ScopedTable<Decl> decl_table;
+  ScopedTable<Decl *> decl_table;
   // XXX: needed?
   ScopedTable<Type *> type_table;
   // Live variables at the current scope.
@@ -129,13 +128,6 @@ struct Sema {
     node->pos = pos;
     return node;
   }
-  // Allocator function for Decls and Types.
-  template <typename T, typename... Args> T *makeDecl(Args &&... args) {
-    DeclMemBlock *mem_block = new DeclMemBlock(T{std::forward<Args>(args)...});
-    auto typed_decl = &std::get<T>(*mem_block);
-    decl_pool.push_back(mem_block);
-    return typed_decl;
-  }
   BasicBlock *makeBasicBlock() {
     BasicBlock *bb = new BasicBlock;
     basic_block_pool.push_back(bb);
@@ -162,11 +154,11 @@ public:
   void visitDeclRefExpr(DeclRefExpr *d);
   void visitFuncCallExpr(FuncCallExpr *f);
   void visitTypeExpr(TypeExpr *t);
-  void visitVarDecl(VarDeclNode *v);
-  void visitFuncDecl(FuncDeclNode *f);
-  void visitStructDecl(StructDeclNode *s);
-  void visitEnumVariantDecl(EnumVariantDeclNode *e);
-  void visitEnumDecl(EnumDeclNode *e);
+  void visitVarDecl(VarDecl *v);
+  void visitFuncDecl(FuncDecl *f);
+  void visitStructDecl(StructDecl *s);
+  void visitEnumVariantDecl(EnumVariantDecl *e);
+  void visitEnumDecl(EnumDecl *e);
 };
 
 // Type checking pass.
@@ -191,11 +183,11 @@ public:
   Type *visitBinaryExpr(BinaryExpr *b);
   Type *visitTypeExpr(TypeExpr *t);
 
-  Type *visitVarDecl(VarDeclNode *v);
-  Type *visitFuncDecl(FuncDeclNode *f);
-  Type *visitStructDecl(StructDeclNode *s);
-  Type *visitEnumVariantDecl(EnumVariantDeclNode *e);
-  Type *visitEnumDecl(EnumDeclNode *e);
+  Type *visitVarDecl(VarDecl *v);
+  Type *visitFuncDecl(FuncDecl *f);
+  Type *visitStructDecl(StructDecl *s);
+  Type *visitEnumVariantDecl(EnumVariantDecl *e);
+  Type *visitEnumDecl(EnumDecl *e);
 };
 
 class ReturnChecker
@@ -210,7 +202,7 @@ public:
   BasicBlock *visitCompoundStmt(CompoundStmt *cs, BasicBlock *bb);
   BasicBlock *visitIfStmt(IfStmt *is, BasicBlock *bb);
 
-  BasicBlock *visitFuncDecl(FuncDeclNode *f, BasicBlock *bb);
+  BasicBlock *visitFuncDecl(FuncDecl *f, BasicBlock *bb);
 };
 
 class BorrowChecker : public AstVisitor<BorrowChecker, void> {
@@ -229,7 +221,7 @@ public:
   void visitStructDefExpr(StructDefExpr *s);
   void visitUnaryExpr(UnaryExpr *u);
 
-  void visitVarDecl(VarDeclNode *v);
+  void visitVarDecl(VarDecl *v);
 };
 
 class CodeGenerator : public AstVisitor<CodeGenerator, void> {
@@ -277,9 +269,9 @@ public:
   void visitIfStmt(IfStmt *i);
   void visitBuiltinStmt(BuiltinStmt *b);
 
-  void visitVarDecl(VarDeclNode *v);
-  void visitFuncDecl(FuncDeclNode *f);
-  void visitStructDecl(StructDeclNode *s);
+  void visitVarDecl(VarDecl *v);
+  void visitFuncDecl(FuncDecl *f);
+  void visitStructDecl(StructDecl *s);
 };
 
 } // namespace cmp

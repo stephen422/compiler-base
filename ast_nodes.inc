@@ -28,12 +28,12 @@ struct ParenExpr;
 struct BinaryExpr;
 struct TypeExpr;
 
-struct DeclNode;
-struct VarDeclNode;
-struct FuncDeclNode;
-struct StructDeclNode;
-struct EnumVariantDeclNode;
-struct EnumDeclNode;
+struct Decl;
+struct VarDecl;
+struct FuncDecl;
+struct StructDecl;
+struct EnumVariantDecl;
+struct EnumDecl;
 
 }
 

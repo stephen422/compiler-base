@@ -12,7 +12,13 @@
 namespace cmp {
 
 struct Type;
+struct Decl;
+struct VarDecl;
+struct StructDecl;
+struct EnumDecl;
+struct FuncDecl;
 struct Sema;
+
 struct VarDecl;
 struct StructDecl;
 struct EnumDecl;
@@ -57,19 +63,6 @@ struct NameTable {
 // redefinition.
 // TODO: Clarify the definition. Should type names have a Decl too?  What is
 // the 'type' member of a StructDecl?
-using Decl = std::variant<VarDecl *, StructDecl *, EnumDecl *, FuncDecl *>;
-using DeclMemBlock = std::variant<VarDecl, StructDecl, EnumDecl, FuncDecl>;
-
-template <typename T> bool decl_is(const Decl decl) {
-    return std::holds_alternative<T *>(decl);
-}
-template <typename T> T *declCast(const Decl decl) {
-    if (std::holds_alternative<T *>(decl))
-        return std::get<T *>(decl);
-    else
-        return nullptr;
-}
-std::optional<Type *> declGetType(const Decl decl);
 
 // Elementary types, stripped of informations such as reference.
 // They include built-in value types such as int and bool, and user-declared
@@ -111,7 +104,7 @@ struct Type {
   bool copyable = true;
   union {
     // Back-reference to the decl object that defines this value type.
-    Decl type_decl{};
+    Decl *type_decl = nullptr;
     // The target type of this reference type.  If this is a non-reference
     // type, the value should be null.
     Type *referee_type;
@@ -120,87 +113,25 @@ struct Type {
   // Built-in value types.
   Type(Name *n) : kind(TypeKind::value), name(n), builtin(true) {}
   // Struct types.
-  Type(TypeKind k, Name *n, Decl td) : kind(k), name(n), type_decl(td) {}
+  Type(TypeKind k, Name *n, Decl *td) : kind(k), name(n), type_decl(td) {}
   // Reference types.
   // TODO: copyable?
   Type(Name *n, bool mut, Type *bt);
 
   const char *str() const { return name->str(); }
 
-  bool isReferenceType() const {
+  bool isReference() const {
     return kind == TypeKind::ref || kind == TypeKind::var_ref;
   }
-  bool isStruct() const {
-    // TODO: should base_type be null too?
-    return kind == TypeKind::value &&
-           std::holds_alternative<StructDecl *>(type_decl);
-  }
-  bool isEnum() const {
-    // TODO: should base_type be null too?
-    return kind == TypeKind::value &&
-           std::holds_alternative<EnumDecl *>(type_decl);
-  }
+  bool isStruct() const;
+  bool isEnum() const;
   bool isMemberAccessible() const { return isStruct() || isEnum(); }
 
-  StructDecl *getStructDecl() {
-    assert(kind == TypeKind::value);
-    assert(std::holds_alternative<StructDecl *>(type_decl));
-    return std::get<StructDecl *>(type_decl);
-  }
-  EnumDecl *getEnumDecl() {
-    assert(kind == TypeKind::value);
-    assert(std::holds_alternative<EnumDecl *>(type_decl));
-    return std::get<EnumDecl *>(type_decl);
-  }
+  StructDecl *getStructDecl();
+  EnumDecl *getEnumDecl();
 };
 
 Type *getReferenceType(Sema &sema, bool mut, Type *type);
-
-// Declaration of a variable. Includes struct field variables.
-struct VarDecl {
-  Name *name = nullptr;
-  Type *type = nullptr;
-  // Decl of the var that this var references to.  Used for borrow checking.
-  VarDecl *borrowee = nullptr;
-  bool mut = false;
-
-  VarDecl(Name *n, bool m) : name(n), mut(m) {}
-};
-
-// Declaration of a type, e.g. struct or enum.
-struct StructDecl {
-  Name *name = nullptr;
-  Type *type = nullptr;
-
-  struct Field {
-    Name *name = nullptr;
-    Type *type = nullptr;
-  };
-  std::vector<VarDecl *> fields; // TODO: Why should this contain VarDecls?
-
-  StructDecl(Name *n) : name(n) {}
-};
-
-// Declaration of an enum.
-struct EnumDecl {
-    Name *name = nullptr;
-    Type *type = nullptr;
-    std::vector<StructDecl *> variants;
-
-    EnumDecl(Name *n) : name(n) {}
-};
-
-// Declaration of a function.
-struct FuncDecl {
-    Name *name = nullptr;
-    Type *ret_ty = nullptr;
-    std::vector<VarDecl *> args;
-
-    FuncDecl(Name *n) : name(n) {}
-    size_t args_count() const { return args.size(); }
-    // XXX: might false-report before typecheck is completed
-    bool isVoid(Sema &sema) const;
-};
 
 } // namespace cmp
 

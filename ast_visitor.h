@@ -39,7 +39,7 @@ public:
             return dis()->visitStmt(static_cast<Stmt *>(a), args...);
             break;
         case AstKind::decl:
-            return dis()->visitDecl(static_cast<DeclNode *>(a), args...);
+            return dis()->visitDecl(static_cast<Decl *>(a), args...);
             break;
         default:
             assert(false && "not a toplevel node");
@@ -109,28 +109,28 @@ public:
         // nothing to walk
         return RetTy();
     }
-    RetTy visitDecl(DeclNode *d, Args... args) {
+    RetTy visitDecl(Decl *d, Args... args) {
         switch (d->kind) {
-        case DeclNodeKind::var:
-            return dis()->visitVarDecl(static_cast<VarDeclNode *>(d), args...);
+        case DeclKind::var:
+            return dis()->visitVarDecl(static_cast<VarDecl *>(d), args...);
             break;
-        case DeclNodeKind::func:
-            return dis()->visitFuncDecl(static_cast<FuncDeclNode *>(d),
+        case DeclKind::func:
+            return dis()->visitFuncDecl(static_cast<FuncDecl *>(d),
                                         args...);
             break;
-        case DeclNodeKind::struct_:
-            return dis()->visitStructDecl(static_cast<StructDeclNode *>(d),
+        case DeclKind::struct_:
+            return dis()->visitStructDecl(static_cast<StructDecl *>(d),
                                           args...);
             break;
-        case DeclNodeKind::enum_variant:
+        case DeclKind::enum_variant:
             return dis()->visitEnumVariantDecl(
-                static_cast<EnumVariantDeclNode *>(d), args...);
+                static_cast<EnumVariantDecl *>(d), args...);
             break;
-        case DeclNodeKind::enum_:
-            return dis()->visitEnumDecl(static_cast<EnumDeclNode *>(d),
+        case DeclKind::enum_:
+            return dis()->visitEnumDecl(static_cast<EnumDecl *>(d),
                                         args...);
             break;
-        case DeclNodeKind::bad:
+        case DeclKind::bad:
             // do nothing
             break;
         default:
@@ -138,23 +138,23 @@ public:
         }
         return RetTy();
     }
-    RetTy visitVarDecl(VarDeclNode *v, Args... args) {
+    RetTy visitVarDecl(VarDecl *v, Args... args) {
         walk_var_decl(*dis(), v, args...);
         return RetTy();
     }
-    RetTy visitFuncDecl(FuncDeclNode *f, Args... args) {
+    RetTy visitFuncDecl(FuncDecl *f, Args... args) {
         walk_func_decl(*dis(), f, args...);
         return RetTy();
     }
-    RetTy visitStructDecl(StructDeclNode *s, Args... args) {
+    RetTy visitStructDecl(StructDecl *s, Args... args) {
         walk_struct_decl(*dis(), s, args...);
         return RetTy();
     }
-    RetTy visitEnumVariantDecl(EnumVariantDeclNode *e, Args... args) {
+    RetTy visitEnumVariantDecl(EnumVariantDecl *e, Args... args) {
         walk_enum_variant_decl(*dis(), e, args...);
         return RetTy();
     }
-    RetTy visitEnumDecl(EnumDeclNode *e, Args... args) {
+    RetTy visitEnumDecl(EnumDecl *e, Args... args) {
         walk_enum_decl(*dis(), e, args...);
         return RetTy();
     }
@@ -287,7 +287,7 @@ void walk_file(Visitor &v, File *f, Args... args) {
     }
 }
 template <typename Visitor, typename... Args>
-void walk_var_decl(Visitor &v, VarDeclNode *var, Args... args) {
+void walk_var_decl(Visitor &v, VarDecl *var, Args... args) {
     if (var->assign_expr) {
         v.visitExpr(var->assign_expr, args...);
     } else if (var->type_expr) {
@@ -297,25 +297,25 @@ void walk_var_decl(Visitor &v, VarDeclNode *var, Args... args) {
     }
 }
 template <typename Visitor, typename... Args>
-void walk_func_decl(Visitor &v, FuncDeclNode *f, Args... args) {
+void walk_func_decl(Visitor &v, FuncDecl *f, Args... args) {
     if (f->ret_type_expr) v.visitExpr(f->ret_type_expr, args...);
     for (auto arg : f->args)
         v.visitDecl(arg, args...);
     v.visitCompoundStmt(f->body, args...);
 }
 template <typename Visitor, typename... Args>
-void walk_struct_decl(Visitor &v, StructDeclNode *s, Args... args) {
+void walk_struct_decl(Visitor &v, StructDecl *s, Args... args) {
     for (auto d : s->members) {
         v.visitDecl(d, args...);
     }
 }
 template <typename Visitor, typename... Args>
-void walk_enum_variant_decl(Visitor &v, EnumVariantDeclNode *e, Args... args) {
+void walk_enum_variant_decl(Visitor &v, EnumVariantDecl *e, Args... args) {
     for (auto f : e->fields)
         v.visitExpr(f, args...);
 }
 template <typename Visitor, typename... Args>
-void walk_enum_decl(Visitor &v, EnumDeclNode *e, Args... args) {
+void walk_enum_decl(Visitor &v, EnumDecl *e, Args... args) {
     for (auto var : e->variants)
         v.visitEnumVariantDecl(var, args...);
 }

@@ -109,15 +109,15 @@ private:
   bool is_eos() const;
 
   // Declaration parsers
-  DeclNode *parse_decl();
-  VarDeclNode *parse_var_decl(VarDeclNodeKind kind);
+  Decl *parse_decl();
+  VarDecl *parse_var_decl(VarDeclKind kind);
   template <typename T, typename F>
   std::vector<T> parse_comma_separated_list(F &&parseFn);
-  FuncDeclNode *parseFuncDecl();
-  StructDeclNode *parseStructDecl();
-  EnumVariantDeclNode *parseEnumVariant();
-  std::vector<EnumVariantDeclNode *> parseEnumVariantDeclList();
-  EnumDeclNode *parseEnumDecl();
+  FuncDecl *parseFuncDecl();
+  StructDecl *parseStructDecl();
+  EnumVariantDecl *parseEnumVariant();
+  std::vector<EnumVariantDecl *> parseEnumVariantDeclList();
+  EnumDecl *parseEnumDecl();
   bool isStartOfDecl() const;
 
   // Expression parsers

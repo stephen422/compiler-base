@@ -3,6 +3,7 @@
 
 #include "types.h"
 #include "lexer.h"
+#include <type_traits>
 
 namespace cmp {
 
@@ -18,8 +19,9 @@ struct AstNode;
 struct File;
 struct Stmt;
 struct Expr;
-struct DeclNode;
-struct FuncDeclNode;
+struct Decl;
+struct VarDecl;
+struct FuncDecl;
 
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
 
@@ -99,10 +101,10 @@ struct Stmt : public AstNode {
 };
 
 struct DeclStmt : public Stmt {
-    DeclStmt(DeclNode *d) : Stmt(StmtKind::decl), decl(d) {}
+    DeclStmt(Decl *d) : Stmt(StmtKind::decl), decl(d) {}
     void print() const override;
 
-    DeclNode *decl;
+    Decl *decl;
 };
 
 struct ExprStmt : public Stmt {
@@ -194,7 +196,7 @@ struct Expr : public AstNode {
     // becomes the unified way to retrieve the type of an expression.
     Type *type = nullptr;
     // TODO: I think this function is somehow related to lvalue determination.
-    std::optional<Decl> decl() const;
+    std::optional<Decl *> decl() const;
 
     Expr(ExprKind e) : AstNode(AstKind::expr), kind(e), type(nullptr) {}
 };
@@ -218,7 +220,7 @@ struct StringLiteral : public Expr {
 // a function.
 struct DeclRefExpr : public Expr {
     Name *name = nullptr;
-    Decl decl;
+    Decl *decl = nullptr;
 
     DeclRefExpr(Name *n) : Expr(ExprKind::decl_ref), name(n) {}
     void print() const override;
@@ -256,7 +258,7 @@ struct StructDefExpr : public Expr {
 struct MemberExpr : public Expr {
     Expr *lhs_expr = nullptr;    // 'struct' part
     Name *member_name = nullptr; // 'mem' part
-    Decl decl;                   // decl of 'mem'
+    Decl *decl = nullptr;    // decl of 'mem'
 
     MemberExpr(Expr *e, Name *m)
         : Expr(ExprKind::member), lhs_expr(e), member_name(m) {}
@@ -289,7 +291,7 @@ struct ParenExpr : public UnaryExpr {
         : UnaryExpr(UnaryExprKind::paren, inside_expr) {}
     void print() const override;
     // ParenExprs may also have an associated Decl (e.g. (a).m).
-    std::optional<Decl> decl() const { return operand->decl(); }
+    std::optional<Decl *> decl() const { return operand->decl(); }
 };
 
 struct BinaryExpr : public Expr {
@@ -320,7 +322,7 @@ struct TypeExpr : public Expr {
     // Name of the type. TODO: should this contain '&' and '[]'?
     Name *name = nullptr;
     // Decl object that represents this type.
-    Decl decl;
+    Decl *decl = nullptr;
     // Is this type mutable?
     bool mut = false;
     // 'T' part of '&T'.  It is Expr rather than TypeExpr mainly so that it can
@@ -341,7 +343,7 @@ struct BadExpr : public Expr {
 // Declarations
 // ============
 
-enum class DeclNodeKind {
+enum class DeclKind {
   var,
   func,
   struct_,
@@ -354,82 +356,100 @@ enum class DeclNodeKind {
 //
 // All Decl derived types has a pointer field called 'name'. The value of this
 // pointer serves as a unique integer ID used as the key the symbol table.
-struct DeclNode : public AstNode {
-  DeclNodeKind kind;
+struct Decl : public AstNode {
+  DeclKind kind;
 
-  DeclNode(DeclNodeKind d) : AstNode(AstKind::decl), kind(d) {}
+  Decl(DeclKind d) : AstNode(AstKind::decl), kind(d) {}
+
+  template <typename T> bool is() const { assert(false && "unhandled DeclNode type"); }
+  template <> bool is<VarDecl>() const { return kind == DeclKind::var; }
+  std::optional<Type *> type() const;
 };
 
-enum class VarDeclNodeKind {
+enum class VarDeclKind {
   local,
   struct_,
   param,
 };
 
 // Variable declaration.
-struct VarDeclNode : public DeclNode {
+struct VarDecl : public Decl {
   Name *name = nullptr;        // name of the variable
-  VarDecl *var_decl = nullptr; // decl of the variable
-  VarDeclNodeKind kind = VarDeclNodeKind::local;
-  // TypeExpr of the variable.  Declared as Expr to accommodate for BadExpr.
-  Expr *type_expr = nullptr;
-  Expr *assign_expr = nullptr; // initial assignment value
-  bool mut = false;            // mutability of the variable
+  Type *type = nullptr;        // type of the variable
 
-  VarDeclNode(Name *n, VarDeclNodeKind k, Expr *t, Expr *expr)
-      : DeclNode(DeclNodeKind::var), name(n), kind(k), type_expr(t),
+  // Whether this VarDecl has been declared as a local variable, as a field
+  // inside a struct, or as a parameter for a function.
+  // TODO: use separate types for each, e.g. FieldDecl.
+  VarDeclKind kind = VarDeclKind::local;
+
+  // TypeExpr of the variable.  Declared as Expr to accommodate for BadExpr.
+  // TODO: Ugly.
+  Expr *type_expr = nullptr;
+  // Assignment expression specified at the point of declaration, if any.
+  Expr *assign_expr = nullptr;
+  // Mutability of the variable.
+  bool mut = false; 
+
+  // Decl of the var that this var references to.  Used for borrow checking.
+  VarDecl *borrowee = nullptr;
+
+  VarDecl(Name *n, bool m) : Decl(DeclKind::var), name(n), mut(m) {}
+  VarDecl(Name *n, VarDeclKind k, Expr *t, Expr *expr)
+      : Decl(DeclKind::var), name(n), kind(k), type_expr(t),
         assign_expr(expr) {}
   void print() const override;
 };
 
 // Function declaration.  There is no separate function definition: functions
 // should always be defined whenever they are declared.
-struct FuncDeclNode : public DeclNode {
+struct FuncDecl : public Decl {
   Name *name = nullptr;            // name of the function
-  FuncDecl *func_decl = nullptr;   // decl object
-  std::vector<VarDeclNode *> args; // list of parameters
+  Type *ret_type = nullptr;        // return type of the function
+  std::vector<VarDecl *> args; // list of parameters
   CompoundStmt *body = nullptr;    // body statements
   Expr *ret_type_expr = nullptr;   // return type expression
 
-  FuncDeclNode(Name *n) : DeclNode(DeclNodeKind::func), name(n) {}
+  FuncDecl(Name *n) : Decl(DeclKind::func), name(n) {}
+  size_t args_count() const { return args.size(); }
+  bool isVoid(Sema &sema) const;
   void print() const override;
 };
 
 // Struct declaration.
-struct StructDeclNode : public DeclNode {
+struct StructDecl : public Decl {
   Name *name = nullptr;               // name of the struct
-  std::vector<VarDeclNode *> members; // member variables
-  StructDecl *struct_decl = nullptr;  // decl object
+  Type *type = nullptr;               // type of the struct
+  std::vector<VarDecl *> members; // member variables
 
-  StructDeclNode(Name *n, std::vector<VarDeclNode *> m)
-      : DeclNode(DeclNodeKind::struct_), name(n), members(m) {}
+  StructDecl(Name *n, std::vector<VarDecl *> m)
+      : Decl(DeclKind::struct_), name(n), members(m) {}
   void print() const override;
 };
 
 // A variant type in an enum.
-struct EnumVariantDeclNode : public DeclNode {
+struct EnumVariantDecl : public Decl {
   Name *name = nullptr;              // name of the variant
+  Type *type = nullptr;              // type of the variant
   std::vector<Expr *> fields;        // type of the fields
-  StructDecl *struct_decl = nullptr; // decl object
 
-  EnumVariantDeclNode(Name *n, std::vector<Expr *> f)
-      : DeclNode(DeclNodeKind::enum_variant), name(n), fields(f) {}
+  EnumVariantDecl(Name *n, std::vector<Expr *> f)
+      : Decl(DeclKind::enum_variant), name(n), fields(f) {}
   void print() const override;
 };
 
 // Enum declaration.
-struct EnumDeclNode : public DeclNode {
-  Name *name = nullptr;                        // name of the struct
-  std::vector<EnumVariantDeclNode *> variants; // variants
-  EnumDecl *enum_decl = nullptr;               // decl object
+struct EnumDecl : public Decl {
+  Name *name = nullptr;                        // name of the enum
+  Type *type = nullptr;                        // type of the enum
+  std::vector<EnumVariantDecl *> variants; // variants
 
-  EnumDeclNode(Name *n, std::vector<EnumVariantDeclNode *> m)
-      : DeclNode(DeclNodeKind::enum_), name(n), variants(m) {}
+  EnumDecl(Name *n, std::vector<EnumVariantDecl *> m)
+      : Decl(DeclKind::enum_), name(n), variants(m) {}
   void print() const override;
 };
 
-struct BadDeclNode : public DeclNode {
-  BadDeclNode() : DeclNode(DeclNodeKind::bad) {}
+struct BadDecl : public Decl {
+  BadDecl() : Decl(DeclKind::bad) {}
   void print() const override;
 };
 

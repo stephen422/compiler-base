@@ -32,22 +32,43 @@ get_ast_range(std::initializer_list<AstNode *> nodes) {
   return {min, max};
 }
 
-std::optional<Decl> Expr::decl() const {
-    switch (kind) {
-    case ExprKind::decl_ref:
-        return as<DeclRefExpr>()->decl;
-    case ExprKind::member:
-        return as<MemberExpr>()->decl;
-    case ExprKind::unary:
-        if (as<UnaryExpr>()->kind == UnaryExprKind::paren)
-            return as<UnaryExpr>()->as<ParenExpr>()->decl();
-        else if (as<UnaryExpr>()->kind == UnaryExprKind::deref)
-            return as<UnaryExpr>()->var_decl;
-        break;
-    default:
-        break;
-    }
+std::optional<Decl *> Expr::decl() const {
+  switch (kind) {
+  case ExprKind::decl_ref:
+    return {as<DeclRefExpr>()->decl};
+  case ExprKind::member:
+    return as<MemberExpr>()->decl;
+  case ExprKind::unary:
+    if (as<UnaryExpr>()->kind == UnaryExprKind::paren)
+      return as<UnaryExpr>()->as<ParenExpr>()->decl();
+    else if (as<UnaryExpr>()->kind == UnaryExprKind::deref)
+      return as<UnaryExpr>()->var_decl;
+    break;
+  default:
+    break;
+  }
+  return {};
+}
+
+// Return optional of 'type' member of Decl, or None if this Decl kind doesn't
+// have any.
+std::optional<Type *> Decl::type() const {
+  if (kind == DeclKind::var) {
+    return as<VarDecl>()->type;
+  } else if (kind == DeclKind::struct_) {
+    return as<StructDecl>()->type;
+  } else if (kind == DeclKind::enum_) {
+    return as<EnumDecl>()->type;
+  } else if (kind == DeclKind::enum_variant) {
+    return as<EnumVariantDecl>()->type;
+  } else if (kind == DeclKind::func) {
     return {};
+  }
+  assert(false && "not all decl kinds handled");
+}
+
+bool FuncDecl::isVoid(Sema &sema) const {
+  return ret_type == sema.context.void_type;
 }
 
 //
@@ -113,7 +134,7 @@ void BuiltinStmt::print() const {
   out() << "[BuiltinStmt]\n";
 }
 
-void VarDeclNode::print() const {
+void VarDecl::print() const {
     out() << "[VarDecl] " << name->text << "\n";
     PrintScope start;
     if (type_expr) {
@@ -127,7 +148,7 @@ void VarDeclNode::print() const {
     }
 }
 
-void FuncDeclNode::print() const {
+void FuncDecl::print() const {
     out() << "[FuncDecl] " << name->text << "\n";
     PrintScope start;
     for (auto &p : args)
@@ -137,18 +158,18 @@ void FuncDeclNode::print() const {
     body->print();
 }
 
-void StructDeclNode::print() const {
+void StructDecl::print() const {
     out() << "[StructDecl] " << name->text << "\n";
     PrintScope start;
     for (auto &m : members)
         m->print();
 }
 
-void EnumVariantDeclNode::print() const {
+void EnumVariantDecl::print() const {
     out() << "[EnumVariant] " << name->text << "\n";
 }
 
-void EnumDeclNode::print() const {
+void EnumDecl::print() const {
     out() << "[EnumDecl] " << name->text << "\n";
     PrintScope start;
     for (auto &m : variants)
@@ -247,7 +268,7 @@ void TypeExpr::print() const {
 }
 
 void BadStmt::print() const { out() << "[BadStmt]\n"; }
-void BadDeclNode::print() const { out() << "[BadDecl]\n"; }
+void BadDecl::print() const { out() << "[BadDecl]\n"; }
 void BadExpr::print() const { out() << "[BadExpr]\n"; }
 
 } // namespace cmp
