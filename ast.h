@@ -19,11 +19,13 @@ struct AstNode;
 struct File;
 struct Stmt;
 struct Expr;
-struct Decl;
+class Decl;
 struct VarDecl;
 struct FuncDecl;
 struct StructDecl;
 struct EnumVariantDecl;
+struct EnumDecl;
+struct BadDecl;
 
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
 
@@ -358,9 +360,13 @@ enum class DeclKind {
 //
 // All Decl derived types has a pointer field called 'name'. The value of this
 // pointer serves as a unique integer ID used as the key the symbol table.
-struct Decl : public AstNode {
+class Decl : public AstNode {
+  template <typename Derived, typename RetTy, typename... Args>
+  friend class AstVisitor;
+
   DeclKind kind;
 
+public:
   Decl(DeclKind d) : AstNode(AstKind::decl), kind(d) {}
 
   template <typename T> bool is() const { assert(false && "unhandled DeclNode type"); }
@@ -369,6 +375,7 @@ struct Decl : public AstNode {
   template <> bool is<StructDecl>() const { return kind == DeclKind::struct_; }
   template <> bool is<EnumVariantDecl>() const { return kind == DeclKind::enum_variant; }
   template <> bool is<EnumDecl>() const { return kind == DeclKind::enum_; }
+  template <> bool is<BadDecl>() const { return kind == DeclKind::bad; }
 
   std::optional<Type *> type() const;
 };

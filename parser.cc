@@ -178,11 +178,11 @@ DeclStmt *Parser::parseDeclStmt() {
   auto decl = parseDecl();
   if (!is_end_of_stmt()) {
     // XXX: remove bad check
-    if (decl && decl->kind != DeclKind::bad) expect(Tok::newline);
+    if (decl && !decl->is<BadDecl>()) expect(Tok::newline);
     // try to recover
     skip_until_end_of_line();
-    }
-    return sema.make_node<DeclStmt>(decl);
+  }
+  return sema.make_node<DeclStmt>(decl);
 }
 
 // Upon seeing an expression, we don't know yet if it is a simple expression

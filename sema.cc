@@ -42,14 +42,13 @@ Type::Type(Name *n, bool mut, Type *bt) : name(n), referee_type(bt) {
 
 inline bool Type::isStruct() const {
   // TODO: should base_type be null too?
-  return kind == TypeKind::value && type_decl &&
-         type_decl->kind == DeclKind::struct_;
+  return kind == TypeKind::value && type_decl && type_decl->is<StructDecl>();
 }
 
 inline bool Type::isEnum() const {
   // TODO: should base_type be null too?
   return kind == TypeKind::value && type_decl &&
-         type_decl->kind == DeclKind::enum_;
+    type_decl->is<EnumDecl>();
 }
 
 inline StructDecl *Type::getStructDecl() {
@@ -160,7 +159,7 @@ void NameBinding::visitFuncCallExpr(FuncCallExpr *f) {
     sema.error(f->pos, "undeclared function '%s'", f->func_name->str());
     return;
   }
-  if (sym->value->kind != DeclKind::func) {
+  if (!sym->value->is<FuncDecl>()) {
     sema.error(f->pos, "'%s' is not a function", f->func_name->str());
     return;
   }
@@ -1015,7 +1014,7 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
 // lifetime is larger than 'a.
 // In other words, at the point of use, the borrowee should be alive.
 void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
-  if (d->decl->kind != DeclKind::var) return;
+  if (!d->decl->is<VarDecl>()) return;
   auto var = d->decl->as<VarDecl>();
 
   // at each use of a reference variable, check if its borrowee is alive
