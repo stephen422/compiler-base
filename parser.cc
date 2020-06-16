@@ -175,13 +175,12 @@ IfStmt *Parser::parse_if_stmt() {
 
 // Parse 'let a = ...'
 DeclStmt *Parser::parseDeclStmt() {
-    auto decl = parse_decl();
-    if (!is_end_of_stmt()) {
-        // XXX: remove bad check
-        if (decl && decl->kind != DeclKind::bad)
-            expect(Tok::newline);
-        // try to recover
-        skip_until_end_of_line();
+  auto decl = parseDecl();
+  if (!is_end_of_stmt()) {
+    // XXX: remove bad check
+    if (decl && decl->kind != DeclKind::bad) expect(Tok::newline);
+    // try to recover
+    skip_until_end_of_line();
     }
     return sema.make_node<DeclStmt>(decl);
 }
@@ -245,36 +244,35 @@ BuiltinStmt *Parser::parseBuiltinStmt() {
 }
 
 // Doesn't include 'let' or 'var'.
-VarDecl *Parser::parse_var_decl(VarDeclKind kind) {
-    auto pos = tok.pos;
+VarDecl *Parser::parseVarDecl(VarDeclKind kind) {
+  auto pos = tok.pos;
 
-    if (tok.kind != Tok::ident) {
-        error_expected("an identifier");
-    }
-    Name *name = sema.name_table.get_or_add(std::string{tok.text});
+  if (tok.kind != Tok::ident) {
+    error_expected("an identifier");
+  }
+  Name *name = sema.name_table.get_or_add(std::string{tok.text});
+  next();
+
+  VarDecl *v = nullptr;
+  // '=' comes either first, or after the ': type' part.
+  if (tok.kind == Tok::colon) {
     next();
-
-    VarDecl *v = nullptr;
-    // '=' comes either first, or after the ': type' part.
-    if (tok.kind == Tok::colon) {
-        next();
-        auto type_expr = parseTypeExpr();
-        v = sema.make_node_pos<VarDecl>(pos, name, kind, type_expr, nullptr);
-    }
-    if (tok.kind == Tok::equals) {
-        next();
-        auto assign_expr = parseExpr();
-        if (v)
-            static_cast<VarDecl *>(v)->assign_expr = assign_expr;
-        else
-          v = sema.make_node_pos<VarDecl>(pos, name, kind, nullptr,
-                                              assign_expr);
-    }
-    if (!v) {
-        error_expected("'=' or ':' after var name");
-        v = nullptr;
-    }
-    return v;
+    auto type_expr = parseTypeExpr();
+    v = sema.make_node_pos<VarDecl>(pos, name, kind, type_expr, nullptr);
+  }
+  if (tok.kind == Tok::equals) {
+    next();
+    auto assign_expr = parseExpr();
+    if (v)
+      static_cast<VarDecl *>(v)->assign_expr = assign_expr;
+    else
+      v = sema.make_node_pos<VarDecl>(pos, name, kind, nullptr, assign_expr);
+  }
+  if (!v) {
+    error_expected("'=' or ':' after var name");
+    v = nullptr;
+  }
+  return v;
 }
 
 // Parses a comma separated list of AST nodes whose type is T*.  Parser
@@ -282,7 +280,7 @@ VarDecl *Parser::parse_var_decl(VarDeclKind kind) {
 // function knows how to parse the elements.
 // Doesn't account for the enclosing parentheses or braces.
 template <typename T, typename F>
-std::vector<T> Parser::parse_comma_separated_list(F &&parse_fn) {
+std::vector<T> Parser::parseCommaSeparatedList(F &&parse_fn) {
     auto finishers = {Tok::rparen, Tok::rbrace};
     auto delimiters = {Tok::comma, Tok::newline, Tok::rparen, Tok::rbrace};
     std::vector<T> list;
@@ -333,8 +331,8 @@ FuncDecl *Parser::parseFuncDecl() {
 
   // argument list
   expect(Tok::lparen);
-  func->args = parse_comma_separated_list<VarDecl *>(
-      [this] { return parse_var_decl(VarDeclKind::param); });
+  func->args = parseCommaSeparatedList<VarDecl *>(
+      [this] { return parseVarDecl(VarDeclKind::param); });
   if (!expect(Tok::rparen)) {
     skip_until(Tok::rparen);
     expect(Tok::rparen);
@@ -375,8 +373,8 @@ StructDecl *Parser::parseStructDecl() {
   if (!expect(Tok::lbrace))
     skip_until_end_of_line();
 
-  auto fields = parse_comma_separated_list<VarDecl *>(
-      [this] { return parse_var_decl(VarDeclKind::struct_); });
+  auto fields = parseCommaSeparatedList<VarDecl *>(
+      [this] { return parseVarDecl(VarDeclKind::struct_); });
   expect(Tok::rbrace, "unterminated struct declaration");
   // TODO: recover
 
@@ -392,7 +390,7 @@ EnumVariantDecl *Parser::parseEnumVariant() {
   std::vector<Expr *> fields;
   if (tok.kind == Tok::lparen) {
     expect(Tok::lparen);
-    fields = parse_comma_separated_list<Expr *>([this] { return parseTypeExpr(); });
+    fields = parseCommaSeparatedList<Expr *>([this] { return parseTypeExpr(); });
     expect(Tok::rparen);
   }
 
@@ -441,30 +439,35 @@ bool Parser::isStartOfDecl() const {
     switch (tok.kind) {
     case Tok::kw_let:
     case Tok::kw_var:
+    case Tok::kw_struct:
         return true;
     default:
         return false;
     }
 }
 
-// 'let a = ...'
-Decl *Parser::parse_decl() {
-    switch (tok.kind) {
-    case Tok::kw_let: {
-        next();
-        auto v = parse_var_decl(VarDeclKind::local);
-        return v;
-    }
-    case Tok::kw_var: {
-        next();
-        auto v = parse_var_decl(VarDeclKind::local);
-        v->mut = true;
-        return v;
-    }
-    // TODO: 'var'
-    default:
-        assert(false && "not a start of a declaration");
-    }
+// Parse a declaration.
+// Remember to modify isStartOfDecl() as well.
+Decl *Parser::parseDecl() {
+  switch (tok.kind) {
+  case Tok::kw_let: {
+    next();
+    auto v = parseVarDecl(VarDeclKind::local);
+    return v;
+  }
+  case Tok::kw_var: {
+    next();
+    auto v = parseVarDecl(VarDeclKind::local);
+    v->mut = true;
+    return v;
+  }
+  case Tok::kw_struct: {
+    return parseStructDecl();
+  }
+  default: {
+    assert(false && "not a start of a declaration");
+  }
+  }
 }
 
 Expr *Parser::parseLiteralExpr() {
@@ -751,7 +754,7 @@ Expr *Parser::parseStructDefMaybe(Expr *expr) {
 
     expect(Tok::lbrace);
 
-    auto v = parse_comma_separated_list<std::optional<StructFieldDesignator>>(
+    auto v = parseCommaSeparatedList<std::optional<StructFieldDesignator>>(
         [this] { return parseStructDefField(); });
 
     std::vector<StructFieldDesignator> desigs;

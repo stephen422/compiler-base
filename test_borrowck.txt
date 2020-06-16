@@ -3,7 +3,7 @@ struct S {
     ip: &int
 }
 
-func main() {
+func lifetime() {
     var x: &int // TODO: 'let' should be legal too
     let a = 42
     {

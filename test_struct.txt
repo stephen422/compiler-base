@@ -3,26 +3,37 @@ struct Token {
     text: string
 }
 
-// func main() {
+// func parse() {
 //     Token {.pos} // ERROR: expected '='
 //     Token {.pos = } // ERROR: expected an expression
 //     Token {.pos 3} // ERROR: expected '='
 //     Token {.pos = 3, .text = "hi"}
-// 
+
 //     Token {pos} // ERROR: expected '='
-// 
+
 //     if Token {.pos = 3} {
 //     } else {
 //     }
-// 
+
 //     // if Token {} {
 //     // } else {
 //     // }
+
+//     struct Inner {
+//         a: int
+//     }
 // }
 
-func f() {
+func sema() {
     Token {.notthere = 0} // ERROR: no field named 'notthere'
     Token {.pos = "3"} // ERROR: cannot assign 'string' .* 'int'
     var tok = Token {.pos = 3, .text = "hi"}
     tok = "s" // ERROR: cannot assign 'string' .* 'Token'
+
+    struct Inner {
+        a: int
+    }
+
+    let inner: Inner
+    inner.a
 }
