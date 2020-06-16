@@ -22,9 +22,7 @@ get_ast_range(std::initializer_list<AstNode *> nodes) {
   size_t min = static_cast<size_t>(-1);
   size_t max = 0; // FIXME not used
   for (auto node : nodes) {
-    if (!node) {
-      continue;
-    }
+    if (!node) continue;
     if (node->pos < min) {
       min = node->pos;
     }
@@ -32,7 +30,7 @@ get_ast_range(std::initializer_list<AstNode *> nodes) {
   return {min, max};
 }
 
-std::optional<Decl *> Expr::decl() const {
+std::optional<Decl *> Expr::declMaybe() const {
   switch (kind) {
   case ExprKind::decl_ref:
     return {as<DeclRefExpr>()->decl};

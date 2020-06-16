@@ -192,17 +192,18 @@ enum class ExprKind {
 struct Type;
 
 struct Expr : public AstNode {
-    ExprKind kind;
-    // Type of the expression.
-    // For expressions that have a Decl, e.g. DeclRefExpr and MemberExpr, their
-    // types are stored in decl->type.  For these cases, the value of this
-    // pointer should be maintained the same as decl->type, so that expr->type
-    // becomes the unified way to retrieve the type of an expression.
-    Type *type = nullptr;
-    // TODO: I think this function is somehow related to lvalue determination.
-    std::optional<Decl *> decl() const;
+  ExprKind kind;
+  // Type of the expression.
+  // For expressions that have a Decl, e.g. DeclRefExpr and MemberExpr, their
+  // types are stored in decl->type.  For these cases, the value of this
+  // pointer should be maintained the same as decl->type, so that expr->type
+  // becomes the unified way to retrieve the type of an expression.
+  Type *type = nullptr;
 
-    Expr(ExprKind e) : AstNode(AstKind::expr), kind(e), type(nullptr) {}
+  Expr(ExprKind e) : AstNode(AstKind::expr), kind(e), type(nullptr) {}
+
+  // TODO: I think this function is somehow related to lvalue determination.
+  std::optional<Decl *> declMaybe() const;
 };
 
 struct IntegerLiteral : public Expr {
@@ -295,7 +296,7 @@ struct ParenExpr : public UnaryExpr {
         : UnaryExpr(UnaryExprKind::paren, inside_expr) {}
     void print() const override;
     // ParenExprs may also have an associated Decl (e.g. (a).m).
-    std::optional<Decl *> decl() const { return operand->decl(); }
+    std::optional<Decl *> decl() const { return operand->declMaybe(); }
 };
 
 struct BinaryExpr : public Expr {
@@ -361,12 +362,9 @@ enum class DeclKind {
 // All Decl derived types has a pointer field called 'name'. The value of this
 // pointer serves as a unique integer ID used as the key the symbol table.
 class Decl : public AstNode {
-  template <typename Derived, typename RetTy, typename... Args>
-  friend class AstVisitor;
-
-  DeclKind kind;
-
 public:
+  const DeclKind kind;
+
   Decl(DeclKind d) : AstNode(AstKind::decl), kind(d) {}
 
   template <typename T> bool is() const { assert(false && "unhandled DeclNode type"); }
@@ -419,7 +417,7 @@ struct VarDecl : public Decl {
 struct FuncDecl : public Decl {
   Name *name = nullptr;            // name of the function
   Type *ret_type = nullptr;        // return type of the function
-  std::vector<VarDecl *> args; // list of parameters
+  std::vector<VarDecl *> args;     // list of parameters
   CompoundStmt *body = nullptr;    // body statements
   Expr *ret_type_expr = nullptr;   // return type expression
 

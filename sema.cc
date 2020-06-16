@@ -135,7 +135,7 @@ void NameBinding::visitAssignStmt(AssignStmt *as) {
   // XXX: It's not obvious (and not even correct?) that r-values equal
   // expressions that don't have an associated Decl object. Make a separate
   // is_rvalue() function.
-  auto decl_opt = as->lhs->decl();
+  auto decl_opt = as->lhs->declMaybe();
   if (!decl_opt) {
     sema.error(as->pos, "LHS is not assignable");
     return;
@@ -384,7 +384,7 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
   // checking the *leftmost* variable that appears the first in the MemberExpr
   // chain, e.g. 'a' of 'a.b.c.d.e = 42'.
   if (as->lhs->kind == ExprKind::member) {
-    auto leftmost_decl = *as->lhs->as<MemberExpr>()->lhs_expr->decl();
+    auto leftmost_decl = *as->lhs->as<MemberExpr>()->lhs_expr->declMaybe();
     // Account for name bind fail.
     auto leftmost_vardecl = leftmost_decl->as<VarDecl>();
     if (leftmost_vardecl && !leftmost_vardecl->mut) {
@@ -400,7 +400,7 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
       return nullptr;
     }
   } else {
-    auto decl_opt = as->lhs->decl();
+    auto decl_opt = as->lhs->declMaybe();
     auto var_decl = (*decl_opt)->as<VarDecl>();
     if (var_decl && !var_decl->mut) {
       sema.error(as->pos, "'%s' is not declared as mutable",
@@ -427,7 +427,7 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
   // TODO: verify ->decl() is the right way to determine if a value is
   // temporary.
   // TODO: there's a copy-paste of this code somewhere else.
-  if (as->rhs->decl() && !rhs_ty->copyable) {
+  if (as->rhs->declMaybe() && !rhs_ty->copyable) {
     sema.error(as->rhs->pos, "cannot copy non-copyable type '%s'",
                rhs_ty->name->str());
     return nullptr;
@@ -653,14 +653,14 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
 
       // Prohibit taking address of an rvalue.
       // TODO: proper l-value check
-      if (!u->operand->decl()) {
+      if (!u->operand->declMaybe()) {
         sema.error(u->pos, "cannot take address of an rvalue");
         return nullptr;
       }
 
       // Prohibit borrowing an immutable value as mutable.
       if (u->kind == UnaryExprKind::var_ref) {
-        auto operand_var_decl = (*u->operand->decl())->as<VarDecl>();
+        auto operand_var_decl = (*u->operand->declMaybe())->as<VarDecl>();
         if (!operand_var_decl->mut) {
           sema.error(u->pos,
                      "cannot borrow '%s' as mutable because '%s' is declared "
@@ -743,7 +743,7 @@ Type *TypeChecker::visitVarDecl(VarDecl *v) {
   } else if (v->assign_expr) {
     // Copyability check.
     // FIXME: copy-paste from visitAssignStmt
-    if (v->assign_expr->decl() && v->assign_expr->type &&
+    if (v->assign_expr->declMaybe() && v->assign_expr->type &&
         !v->assign_expr->type->copyable) {
       sema.error(v->assign_expr->pos, "cannot copy non-copyable type '%s'",
                  v->assign_expr->type->name->str());
@@ -992,10 +992,10 @@ void BorrowChecker::visitAssignStmt(AssignStmt *as) {
     // check multiple borrowing rule
     // TODO: mutable and immutable
     auto rhs_deref = as->rhs->as<UnaryExpr>()->operand;
-    assert(as->lhs->decl().has_value());
-    assert(rhs_deref->decl().has_value());
-    auto lhs_decl = (*as->lhs->decl())->as<VarDecl>();
-    auto rhs_deref_decl = (*rhs_deref->decl())->as<VarDecl>();
+    assert(as->lhs->declMaybe().has_value());
+    assert(rhs_deref->declMaybe().has_value());
+    auto lhs_decl = (*as->lhs->declMaybe())->as<VarDecl>();
+    auto rhs_deref_decl = (*rhs_deref->declMaybe())->as<VarDecl>();
     lhs_decl->borrowee = rhs_deref_decl;
   }
 }
@@ -1104,7 +1104,7 @@ void BorrowChecker::visitStructDefExpr(StructDefExpr *s) {
 
     // FIXME: touching desig.decl might be pointless
     auto rhs_deref = desig.expr->as<UnaryExpr>()->operand;
-    desig.decl->borrowee = (*rhs_deref->decl())->as<VarDecl>();
+    desig.decl->borrowee = (*rhs_deref->declMaybe())->as<VarDecl>();
   }
 }
 
@@ -1116,7 +1116,7 @@ void BorrowChecker::visitUnaryExpr(UnaryExpr *u) {
   case UnaryExprKind::ref:
   case UnaryExprKind::var_ref: // TODO
     visitExpr(u->operand);
-    registerBorrow(sema, (*u->operand->decl())->as<VarDecl>(), u->pos);
+    registerBorrow(sema, (*u->operand->declMaybe())->as<VarDecl>(), u->pos);
     break;
   case UnaryExprKind::deref:
     visitExpr(u->operand);
@@ -1135,7 +1135,7 @@ void BorrowChecker::visitVarDecl(VarDecl *v) {
   if (v->assign_expr && isReferenceExpr(v->assign_expr)) {
     // store borrowee relationship
     auto rhs_deref = v->assign_expr->as<UnaryExpr>()->operand;
-    v->borrowee = (*rhs_deref->decl())->as<VarDecl>();
+    v->borrowee = (*rhs_deref->declMaybe())->as<VarDecl>();
   }
 }
 
