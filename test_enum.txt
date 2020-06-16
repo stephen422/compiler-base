@@ -5,6 +5,10 @@ enum Color {
     blue
 }
 
+// TODO: toplevel-independent compile phase
+// enum Color { // ERROR: redefinition of 'Colr'
+// }
+
 struct Token {
 }
 

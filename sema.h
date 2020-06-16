@@ -103,9 +103,13 @@ struct Sema {
   // TODO: doc
   ScopedTable<BorrowMap> borrow_table;
 
+  // TODO.
   Context context;
-  std::vector<Error> &errors;  // error list
-  std::vector<Error> &beacons; // error beacon list
+
+  // List of generated errors.
+  std::vector<Error> &errors;
+  // List of error beacons found in the source text.
+  std::vector<Error> &beacons;
 
   Sema(const Source &s, std::vector<Error> &e, std::vector<Error> &b)
       : source(s), errors(e), beacons(b) {}

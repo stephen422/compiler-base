@@ -22,6 +22,8 @@ struct Expr;
 struct Decl;
 struct VarDecl;
 struct FuncDecl;
+struct StructDecl;
+struct EnumVariantDecl;
 
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
 
@@ -363,6 +365,11 @@ struct Decl : public AstNode {
 
   template <typename T> bool is() const { assert(false && "unhandled DeclNode type"); }
   template <> bool is<VarDecl>() const { return kind == DeclKind::var; }
+  template <> bool is<FuncDecl>() const { return kind == DeclKind::func; }
+  template <> bool is<StructDecl>() const { return kind == DeclKind::struct_; }
+  template <> bool is<EnumVariantDecl>() const { return kind == DeclKind::enum_variant; }
+  template <> bool is<EnumDecl>() const { return kind == DeclKind::enum_; }
+
   std::optional<Type *> type() const;
 };
 

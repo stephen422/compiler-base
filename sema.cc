@@ -261,6 +261,7 @@ void NameBinding::visitStructDecl(StructDecl *s) {
 
 namespace {
 
+#if 0
 // Generate a name for the anonymous fields in each enum variant structs.
 // For now, these are named "_0", "_1", and so on.
 Name *genAnonymousFieldName(Sema &sema, size_t index) {
@@ -268,6 +269,7 @@ Name *genAnonymousFieldName(Sema &sema, size_t index) {
   snprintf(buf, BUFSIZE, "_%lu", index);
   return sema.name_table.get_or_add(std::string{buf});
 }
+#endif
 
 // Checks if 'expr' is a borrowing expression.
 bool isReferenceExpr(const Expr *expr) {
