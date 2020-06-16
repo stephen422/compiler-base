@@ -212,6 +212,11 @@ public:
 class BorrowChecker : public AstVisitor<BorrowChecker, void> {
   Sema &sema;
 
+  // Shows whether the current expression being visited is inside a return
+  // statement, so that the borrow checker knows to check if this expression
+  // borrows from a value declared in the local scope.
+  bool in_return_stmt;
+
 public:
   BorrowChecker(Sema &s) : sema{s} {}
   bool success() const { return sema.errors.empty(); }

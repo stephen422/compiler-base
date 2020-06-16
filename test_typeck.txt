@@ -78,6 +78,11 @@ func main() {
         *i // ERROR: dereference.*'int'
         &24 // ERROR: take address of an rvalue
         &g() // ERROR: take address of an rvalue
+
+        // mutable reference of an immutable variable
+        let ii = 4
+        let v = var &ii // ERROR: cannot borrow 'ii' as mutable .* declared immutable
+
         var imm_ptr: &int
         imm_ptr = var &i
         *imm_ptr = 3 // ERROR: cannot assign .* immutable reference
@@ -102,7 +107,7 @@ struct NonCopy {
 }
 
 func copyable() {
-    let i = 42
+    var i = 42
     let nc1 = NonCopy {.a = var &i}
     var nc2: NonCopy
     nc2 = nc1 // ERROR: cannot copy non-copyable type 'NonCopy'

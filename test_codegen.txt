@@ -18,8 +18,8 @@ func f(n: int) -> int {
 }
 
 func main() -> int {
-  let a = 1
-  let b = 4
+  var a = 1
+  var b = 4
   swap(var &a, var &b)
   #printf("%d\n", a)
 

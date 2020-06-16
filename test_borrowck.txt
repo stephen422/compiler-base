@@ -1,3 +1,8 @@
+struct S {
+    ptr: var &int
+    ip: &int
+}
+
 func main() {
     var x: &int // TODO: 'let' should be legal too
     let a = 42
@@ -6,10 +11,14 @@ func main() {
         x = &a
     }
     *x // ERROR: 'a' does not live long enough
-}
 
-struct S {
-    ptr: var &int
+    var y: &int
+    {
+        let a = 4
+        let s = S {.ip = &a}
+        y = s.ip
+    }
+    *y
 }
 
 func f(ptr: &int) {
@@ -19,7 +28,7 @@ func fs(s: S) {
 }
 
 func multiple_borrows() {
-    let a = 42
+    var a = 42
     {
         let x = &a
         let y = &a // ERROR: cannot borrow 'a' more than once

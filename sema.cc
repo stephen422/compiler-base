@@ -606,7 +606,7 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
 
 // Get a reference type of a given type, or construct one if it didn't exist in
 // the type table.
-Type *getReferenceType(Sema &sema, bool mut, Type *type) {
+Type *cmp::getReferenceType(Sema &sema, bool mut, Type *type) {
   auto name = getReferenceTypeName(sema.name_table, mut, type->name);
   if (auto found = sema.type_table.find(name)) return found->value;
 
@@ -655,10 +655,24 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
       // Prohibit taking address of an rvalue.
       // TODO: proper l-value check
       if (!u->operand->decl()) {
-        sema.error(u->operand->pos, "cannot take address of an rvalue");
+        sema.error(u->pos, "cannot take address of an rvalue");
         return nullptr;
       }
-      u->type = ::getReferenceType(sema, mut, u->operand->type);
+
+      // Prohibit borrowing an immutable value as mutable.
+      if (u->kind == UnaryExprKind::var_ref) {
+        auto operand_var_decl = (*u->operand->decl())->as<VarDecl>();
+        if (!operand_var_decl->mut) {
+          sema.error(u->pos,
+                     "cannot borrow '%s' as mutable because '%s' is declared "
+                     "immutable",
+                     operand_var_decl->name->str(),
+                     operand_var_decl->name->str());
+          return nullptr;
+        }
+      }
+
+      u->type = getReferenceType(sema, mut, u->operand->type);
     }
     break;
   }
@@ -955,7 +969,7 @@ void BorrowChecker::visitCompoundStmt(CompoundStmt *cs) {
 // - x = &a
 // - x = S {.m = &a}
 // - f(&a)
-void register_borrow(Sema &sema, VarDecl *borrowee, size_t borrowee_pos) {
+void registerBorrow(Sema &sema, VarDecl *borrowee, size_t borrowee_pos) {
   int old_borrow_count = 0;
   auto found = sema.borrow_table.find(borrowee->name);
   if (found) {
@@ -973,18 +987,18 @@ void register_borrow(Sema &sema, VarDecl *borrowee, size_t borrowee_pos) {
 }
 
 void BorrowChecker::visitAssignStmt(AssignStmt *as) {
-    walk_assign_stmt(*this, as);
+  walk_assign_stmt(*this, as);
 
-    if (isReferenceExpr(as->rhs)) {
-        // check multiple borrowing rule
-        // TODO: mutable and immutable
-        auto rhs_deref = as->rhs->as<UnaryExpr>()->operand;
-        assert(as->lhs->decl().has_value());
-        assert(rhs_deref->decl().has_value());
-        auto lhs_decl = (*as->lhs->decl())->as<VarDecl>();
-        auto rhs_deref_decl = (*rhs_deref->decl())->as<VarDecl>();
-        lhs_decl->borrowee = rhs_deref_decl;
-    }
+  if (isReferenceExpr(as->rhs)) {
+    // check multiple borrowing rule
+    // TODO: mutable and immutable
+    auto rhs_deref = as->rhs->as<UnaryExpr>()->operand;
+    assert(as->lhs->decl().has_value());
+    assert(rhs_deref->decl().has_value());
+    auto lhs_decl = (*as->lhs->decl())->as<VarDecl>();
+    auto rhs_deref_decl = (*rhs_deref->decl())->as<VarDecl>();
+    lhs_decl->borrowee = rhs_deref_decl;
+  }
 }
 
 void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
@@ -992,7 +1006,9 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
   // the Decl of the referee object. Thus, for every borrowing expressions in
   // the return statement, we can check if the Decl of the referee is present in
   // the current function scope to find lifetime errors.
+  in_return_stmt = true;
   walk_return_stmt(*this, rs);
+  in_return_stmt = false;
 }
 
 // Rule: a variable of lifetime 'a should only refer to a variable whose
@@ -1101,7 +1117,7 @@ void BorrowChecker::visitUnaryExpr(UnaryExpr *u) {
   case UnaryExprKind::ref:
   case UnaryExprKind::var_ref: // TODO
     visitExpr(u->operand);
-    register_borrow(sema, (*u->operand->decl())->as<VarDecl>(), u->pos);
+    registerBorrow(sema, (*u->operand->decl())->as<VarDecl>(), u->pos);
     break;
   case UnaryExprKind::deref:
     visitExpr(u->operand);
