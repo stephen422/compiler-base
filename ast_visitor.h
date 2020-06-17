@@ -305,7 +305,7 @@ void walk_func_decl(Visitor &v, FuncDecl *f, Args... args) {
 }
 template <typename Visitor, typename... Args>
 void walk_struct_decl(Visitor &v, StructDecl *s, Args... args) {
-    for (auto d : s->members) {
+    for (auto d : s->fields) {
         v.visitDecl(d, args...);
     }
 }
@@ -366,7 +366,7 @@ void walk_struct_def_expr(Visitor &v, StructDefExpr *s, Args... args) {
 }
 template <typename Visitor, typename... Args>
 void walk_member_expr(Visitor &v, MemberExpr *m, Args... args) {
-    v.visitExpr(m->lhs_expr, args...);
+    v.visitExpr(m->struct_expr, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_paren_expr(Visitor &v, ParenExpr *p, Args... args) {

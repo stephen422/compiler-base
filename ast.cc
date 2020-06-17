@@ -30,6 +30,10 @@ get_ast_range(std::initializer_list<AstNode *> nodes) {
   return {min, max};
 }
 
+bool Expr::isLValue() const {
+  return declMaybe().has_value() && (*declMaybe())->is<VarDecl>();
+}
+
 std::optional<Decl *> Expr::declMaybe() const {
   switch (kind) {
   case ExprKind::decl_ref:
@@ -37,10 +41,11 @@ std::optional<Decl *> Expr::declMaybe() const {
   case ExprKind::member:
     return as<MemberExpr>()->decl;
   case ExprKind::unary:
-    if (as<UnaryExpr>()->kind == UnaryExprKind::paren)
+    if (as<UnaryExpr>()->kind == UnaryExprKind::paren) {
       return as<UnaryExpr>()->as<ParenExpr>()->decl();
-    else if (as<UnaryExpr>()->kind == UnaryExprKind::deref)
-      return as<UnaryExpr>()->var_decl;
+    } else if (as<UnaryExpr>()->kind == UnaryExprKind::deref) {
+      return {as<UnaryExpr>()->var_decl};
+    }
     break;
   default:
     break;
@@ -159,7 +164,7 @@ void FuncDecl::print() const {
 void StructDecl::print() const {
     out() << "[StructDecl] " << name->text << "\n";
     PrintScope start;
-    for (auto &m : members)
+    for (auto &m : fields)
         m->print();
 }
 
@@ -257,7 +262,7 @@ void StructDefExpr::print() const {
 void MemberExpr::print() const {
     out() << "[MemberExpr]" << std::endl;
     PrintScope start;
-    lhs_expr->print();
+    struct_expr->print();
     out() << "'.' " << member_name->text << std::endl;
 }
 

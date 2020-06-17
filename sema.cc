@@ -98,48 +98,32 @@ void cmp::setup_builtin_types(Sema &s) {
 }
 
 Sema::~Sema() {
-    for (auto t : type_pool) {
-        delete t;
-    }
-    for (auto b : basic_block_pool) {
-        delete b;
-    }
+  for (auto t : type_pool) {
+    delete t;
+  }
+  for (auto b : basic_block_pool) {
+    delete b;
+  }
 }
 
 void Sema::scope_open() {
-    decl_table.scope_open();
-    type_table.scope_open();
-    live_list.scope_open();
-    borrow_table.scope_open();
+  decl_table.scope_open();
+  type_table.scope_open();
+  live_list.scope_open();
+  borrow_table.scope_open();
 }
 
 void Sema::scope_close() {
-    decl_table.scope_close();
-    type_table.scope_close();
-    live_list.scope_close();
-    borrow_table.scope_close();
+  decl_table.scope_close();
+  type_table.scope_close();
+  live_list.scope_close();
+  borrow_table.scope_close();
 }
 
 void NameBinding::visitCompoundStmt(CompoundStmt *cs) {
   sema.scope_open();
   walk_compound_stmt(*this, cs);
   sema.scope_close();
-}
-
-void NameBinding::visitAssignStmt(AssignStmt *as) {
-  walk_assign_stmt(*this, as);
-
-  // Checking if an AST node has an associated Decl object is a purely
-  // syntactical check, and therefore can be done in the name binding phase.
-  //
-  // XXX: It's not obvious (and not even correct?) that r-values equal
-  // expressions that don't have an associated Decl object. Make a separate
-  // is_rvalue() function.
-  auto decl_opt = as->lhs->declMaybe();
-  if (!decl_opt) {
-    sema.error(as->pos, "LHS is not assignable");
-    return;
-  }
 }
 
 void NameBinding::visitDeclRefExpr(DeclRefExpr *d) {
@@ -151,9 +135,7 @@ void NameBinding::visitDeclRefExpr(DeclRefExpr *d) {
   d->decl = sym->value;
 }
 
-// Only binds the function name part of the call, e.g. 'func' of func().
 void NameBinding::visitFuncCallExpr(FuncCallExpr *f) {
-  // resolve function name
   auto sym = sema.decl_table.find(f->func_name);
   if (!sym) {
     sema.error(f->pos, "undeclared function '%s'", f->func_name->str());
@@ -168,7 +150,7 @@ void NameBinding::visitFuncCallExpr(FuncCallExpr *f) {
 
   walk_func_call_expr(*this, f);
 
-  // check if argument count matches
+  // argument count match check
   if (f->func_decl->args_count() != f->args.size()) {
     sema.error(f->pos, "'%s' accepts %lu arguments, got %lu",
                f->func_name->str(), f->func_decl->args_count(), f->args.size());
@@ -200,8 +182,8 @@ void NameBinding::visitTypeExpr(TypeExpr *t) {
 
 namespace {
 
-// Semantically declare a 'name' at a 'pos', whose Decl type is T.
-// Returns nullptr if declaration failed due to e.g. redeclaration.
+// Semantically declare a 'name' at 'pos', whose Decl type is T.
+// Returns true if success and otherwise does error handling.
 template <typename T>
 bool declare(Sema &sema, size_t pos, Name *name, T *decl) {
   auto found = sema.decl_table.find(name);
@@ -335,8 +317,7 @@ VarDecl *makeTemporaryVarDecl(Sema &sema, Type *type, bool mut) {
   // are not meant to be accessed later from a different position in the
   // source. In the same sense, they don't have a name that can be used to query
   // them.
-  auto v = sema.make_node<VarDecl>(nullptr, mut);
-  v->type = type;
+  auto v = sema.make_node<VarDecl>(nullptr, type, mut);
   return v;
 }
 
@@ -372,27 +353,14 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
   // XXX: is this the best way to early-exit?
   if (!lhs_ty || !rhs_ty) return nullptr;
 
+  // L-value check.
+  if (!as->lhs->isLValue()) {
+    sema.error(as->pos, "cannot assign to an rvalue");
+    return nullptr;
+  }
+
   // Mutability check.
-  //
-  // Some notes on MemberExprs:
-  // Since the language handles the mutability checking using the name binding
-  // information, there is no such thing as mutable or immutable 'types'. This
-  // also means that individual fields of a struct cannot be mutable separately
-  // from others.  Therefore, their mutation is only possible by accessing them
-  // through a mutable variable at the LHS of a MemberExpr. And by recursion,
-  // checking mutability of an assignment to a MemberExpr equates to simply
-  // checking the *leftmost* variable that appears the first in the MemberExpr
-  // chain, e.g. 'a' of 'a.b.c.d.e = 42'.
-  if (as->lhs->kind == ExprKind::member) {
-    auto leftmost_decl = *as->lhs->as<MemberExpr>()->lhs_expr->declMaybe();
-    // Account for name bind fail.
-    auto leftmost_vardecl = leftmost_decl->as<VarDecl>();
-    if (leftmost_vardecl && !leftmost_vardecl->mut) {
-      sema.error(as->pos, "'%s' is not declared as mutable",
-                 leftmost_vardecl->name->str());
-      return nullptr;
-    }
-  } else if (isDereferenceExpr(as->lhs)) {
+  if (isDereferenceExpr(as->lhs)) {
     auto unary = as->lhs->as<UnaryExpr>();
     if (unary->operand->type->kind != TypeKind::var_ref) {
       sema.error(unary->pos,
@@ -401,10 +369,11 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
     }
   } else {
     auto decl_opt = as->lhs->declMaybe();
+    assert((*decl_opt) != nullptr);
     auto var_decl = (*decl_opt)->as<VarDecl>();
     if (var_decl && !var_decl->mut) {
       sema.error(as->pos, "'%s' is not declared as mutable",
-                 var_decl->name->str());
+                 "todo");
       return nullptr;
     }
   }
@@ -521,7 +490,7 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
   // typecheck each field
   // XXX: copy-paste from visitMemberExpr
   for (auto &desig : s->desigs) {
-    for (auto field : lhs_type->getStructDecl()->members) {
+    for (auto field : lhs_type->getStructDecl()->fields) {
       if (desig.name == field->name) {
         desig.decl = field;
         break;
@@ -558,48 +527,100 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
   walk_member_expr(*this, m);
 
   // if the struct side failed to typecheck, we cannot proceed
-  if (!m->lhs_expr->type) return nullptr;
+  if (!m->struct_expr->type) return nullptr;
 
   // make sure the LHS is actually a struct
-  auto lhs_type = m->lhs_expr->type;
-  if (!lhs_type->isMemberAccessible()) {
-    sema.error(m->lhs_expr->pos, "type '%s' is not a struct",
-               lhs_type->name->str());
+  auto struct_type = m->struct_expr->type;
+  if (!struct_type->isMemberAccessible()) {
+    // FIXME: isMemberAccessible <-> struct
+    sema.error(m->struct_expr->pos, "type '%s' is not a struct",
+               struct_type->name->str());
     return nullptr;
   }
 
   // find a member with the same name
   // TODO: can this be abstracted?
-  bool found = false;
-  if (lhs_type->isStruct()) {
-    for (auto mem_decl : lhs_type->getStructDecl()->members) {
+  if (struct_type->isStruct()) {
+    // First of all, make sure that this field name indeed exists in the
+    // struct's type definition.
+    VarDecl *field_decl = nullptr;
+    for (auto mem_decl : struct_type->getStructDecl()->fields) {
+      if (m->member_name == mem_decl->name) {
+        field_decl = mem_decl;
+        break;
+      }
+    }
+
+    if (!field_decl) {
+      // TODO: pos for member
+      sema.error(m->struct_expr->pos, "'%s' is not a member of '%s'",
+                 m->member_name->str(), struct_type->name->str());
+      return nullptr;
+    }
+
+    // Type inferrence.
+    m->type = field_decl->type;
+
+    // If struct_expr is an lvalue, this MemberExpr should also be an lvalue. We
+    // do so by inheriting from one of struct_expr's child VarDecls.
+    //
+    // We need to create a new VarDecl here for each different VarDecl of lhs,
+    // because even if with the same struct type and field name, MemberExprs may
+    // be semantically different objects if their LHS are of different
+    // declarations.  For example, 'x.a' and 'y.a' in the following occupy two
+    // different physical memory space and thus need to be associated to two
+    // different Decl objects:
+    //
+    //    let x = S {.a = ...}
+    //    let y = S {.a = ...}
+    //    x.a
+    //    y.a
+    //
+    if (m->struct_expr->declMaybe()) {
+      assert((*m->struct_expr->declMaybe())->is<VarDecl>());
+      auto struct_var_decl = (*m->struct_expr->declMaybe())->as<VarDecl>();
+      for (auto field : struct_var_decl->children) {
+        if (field.first == m->member_name) {
+          m->decl = {field.second};
+          break;
+        }
+      }
+
+      // If this field was not yet instantiated, do so
+      //
+      // As a result of this process, we achieve space savings, as each struct
+      // values only contain child VarDecls that are actually used in the source
+      // code.
+      if (!m->decl) {
+        // These VarDecls do not have a name, because they are not going to be
+        // accessed by their name, but through the VarDecl of their parent
+        // struct value.  Their mutability is inherited from the parent value.
+        auto field_var_decl = sema.make_node<VarDecl>(nullptr, field_decl->type,
+                                                      struct_var_decl->mut);
+        m->decl = {field_var_decl};
+
+        // TODO: push into live_table?
+        assert(declare<VarDecl>(sema, m->pos, nullptr, field_var_decl));
+        struct_var_decl->children.push_back({m->member_name, field_var_decl});
+      }
+    }
+  }
+
+  if (struct_type->isEnum()) {
+    assert(false && "not yet");
+#if 0
+    for (auto mem_decl : struct_type->getEnumDecl()->variants) {
       if (m->member_name == mem_decl->name) {
         m->decl = mem_decl;
         found = true;
         break;
       }
     }
-  }
-  if (lhs_type->isEnum()) {
-    for (auto mem_decl : lhs_type->getEnumDecl()->variants) {
-      if (m->member_name == mem_decl->name) {
-        m->decl = mem_decl;
-        found = true;
-        break;
-      }
-    }
-  }
-  if (!found) {
-    // TODO: pos for member
-    sema.error(m->lhs_expr->pos, "'%s' is not a member of '%s'",
-               m->member_name->str(), lhs_type->name->str());
-    return nullptr;
+#endif
   }
 
-  // the fields are already typechecked
-  assert(*m->decl->type());
-  m->type = *m->decl->type();
-
+  if (m->decl.has_value()) assert(*m->decl);
+  assert(m->type);
   return m->type;
 }
 
@@ -665,8 +686,7 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
           sema.error(u->pos,
                      "cannot borrow '%s' as mutable because '%s' is declared "
                      "immutable",
-                     operand_var_decl->name->str(),
-                     operand_var_decl->name->str());
+                     "todo", "todo");
           return nullptr;
         }
       }
@@ -796,7 +816,7 @@ Type *TypeChecker::visitStructDecl(StructDecl *s) {
   // Do pre-order walk so that recursive struct definitions are legal.
   walk_struct_decl(*this, s);
 
-  for (auto field : s->members) {
+  for (auto field : s->fields) {
     // Containing one or more non-copyable field makes the whole struct a
     // non-copyable type. For instance, a struct that contains a mutable
     // reference as one of its field will be disallowed to be copy-assigned.
@@ -1021,6 +1041,10 @@ void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
   if (var->borrowee) {
     // TODO: refactor into find_exact()
     auto sym = sema.live_list.find(var->borrowee->name);
+    if (!var->borrowee->name) {
+      sema.error(d->pos, "ok, borrowee name should not be null...");
+      return;
+    }
     if (!(sym && sym->value == var->borrowee)) {
       sema.error(d->pos, "'%s' does not live long enough",
                  var->borrowee->name->str());
@@ -1186,7 +1210,7 @@ void CodeGenerator::visitStructDefExpr(StructDefExpr *s) {
 }
 
 void CodeGenerator::visitMemberExpr(MemberExpr *m) {
-  visitExpr(m->lhs_expr);
+  visitExpr(m->struct_expr);
   emitCont(".");
   emitCont("{}", m->member_name->str());
 }
@@ -1309,7 +1333,7 @@ void CodeGenerator::visitStructDecl(StructDecl *s) {
   emit("typedef struct {} {{\n", s->name->str());
   {
     IndentBlock ib{*this};
-    for (auto memb : s->members)
+    for (auto memb : s->fields)
       visitDecl(memb);
   }
   emit("}} {};\n", s->name->str());

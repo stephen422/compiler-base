@@ -447,7 +447,7 @@ bool Parser::isStartOfDecl() const {
 }
 
 // Parse a declaration.
-// Remember to modify isStartOfDecl() as well.
+// Remember to modify isStartOfDecl() accordingly.
 Decl *Parser::parseDecl() {
   switch (tok.kind) {
   case Tok::kw_let: {

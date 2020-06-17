@@ -4,6 +4,7 @@
 #include "ast_visitor.h"
 #include "error.h"
 #include "fmt/core.h"
+#include "scoped_table.h"
 
 namespace cmp {
 
@@ -22,37 +23,6 @@ struct Context {
   Type *char_type = nullptr;
   Type *string_type = nullptr;
 };
-
-// Scoped symbol table.
-constexpr int SYMBOL_TABLE_BUCKET_COUNT = 512;
-template <typename T> struct ScopedTable {
-  struct Symbol {
-    Name *name;              // name of this symbol
-    T value;                 // semantic value of this symbol
-    Symbol *next = nullptr;  // next symbol in the hash table bucket
-    Symbol *cross = nullptr; // next symbol in the same scope
-    int scope_level = 0;
-
-    Symbol(Name *n, const T &v) : name(n), value(v) {}
-  };
-
-  ScopedTable();
-  ~ScopedTable();
-  T *insert(Name *name, const T &value);
-  Symbol *find(const Name *name) const;
-  void print() const;
-
-  // Start a new scope.
-  void scope_open();
-  // Close current cope.
-  void scope_close();
-
-  std::array<Symbol *, SYMBOL_TABLE_BUCKET_COUNT> keys;
-  std::vector<Symbol *> scope_stack = {};
-  int curr_scope_level = 0;
-};
-
-#include "scoped_table.h"
 
 // Maps a VarDecl to its borrow count in the current scope.
 // To be stored inside a ScopedTable.
@@ -154,7 +124,6 @@ public:
   bool success() const { return sema.errors.empty(); }
 
   void visitCompoundStmt(CompoundStmt *cs);
-  void visitAssignStmt(AssignStmt *as);
   void visitDeclRefExpr(DeclRefExpr *d);
   void visitFuncCallExpr(FuncCallExpr *f);
   void visitTypeExpr(TypeExpr *t);

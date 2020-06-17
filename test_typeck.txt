@@ -64,6 +64,7 @@ func main() {
     i = f() // ERROR: cannot assign 'Car'.*'int'
     f() + g() // ERROR: incompatible.*binary.*'Car'.*'int'
     f().engine
+    f().engine = 3 // ERROR: cannot assign .* rvalue
     f().wing // ERROR: 'wing'.*not.*member.*'Car'
     h(3, 4) // ERROR: argument type mismatch
     void_ret()
@@ -82,6 +83,11 @@ func main() {
         // mutable reference of an immutable variable
         let ii = 4
         let v = var &ii // ERROR: cannot borrow 'ii' as mutable .* declared immutable
+        struct Val {
+            a: int
+        }
+        let val = Val {.a = 3}
+        let p = var &val.a // ERROR: cannot borrow 'val.a' as mutable because 'val' is declared immutable
 
         var imm_ptr: &int
         imm_ptr = var &i

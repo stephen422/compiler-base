@@ -19,6 +19,17 @@ func lifetime() {
         y = s.ip
     }
     *y
+
+    struct Val {
+        a: int
+    }
+
+    var z: var &int
+    {
+        var v = Val {.a = 3}
+        z = var &v.a
+    }
+    *z
 }
 
 func f(ptr: &int) {
