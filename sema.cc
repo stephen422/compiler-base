@@ -599,8 +599,7 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
                                                       struct_var_decl->mut);
         m->decl = {field_var_decl};
 
-        // TODO: push into live_table?
-        assert(declare<VarDecl>(sema, m->pos, nullptr, field_var_decl));
+        assert(sema.live_list.insert(field_var_decl, field_var_decl));
         struct_var_decl->children.push_back({m->member_name, field_var_decl});
       }
     }
@@ -1040,10 +1039,6 @@ void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
   if (var->borrowee) {
     // TODO: refactor into find_exact()
     auto sym = sema.live_list.find(var->borrowee);
-    if (!var->borrowee->name) {
-      sema.error(d->pos, "ok, borrowee name should not be null...");
-      return;
-    }
     if (!(sym && sym->value == var->borrowee)) {
       sema.error(d->pos, "'%s' does not live long enough",
                  var->borrowee->name->str());

@@ -18,7 +18,7 @@ func lifetime() {
         let s = S {.ip = &a}
         y = s.ip
     }
-    *y
+    *y // ERROR: 'a' does not live long enough
 
     struct Val {
         a: int
@@ -29,7 +29,7 @@ func lifetime() {
         var v = Val {.a = 3}
         z = var &v.a
     }
-    *z
+    *z // ERROR: 'v' does not live long enough
 }
 
 func f(ptr: &int) {

@@ -15,7 +15,7 @@ template <typename Key, typename T> struct ScopedTable {
     Symbol *cross = nullptr; // next symbol in the same scope
     int scope_level = 0;
 
-    Symbol(Key k, const T &v) : key(k), value(v) {}
+    Symbol(const Key k, const T &v) : key(k), value(v) {}
   };
 
   ScopedTable();
