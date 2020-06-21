@@ -990,7 +990,7 @@ void BorrowChecker::visitCompoundStmt(CompoundStmt *cs) {
 // - f(&a)
 void registerBorrow(Sema &sema, VarDecl *borrowee, size_t borrowee_pos) {
   int old_borrow_count = 0;
-  auto found = sema.borrow_table.find(borrowee->name);
+  auto found = sema.borrow_table.find(borrowee);
   if (found) {
     old_borrow_count = found->value.borrow_count;
   }
@@ -1001,8 +1001,7 @@ void registerBorrow(Sema &sema, VarDecl *borrowee, size_t borrowee_pos) {
     return;
   }
 
-  sema.borrow_table.insert(borrowee->name,
-                           BorrowMap{borrowee, old_borrow_count + 1});
+  sema.borrow_table.insert(borrowee, BorrowMap{borrowee, old_borrow_count + 1});
 }
 
 void BorrowChecker::visitAssignStmt(AssignStmt *as) {
@@ -1040,7 +1039,7 @@ void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
   // at each use of a reference variable, check if its borrowee is alive
   if (var->borrowee) {
     // TODO: refactor into find_exact()
-    auto sym = sema.live_list.find(var->borrowee->name);
+    auto sym = sema.live_list.find(var->borrowee);
     if (!var->borrowee->name) {
       sema.error(d->pos, "ok, borrowee name should not be null...");
       return;
@@ -1154,7 +1153,7 @@ void BorrowChecker::visitUnaryExpr(UnaryExpr *u) {
 void BorrowChecker::visitVarDecl(VarDecl *v) {
   walk_var_decl(*this, v);
 
-  sema.live_list.insert(v->name, v);
+  sema.live_list.insert(v, v);
 
   if (v->assign_expr && isReferenceExpr(v->assign_expr)) {
     // store borrowee relationship

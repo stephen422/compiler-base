@@ -5,27 +5,25 @@
 
 namespace cmp {
 
-struct Name;
-
 // Scoped symbol table.
 constexpr int SYMBOL_TABLE_BUCKET_COUNT = 512;
-template <typename T> struct ScopedTable {
+template <typename Key, typename T> struct ScopedTable {
   struct Symbol {
-    Name *name;              // name of this symbol
+    const Key key;           // name of this symbol
     T value;                 // semantic value of this symbol
     Symbol *next = nullptr;  // next symbol in the hash table bucket
     Symbol *cross = nullptr; // next symbol in the same scope
     int scope_level = 0;
 
-    Symbol(Name *n, const T &v) : name(n), value(v) {}
+    Symbol(Key k, const T &v) : key(k), value(v) {}
   };
 
   ScopedTable();
   ~ScopedTable();
-  T *insert(Name *name, const T &value);
+  T *insert(const Key key, const T &value);
 
   // find(nullptr) always returns nullptr.
-  Symbol *find(const Name *name) const;
+  Symbol *find(const Key key) const;
 
   void print() const;
 
@@ -41,6 +39,7 @@ template <typename T> struct ScopedTable {
 
 // ref: https://stackoverflow.com/a/12996028
 static inline uint64_t hash(const void *p) {
+  static_assert(sizeof(p) == sizeof(uint64_t));
   uint64_t x = (uint64_t)p;
   x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
   x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
@@ -48,14 +47,14 @@ static inline uint64_t hash(const void *p) {
   return x;
 }
 
-template <typename T> ScopedTable<T>::ScopedTable() {
+template <typename Key, typename T> ScopedTable<Key, T>::ScopedTable() {
   for (int i = 0; i < SYMBOL_TABLE_BUCKET_COUNT; i++) {
     keys[i] = nullptr;
   }
   scope_stack.push_back(nullptr);
 }
 
-template <typename T> ScopedTable<T>::~ScopedTable() {
+template <typename Key, typename T> ScopedTable<Key, T>::~ScopedTable() {
   for (int i = 0; i < SYMBOL_TABLE_BUCKET_COUNT; i++) {
     Symbol *p = keys[i];
     if (!p) {
@@ -70,13 +69,14 @@ template <typename T> ScopedTable<T>::~ScopedTable() {
 }
 
 // Insert symbol at the current scope level.
-template <typename T> T *ScopedTable<T>::insert(Name *name, const T &value) {
+template <typename Key, typename T>
+T *ScopedTable<Key, T>::insert(const Key key, const T &value) {
   // memory for T is stored inside the symbol
   // TODO: better allocator
-  Symbol *head = new Symbol(name, value);
+  Symbol *head = new Symbol(key, value);
 
   // insert into the bucket
-  int index = hash(name) % SYMBOL_TABLE_BUCKET_COUNT;
+  int index = hash(key) % SYMBOL_TABLE_BUCKET_COUNT;
   Symbol **p = &keys[index];
   head->next = *p;
   *p = head;
@@ -88,28 +88,29 @@ template <typename T> T *ScopedTable<T>::insert(Name *name, const T &value) {
   return &head->value;
 }
 
-template <typename T>
-typename ScopedTable<T>::Symbol *ScopedTable<T>::find(const Name *name) const {
-  if (!name) return nullptr;
+template <typename Key, typename T>
+typename ScopedTable<Key, T>::Symbol *
+ScopedTable<Key, T>::find(const Key key) const {
+  if (!key) return nullptr;
 
-  int index = hash(name) % SYMBOL_TABLE_BUCKET_COUNT;
+  int index = hash(key) % SYMBOL_TABLE_BUCKET_COUNT;
   for (Symbol *s = keys[index]; s; s = s->next) {
-    if (s->name == name) return s;
+    if (s->key == key) return s;
   }
 
   return nullptr;
 }
 
-template <typename T> void ScopedTable<T>::scope_open() {
+template <typename Key, typename T> void ScopedTable<Key, T>::scope_open() {
   scope_stack.push_back(nullptr);
   curr_scope_level++;
 }
 
-template <typename T> void ScopedTable<T>::scope_close() {
+template <typename Key, typename T> void ScopedTable<Key, T>::scope_close() {
   Symbol *p = scope_stack.back();
   while (p) {
-    // XXX: does this work with p->name = nullptr?
-    int index = hash(p->name) % SYMBOL_TABLE_BUCKET_COUNT;
+    // XXX: does this work with p->key = nullptr?
+    int index = hash(p->key) % SYMBOL_TABLE_BUCKET_COUNT;
     keys[index] = p->next;
     auto cross = p->cross;
     delete p;
@@ -119,7 +120,7 @@ template <typename T> void ScopedTable<T>::scope_close() {
   curr_scope_level--;
 }
 
-template <typename T> void ScopedTable<T>::print() const {
+template <typename Key, typename T> void ScopedTable<Key, T>::print() const {
   for (int i = 0; i < SYMBOL_TABLE_BUCKET_COUNT; i++) {
     auto *p = keys[i];
     if (!p) continue;

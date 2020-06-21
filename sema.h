@@ -65,13 +65,13 @@ struct Sema {
   std::vector<BasicBlock *> basic_block_pool;
 
   // Declarations visible at the current scope.
-  ScopedTable<Decl *> decl_table;
+  ScopedTable<Name *, Decl *> decl_table;
   // XXX: needed?
-  ScopedTable<Type *> type_table;
+  ScopedTable<Name *, Type *> type_table;
   // Live variables at the current scope.
-  ScopedTable<VarDecl *> live_list;
+  ScopedTable<VarDecl *, VarDecl *> live_list;
   // TODO: doc
-  ScopedTable<BorrowMap> borrow_table;
+  ScopedTable<VarDecl *, BorrowMap> borrow_table;
 
   // TODO.
   Context context;
