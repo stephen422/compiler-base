@@ -361,7 +361,7 @@ template <typename Visitor, typename... Args>
 void walk_struct_def_expr(Visitor &v, StructDefExpr *s, Args... args) {
     v.visitExpr(s->name_expr, args...);
     for (auto d : s->desigs) {
-        v.visitExpr(d.expr, args...);
+        v.visitExpr(d.init_expr, args...);
     }
 }
 template <typename Visitor, typename... Args>

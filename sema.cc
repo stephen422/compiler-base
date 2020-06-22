@@ -255,7 +255,8 @@ Name *genAnonymousFieldName(Sema &sema, size_t index) {
 // Checks if 'expr' is a borrowing expression.
 bool isReferenceExpr(const Expr *expr) {
   return expr->kind == ExprKind::unary &&
-         expr->as<UnaryExpr>()->kind == UnaryExprKind::ref;
+         (expr->as<UnaryExpr>()->kind == UnaryExprKind::ref ||
+          expr->as<UnaryExpr>()->kind == UnaryExprKind::var_ref);
 }
 
 // Checks if 'expr' is a dereferencing expression, i.e.. '*expr'.
@@ -312,11 +313,7 @@ void NameBinding::visitEnumDecl(EnumDecl *e) {
 
 namespace {
 
-VarDecl *makeTemporaryVarDecl(Sema &sema, Type *type, bool mut) {
-  // Temporary VarDecls are _not_ pushed to the scoped decl table, because they
-  // are not meant to be accessed later from a different position in the
-  // source. In the same sense, they don't have a name that can be used to query
-  // them.
+VarDecl *makeAnonymousVarDecl(Sema &sema, Type *type, bool mut) {
   auto v = sema.make_node<VarDecl>(nullptr, type, mut);
   return v;
 }
@@ -368,9 +365,7 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
       return nullptr;
     }
   } else {
-    auto decl_opt = as->lhs->declMaybe();
-    assert((*decl_opt) != nullptr);
-    auto var_decl = (*decl_opt)->as<VarDecl>();
+    auto var_decl = as->lhs->getLValueDecl();
     if (var_decl && !var_decl->mut) {
       sema.error(as->pos, "'%s' is not declared as mutable",
                  "todo");
@@ -475,6 +470,22 @@ Type *TypeChecker::visitFuncCallExpr(FuncCallExpr *f) {
   return f->type;
 }
 
+namespace {
+
+// TODO: This should return something like a FieldDecl, not a VarDecl.
+VarDecl *findFieldInStruct(Name *field_name, Type *struct_type) {
+  VarDecl *found = nullptr;
+  for (auto mem_decl : struct_type->getStructDecl()->fields) {
+    if (field_name == mem_decl->name) {
+      found = mem_decl;
+      break;
+    }
+  }
+  return found;
+}
+
+} // namespace
+
 Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
   walk_struct_def_expr(*this, s);
 
@@ -487,30 +498,26 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
     return nullptr;
   }
 
-  // typecheck each field
-  // XXX: copy-paste from visitMemberExpr
   for (auto &desig : s->desigs) {
-    for (auto field : lhs_type->getStructDecl()->fields) {
-      if (desig.name == field->name) {
-        desig.decl = field;
-        break;
-      }
-    }
+    if (!desig.init_expr->type) return nullptr;
 
-    if (!desig.decl) {
-      auto fmt = "no field named '%s' in struct '%s'";
-      sema.error(desig.expr->pos, // FIXME: wrong pos
-                 fmt, desig.name->str(),
+    VarDecl *field_decl = findFieldInStruct(desig.name, lhs_type);
+    if (!field_decl) {
+      sema.error(desig.init_expr->pos, // FIXME: wrong pos
+                 "'%s' is not a member of '%s'", desig.name->str(),
                  lhs_type->getStructDecl()->name->str());
       return nullptr;
     }
 
-    // skip if earlier typecheck error
-    if (!desig.expr->type) return nullptr;
+    // Instantiate a temporary VarDecl for each of the field.  This will later
+    // be copied to be a child of a name-binded decl in assign statements, etc.
+    // TODO
 
-    if (!typecheckAssignment(desig.decl->type, desig.expr->type)) {
-      sema.error(desig.expr->pos, "cannot assign '%s' type to '%s'",
-                 desig.expr->type->name->str(), desig.decl->type->name->str());
+    auto v = makeAnonymousVarDecl(sema, field_decl->type, false /*unknown*/);
+
+    if (!typecheckAssignment(field_decl->type, desig.init_expr->type)) {
+      sema.error(desig.init_expr->pos, "cannot assign '%s' type to '%s'",
+                 desig.init_expr->type->name->str(), field_decl->type->name->str());
       return nullptr;
     }
   }
@@ -538,19 +545,10 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
     return nullptr;
   }
 
-  // find a member with the same name
-  // TODO: can this be abstracted?
   if (struct_type->isStruct()) {
     // First of all, make sure that this field name indeed exists in the
     // struct's type definition.
-    VarDecl *field_decl = nullptr;
-    for (auto mem_decl : struct_type->getStructDecl()->fields) {
-      if (m->member_name == mem_decl->name) {
-        field_decl = mem_decl;
-        break;
-      }
-    }
-
+    VarDecl *field_decl = findFieldInStruct(m->member_name, struct_type);
     if (!field_decl) {
       // TODO: pos for member
       sema.error(m->struct_expr->pos, "'%s' is not a member of '%s'",
@@ -561,8 +559,9 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
     // Type inferrence.
     m->type = field_decl->type;
 
-    // If struct_expr is an lvalue, this MemberExpr should also be an lvalue. We
-    // do so by inheriting from one of struct_expr's child VarDecls.
+    // If struct_expr is an lvalue, this MemberExpr should also be an lvalue
+    // and have a Decl object. We do so by inheriting from one of struct_expr's
+    // child VarDecls.
     //
     // We need to create a new VarDecl here for each different VarDecl of lhs,
     // because even if with the same struct type and field name, MemberExprs may
@@ -576,27 +575,30 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
     //    x.a
     //    y.a
     //
-    if (m->struct_expr->declMaybe()) {
-      assert((*m->struct_expr->declMaybe())->is<VarDecl>());
-      auto struct_var_decl = (*m->struct_expr->declMaybe())->as<VarDecl>();
+    if (m->struct_expr->isLValue()) {
+      auto struct_var_decl = m->struct_expr->getLValueDecl();
       for (auto field : struct_var_decl->children) {
         if (field.first == m->member_name) {
-          m->decl = {field.second};
-          break;
+          // Field already instantiated into a VarDecl.
+          if (field.second) {
+            m->decl = {field.second};
+            break;
+          }
         }
       }
 
-      // If this field was not yet instantiated, do so
+      // If this field was not yet instantiated, do so.
       //
-      // As a result of this process, we achieve space savings, as each struct
-      // values only contain child VarDecls that are actually used in the source
-      // code.
+      // As a result of this process, we achieve space savings, as each
+      // struct values only contain child VarDecls that are actually used in
+      // the source code.
       if (!m->decl) {
-        // These VarDecls do not have a name, because they are not going to be
-        // accessed by their name, but through the VarDecl of their parent
-        // struct value.  Their mutability is inherited from the parent value.
-        auto field_var_decl = sema.make_node<VarDecl>(nullptr, field_decl->type,
-                                                      struct_var_decl->mut);
+        // These VarDecls do not have a name, because they are not going to
+        // be accessed by their name, but through the VarDecl of their
+        // parent struct value.  Their mutability is inherited from the
+        // parent value.
+        auto field_var_decl =
+            makeAnonymousVarDecl(sema, field_decl->type, struct_var_decl->mut);
         m->decl = {field_var_decl};
 
         assert(sema.live_list.insert(field_var_decl, field_var_decl));
@@ -660,7 +662,11 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
       //
       // The '*v' here has to have a valid VarDecl with 'mut' as true.
       bool mut = (u->operand->type->kind == TypeKind::var_ref);
-      u->var_decl = makeTemporaryVarDecl(sema, u->type, mut);
+      u->var_decl = makeAnonymousVarDecl(sema, u->type, mut);
+      // Temporary VarDecls are _not_ pushed to the scoped decl table, because
+      // they are not meant to be accessed later from a different position in
+      // the source. In the same sense, they don't have a name that can be used
+      // to query them.
       // TODO is this right?
     }
     break;
@@ -672,8 +678,7 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
       if (u->kind == UnaryExprKind::var_ref) mut = true;
 
       // Prohibit taking address of an rvalue.
-      // TODO: proper l-value check
-      if (!u->operand->declMaybe()) {
+      if (!u->operand->isLValue()) {
         sema.error(u->pos, "cannot take address of an rvalue");
         return nullptr;
       }
@@ -755,8 +760,8 @@ Type *TypeChecker::visitVarDecl(VarDecl *v) {
   walk_var_decl(*this, v);
 
   // The 'type's on the RHS below _may_ be nullptr, for cases such as RHS being
-  // StructDefExpr whose designator failed to typecheck its assignment.  Below
-  // code passes along the nullptr for those cases.
+  // StructDefExpr whose designator failed to typecheck its assignment.  The
+  // code below passes along the nullptr for those cases.
   if (v->type_expr) {
     v->type = v->type_expr->type;
   } else if (v->assign_expr) {
@@ -772,6 +777,16 @@ Type *TypeChecker::visitVarDecl(VarDecl *v) {
     v->type = v->assign_expr->type;
   } else {
     unreachable();
+  }
+
+  // Populate children decls for structs.
+  if (v->type && v->type->isStruct()) {
+    assert(v->children.empty());
+    for (auto field : v->type->getStructDecl()->fields) {
+      auto field_var_decl =
+          makeAnonymousVarDecl(sema, field->type, v->mut);
+      v->children.push_back({field->name, field_var_decl});
+    }
   }
 
   return v->type;
@@ -1003,19 +1018,63 @@ void registerBorrow(Sema &sema, VarDecl *borrowee, size_t borrowee_pos) {
   sema.borrow_table.insert(borrowee, BorrowMap{borrowee, old_borrow_count + 1});
 }
 
+void borrowCheckAssignment(Sema &sema, VarDecl *v, const Expr *rhs) {
+  if (rhs->type->isReference()) {
+    // 'Implicit' copying of a borrow, e.g. 'ref1 = ref2'.
+    //
+    // Diff. between &a and ref:
+    //   - one is lvalue, and the other is rvalue.
+    // TODO: What about 'ref1 = returns_ref()'?
+    if (rhs->isLValue()) {
+      v->borrowee = rhs->getLValueDecl()->borrowee;
+    }
+    // Explicit borrowing statement, e.g. 'a = &b'.
+    else if (isReferenceExpr(rhs)) {
+      // Reference operators are only applicable on l-values, so it is safe to
+      // do getLValueDecl() on rhs_deref.
+      //
+      // TODO: check multiple borrowing rule
+      // TODO: mutable and immutable
+      auto rhs_deref = rhs->as<UnaryExpr>()->operand;
+      v->borrowee = rhs_deref->getLValueDecl();
+    }
+    else {
+      assert(false && "didn't think about this");
+    }
+
+    if (!v->borrowee) {
+      sema.error(rhs->pos, "TODO: borrowee still null");
+      return;
+    }
+  }
+  // TBH this if-else chain is a little scuffed.
+  else if (rhs->kind == ExprKind::struct_def) {
+    for (auto desig : rhs->as<StructDefExpr>()->desigs) {
+      if (!isReferenceExpr(desig.init_expr)) continue;
+
+      // Find child decl by name.
+      VarDecl *child = nullptr;
+      for (auto c : v->children) {
+        if (c.first == desig.name) {
+          child = c.second;
+          break;
+        }
+      }
+
+      // Pattern-match-like recursion!
+      //
+      // This works because every l-value has a VarDecl.
+      borrowCheckAssignment(sema, child, desig.init_expr);
+    }
+    return;
+  }
+}
+
 void BorrowChecker::visitAssignStmt(AssignStmt *as) {
   walk_assign_stmt(*this, as);
 
-  if (isReferenceExpr(as->rhs)) {
-    // check multiple borrowing rule
-    // TODO: mutable and immutable
-    auto rhs_deref = as->rhs->as<UnaryExpr>()->operand;
-    assert(as->lhs->declMaybe().has_value());
-    assert(rhs_deref->declMaybe().has_value());
-    auto lhs_decl = (*as->lhs->declMaybe())->as<VarDecl>();
-    auto rhs_deref_decl = (*rhs_deref->declMaybe())->as<VarDecl>();
-    lhs_decl->borrowee = rhs_deref_decl;
-  }
+  auto lhs_decl = as->lhs->getLValueDecl();
+  borrowCheckAssignment(sema, lhs_decl, as->rhs);
 }
 
 void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
@@ -1040,8 +1099,8 @@ void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
     // TODO: refactor into find_exact()
     auto sym = sema.live_list.find(var->borrowee);
     if (!(sym && sym->value == var->borrowee)) {
-      sema.error(d->pos, "'%s' does not live long enough",
-                 var->borrowee->name->str());
+      sema.error(d->pos, "'%s' does not live long enough", "TODO"
+                 /*var->borrowee->name->str()*/);
       return;
     }
   }
@@ -1118,11 +1177,10 @@ void BorrowChecker::visitStructDefExpr(StructDefExpr *s) {
   walk_struct_def_expr(*this, s);
 
   for (auto desig : s->desigs) {
-    if (!isReferenceExpr(desig.expr)) continue;
-
-    // FIXME: touching desig.decl might be pointless
-    auto rhs_deref = desig.expr->as<UnaryExpr>()->operand;
-    desig.decl->borrowee = (*rhs_deref->declMaybe())->as<VarDecl>();
+    if (isReferenceExpr(desig.init_expr)) {
+      auto rhs_deref = desig.init_expr->as<UnaryExpr>()->operand;
+      // TODO: desig.decl->borrowee = rhs_deref->getLValueDecl();
+    }
   }
 }
 
@@ -1149,11 +1207,12 @@ void BorrowChecker::visitVarDecl(VarDecl *v) {
   walk_var_decl(*this, v);
 
   sema.live_list.insert(v, v);
+  for (auto child : v->children) {
+    sema.live_list.insert(child.second, child.second);
+  }
 
-  if (v->assign_expr && isReferenceExpr(v->assign_expr)) {
-    // store borrowee relationship
-    auto rhs_deref = v->assign_expr->as<UnaryExpr>()->operand;
-    v->borrowee = (*rhs_deref->declMaybe())->as<VarDecl>();
+  if (v->assign_expr) {
+    borrowCheckAssignment(sema, v, v->assign_expr);
   }
 }
 
@@ -1197,7 +1256,7 @@ void CodeGenerator::visitStructDefExpr(StructDefExpr *s) {
   emitCont(" {{");
   for (const auto desig : s->desigs) {
     emitCont(".{} = ", desig.name->str());
-    visitExpr(desig.expr);
+    visitExpr(desig.init_expr);
     emitCont(", ");
   }
   emitCont("}}");

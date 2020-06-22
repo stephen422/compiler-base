@@ -202,11 +202,14 @@ struct Expr : public AstNode {
 
   Expr(ExprKind e) : AstNode(AstKind::expr), kind(e), type(nullptr) {}
 
+  std::optional<Decl *> declMaybe() const;
+
   // Is this expression an L-value?
   bool isLValue() const;
 
-  // TODO: I think this function is somehow related to lvalue determination.
-  std::optional<Decl *> declMaybe() const;
+  // Get the VarDecl object that binds to this L-value.
+  // Be sure to check isLValue() before or otherwise this call will be unsafe.
+  VarDecl *getLValueDecl() const;
 };
 
 struct IntegerLiteral : public Expr {
@@ -249,7 +252,7 @@ struct FuncCallExpr : public Expr {
 struct StructFieldDesignator {
     Name *name = nullptr;
     VarDecl *decl = nullptr;
-    Expr *expr = nullptr;
+    Expr *init_expr = nullptr;
 };
 
 // 'Struct { .m1 = .e1, .m2 = e2, ... }'

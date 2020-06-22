@@ -30,10 +30,6 @@ get_ast_range(std::initializer_list<AstNode *> nodes) {
   return {min, max};
 }
 
-bool Expr::isLValue() const {
-  return declMaybe().has_value() && (*declMaybe())->is<VarDecl>();
-}
-
 std::optional<Decl *> Expr::declMaybe() const {
   switch (kind) {
   case ExprKind::decl_ref:
@@ -51,6 +47,15 @@ std::optional<Decl *> Expr::declMaybe() const {
     break;
   }
   return {};
+}
+
+bool Expr::isLValue() const {
+  return declMaybe().has_value() && (*declMaybe())->is<VarDecl>();
+}
+
+VarDecl *Expr::getLValueDecl() const {
+  assert(isLValue());
+  return (*declMaybe())->as<VarDecl>();
 }
 
 // Return optional of 'type' member of Decl, or None if this Decl kind doesn't
@@ -255,7 +260,7 @@ void StructDefExpr::print() const {
     for (auto desig : desigs) {
         out() << fmt::format(".{}", desig.name->str()) << std::endl;
         PrintScope start;
-        desig.expr->print();
+        desig.init_expr->print();
     }
 }
 
