@@ -16,13 +16,16 @@ list(APPEND MY_COMPILE_FLAGS -Wall -Wextra -Wno-unused-parameter
 list(APPEND MY_LINK_FLAGS -fno-omit-frame-pointer)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  list(APPEND MY_COMPILE_FLAGS -fdiagnostics-color=always $<$<CONFIG:DEBUG>:-glldb>)
+  list(APPEND MY_COMPILE_FLAGS -fdiagnostics-color=always $<$<CONFIG:DEBUG>:-ggdb>)
 
-  # Selectively use LLD on Linux
   if(UNIX AND NOT APPLE)
-    list(APPEND MY_COMPILE_FLAGS -stdlib=libc++)
-    list(APPEND MY_LINK_FLAGS -fuse-ld=lld -stdlib=libc++ -rtlib=compiler-rt
-      -unwindlib=libunwind -Wl,-rpath=$ENV{HOME}/build/llvm/lib)
+    # Link to libc++
+    # list(APPEND MY_COMPILE_FLAGS -stdlib=libc++)
+    # list(APPEND MY_LINK_FLAGS -stdlib=libc++ -rtlib=compiler-rt
+    #   -unwindlib=libunwind -Wl,-rpath=$ENV{HOME}/build/llvm/lib)
+
+    # Selectively use LLD on Linux
+    list(APPEND MY_LINK_FLAGS -fuse-ld=lld)
   else()
     list(APPEND MY_LINK_FLAGS
       -Wl,-L$ENV{HOME}/build/llvm/lib -Wl,-rpath,$ENV{HOME}/build/llvm/lib)
