@@ -442,6 +442,7 @@ struct VarDecl : public Decl {
   // corresponds to the singular memory entity that each field of this
   // particular struct instance symbolizes.
   std::vector<std::pair<Name *, VarDecl *>> children;
+  VarDecl *parent = nullptr;
 
   VarDecl(Name *n, VarDeclKind k, Expr *t, Expr *expr)
       : Decl(DeclKind::var), name(n), kind(k), type_expr(t),
@@ -449,6 +450,8 @@ struct VarDecl : public Decl {
   VarDecl(Name *n, Type *t, bool m)
       : Decl(DeclKind::var), name(n), type(t), mut(m) {}
   void print() const override;
+
+  void addChild(Name *name, VarDecl *child);
 };
 
 // Function declaration.  There is no separate function definition: functions

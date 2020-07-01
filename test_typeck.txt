@@ -82,12 +82,17 @@ func main() {
 
         // mutable reference of an immutable variable
         let ii = 4
-        let v = var &ii // ERROR: cannot borrow 'ii' as mutable .* declared immutable
+        let v = var &ii // ERROR: cannot borrow 'ii' as mutable because .* declared immutable
         struct Val {
             a: int
         }
         let val = Val {.a = 3}
-        let p = var &val.a // ERROR: cannot borrow 'val.a' as mutable because 'val' is declared immutable
+
+        // TODO: 'a' -> 'val.a'
+        let p = var &val.a // ERROR: cannot borrow 'a' as mutable because .* declared immutable
+
+        // (*p).a // ERROR: 'p' is an immutable reference
+        // (*m.a).b // ERROR: 'm.a' is an immutable reference
 
         var imm_ptr: &int
         imm_ptr = var &i

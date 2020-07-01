@@ -75,6 +75,11 @@ std::optional<Type *> Decl::type() const {
   assert(false && "not all decl kinds handled");
 }
 
+void VarDecl::addChild(Name *name, VarDecl *child) {
+  child->parent = this;
+  children.push_back({name, child});
+}
+
 bool FuncDecl::isVoid(Sema &sema) const {
   return ret_type == sema.context.void_type;
 }
