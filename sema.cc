@@ -318,8 +318,31 @@ VarDecl *makeAnonymousVarDecl(Sema &sema, Type *type, bool mut) {
   return v;
 }
 
+bool mutabilityCheckAssignment(Sema &sema, const Expr *lhs) {
+  if (lhs->kind == ExprKind::member) {
+    // For MemberExprs, assignability depends on that of its struct side.
+    return mutabilityCheckAssignment(sema, lhs->as<MemberExpr>()->struct_expr);
+  } else if (isDereferenceExpr(lhs)) {
+    auto unary = lhs->as<UnaryExpr>();
+    if (unary->operand->type->kind != TypeKind::var_ref) {
+      sema.error(unary->pos, "'%s' is not a mutable reference",
+                 unary->operand->getLValueDecl()->name->str());
+      return false;
+    }
+  } else {
+    auto var_decl = lhs->getLValueDecl();
+    if (var_decl && !var_decl->mut) {
+      sema.error(lhs->pos, "'%s' is not declared as mutable",
+                 var_decl->name->str());
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // Typecheck assignment statement of 'lhs = rhs'.
-bool typecheckAssignment(const Type *lhs, const Type *rhs) {
+bool typeCheckAssignment(const Type *lhs, const Type *rhs) {
   // TODO: Typecheck assignment rules so far:
   //
   // 1. Reference <- mutable reference.
@@ -329,7 +352,7 @@ bool typecheckAssignment(const Type *lhs, const Type *rhs) {
   if (lhs->kind == TypeKind::ref && rhs->isReference()) {
     // TODO: 'unification'? Ref:
     // http://smallcultfollowing.com/babysteps/blog/2017/03/25/unification-in-chalk-part-1/
-    return typecheckAssignment(lhs->referee_type, rhs->referee_type);
+    return typeCheckAssignment(lhs->referee_type, rhs->referee_type);
   }
   return lhs == rhs;
 }
@@ -357,24 +380,10 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
   }
 
   // Mutability check.
-  if (isDereferenceExpr(as->lhs)) {
-    auto unary = as->lhs->as<UnaryExpr>();
-    if (unary->operand->type->kind != TypeKind::var_ref) {
-      sema.error(unary->pos,
-                 "cannot assign to a dereference of an immutable reference");
-      return nullptr;
-    }
-  } else {
-    auto var_decl = as->lhs->getLValueDecl();
-    if (var_decl && !var_decl->mut) {
-      sema.error(as->pos, "'%s' is not declared as mutable",
-                 var_decl->name->str());
-      return nullptr;
-    }
-  }
+  if (!mutabilityCheckAssignment(sema, as->lhs)) return nullptr;
 
   // Type compatibility check.
-  if (!typecheckAssignment(lhs_ty, rhs_ty)) {
+  if (!typeCheckAssignment(lhs_ty, rhs_ty)) {
     sema.error(as->pos, "cannot assign '%s' type to '%s'", rhs_ty->name->str(),
                lhs_ty->name->str());
     return nullptr;
@@ -412,7 +421,7 @@ Type *TypeChecker::visitReturnStmt(ReturnStmt *rs) {
     return nullptr;
   }
 
-  if (!typecheckAssignment(func_decl->ret_type, rs->expr->type)) {
+  if (!typeCheckAssignment(func_decl->ret_type, rs->expr->type)) {
     sema.error(rs->expr->pos,
                "return type mismatch: function returns '%s', but got '%s'",
                func_decl->ret_type->name->str(), rs->expr->type->name->str());
@@ -509,7 +518,7 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
       return nullptr;
     }
 
-    if (!typecheckAssignment(field_decl->type, desig.init_expr->type)) {
+    if (!typeCheckAssignment(field_decl->type, desig.init_expr->type)) {
       sema.error(desig.init_expr->pos, "cannot assign '%s' type to '%s'",
                  desig.init_expr->type->name->str(), field_decl->type->name->str());
       return nullptr;

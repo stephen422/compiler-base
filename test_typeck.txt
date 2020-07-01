@@ -49,7 +49,7 @@ func main() {
     let c_imm: Car
     c_imm = car // ERROR: 'c_imm' is not declared as mutable
     c_imm.wheel = 3 // ERROR: 'c_imm' is not declared as mutable
-    *(c_imm.gear) = 4 // ERROR: cannot assign .* immutable reference
+    *(c_imm.gear) = 4 // ERROR: 'gear' is not a mutable reference
     var c1: Car
     c1.wheel = 3
 
@@ -96,9 +96,9 @@ func main() {
 
         var imm_ptr: &int
         imm_ptr = var &i
-        *imm_ptr = 3 // ERROR: cannot assign .* immutable reference
-        *(imm_ptr) = 3 // ERROR: cannot assign .* immutable reference
-        *imm_ptr = car // ERROR: cannot assign .* immutable reference
+        *imm_ptr = 3 // ERROR: 'imm_ptr' is not a mutable reference
+        *(imm_ptr) = 3 // ERROR: 'imm_ptr' is not a mutable reference
+        *imm_ptr = car // ERROR: 'imm_ptr' is not a mutable reference
         imm_ptr = &i
         let mut_ptr: var &int
         *mut_ptr = 3
