@@ -379,15 +379,19 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
     return nullptr;
   }
 
-  // Mutability check.
-  if (!mutabilityCheckAssignment(sema, as->lhs)) return nullptr;
-
   // Type compatibility check.
   if (!typeCheckAssignment(lhs_ty, rhs_ty)) {
     sema.error(as->pos, "cannot assign '%s' type to '%s'", rhs_ty->name->str(),
                lhs_ty->name->str());
     return nullptr;
   }
+
+  // Mutability check.
+  //
+  // Type compatibility check precedes this, because a type mismatch on an
+  // assignment is likely to signify a larger error in the source code than a
+  // mutability error (which can mostly be fixed with a single keyword change).
+  if (!mutabilityCheckAssignment(sema, as->lhs)) return nullptr;
 
   // Copyability check.
   //

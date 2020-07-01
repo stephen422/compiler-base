@@ -98,11 +98,11 @@ func main() {
         imm_ptr = var &i
         *imm_ptr = 3 // ERROR: 'imm_ptr' is not a mutable reference
         *(imm_ptr) = 3 // ERROR: 'imm_ptr' is not a mutable reference
-        *imm_ptr = car // ERROR: 'imm_ptr' is not a mutable reference
+        *imm_ptr = car // ERROR: cannot assign 'Car' type to 'int'
         imm_ptr = &i
         let mut_ptr: var &int
         *mut_ptr = 3
-        mut_ptr = i // ERROR: 'mut_ptr' is not declared as mutable
+        mut_ptr = var &i // ERROR: 'mut_ptr' is not declared as mutable
     }
 
     let pcar: &Car
