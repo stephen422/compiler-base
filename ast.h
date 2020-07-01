@@ -366,6 +366,28 @@ enum class DeclKind {
   bad,
 };
 
+template <typename T> bool decl_is(const DeclKind kind) {
+  assert(false && "unhandled DeclNode type");
+}
+template <> inline bool decl_is<VarDecl>(const DeclKind kind) {
+  return kind == DeclKind::var;
+}
+template <> inline bool decl_is<FuncDecl>(const DeclKind kind) {
+  return kind == DeclKind::func;
+}
+template <> inline bool decl_is<StructDecl>(const DeclKind kind) {
+  return kind == DeclKind::struct_;
+}
+template <> inline bool decl_is<EnumVariantDecl>(const DeclKind kind) {
+  return kind == DeclKind::enum_variant;
+}
+template <> inline bool decl_is<EnumDecl>(const DeclKind kind) {
+  return kind == DeclKind::enum_;
+}
+template <> inline bool decl_is<BadDecl>(const DeclKind kind) {
+  return kind == DeclKind::bad;
+}
+
 // A declaration node.
 //
 // All Decl derived types has a pointer field called 'name'. The value of this
@@ -376,13 +398,7 @@ public:
 
   Decl(DeclKind d) : AstNode(AstKind::decl), kind(d) {}
 
-  template <typename T> bool is() const { assert(false && "unhandled DeclNode type"); }
-  template <> bool is<VarDecl>() const { return kind == DeclKind::var; }
-  template <> bool is<FuncDecl>() const { return kind == DeclKind::func; }
-  template <> bool is<StructDecl>() const { return kind == DeclKind::struct_; }
-  template <> bool is<EnumVariantDecl>() const { return kind == DeclKind::enum_variant; }
-  template <> bool is<EnumDecl>() const { return kind == DeclKind::enum_; }
-  template <> bool is<BadDecl>() const { return kind == DeclKind::bad; }
+  template <typename T> bool is() const { return decl_is<T>(kind); }
 
   std::optional<Type *> type() const;
 };
