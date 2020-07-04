@@ -57,24 +57,6 @@ struct NameTable {
   std::unordered_map<std::string, Name> map;
 };
 
-// 'Decl' represents declaration of a variable, a function, or a type.
-// All Decls are stored in a global pool.  Scoped Decl tables act on the
-// references of these pooled Decls to determine undeclared-use or
-// redefinition.
-// TODO: Clarify the definition. Should type names have a Decl too?  What is
-// the 'type' member of a StructDecl?
-
-// Elementary types, stripped of informations such as reference.
-// They include built-in value types such as int and bool, and user-declared
-// structs and enums.  They are meant to exist as singular instances, and their
-// comparison is done by a direct pointer comparison.
-struct BaseType {
-    Name *name = nullptr;
-    // Back-reference to the Decl object that defines this type.
-    // XXX: not used?
-    // Decl decl;
-};
-
 enum class TypeKind {
     value, // built-in, struct
     ref,
@@ -120,6 +102,7 @@ struct Type {
 
   const char *str() const { return name->str(); }
 
+  bool isBuiltinType(Sema &sema) const;
   bool isReference() const {
     return kind == TypeKind::ref || kind == TypeKind::var_ref;
   }

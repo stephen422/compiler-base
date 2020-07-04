@@ -45,6 +45,11 @@ func move() {
         c // ERROR: use of moved value
         c.m // ERROR: use of moved value
     }
+
+    // Built-in types should not be caught.
+    let a = 42
+    let b = a
+    a
 }
 
 func f(ptr: &int) {

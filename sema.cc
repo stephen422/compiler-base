@@ -31,23 +31,30 @@ Type::Type(Name *n, bool mut, Type *bt) : name(n), referee_type(bt) {
   copyable = !mut;
 }
 
-inline bool Type::isStruct() const {
+bool Type::isBuiltinType(Sema &sema) const {
+  return this == sema.context.int_type
+      || this == sema.context.char_type
+      || this == sema.context.void_type
+      || this == sema.context.string_type;
+}
+
+bool Type::isStruct() const {
   // TODO: should base_type be null too?
   return kind == TypeKind::value && type_decl && type_decl->is<StructDecl>();
 }
 
-inline bool Type::isEnum() const {
+bool Type::isEnum() const {
   // TODO: should base_type be null too?
   return kind == TypeKind::value && type_decl &&
     type_decl->is<EnumDecl>();
 }
 
-inline StructDecl *Type::getStructDecl() {
+StructDecl *Type::getStructDecl() {
   assert(isStruct());
   return type_decl->as<StructDecl>();
 }
 
-inline EnumDecl *Type::getEnumDecl() {
+EnumDecl *Type::getEnumDecl() {
   assert(isEnum());
   return type_decl->as<EnumDecl>();
 }
@@ -223,11 +230,7 @@ void NameBinding::visitStructDecl(StructDecl *s) {
   // Decl table is used for checking redefinition when parsing the member
   // list.
   sema.decl_table.scope_open();
-  sema.context.struct_decl_stack.push_back(s);
-
   walk_struct_decl(*this, s);
-
-  sema.context.struct_decl_stack.pop_back();
   sema.decl_table.scope_close();
 }
 
@@ -1064,12 +1067,14 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, const Expr *rhs, bool move) {
       }
     }
     assert(v->borrowee && "borrowee still null");
-  } else if (rhs->isLValue()) {
+  } else if (rhs->isLValue() && !rhs->type->isBuiltinType(sema)) {
     // Move of an LValue, e.g. 'a <- b'.
     //
     // TODO: Invalidate RHS here. Program must still run even without this
     // invalidation, because access to the moved out value is forbidden in the
     // semantic phase.
+
+    // TODO: check built-in type
     rhs->getLValueDecl()->moved = true;
   }
 }
