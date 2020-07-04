@@ -11,15 +11,6 @@
 
 using namespace cmp;
 
-// TODO: Decl::str()
-// std::string VarDecl::str() const {
-//     return name->str();
-// }
-// 
-// std::string StructDecl::str() const {
-//     return name->str();
-// }
-
 void Sema::error(size_t pos, const char *fmt, ...) {
     char buf[BUFSIZE];
     memset(buf, 0, BUFSIZE);
@@ -401,8 +392,6 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
   //
   //     let s1 = S {...};
   //
-  // TODO: verify ->decl() is the right way to determine if a value is
-  // temporary.
   // TODO: there's a copy-paste of this code somewhere else.
   if (as->rhs->declMaybe() && !rhs_ty->copyable) {
     sema.error(as->rhs->pos, "cannot copy non-copyable type '%s'",
@@ -415,7 +404,7 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
 
 Type *TypeChecker::visitReturnStmt(ReturnStmt *rs) {
   visitExpr(rs->expr);
-  if (!rs->expr->type) return nullptr; // TODO
+  if (!rs->expr->type) return nullptr;
 
   assert(!sema.context.func_decl_stack.empty());
   auto func_decl = sema.context.func_decl_stack.back();
@@ -745,8 +734,8 @@ Type *TypeChecker::visitTypeExpr(TypeExpr *t) {
 
   if (t->kind == TypeExprKind::value) {
     // t->decl should be non-null after the name binding stage.
-    // And since we are currently doing single-pass (TODO), its type should
-    // also be resolved by now.
+    // And since we are currently doing single-pass, its type should also be
+    // resolved by now.
     t->type = *t->decl->type();
     assert(t->type && "type not resolved in corresponding *Decl");
   } else if (t->kind == TypeExprKind::ref || t->kind == TypeExprKind::var_ref) {
@@ -1047,9 +1036,8 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, const Expr *rhs) {
     if (rhs->isLValue()) {
       // 'Implicit' copying of a borrow, e.g. 'ref1 = ref2'.
       //
-      // Diff. between &a and ref:
-      //   - one is lvalue, and the other is rvalue.
       // TODO: What about 'ref1 = returns_ref()'?
+      // Rewrite it to 'ref1 = { var temp = returns_ref() }' and do a move?
       v->borrowee = rhs->getLValueDecl()->borrowee;
     } else if (isReferenceExpr(rhs)) {
       // Explicit borrowing statement, e.g. 'a = &b'.
@@ -1080,13 +1068,26 @@ void BorrowChecker::visitAssignStmt(AssignStmt *as) {
 }
 
 void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
-  // A reference always points to an l-value.  This means we can always retrieve
-  // the Decl of the referee object. Thus, for every borrowing expressions in
-  // the return statement, we can check if the Decl of the referee is present in
-  // the current function scope to find lifetime errors.
+  // For every borrowing expressions in the return statement, we can check if
+  // the Decl of the referee is present in the current function scope to find
+  // lifetime errors.
   in_return_stmt = true;
   walk_return_stmt(*this, rs);
   in_return_stmt = false;
+}
+
+void BorrowChecker::visitExpr(Expr *e) {
+  AstVisitor<BorrowChecker, void>::visitExpr(e);
+
+  // At this point, other borrowck errors such as use-after-free would have been
+  // caught in the calls originated from the above visitExpr().
+  if (in_return_stmt && e->type->isReference()) {
+    if (e->isLValue()) {
+      auto sym = sema.live_list.find(e->getLValueDecl()->borrowee);
+      // TODO right now
+    } else if (isReferenceExpr(e)) {
+    }
+  }
 }
 
 // Rule: a variable of lifetime 'a should only refer to a variable whose
@@ -1180,7 +1181,7 @@ void BorrowChecker::visitStructDefExpr(StructDefExpr *s) {
 
   for (auto desig : s->desigs) {
     if (isReferenceExpr(desig.init_expr)) {
-      auto rhs_deref = desig.init_expr->as<UnaryExpr>()->operand;
+      // auto rhs_deref = desig.init_expr->as<UnaryExpr>()->operand;
       // TODO: desig.decl->borrowee = rhs_deref->getLValueDecl();
     }
   }

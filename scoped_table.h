@@ -2,6 +2,7 @@
 #define SCOPED_TABLE_H
 
 #include <array>
+#include <vector>
 
 namespace cmp {
 

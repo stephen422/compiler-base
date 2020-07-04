@@ -15,251 +15,236 @@ namespace cmp {
 // defined here.  See commit log b7e6113.
 template <typename Derived, typename RetTy = void, typename... Args>
 class AstVisitor {
-    // 'Derived this'. By calling visitors and walkers through the return
-    // pointer of this function, the base class can access the derived visitor
-    // implementations.
-    constexpr Derived *dis() { return static_cast<Derived *>(this); }
+  // 'Derived this'. By calling visitors and walkers through the return
+  // pointer of this function, the base class can access the derived visitor
+  // implementations.
+  constexpr Derived *dis() { return static_cast<Derived *>(this); }
 
 public:
-    //
-    // AST visitor functions.
-    //
-    // These are to be overridden by the specialized visitor classes. They
-    // provide a default behavior of simply traversing the node, acting nothing
-    // upon them.
-    //
+  //
+  // AST visitor functions.
+  //
+  // These are to be overridden by the specialized visitor classes. They
+  // provide a default behavior of simply traversing the node, acting nothing
+  // upon them.
+  //
 
-    RetTy visitFile(File *f, Args... args) {
-        walk_file(*dis(), f, args...);
-        return RetTy();
+  RetTy visitFile(File *f, Args... args) {
+    walk_file(*dis(), f, args...);
+    return RetTy();
+  }
+  RetTy visitToplevel(AstNode *a, Args... args) {
+    switch (a->kind) {
+    case AstKind::stmt:
+      return dis()->visitStmt(static_cast<Stmt *>(a), args...);
+      break;
+    case AstKind::decl:
+      return dis()->visitDecl(static_cast<Decl *>(a), args...);
+      break;
+    default:
+      assert(false && "not a toplevel node");
     }
-    RetTy visitToplevel(AstNode *a, Args... args) {
-        switch (a->kind) {
-        case AstKind::stmt:
-            return dis()->visitStmt(static_cast<Stmt *>(a), args...);
-            break;
-        case AstKind::decl:
-            return dis()->visitDecl(static_cast<Decl *>(a), args...);
-            break;
-        default:
-            assert(false && "not a toplevel node");
-        }
-        return RetTy();
+    return RetTy();
+  }
+  RetTy visitStmt(Stmt *s, Args... args) {
+    switch (s->kind) {
+    case StmtKind::decl:
+      return dis()->visitDeclStmt(static_cast<DeclStmt *>(s), args...);
+      break;
+    case StmtKind::expr:
+      return dis()->visitExprStmt(static_cast<ExprStmt *>(s), args...);
+      break;
+    case StmtKind::assign:
+      return dis()->visitAssignStmt(static_cast<AssignStmt *>(s), args...);
+      break;
+    case StmtKind::return_:
+      return dis()->visitReturnStmt(static_cast<ReturnStmt *>(s), args...);
+      break;
+    case StmtKind::compound:
+      return dis()->visitCompoundStmt(static_cast<CompoundStmt *>(s), args...);
+      break;
+    case StmtKind::if_:
+      return dis()->visitIfStmt(static_cast<IfStmt *>(s), args...);
+      break;
+    case StmtKind::builtin:
+      return dis()->visitBuiltinStmt(static_cast<BuiltinStmt *>(s), args...);
+      break;
+    case StmtKind::bad:
+      // do nothing
+      break;
+    default:
+      assert(false);
     }
-    RetTy visitStmt(Stmt *s, Args... args) {
-        switch (s->kind) {
-        case StmtKind::decl:
-            return dis()->visitDeclStmt(static_cast<DeclStmt *>(s), args...);
-            break;
-        case StmtKind::expr:
-            return dis()->visitExprStmt(static_cast<ExprStmt *>(s), args...);
-            break;
-        case StmtKind::assign:
-            return dis()->visitAssignStmt(static_cast<AssignStmt *>(s),
-                                          args...);
-            break;
-        case StmtKind::return_:
-            return dis()->visitReturnStmt(static_cast<ReturnStmt *>(s),
-                                          args...);
-            break;
-        case StmtKind::compound:
-            return dis()->visitCompoundStmt(static_cast<CompoundStmt *>(s),
-                                            args...);
-            break;
-        case StmtKind::if_:
-            return dis()->visitIfStmt(static_cast<IfStmt *>(s), args...);
-            break;
-        case StmtKind::builtin:
-            return dis()->visitBuiltinStmt(static_cast<BuiltinStmt *>(s),
-                                           args...);
-            break;
-        case StmtKind::bad:
-            // do nothing
-            break;
-        default:
-            assert(false);
-        }
-        return RetTy();
+    return RetTy();
+  }
+  RetTy visitDeclStmt(DeclStmt *ds, Args... args) {
+    walk_decl_stmt(*dis(), ds, args...);
+    return RetTy();
+  }
+  RetTy visitExprStmt(ExprStmt *es, Args... args) {
+    walk_expr_stmt(*dis(), es, args...);
+    return RetTy();
+  }
+  RetTy visitAssignStmt(AssignStmt *as, Args... args) {
+    walk_assign_stmt(*dis(), as, args...);
+    return RetTy();
+  }
+  RetTy visitReturnStmt(ReturnStmt *rs, Args... args) {
+    walk_return_stmt(*dis(), rs, args...);
+    return RetTy();
+  }
+  RetTy visitCompoundStmt(CompoundStmt *cs, Args... args) {
+    walk_compound_stmt(*dis(), cs, args...);
+    return RetTy();
+  }
+  RetTy visitIfStmt(IfStmt *is, Args... args) {
+    walk_if_stmt(*dis(), is, args...);
+    return RetTy();
+  }
+  RetTy visitBuiltinStmt(BuiltinStmt *bs, Args... args) {
+    // nothing to walk
+    return RetTy();
+  }
+  RetTy visitDecl(Decl *d, Args... args) {
+    switch (d->kind) {
+    case DeclKind::var:
+      return dis()->visitVarDecl(static_cast<VarDecl *>(d), args...);
+      break;
+    case DeclKind::func:
+      return dis()->visitFuncDecl(static_cast<FuncDecl *>(d), args...);
+      break;
+    case DeclKind::struct_:
+      return dis()->visitStructDecl(static_cast<StructDecl *>(d), args...);
+      break;
+    case DeclKind::enum_variant:
+      return dis()->visitEnumVariantDecl(static_cast<EnumVariantDecl *>(d),
+                                         args...);
+      break;
+    case DeclKind::enum_:
+      return dis()->visitEnumDecl(static_cast<EnumDecl *>(d), args...);
+      break;
+    case DeclKind::bad:
+      // do nothing
+      break;
+    default:
+      assert(false);
     }
-    RetTy visitDeclStmt(DeclStmt *ds, Args... args) {
-        walk_decl_stmt(*dis(), ds, args...);
-        return RetTy();
-    }
-    RetTy visitExprStmt(ExprStmt *es, Args... args) {
-        walk_expr_stmt(*dis(), es, args...);
-        return RetTy();
-    }
-    RetTy visitAssignStmt(AssignStmt *as, Args... args) {
-        walk_assign_stmt(*dis(), as, args...);
-        return RetTy();
-    }
-    RetTy visitReturnStmt(ReturnStmt *rs, Args... args) {
-        walk_return_stmt(*dis(), rs, args...);
-        return RetTy();
-    }
-    RetTy visitCompoundStmt(CompoundStmt *cs, Args... args) {
-        walk_compound_stmt(*dis(), cs, args...);
-        return RetTy();
-    }
-    RetTy visitIfStmt(IfStmt *is, Args... args) {
-        walk_if_stmt(*dis(), is, args...);
-        return RetTy();
-    }
-    RetTy visitBuiltinStmt(BuiltinStmt *bs, Args... args) {
-        // nothing to walk
-        return RetTy();
-    }
-    RetTy visitDecl(Decl *d, Args... args) {
-        switch (d->kind) {
-        case DeclKind::var:
-            return dis()->visitVarDecl(static_cast<VarDecl *>(d), args...);
-            break;
-        case DeclKind::func:
-            return dis()->visitFuncDecl(static_cast<FuncDecl *>(d),
+    return RetTy();
+  }
+  RetTy visitVarDecl(VarDecl *v, Args... args) {
+    walk_var_decl(*dis(), v, args...);
+    return RetTy();
+  }
+  RetTy visitFuncDecl(FuncDecl *f, Args... args) {
+    walk_func_decl(*dis(), f, args...);
+    return RetTy();
+  }
+  RetTy visitStructDecl(StructDecl *s, Args... args) {
+    walk_struct_decl(*dis(), s, args...);
+    return RetTy();
+  }
+  RetTy visitEnumVariantDecl(EnumVariantDecl *e, Args... args) {
+    walk_enum_variant_decl(*dis(), e, args...);
+    return RetTy();
+  }
+  RetTy visitEnumDecl(EnumDecl *e, Args... args) {
+    walk_enum_decl(*dis(), e, args...);
+    return RetTy();
+  }
+  RetTy visitExpr(Expr *e, Args... args) {
+    switch (e->kind) {
+    case ExprKind::integer_literal:
+      return dis()->visitIntegerLiteral(static_cast<IntegerLiteral *>(e),
                                         args...);
-            break;
-        case DeclKind::struct_:
-            return dis()->visitStructDecl(static_cast<StructDecl *>(d),
-                                          args...);
-            break;
-        case DeclKind::enum_variant:
-            return dis()->visitEnumVariantDecl(
-                static_cast<EnumVariantDecl *>(d), args...);
-            break;
-        case DeclKind::enum_:
-            return dis()->visitEnumDecl(static_cast<EnumDecl *>(d),
-                                        args...);
-            break;
-        case DeclKind::bad:
-            // do nothing
-            break;
-        default:
-            assert(false);
-        }
-        return RetTy();
+      break;
+    case ExprKind::string_literal:
+      return dis()->visitStringLiteral(static_cast<StringLiteral *>(e),
+                                       args...);
+      // do nothing
+      break;
+    case ExprKind::decl_ref:
+      return dis()->visitDeclRefExpr(static_cast<DeclRefExpr *>(e), args...);
+      break;
+    case ExprKind::func_call:
+      return dis()->visitFuncCallExpr(static_cast<FuncCallExpr *>(e), args...);
+      break;
+    case ExprKind::struct_def:
+      return dis()->visitStructDefExpr(static_cast<StructDefExpr *>(e),
+                                       args...);
+      break;
+    case ExprKind::member:
+      return dis()->visitMemberExpr(static_cast<MemberExpr *>(e), args...);
+      break;
+    case ExprKind::unary:
+      return dis()->visitUnaryExpr(static_cast<UnaryExpr *>(e), args...);
+      break;
+    case ExprKind::binary:
+      return dis()->visitBinaryExpr(static_cast<BinaryExpr *>(e), args...);
+      break;
+    case ExprKind::type:
+      return dis()->visitTypeExpr(static_cast<TypeExpr *>(e), args...);
+      break;
+    case ExprKind::bad:
+      // do nothing
+      break;
+    default:
+      assert(false);
+      break;
     }
-    RetTy visitVarDecl(VarDecl *v, Args... args) {
-        walk_var_decl(*dis(), v, args...);
-        return RetTy();
+    return RetTy();
+  }
+  RetTy visitIntegerLiteral(IntegerLiteral *i, Args... args) {
+    // nothing to walk
+    return RetTy();
+  }
+  RetTy visitStringLiteral(StringLiteral *s, Args... args) {
+    // nothing to walk
+    return RetTy();
+  }
+  RetTy visitDeclRefExpr(DeclRefExpr *d, Args... args) {
+    // nothing to walk
+    return RetTy();
+  }
+  RetTy visitFuncCallExpr(FuncCallExpr *f, Args... args) {
+    walk_func_call_expr(*dis(), f, args...);
+    return RetTy();
+  }
+  RetTy visitStructDefExpr(StructDefExpr *s, Args... args) {
+    walk_struct_def_expr(*dis(), s, args...);
+    return RetTy();
+  }
+  RetTy visitMemberExpr(MemberExpr *m, Args... args) {
+    walk_member_expr(*dis(), m, args...);
+    return RetTy();
+  }
+  RetTy visitUnaryExpr(UnaryExpr *u, Args... args) {
+    switch (u->kind) {
+    case UnaryExprKind::paren:
+      return dis()->visitParenExpr(static_cast<ParenExpr *>(u), args...);
+      break;
+    case UnaryExprKind::ref:
+    case UnaryExprKind::var_ref:
+    case UnaryExprKind::deref:
+      return dis()->visitExpr(u->operand, args...);
+      break;
+    default:
+      assert(false && "inexhaustive kind");
+      break;
     }
-    RetTy visitFuncDecl(FuncDecl *f, Args... args) {
-        walk_func_decl(*dis(), f, args...);
-        return RetTy();
-    }
-    RetTy visitStructDecl(StructDecl *s, Args... args) {
-        walk_struct_decl(*dis(), s, args...);
-        return RetTy();
-    }
-    RetTy visitEnumVariantDecl(EnumVariantDecl *e, Args... args) {
-        walk_enum_variant_decl(*dis(), e, args...);
-        return RetTy();
-    }
-    RetTy visitEnumDecl(EnumDecl *e, Args... args) {
-        walk_enum_decl(*dis(), e, args...);
-        return RetTy();
-    }
-    RetTy visitExpr(Expr *e, Args... args) {
-        // Rather than calling walk_expr() here, we do a switch-case, because
-        // the visiting logic in a specialized visitor is likely to be different
-        // for each type of Expr and thus a similar switch-case will be used
-        // anyway.
-        switch (e->kind) {
-        case ExprKind::integer_literal:
-            return dis()->visitIntegerLiteral(static_cast<IntegerLiteral *>(e),
-                                              args...);
-            break;
-        case ExprKind::string_literal:
-            return dis()->visitStringLiteral(static_cast<StringLiteral *>(e),
-                                             args...);
-            // do nothing
-            break;
-        case ExprKind::decl_ref:
-            return dis()->visitDeclRefExpr(static_cast<DeclRefExpr *>(e),
-                                           args...);
-            break;
-        case ExprKind::func_call:
-            return dis()->visitFuncCallExpr(static_cast<FuncCallExpr *>(e),
-                                            args...);
-            break;
-        case ExprKind::struct_def:
-            return dis()->visitStructDefExpr(static_cast<StructDefExpr *>(e),
-                                             args...);
-            break;
-        case ExprKind::member:
-            return dis()->visitMemberExpr(static_cast<MemberExpr *>(e),
-                                          args...);
-            break;
-        case ExprKind::unary:
-            return dis()->visitUnaryExpr(static_cast<UnaryExpr *>(e), args...);
-            break;
-        case ExprKind::binary:
-            return dis()->visitBinaryExpr(static_cast<BinaryExpr *>(e),
-                                          args...);
-            break;
-        case ExprKind::type:
-            return dis()->visitTypeExpr(static_cast<TypeExpr *>(e), args...);
-            break;
-        case ExprKind::bad:
-            // do nothing
-            break;
-        default:
-            assert(false);
-            break;
-        }
-        return RetTy();
-    }
-    RetTy visitIntegerLiteral(IntegerLiteral *i, Args... args) {
-        // nothing to walk
-        return RetTy();
-    }
-    RetTy visitStringLiteral(StringLiteral *s, Args... args) {
-        // nothing to walk
-        return RetTy();
-    }
-    RetTy visitDeclRefExpr(DeclRefExpr *d, Args... args) {
-        // nothing to walk
-        return RetTy();
-    }
-    RetTy visitFuncCallExpr(FuncCallExpr *f, Args... args) {
-        walk_func_call_expr(*dis(), f, args...);
-        return RetTy();
-    }
-    RetTy visitStructDefExpr(StructDefExpr *s, Args... args) {
-        walk_struct_def_expr(*dis(), s, args...);
-        return RetTy();
-    }
-    RetTy visitMemberExpr(MemberExpr *m, Args... args) {
-        walk_member_expr(*dis(), m, args...);
-        return RetTy();
-    }
-    RetTy visitUnaryExpr(UnaryExpr *u, Args... args) {
-        switch (u->kind) {
-        case UnaryExprKind::paren:
-            return dis()->visitParenExpr(static_cast<ParenExpr *>(u), args...);
-            break;
-        case UnaryExprKind::ref:
-        case UnaryExprKind::var_ref:
-        case UnaryExprKind::deref:
-            return dis()->visitExpr(u->operand, args...);
-            break;
-        default:
-            assert(false && "inexhaustive kind");
-            break;
-        }
-        return RetTy();
-    }
-    RetTy visitParenExpr(ParenExpr *p, Args... args) {
-        walk_paren_expr(*dis(), p, args...);
-        return RetTy();
-    }
-    RetTy visitBinaryExpr(BinaryExpr *b, Args... args) {
-        walk_binary_expr(*dis(), b, args...);
-        return RetTy();
-    }
-    RetTy visitTypeExpr(TypeExpr *t, Args... args) {
-        walk_type_expr(*dis(), t, args...);
-        return RetTy();
-    }
+    return RetTy();
+  }
+  RetTy visitParenExpr(ParenExpr *p, Args... args) {
+    walk_paren_expr(*dis(), p, args...);
+    return RetTy();
+  }
+  RetTy visitBinaryExpr(BinaryExpr *b, Args... args) {
+    walk_binary_expr(*dis(), b, args...);
+    return RetTy();
+  }
+  RetTy visitTypeExpr(TypeExpr *t, Args... args) {
+    walk_type_expr(*dis(), t, args...);
+    return RetTy();
+  }
 };
 
 //

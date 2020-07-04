@@ -184,7 +184,7 @@ class BorrowChecker : public AstVisitor<BorrowChecker, void> {
   // Shows whether the current expression being visited is inside a return
   // statement, so that the borrow checker knows to check if this expression
   // borrows from a value declared in the local scope.
-  bool in_return_stmt;
+  bool in_return_stmt = false;
 
 public:
   BorrowChecker(Sema &s) : sema{s} {}
@@ -194,6 +194,7 @@ public:
   void visitAssignStmt(AssignStmt *as);
   void visitReturnStmt(ReturnStmt *rs);
 
+  void visitExpr(Expr *e);
   void visitDeclRefExpr(DeclRefExpr *d);
   void visitFuncCallExpr(FuncCallExpr *f);
   void visitStructDefExpr(StructDefExpr *s);
