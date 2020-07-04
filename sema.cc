@@ -1033,7 +1033,7 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, const Expr *rhs, bool move) {
         }
       }
 
-      borrowCheckAssignment(sema, child, desig.init_expr, move);
+      return borrowCheckAssignment(sema, child, desig.init_expr, move);
     }
   } else if (rhs->type->isReference()) {
     if (rhs->isLValue()) {
@@ -1073,8 +1073,6 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, const Expr *rhs, bool move) {
     // TODO: Invalidate RHS here. Program must still run even without this
     // invalidation, because access to the moved out value is forbidden in the
     // semantic phase.
-
-    // TODO: check built-in type
     rhs->getLValueDecl()->moved = true;
   }
 }

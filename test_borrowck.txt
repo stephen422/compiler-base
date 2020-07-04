@@ -46,10 +46,24 @@ func move() {
         c.m // ERROR: use of moved value
     }
 
-    // Built-in types should not be caught.
-    let a = 42
-    let b = a
-    a
+    {
+        let c = Copyable {.m = 3}
+        let p = &c
+        let c2 = *p // ERROR: cannot move out of '*p' because it will invalidate reference(s) to this value
+    }
+    
+    {
+        let c = Copyable {.m = 3}
+        let p = &c
+        c_out <- c // ERROR: cannot move out of 'c' because it is borrowed
+    }
+
+    // Built-in types should be exempt.
+    {
+        let a = 42
+        let b = a
+        a
+    }
 }
 
 func f(ptr: &int) {
@@ -95,7 +109,7 @@ struct StackRef {
 
 func stack_ref() -> &int {
     let empty_ref: &int
-    return empty_ref // ERROR: null borrow
+    return empty_ref // ERROR: TODO: null borrow
 
     let x = 3
     return &x // ERROR: TODO: return lifetime error
