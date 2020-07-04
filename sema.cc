@@ -1014,7 +1014,7 @@ void registerBorrow(Sema &sema, VarDecl *borrowee, size_t borrowee_pos) {
   sema.borrow_table.insert(borrowee, BorrowMap{borrowee, old_borrow_count + 1});
 }
 
-void borrowCheckAssignment(Sema &sema, VarDecl *v, const Expr *rhs) {
+void borrowCheckAssignment(Sema &sema, VarDecl *v, const Expr *rhs, bool move) {
   // Pattern-match-like recursion case.
   // This works because we guarantee that every l-value has a VarDecl.
   if (rhs->kind == ExprKind::struct_def) {
@@ -1030,7 +1030,7 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, const Expr *rhs) {
         }
       }
 
-      borrowCheckAssignment(sema, child, desig.init_expr);
+      borrowCheckAssignment(sema, child, desig.init_expr, move);
     }
   } else if (rhs->type->isReference()) {
     if (rhs->isLValue()) {
@@ -1038,9 +1038,16 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, const Expr *rhs) {
       //
       // TODO: What about 'ref1 = returns_ref()'?
       // Rewrite it to 'ref1 = { var temp = returns_ref() }' and do a move?
-      v->borrowee = rhs->getLValueDecl()->borrowee;
+      if (move) {
+        assert(false && "TODO: nullify reference in RHS");
+      } else {
+        v->borrowee = rhs->getLValueDecl()->borrowee;
+      }
     } else if (isReferenceExpr(rhs)) {
       // Explicit borrowing statement, e.g. 'a = &b'.
+      //
+      // Note that a move assignment with an rvalue RHS is the same as a copy,
+      // so both cases are treated in the same code below.
       //
       // TODO: check multiple borrowing rule
       // TODO: mutable and immutable
@@ -1057,6 +1064,13 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, const Expr *rhs) {
       }
     }
     assert(v->borrowee && "borrowee still null");
+  } else if (rhs->isLValue()) {
+    // Move of an LValue, e.g. 'a <- b'.
+    //
+    // TODO: Invalidate RHS here. Program must still run even without this
+    // invalidation, because access to the moved out value is forbidden in the
+    // semantic phase.
+    rhs->getLValueDecl()->moved = true;
   }
 }
 
@@ -1064,7 +1078,7 @@ void BorrowChecker::visitAssignStmt(AssignStmt *as) {
   walk_assign_stmt(*this, as);
 
   auto lhs_decl = as->lhs->getLValueDecl();
-  borrowCheckAssignment(sema, lhs_decl, as->rhs);
+  borrowCheckAssignment(sema, lhs_decl, as->rhs, as->move);
 }
 
 void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
@@ -1077,8 +1091,20 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
 }
 
 void BorrowChecker::visitExpr(Expr *e) {
+  // Use of moved value check.
+  // This is a pre-order step so that once a use-after-move error is detected,
+  // the traversal stops.
+  if (e->isLValue()) {
+    if (e->getLValueDecl()->moved) {
+      sema.error(e->pos, "use of moved value");
+      return;
+    }
+  }
+
   AstVisitor<BorrowChecker, void>::visitExpr(e);
 
+  // Return statement borrowck.
+  //
   // At this point, other borrowck errors such as use-after-free would have been
   // caught in the calls originated from the above visitExpr().
   if (in_return_stmt && e->type->isReference()) {
@@ -1215,7 +1241,9 @@ void BorrowChecker::visitVarDecl(VarDecl *v) {
   }
 
   if (v->assign_expr) {
-    borrowCheckAssignment(sema, v, v->assign_expr);
+    borrowCheckAssignment(
+        sema, v, v->assign_expr,
+        true /* because declarations with an init expr is always a move. */);
   }
 }
 

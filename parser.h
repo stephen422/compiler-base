@@ -99,7 +99,7 @@ private:
 
   // Statement parsers.
   Stmt *parse_stmt();
-  Stmt *parse_expr_or_assign_stmt();
+  Stmt *parseExprOrAssignStmt();
   Stmt *parse_return_stmt();
   IfStmt *parse_if_stmt();
   DeclStmt *parseDeclStmt();

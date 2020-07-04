@@ -42,6 +42,8 @@ func move() {
     {
         let c = Copyable {.m = 3}
         c_out <- c
+        c // ERROR: use of moved value
+        c.m // ERROR: use of moved value
     }
 }
 

@@ -118,24 +118,26 @@ struct ExprStmt : public Stmt {
     Expr *expr;
 };
 
-// Assignment statement, e.g. a[0] = func().
+// Move or copy assignment statement, e.g. 'a <- b' or 'a[0] = func()'.
 // Non-single-token expressions can come at the RHS as long as they are lvalues,
 // but this is not easily determined at the parsing stage.  As such, parse both
 // LHS and RHS as generic Exprs, and check the assignability at the semantic
 // stage.
 struct AssignStmt : public Stmt {
-    AssignStmt(Expr *l, Expr *r) : Stmt(StmtKind::assign), lhs(l), rhs(r) {}
-    void print() const override;
+  AssignStmt(Expr *l, Expr *r, bool m)
+      : Stmt(StmtKind::assign), lhs(l), rhs(r), move(m) {}
+  void print() const override;
 
-    Expr *lhs;
-    Expr *rhs;
+  Expr *lhs;
+  Expr *rhs;
+  bool move;
 };
 
 struct ReturnStmt : public Stmt {
-    ReturnStmt(Expr *e) : Stmt(StmtKind::return_), expr(e) {}
-    void print() const override;
+  ReturnStmt(Expr *e) : Stmt(StmtKind::return_), expr(e) {}
+  void print() const override;
 
-    Expr *expr;
+  Expr *expr;
 };
 
 struct CompoundStmt : public Stmt {
@@ -428,6 +430,9 @@ struct VarDecl : public Decl {
 
   // Mutability of the variable.
   bool mut = false; 
+
+  // If this value have been moved out.
+  bool moved = false;
 
   // Decl of the var that this var references to.  Used for borrow checking.
   VarDecl *borrowee = nullptr;

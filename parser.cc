@@ -109,7 +109,7 @@ Stmt *Parser::parse_stmt() {
     } else if (isStartOfDecl()) {
         stmt = parseDeclStmt();
     } else {
-        stmt = parse_expr_or_assign_stmt();
+        stmt = parseExprOrAssignStmt();
     }
     skip_newlines();
 
@@ -188,29 +188,33 @@ DeclStmt *Parser::parseDeclStmt() {
 // Upon seeing an expression, we don't know yet if it is a simple expression
 // statement or an assignment statement until we see the '=' token and the RHS.
 // This function handles both cases in one go.
-Stmt *Parser::parse_expr_or_assign_stmt() {
-    auto pos = tok.pos;
+Stmt *Parser::parseExprOrAssignStmt() {
+  auto pos = tok.pos;
 
-    auto lhs = parseExpr();
-    // ExprStmt: expression ends with a newline
-    if (is_end_of_stmt()) {
-      skip_until_end_of_line();
-      expect(Tok::newline);
-      return sema.make_node<ExprStmt>(lhs);
-    }
+  auto lhs = parseExpr();
+  // ExprStmt: expression ends with a newline
+  if (is_end_of_stmt()) {
+    skip_until_end_of_line();
+    expect(Tok::newline);
+    return sema.make_node<ExprStmt>(lhs);
+  }
 
-    // AssignStmt: expression is followed by equals
-    // (anything else is treated as an error)
-    if (!expect(Tok::equals, "expected '=' or '\\n' after expression")) {
-        skip_until_end_of_line();
-        expect(Tok::newline);
-        return sema.make_node_pos<BadStmt>(pos);
-    }
+  bool move = false;
+  // AssignStmt: expression is followed by '=' or '<-'
+  // (anything else is treated as an error)
+  if (tok.kind == Tok::reversearrow) {
+    move = true;
+    next();
+  } else if (!expect(Tok::equals, "expected '=' or '\\n' after expression")) {
+    skip_until_end_of_line();
+    expect(Tok::newline);
+    return sema.make_node_pos<BadStmt>(pos);
+  }
 
-    // At this point, it becomes certain that this is an assignment statement,
-    // and so we can safely unwrap for RHS.
-    auto rhs = parseExpr();
-    return sema.make_node_pos<AssignStmt>(pos, lhs, rhs);
+  // At this point, it becomes certain that this is an assignment statement,
+  // and so we can safely unwrap for RHS.
+  auto rhs = parseExpr();
+  return sema.make_node_pos<AssignStmt>(pos, lhs, rhs, move);
 }
 
 // Compound statement is a scoped block that consists of multiple statements.
