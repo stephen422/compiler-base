@@ -1,6 +1,7 @@
 #include "sema.h"
 #include "ast.h"
 #include "ast_visitor.h"
+#include "fmt/core.h"
 #include "parser.h"
 #include "source.h"
 #include "types.h"
@@ -1074,8 +1075,10 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, const Expr *rhs, bool move) {
       // TODO: Proper behind-reference check here.  This will include some kind
       // of custom visitors and recursions, such as "'expr.mem' borrows from 'p'
       // if and only if 'expr' borrows from 'p'", etc.
+      auto s = fmt::format("{}", rhs->text(sema.source));
       sema.error(rhs->pos,
-                 "cannot move out of 'TODO' because it will invalidate 'TODO'");
+                 "cannot move out of '%s' because it will invalidate 'TODO'",
+                 s.c_str());
       return;
     }
 

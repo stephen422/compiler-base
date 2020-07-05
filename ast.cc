@@ -6,6 +6,11 @@
 
 namespace cmp {
 
+std::string_view AstNode::text(const Source &source) const {
+  if (endpos < pos) return std::string_view{"(null)"};
+  return std::string_view{source.buf.data() + pos, endpos - pos};
+}
+
 int AstNode::indent = 0;
 
 std::ostream &AstNode::out() const {

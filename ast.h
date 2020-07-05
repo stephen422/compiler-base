@@ -48,6 +48,7 @@ enum class Pass {
 struct AstNode {
   const AstKind kind = AstKind::decl; // node kind
   size_t pos = 0;             // start pos of this AST in the source text
+  size_t endpos = 0;          // end pos of this AST in the source text
   Pass progress = Pass::none; // latest pass that this node got through
   bool failed = false;
 
@@ -60,6 +61,9 @@ struct AstNode {
   template <typename T> const T *as() const {
     return static_cast<const T *>(this);
   }
+
+  // Get the text representation of this node.
+  std::string_view text(const Source &source) const;
 
   // AST printing.
   virtual void print() const = 0;

@@ -28,39 +28,40 @@ void Parser::error_expected(const std::string &msg) {
 }
 
 void Parser::next() {
-    if (tok.kind == Tok::eos)
-        return;
+  if (tok.kind == Tok::eos) return;
 
-    // update cache if necessary
-    if (next_read_pos == token_cache.size()) {
-        auto t = lexer.lex();
+  // update cache if necessary
+  if (next_read_pos == token_cache.size()) {
+    auto t = lexer.lex();
 
-        // If an error beacon is found in a comment, add the error to the parser
-        // error list so that it can be compared to the actual errors later in
-        // the verifying phase.
-        if (t.kind == Tok::comment) {
-            std::string_view marker{"// ERROR: "};
-            auto found = t.text.find(marker);
-            if (found == 0) {
-                // '---' in '// ERROR: ---'
-                std::string regex_string{t.text.substr(marker.length())};
-                sema.beacons.push_back({locate(), regex_string});
-            }
-        }
-
-        token_cache.push_back(t);
+    // If an error beacon is found in a comment, add the error to the parser
+    // error list so that it can be compared to the actual errors later in
+    // the verifying phase.
+    if (t.kind == Tok::comment) {
+      std::string_view marker{"// ERROR: "};
+      auto found = t.text.find(marker);
+      if (found == 0) {
+        // '---' in '// ERROR: ---'
+        std::string regex_string{t.text.substr(marker.length())};
+        sema.beacons.push_back({locate(), regex_string});
+      }
     }
 
-    tok = token_cache[next_read_pos];
-    next_read_pos++;
+    token_cache.push_back(t);
+  }
+
+  last_tok_endpos = tok.endPos();
+  tok = token_cache[next_read_pos];
+  next_read_pos++;
 }
 
 Parser::State Parser::save_state() {
-    return State{tok, next_read_pos, sema.errors.size()};
+  return State{tok, last_tok_endpos, next_read_pos, sema.errors.size()};
 }
 
 void Parser::restore_state(State state) {
     tok = state.tok;
+    last_tok_endpos = state.last_tok_endpos;
     next_read_pos = state.next_read_pos;
     sema.errors.resize(state.error_count);
 }
@@ -599,7 +600,7 @@ Expr *Parser::parseUnaryExpr() {
   case Tok::star: {
     next();
     auto expr = parseUnaryExpr();
-    return sema.make_node_pos<UnaryExpr>(pos, UnaryExprKind::deref, expr);
+    return makeNodeRange<UnaryExpr>(pos, UnaryExprKind::deref, expr);
   }
   case Tok::kw_var:
   case Tok::ampersand: {
@@ -610,13 +611,13 @@ Expr *Parser::parseUnaryExpr() {
     }
     expect(Tok::ampersand);
     auto expr = parseUnaryExpr();
-    return sema.make_node_pos<UnaryExpr>(pos, kind, expr);
+    return makeNodeRange<UnaryExpr>(pos, kind, expr);
   }
   case Tok::lparen: {
     expect(Tok::lparen);
     auto inside_expr = parseExpr();
     expect(Tok::rparen);
-    return sema.make_node_pos<ParenExpr>(pos, inside_expr);
+    return makeNodeRange<ParenExpr>(pos, inside_expr);
   }
   // TODO: prefix (++), postfix, sign (+/-)
   default: {
@@ -624,7 +625,7 @@ Expr *Parser::parseUnaryExpr() {
     // means no other expression could be matched either, so just do a
     // really generic report.
     error_expected("an expression");
-    return sema.make_node_pos<BadExpr>(pos);
+    return makeNodeRange<BadExpr>(pos);
   }
   }
 }
@@ -657,41 +658,38 @@ int binary_op_precedence(const Token &op) {
 // keep parsing until no more valid binary operators are seen (which has
 // negative precedence values).
 Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence = 0) {
-    Expr *root = lhs;
+  Expr *root = lhs;
 
-    while (!is_eos()) {
-        int this_prec = binary_op_precedence(tok);
+  while (!is_eos()) {
+    int this_prec = binary_op_precedence(tok);
 
-        // If the upcoming op has lower precedence, finish this subexpression.
-        // It will be treated as a single term when this function is re-called
-        // with lower precedence.
-        if (this_prec < precedence)
-            return root;
+    // If the upcoming op has lower precedence, finish this subexpression.  It
+    // will be treated as a single term when this function is re-called with
+    // lower precedence.
+    if (this_prec < precedence) return root;
 
-        Token op = tok;
-        next();
+    Token op = tok;
+    next();
 
-        // Parse the second term.
-        Expr *rhs = parseUnaryExpr();
+    // Parse the second term.
+    Expr *rhs = parseUnaryExpr();
 
-        // We do not know if this term should associate to left or right; e.g.
-        // "(a
-        // * b) + c" or "a + (b * c)".  We should look ahead for the next
-        // operator that follows this term.
-        int next_prec = binary_op_precedence(tok);
+    // We do not know if this term should associate to left or right; e.g.
+    // "(a * b) + c" or "a + (b * c)".  We should look ahead for the next
+    // operator that follows this term.
+    int next_prec = binary_op_precedence(tok);
 
-        // If the next operator has higher precedence ("a + b * c"), parse the
-        // RHS as a single subexpression with elevated minimum precedence. Else
-        // ("a * b + c"), just treat it as a unary expression.
-        if (this_prec < next_prec)
-            rhs = parseBinaryExprRhs(rhs, precedence + 1);
+    // If the next operator has higher precedence ("a + b * c"), parse the RHS
+    // as a single subexpression with elevated minimum precedence. Else ("a * b
+    // + c"), just treat it as a unary expression.
+    if (this_prec < next_prec) rhs = parseBinaryExprRhs(rhs, precedence + 1);
 
-        // Create a new root with the old root as its LHS, and the recursion
-        // result as RHS.  This implements left associativity.
-        root = sema.make_node<BinaryExpr>(root, op, rhs);
-    }
+    // Create a new root with the old root as its LHS, and the recursion result
+    // as RHS.  This implements left associativity.
+    root = sema.make_node<BinaryExpr>(root, op, rhs);
+  }
 
-    return root;
+  return root;
 }
 
 // If this expression is a member expression with a dot (.) operator, parse as
@@ -706,7 +704,7 @@ Expr *Parser::parseMemberExprMaybe(Expr *expr) {
         Name *member_name = sema.name_table.get_or_add(std::string{tok.text});
         next();
 
-        result = sema.make_node_pos<MemberExpr>(result->pos, result, member_name);
+        result = makeNodeRange<MemberExpr>(result->pos, result, member_name);
     }
 
     return result;
@@ -773,11 +771,10 @@ Expr *Parser::parseStructDefMaybe(Expr *expr) {
 }
 
 Expr *Parser::parseExpr() {
-    auto unary = parseUnaryExpr();
-    if (!unary)
-        return nullptr;
-    auto binary = parseBinaryExprRhs(unary);
-    return parseMemberExprMaybe(binary);
+  auto unary = parseUnaryExpr();
+  if (!unary) return nullptr;
+  auto binary = parseBinaryExprRhs(unary);
+  return parseMemberExprMaybe(binary);
 }
 
 void Parser::skip_until(Tok kind) {

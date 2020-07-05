@@ -119,16 +119,21 @@ std::string tokenTypeToString(Tok kind);
 // Token contains the kind, a view of the text data, and the position in the
 // source of a token.
 struct Token {
-    Tok kind;
-    size_t pos;
-    std::string_view text;
+  Tok kind;
+  size_t pos;
+  std::string_view text;
 
-    Token() : kind(Tok::none), pos(0), text() {}
-    Token(Tok kind, size_t pos) : kind(kind), pos(pos), text() {}
-    Token(Tok kind, size_t pos, std::string_view text)
-        : kind(kind), pos(pos), text(text) {}
-    bool is_any(std::initializer_list<Tok> &kinds) const;
-    std::string str() const;
+  Token() : kind(Tok::none), pos(0), text() {}
+  Token(Tok kind, size_t pos) : kind(kind), pos(pos), text() {}
+  Token(Tok kind, size_t pos, std::string_view text)
+      : kind(kind), pos(pos), text(text) {}
+
+  // Get position of one character past the end of the token.
+  size_t endPos() const { return pos + text.size(); }
+
+  bool is_any(std::initializer_list<Tok> &kinds) const;
+
+  std::string str() const;
 };
 
 bool is_ident_or_keyword(const Token tok);

@@ -65,11 +65,16 @@ Name *getReferenceTypeName(NameTable &names, bool mut, Name *referee_name);
 
 class Parser {
 public:
-  Lexer &lexer;                                // owned lexer
+  Lexer &lexer;
   Sema &sema;
+
   Token tok;                                   // lookahead token
   std::vector<std::unique_ptr<AstNode>> nodes; // node pointer pool
   AstNode *ast = nullptr;                      // resulting AST
+
+  // End position of the last consumed token.
+  // Used for tracking the range of the current token.
+  size_t last_tok_endpos = 0;
 
   // Token cache.
   // These are data structures that enable flexible roll-back of the parsing
@@ -81,6 +86,7 @@ public:
 
   struct State {
     Token tok;
+    size_t last_tok_endpos;
     size_t next_read_pos;
     size_t error_count;
   };
@@ -151,6 +157,13 @@ private:
 
   // Figure out the current location (line, col) in the source.
   SourceLoc locate() const { return lexer.source().locate(tok.pos); }
+
+  // Convenience function for make_node_range.
+  template <typename T, typename... Args>
+  T *makeNodeRange(size_t pos, Args &&... args) {
+    return sema.make_node_range<T>({pos, last_tok_endpos},
+                                   std::forward<Args>(args)...);
+  }
 };
 
 } // namespace cmp

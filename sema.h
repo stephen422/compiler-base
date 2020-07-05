@@ -5,6 +5,7 @@
 #include "error.h"
 #include "fmt/core.h"
 #include "scoped_table.h"
+#include <utility>
 
 namespace cmp {
 
@@ -100,6 +101,13 @@ struct Sema {
   T *make_node_pos(size_t pos, Args &&... args) {
     auto node = make_node<T>(std::forward<Args>(args)...);
     node->pos = pos;
+    return node;
+  }
+  template <typename T, typename... Args>
+  T *make_node_range(std::pair<size_t, size_t> range, Args &&... args) {
+    auto node = make_node<T>(std::forward<Args>(args)...);
+    node->pos = range.first;
+    node->endpos = range.second;
     return node;
   }
   BasicBlock *makeBasicBlock() {
