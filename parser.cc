@@ -476,26 +476,26 @@ Decl *Parser::parseDecl() {
 }
 
 Expr *Parser::parseLiteralExpr() {
-    Expr *expr = nullptr;
-    // TODO Literals other than integers?
-    switch (tok.kind) {
-    case Tok::number: {
-        std::string s{tok.text};
-        int value = std::stoi(s);
-        expr = sema.make_node<IntegerLiteral>(value);
-        break;
-    }
-    case Tok::string:
-        expr = sema.make_node<StringLiteral>(tok.text);
-        break;
-    default:
-        assert(false && "non-integer literals not implemented");
-    }
-    expr->pos = tok.pos;
+  Expr *expr = nullptr;
+  // TODO Literals other than integers?
+  switch (tok.kind) {
+  case Tok::number: {
+    std::string s{tok.text};
+    int value = std::stoi(s);
+    expr = sema.make_node_range<IntegerLiteral>({tok.pos, tok.endPos()}, value);
+    break;
+  }
+  case Tok::string:
+    expr =
+        sema.make_node_range<StringLiteral>({tok.pos, tok.endPos()}, tok.text);
+    break;
+  default:
+    assert(false && "non-integer literals not implemented");
+  }
 
-    next();
+  next();
 
-    return expr;
+  return expr;
 }
 
 // Upon seeing an expression that starts with an identifier, we don't know
@@ -520,11 +520,11 @@ Expr *Parser::parseFuncCallOrDeclRefExpr() {
                 next();
         }
         expect(Tok::rparen);
-        return sema.make_node_pos<FuncCallExpr>(pos, name, args);
+        return makeNodeHere<FuncCallExpr>(pos, name, args);
     } else {
         // Whether this is a variable or a struct/enum name can only be decided
         // in the type checking stage.
-        return sema.make_node_pos<DeclRefExpr>(pos, name);
+        return makeNodeHere<DeclRefExpr>(pos, name);
     }
 }
 
@@ -600,7 +600,7 @@ Expr *Parser::parseUnaryExpr() {
   case Tok::star: {
     next();
     auto expr = parseUnaryExpr();
-    return makeNodeRange<UnaryExpr>(pos, UnaryExprKind::deref, expr);
+    return makeNodeHere<UnaryExpr>(pos, UnaryExprKind::deref, expr);
   }
   case Tok::kw_var:
   case Tok::ampersand: {
@@ -611,13 +611,13 @@ Expr *Parser::parseUnaryExpr() {
     }
     expect(Tok::ampersand);
     auto expr = parseUnaryExpr();
-    return makeNodeRange<UnaryExpr>(pos, kind, expr);
+    return makeNodeHere<UnaryExpr>(pos, kind, expr);
   }
   case Tok::lparen: {
     expect(Tok::lparen);
     auto inside_expr = parseExpr();
     expect(Tok::rparen);
-    return makeNodeRange<ParenExpr>(pos, inside_expr);
+    return makeNodeHere<ParenExpr>(pos, inside_expr);
   }
   // TODO: prefix (++), postfix, sign (+/-)
   default: {
@@ -625,7 +625,7 @@ Expr *Parser::parseUnaryExpr() {
     // means no other expression could be matched either, so just do a
     // really generic report.
     error_expected("an expression");
-    return makeNodeRange<BadExpr>(pos);
+    return makeNodeHere<BadExpr>(pos);
   }
   }
 }
@@ -696,18 +696,18 @@ Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence = 0) {
 // such. If not, just pass along the original expression. This function is
 // called after the operand expression part is fully parsed.
 Expr *Parser::parseMemberExprMaybe(Expr *expr) {
-    Expr *result = expr;
+  Expr *result = expr;
 
-    while (tok.kind == Tok::dot) {
-        expect(Tok::dot);
+  while (tok.kind == Tok::dot) {
+    expect(Tok::dot);
 
-        Name *member_name = sema.name_table.get_or_add(std::string{tok.text});
-        next();
+    Name *member_name = sema.name_table.get_or_add(std::string{tok.text});
+    next();
 
-        result = makeNodeRange<MemberExpr>(result->pos, result, member_name);
-    }
+    result = makeNodeHere<MemberExpr>(result->pos, result, member_name);
+  }
 
-    return result;
+  return result;
 }
 
 bool Parser::lookaheadStructDef() {
@@ -767,7 +767,7 @@ Expr *Parser::parseStructDefMaybe(Expr *expr) {
 
     expect(Tok::rbrace);
 
-    return sema.make_node_pos<StructDefExpr>(pos, expr, desigs);
+    return makeNodeHere<StructDefExpr>(pos, expr, desigs);
 }
 
 Expr *Parser::parseExpr() {

@@ -1039,7 +1039,9 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, const Expr *rhs, bool move) {
       if (move) {
         assert(false && "TODO: nullify reference in RHS");
       } else {
+        // TODO: check multiple borrowing rule
         v->borrowee = rhs->getLValueDecl()->borrowee;
+        rhs->getLValueDecl()->borrowed = true;
       }
     } else if (isReferenceExpr(rhs)) {
       // Explicit borrowing statement, e.g. 'a = &b'.
@@ -1057,8 +1059,10 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, const Expr *rhs, bool move) {
         // FIXME: We gotta find the root parent, not a parent just one level
         // above.  Add a test case for this.
         v->borrowee = operand->getLValueDecl()->parent;
+        operand->getLValueDecl()->parent->borrowed = true;
       } else {
         v->borrowee = operand->getLValueDecl();
+        operand->getLValueDecl()->borrowed = true;
       }
     }
     assert(v->borrowee && "borrowee still null");
@@ -1075,10 +1079,19 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, const Expr *rhs, bool move) {
       // TODO: Proper behind-reference check here.  This will include some kind
       // of custom visitors and recursions, such as "'expr.mem' borrows from 'p'
       // if and only if 'expr' borrows from 'p'", etc.
-      auto s = fmt::format("{}", rhs->text(sema.source));
       sema.error(rhs->pos,
                  "cannot move out of '%s' because it will invalidate 'TODO'",
-                 s.c_str());
+                 fmt::format("{}", rhs->text(sema.source)).c_str());
+      return;
+    } else if (isDereferenceExpr(rhs)) {
+      sema.error(rhs->pos,
+                 "cannot move out of '%s' because it will invalidate 'TODO'",
+                 fmt::format("{}", rhs->text(sema.source)).c_str());
+      return;
+    } else if (move && rhs->getLValueDecl()->borrowed) {
+      sema.error(rhs->pos,
+                 "cannot move out of '%s' because it is borrowed",
+                 fmt::format("{}", rhs->text(sema.source)).c_str());
       return;
     }
 

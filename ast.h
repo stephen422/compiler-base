@@ -435,10 +435,14 @@ struct VarDecl : public Decl {
   // Mutability of the variable.
   bool mut = false; 
 
-  // If this value have been moved out.
+  // If this variable has been moved out.
   bool moved = false;
 
-  // Decl of the var that this var references to.  Used for borrow checking.
+  // If this variable has been borrowed.  Used for borrow checking.
+  bool borrowed = false;
+
+  // Decl of the var that this var references to.  Null if this variable is not
+  // a reference type. Used for borrow checking.
   VarDecl *borrowee = nullptr;
 
   // Decls for each of the values that are associated to this value.
