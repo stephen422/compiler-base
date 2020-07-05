@@ -49,7 +49,15 @@ func move() {
     {
         let c = Copyable {.m = 3}
         let p = &c
-        let c2 = *p // ERROR: cannot move out of '*p' because it will invalidate reference(s) to this value
+        let c2 = *p // ERROR: cannot move out of '\*p' because it will invalidate 'p'
+
+        struct CC {
+            m: Copyable
+        }
+
+        let cc = CC {.m = c}
+        let ccp = &cc
+        let cc2 = (*ccp).m // ERROR: cannot move out of '(\*ccp).m' because it will invalidate 'ccp'
     }
     
     {

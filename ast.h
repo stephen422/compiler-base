@@ -452,8 +452,8 @@ struct VarDecl : public Decl {
   VarDecl(Name *n, VarDeclKind k, Expr *t, Expr *expr)
       : Decl(DeclKind::var), name(n), kind(k), type_expr(t),
         assign_expr(expr) {}
-  VarDecl(Name *n, Type *t, bool m)
-      : Decl(DeclKind::var), name(n), type(t), mut(m) {}
+  VarDecl(Name *n, Type *t, bool m, VarDecl *bor)
+      : Decl(DeclKind::var), name(n), type(t), mut(m), borrowee(bor) {}
   void print() const override;
 
   void addChild(Name *name, VarDecl *child);

@@ -26,9 +26,10 @@ struct Context {
 // Maps a VarDecl to its borrow count in the current scope.
 // To be stored inside a ScopedTable.
 struct BorrowMap {
-    VarDecl *decl = nullptr;
-    // number of occasions that this variable was borrowed
-    int borrow_count = 0;
+  const VarDecl *decl = nullptr;
+
+  // Number of occasions that this variable was borrowed.
+  int borrow_count = 0;
 };
 
 struct BasicBlock {
@@ -70,7 +71,7 @@ struct Sema {
   // Live variables at the current scope.
   ScopedTable<VarDecl *, VarDecl *> live_list;
   // TODO: doc
-  ScopedTable<VarDecl *, BorrowMap> borrow_table;
+  ScopedTable<const VarDecl *, BorrowMap> borrow_table;
 
   // TODO.
   Context context;

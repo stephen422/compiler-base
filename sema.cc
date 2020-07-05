@@ -307,11 +307,6 @@ void NameBinding::visitEnumDecl(EnumDecl *e) {
 
 namespace {
 
-VarDecl *makeAnonymousVarDecl(Sema &sema, Type *type, bool mut) {
-  auto v = sema.make_node<VarDecl>(nullptr, type, mut);
-  return v;
-}
-
 bool mutabilityCheckAssignment(Sema &sema, const Expr *lhs) {
   if (lhs->kind == ExprKind::member) {
     // For MemberExprs, assignability depends on that of its struct side.
@@ -597,7 +592,7 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
         // their name, but through the VarDecl of their parent struct value.
         // Their mutability is inherited from the parent value.
         auto field_var_decl = sema.make_node<VarDecl>(
-            m->member_name, field_decl->type, struct_var_decl->mut);
+            m->member_name, field_decl->type, struct_var_decl->mut, nullptr);
         m->decl = {field_var_decl};
 
         assert(sema.live_list.insert(field_var_decl, field_var_decl));
@@ -661,12 +656,11 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
       //
       // The '*v' here has to have a valid VarDecl with 'mut' as true.
       bool mut = (u->operand->type->kind == TypeKind::var_ref);
-      u->var_decl = makeAnonymousVarDecl(sema, u->type, mut);
+      u->var_decl = sema.make_node<VarDecl>(nullptr, u->type, mut, nullptr);
       // Temporary VarDecls are _not_ pushed to the scoped decl table, because
       // they are not meant to be accessed later from a different position in
       // the source. In the same sense, they don't have a name that can be used
       // to query them.
-      // TODO is this right?
     }
     break;
   }
@@ -783,7 +777,7 @@ Type *TypeChecker::visitVarDecl(VarDecl *v) {
     assert(v->children.empty());
     for (auto field : v->type->getStructDecl()->fields) {
       auto field_var_decl =
-          sema.make_node<VarDecl>(field->name, field->type, v->mut);
+        sema.make_node<VarDecl>(field->name, field->type, v->mut, nullptr);
       v->addChild(field->name, field_var_decl);
     }
   }
@@ -1001,7 +995,7 @@ void BorrowChecker::visitCompoundStmt(CompoundStmt *cs) {
 // - x = &a
 // - x = S {.m = &a}
 // - f(&a)
-void registerBorrow(Sema &sema, VarDecl *borrowee, size_t borrowee_pos) {
+void registerBorrow(Sema &sema, const VarDecl *borrowee, size_t borrowee_pos) {
   int old_borrow_count = 0;
   auto found = sema.borrow_table.find(borrowee);
   if (found) {
@@ -1073,6 +1067,18 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, const Expr *rhs, bool move) {
     // TODO: Invalidate RHS here. Program must still run even without this
     // invalidation, because access to the moved out value is forbidden in the
     // semantic phase.
+    if (rhs->kind == ExprKind::member) {
+      // 'a <- *p'.  This is illegal because it invalidates all later accesses
+      // through 'p'.
+      //
+      // TODO: Proper behind-reference check here.  This will include some kind
+      // of custom visitors and recursions, such as "'expr.mem' borrows from 'p'
+      // if and only if 'expr' borrows from 'p'", etc.
+      sema.error(rhs->pos,
+                 "cannot move out of 'TODO' because it will invalidate 'TODO'");
+      return;
+    }
+
     rhs->getLValueDecl()->moved = true;
   }
 }
