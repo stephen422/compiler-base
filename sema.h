@@ -91,7 +91,7 @@ struct Sema {
   void scope_open();
   void scope_close();
 
-  void error(size_t pos, const char *fmt, ...);
+  template <typename... Args> void error(size_t pos, Args &&... args);
 
   template <typename T, typename... Args> T *make_node(Args &&... args) {
     node_pool.emplace_back(new T{std::forward<Args>(args)...});

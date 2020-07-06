@@ -12,19 +12,10 @@
 
 using namespace cmp;
 
-void Sema::error(size_t pos, const char *fmt, ...) {
-    char buf[BUFSIZE];
-    memset(buf, 0, BUFSIZE);
-
-    va_list args;
-    va_start(args, fmt);
-    int wlen = vsnprintf(buf, BUFSIZE, fmt, args);
-    va_end(args);
-
-    if (wlen >= BUFSIZE) assert(false && "snprintf overflow");
-
-    Error e{source.locate(pos), std::string{buf}};
-    errors.push_back(e);
+template <typename... Args> void Sema::error(size_t pos, Args &&... args) {
+  auto str = fmt::format(std::forward<Args>(args)...);
+  Error e{source.locate(pos), str};
+  errors.push_back(e);
 }
 
 Type::Type(Name *n, bool mut, Type *bt) : name(n), referee_type(bt) {
@@ -128,7 +119,7 @@ void NameBinding::visitCompoundStmt(CompoundStmt *cs) {
 void NameBinding::visitDeclRefExpr(DeclRefExpr *d) {
   auto sym = sema.decl_table.find(d->name);
   if (!sym) {
-    sema.error(d->pos, "use of undeclared identifier '%s'", d->name->str());
+    sema.error(d->pos, "use of undeclared identifier '{}'", d->name->str());
     return;
   }
   d->decl = sym->value;
@@ -137,11 +128,11 @@ void NameBinding::visitDeclRefExpr(DeclRefExpr *d) {
 void NameBinding::visitFuncCallExpr(FuncCallExpr *f) {
   auto sym = sema.decl_table.find(f->func_name);
   if (!sym) {
-    sema.error(f->pos, "undeclared function '%s'", f->func_name->str());
+    sema.error(f->pos, "undeclared function '{}'", f->func_name->str());
     return;
   }
   if (!sym->value->is<FuncDecl>()) {
-    sema.error(f->pos, "'%s' is not a function", f->func_name->str());
+    sema.error(f->pos, "'{}' is not a function", f->func_name->str());
     return;
   }
   f->func_decl = sym->value->as<FuncDecl>();
@@ -151,7 +142,7 @@ void NameBinding::visitFuncCallExpr(FuncCallExpr *f) {
 
   // argument count match check
   if (f->func_decl->args_count() != f->args.size()) {
-    sema.error(f->pos, "'%s' accepts %lu arguments, got %lu",
+    sema.error(f->pos, "'{}' accepts {} arguments, got {}",
                f->func_name->str(), f->func_decl->args_count(), f->args.size());
     return;
   }
@@ -173,7 +164,7 @@ void NameBinding::visitTypeExpr(TypeExpr *t) {
     assert(t->kind == TypeExprKind::value);
     t->decl = sym->value;
   } else {
-    sema.error(t->pos, "use of undeclared type '%s'", t->name->str());
+    sema.error(t->pos, "use of undeclared type '{}'", t->name->str());
     return;
   }
 }
@@ -188,7 +179,7 @@ bool declare(Sema &sema, size_t pos, Name *name, T *decl) {
   auto found = sema.decl_table.find(name);
   if (found && found->value->is<T>() &&
       found->scope_level == sema.decl_table.curr_scope_level) {
-    sema.error(pos, "redefinition of '%s'", name->str());
+    sema.error(pos, "redefinition of '{}'", name->str());
     return false;
   }
 
@@ -315,14 +306,14 @@ bool mutabilityCheckAssignment(Sema &sema, const Expr *lhs) {
   } else if (isDereferenceExpr(lhs)) {
     auto unary = lhs->as<UnaryExpr>();
     if (unary->operand->type->kind != TypeKind::var_ref) {
-      sema.error(unary->pos, "'%s' is not a mutable reference",
+      sema.error(unary->pos, "'{}' is not a mutable reference",
                  unary->operand->getLValueDecl()->name->str());
       return false;
     }
   } else {
     auto var_decl = lhs->getLValueDecl();
     if (var_decl && !var_decl->mut) {
-      sema.error(lhs->pos, "'%s' is not declared as mutable",
+      sema.error(lhs->pos, "'{}' is not declared as mutable",
                  var_decl->name->str());
       return false;
     }
@@ -371,7 +362,7 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
 
   // Type compatibility check.
   if (!typeCheckAssignment(lhs_ty, rhs_ty)) {
-    sema.error(as->pos, "cannot assign '%s' type to '%s'", rhs_ty->name->str(),
+    sema.error(as->pos, "cannot assign '{}' type to '{}'", rhs_ty->name->str(),
                lhs_ty->name->str());
     return nullptr;
   }
@@ -393,7 +384,7 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
   //
   // TODO: there's a copy-paste of this code somewhere else.
   if (as->rhs->declMaybe() && !rhs_ty->copyable) {
-    sema.error(as->rhs->pos, "cannot copy non-copyable type '%s'",
+    sema.error(as->rhs->pos, "cannot copy non-copyable type '{}'",
                rhs_ty->name->str());
     return nullptr;
   }
@@ -408,14 +399,14 @@ Type *TypeChecker::visitReturnStmt(ReturnStmt *rs) {
   assert(!sema.context.func_decl_stack.empty());
   auto func_decl = sema.context.func_decl_stack.back();
   if (func_decl->isVoid(sema)) {
-    sema.error(rs->expr->pos, "function '%s' should not return a value",
+    sema.error(rs->expr->pos, "function '{}' should not return a value",
                func_decl->name->str());
     return nullptr;
   }
 
   if (!typeCheckAssignment(func_decl->ret_type, rs->expr->type)) {
     sema.error(rs->expr->pos,
-               "return type mismatch: function returns '%s', but got '%s'",
+               "return type mismatch: function returns '{}', but got '{}'",
                func_decl->ret_type->name->str(), rs->expr->type->name->str());
     return nullptr;
   }
@@ -461,7 +452,7 @@ Type *TypeChecker::visitFuncCallExpr(FuncCallExpr *f) {
     // TODO: proper type comparison
     if (f->args[i]->type != f->func_decl->args[i]->type) {
       sema.error(f->args[i]->pos,
-                 "argument type mismatch: expects '%s', got '%s'",
+                 "argument type mismatch: expects '{}', got '{}'",
                  f->func_decl->args[i]->type->name->str(),
                  f->args[i]->type->name->str());
       return nullptr;
@@ -494,7 +485,7 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
   auto lhs_type = s->name_expr->type;
   if (!lhs_type) return nullptr;
   if (!lhs_type->isStruct()) {
-    sema.error(s->name_expr->pos, "type '%s' is not a struct",
+    sema.error(s->name_expr->pos, "type '{}' is not a struct",
                lhs_type->name->str());
     return nullptr;
   }
@@ -505,13 +496,13 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
     VarDecl *field_decl = findFieldInStruct(desig.name, lhs_type);
     if (!field_decl) {
       sema.error(desig.init_expr->pos, // FIXME: wrong pos
-                 "'%s' is not a member of '%s'", desig.name->str(),
+                 "'{}' is not a member of '{}'", desig.name->str(),
                  lhs_type->getStructDecl()->name->str());
       return nullptr;
     }
 
     if (!typeCheckAssignment(field_decl->type, desig.init_expr->type)) {
-      sema.error(desig.init_expr->pos, "cannot assign '%s' type to '%s'",
+      sema.error(desig.init_expr->pos, "cannot assign '{}' type to '{}'",
                  desig.init_expr->type->name->str(), field_decl->type->name->str());
       return nullptr;
     }
@@ -535,7 +526,7 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
   auto struct_type = m->struct_expr->type;
   if (!struct_type->isMemberAccessible()) {
     // FIXME: isMemberAccessible <-> struct
-    sema.error(m->struct_expr->pos, "type '%s' is not a struct",
+    sema.error(m->struct_expr->pos, "type '{}' is not a struct",
                struct_type->name->str());
     return nullptr;
   }
@@ -546,7 +537,7 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
     VarDecl *field_decl = findFieldInStruct(m->member_name, struct_type);
     if (!field_decl) {
       // TODO: pos for member
-      sema.error(m->struct_expr->pos, "'%s' is not a member of '%s'",
+      sema.error(m->struct_expr->pos, "'{}' is not a member of '{}'",
                  m->member_name->str(), struct_type->name->str());
       return nullptr;
     }
@@ -640,7 +631,7 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
   case UnaryExprKind::deref: {
     if (visitExpr(u->operand)) {
       if (!u->operand->type->isReference()) {
-        sema.error(u->operand->pos, "dereference of a non-reference type '%s'",
+        sema.error(u->operand->pos, "dereference of a non-reference type '{}'",
                    u->operand->type->name->str());
         return nullptr;
       }
@@ -682,7 +673,7 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
         auto operand_vardecl = u->operand->getLValueDecl();
         if (!operand_vardecl->mut) {
           sema.error(u->pos,
-                     "cannot borrow '%s' as mutable because it is declared "
+                     "cannot borrow '{}' as mutable because it is declared "
                      "immutable",
                      operand_vardecl->name->str());
           return nullptr;
@@ -716,7 +707,7 @@ Type *TypeChecker::visitBinaryExpr(BinaryExpr *b) {
 
   if (b->lhs->type != b->rhs->type) {
     sema.error(b->pos,
-               "incompatible types to binary expression ('%s' and '%s')",
+               "incompatible types to binary expression ('{}' and '{}')",
                b->lhs->type->name->str(), b->rhs->type->name->str());
     return nullptr;
   }
@@ -763,7 +754,7 @@ Type *TypeChecker::visitVarDecl(VarDecl *v) {
     // FIXME: copy-paste from visitAssignStmt
     if (v->assign_expr->declMaybe() && v->assign_expr->type &&
         !v->assign_expr->type->copyable) {
-      sema.error(v->assign_expr->pos, "cannot copy non-copyable type '%s'",
+      sema.error(v->assign_expr->pos, "cannot copy non-copyable type '{}'",
                  v->assign_expr->type->name->str());
       return nullptr;
     }
@@ -1004,7 +995,7 @@ void registerBorrow(Sema &sema, const VarDecl *borrowee, size_t borrowee_pos) {
   }
 
   if (old_borrow_count > 0) {
-    sema.error(borrowee_pos, "cannot borrow '%s' more than once",
+    sema.error(borrowee_pos, "cannot borrow '{}' more than once",
                borrowee->name->str());
     return;
   }
@@ -1028,7 +1019,8 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, const Expr *rhs, bool move) {
         }
       }
 
-      return borrowCheckAssignment(sema, child, desig.init_expr, move);
+      // Don't return here because we are inside a for loop.
+      borrowCheckAssignment(sema, child, desig.init_expr, move);
     }
   } else if (rhs->type->isReference()) {
     if (rhs->isLValue()) {
@@ -1080,18 +1072,17 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, const Expr *rhs, bool move) {
       // of custom visitors and recursions, such as "'expr.mem' borrows from 'p'
       // if and only if 'expr' borrows from 'p'", etc.
       sema.error(rhs->pos,
-                 "cannot move out of '%s' because it will invalidate 'TODO'",
-                 fmt::format("{}", rhs->text(sema.source)).c_str());
+                 "cannot move out of '{}' because it will invalidate 'TODO'",
+                 rhs->text(sema.source));
       return;
     } else if (isDereferenceExpr(rhs)) {
       sema.error(rhs->pos,
-                 "cannot move out of '%s' because it will invalidate 'TODO'",
-                 fmt::format("{}", rhs->text(sema.source)).c_str());
+                 "cannot move out of '{}' because it will invalidate 'TODO'",
+                 rhs->text(sema.source));
       return;
     } else if (move && rhs->getLValueDecl()->borrowed) {
-      sema.error(rhs->pos,
-                 "cannot move out of '%s' because it is borrowed",
-                 fmt::format("{}", rhs->text(sema.source)).c_str());
+      sema.error(rhs->pos, "cannot move out of '{}' because it is borrowed",
+                 rhs->text(sema.source));
       return;
     }
 
@@ -1153,7 +1144,7 @@ void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
     auto sym = sema.live_list.find(var->borrowee);
     // TODO: refactor into find_exact()
     if (!(sym && sym->value == var->borrowee)) {
-      sema.error(d->pos, "'%s' does not live long enough",
+      sema.error(d->pos, "'{}' does not live long enough",
                  var->borrowee->name->str());
       return;
     }
