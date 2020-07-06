@@ -58,6 +58,8 @@ func move() {
         let cc = CC {.m = c}
         let ccp = &cc
         let cc2 = (*ccp).m // ERROR: cannot move out of '\(\*ccp\).m' because it will invalidate 'ccp'
+        var copy_is_ok: Copyable
+        copy_is_ok = (*ccp).m
     }
     
     {

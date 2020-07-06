@@ -1052,25 +1052,30 @@ void registerBorrow(Sema &sema, const VarDecl *borrowee, size_t borrowee_pos) {
 }
 
 void borrowCheckAssignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
+  // We don't want to mess with built-in types.
+  if (rhs->type->isBuiltinType(sema)) return;
+
   // Pattern-match-like recursion case.
   // This works because we guarantee that every l-value has a VarDecl.
   if (rhs->kind == ExprKind::struct_def) {
     for (auto desig : rhs->as<StructDefExpr>()->desigs) {
-      if (!isReferenceExpr(desig.init_expr)) continue;
-
-      // Find child decl by name.
-      VarDecl *child = nullptr;
-      for (auto c : v->children) {
-        if (c.first == desig.name) {
-          child = c.second;
-          break;
+      if (isReferenceExpr(desig.init_expr)) {
+        // Find child decl by name.
+        VarDecl *child = nullptr;
+        for (auto c : v->children) {
+          if (c.first == desig.name) {
+            child = c.second;
+            break;
+          }
         }
+        borrowCheckAssignment(sema, child, desig.init_expr, move);
       }
-
-      // Don't return here because we are inside a for loop.
-      borrowCheckAssignment(sema, child, desig.init_expr, move);
     }
-  } else if (rhs->type->isReference()) {
+    return;
+  }
+
+  // Leaf cases of the recursion.
+  if (rhs->type->isReference()) {
     if (rhs->isLValue()) {
       // 'Implicit' copying of a borrow, e.g. 'ref1 = ref2'.
       //
@@ -1106,7 +1111,7 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
       }
     }
     assert(v->borrowee && "borrowee still null");
-  } else if (rhs->isLValue() && !rhs->type->isBuiltinType(sema)) {
+  } else if (move && rhs->isLValue()) {
     // Move of an LValue, e.g. 'a <- b' or 'a <- *p' (illegal).
     //
     // TODO: Invalidate RHS here. Program must still run even without this
@@ -1120,7 +1125,7 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
                  "cannot move out of '{}' because it will invalidate '{}'",
                  rhs->text(sema.source), ref_behind->name->str());
       return;
-    } else if (move && rhs->getLValueDecl()->borrowed) {
+    } else if (rhs->getLValueDecl()->borrowed) {
       sema.error(rhs->pos, "cannot move out of '{}' because it is borrowed",
                  rhs->text(sema.source));
       return;
