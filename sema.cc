@@ -980,6 +980,54 @@ void BorrowChecker::visitCompoundStmt(CompoundStmt *cs) {
     sema.scope_close();
 }
 
+// Checks if an expr is 'behind' a reference, i.e. it represents an access
+// that goes through the reference.
+class BehindRefVisitor : public AstVisitor<BehindRefVisitor, VarDecl *> {
+public:
+  // 'p' alone does not go though p.
+  VarDecl *visitDeclRefExpr(DeclRefExpr *d) {
+    return nullptr;
+  }
+  VarDecl *visitFuncCallExpr(FuncCallExpr *f) {
+    assert(false && "TODO");
+  }
+  // p.m is the same as (*p).m. If 'p' is not a reference, p.m does not go
+  // through anything.
+  // @Cleanup: maybe rewrite p.m as (*p).m in a unified place?
+  VarDecl *visitMemberExpr(MemberExpr *m) {
+    if (auto v = visitExpr(m->struct_expr)) {
+      return v;
+    } else {
+      return nullptr;
+    }
+  }
+  VarDecl *visitUnaryExpr(UnaryExpr *u) {
+    switch (u->kind) {
+    case UnaryExprKind::paren:
+      return visitParenExpr(u->as<ParenExpr>());
+    case UnaryExprKind::ref:
+    case UnaryExprKind::var_ref:
+      // &p is not behind p. (???)
+      return nullptr;
+    case UnaryExprKind::deref:
+      if (u->operand->kind == ExprKind::decl_ref) {
+        // *p
+        return u->operand->getLValueDecl();
+      } else {
+        // ex) *(*p)
+        return visitExpr(u->operand);
+      }
+    default:
+      assert(false && "inexhaustive kind");
+      break;
+    }
+  }
+  VarDecl *visitParenExpr(ParenExpr *p) {
+    return visitExpr(p->operand);
+  }
+  // void visitStructDefExpr(StructDefExpr *s);
+};
+
 // Mark a variable that it is borrowed in the current scope.
 //
 // Possible borrowing occasions:
@@ -1003,7 +1051,7 @@ void registerBorrow(Sema &sema, const VarDecl *borrowee, size_t borrowee_pos) {
   sema.borrow_table.insert(borrowee, BorrowMap{borrowee, old_borrow_count + 1});
 }
 
-void borrowCheckAssignment(Sema &sema, VarDecl *v, const Expr *rhs, bool move) {
+void borrowCheckAssignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
   // Pattern-match-like recursion case.
   // This works because we guarantee that every l-value has a VarDecl.
   if (rhs->kind == ExprKind::struct_def) {
@@ -1059,26 +1107,18 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, const Expr *rhs, bool move) {
     }
     assert(v->borrowee && "borrowee still null");
   } else if (rhs->isLValue() && !rhs->type->isBuiltinType(sema)) {
-    // Move of an LValue, e.g. 'a <- b'.
+    // Move of an LValue, e.g. 'a <- b' or 'a <- *p' (illegal).
     //
     // TODO: Invalidate RHS here. Program must still run even without this
     // invalidation, because access to the moved out value is forbidden in the
     // semantic phase.
-    if (rhs->kind == ExprKind::member) {
-      // 'a <- *p'.  This is illegal because it invalidates all later accesses
-      // through 'p'.
-      //
-      // TODO: Proper behind-reference check here.  This will include some kind
-      // of custom visitors and recursions, such as "'expr.mem' borrows from 'p'
-      // if and only if 'expr' borrows from 'p'", etc.
+    auto ref_behind = BehindRefVisitor{}.visitExpr(rhs);
+    if (ref_behind) {
+      // E.g. 'a <- *p'.  This is illegal because it invalidates all later
+      // accesses through 'p'.
       sema.error(rhs->pos,
-                 "cannot move out of '{}' because it will invalidate 'TODO'",
-                 rhs->text(sema.source));
-      return;
-    } else if (isDereferenceExpr(rhs)) {
-      sema.error(rhs->pos,
-                 "cannot move out of '{}' because it will invalidate 'TODO'",
-                 rhs->text(sema.source));
+                 "cannot move out of '{}' because it will invalidate '{}'",
+                 rhs->text(sema.source), ref_behind->name->str());
       return;
     } else if (move && rhs->getLValueDecl()->borrowed) {
       sema.error(rhs->pos, "cannot move out of '{}' because it is borrowed",

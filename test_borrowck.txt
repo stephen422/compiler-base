@@ -57,7 +57,7 @@ func move() {
 
         let cc = CC {.m = c}
         let ccp = &cc
-        let cc2 = (*ccp).m // ERROR: cannot move out of '(\*ccp).m' because it will invalidate 'ccp'
+        let cc2 = (*ccp).m // ERROR: cannot move out of '\(\*ccp\).m' because it will invalidate 'ccp'
     }
     
     {
