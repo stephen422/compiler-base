@@ -76,7 +76,8 @@ func move() {
     }
 }
 
-func f(ptr: &int) {
+func f(ptr: &.a int) -> &int {
+    return ptr
 }
 
 func fs(s: S) {

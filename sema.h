@@ -194,6 +194,9 @@ class BorrowChecker : public AstVisitor<BorrowChecker, void> {
   // borrows from a value declared in the local scope.
   bool in_return_stmt = false;
 
+  // TODO
+  bool in_borrowchecked_func = false;
+
 public:
   BorrowChecker(Sema &s) : sema{s} {}
   bool success() const { return sema.errors.empty(); }
@@ -209,6 +212,7 @@ public:
   void visitUnaryExpr(UnaryExpr *u);
 
   void visitVarDecl(VarDecl *v);
+  void visitFuncDecl(FuncDecl *f);
 };
 
 class CodeGenerator : public AstVisitor<CodeGenerator, void> {

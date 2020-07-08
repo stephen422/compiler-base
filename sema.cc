@@ -1308,6 +1308,37 @@ void BorrowChecker::visitVarDecl(VarDecl *v) {
   }
 }
 
+void BorrowChecker::visitFuncDecl(FuncDecl *f) {
+  auto save = in_borrowchecked_func;
+  sema.error(f->pos, "save was {}", save);
+
+  for (auto arg : f->args) {
+    if (arg->type_expr->as<TypeExpr>()->lifetime) {
+      in_borrowchecked_func = true;
+      break;
+    }
+  }
+
+  if (in_borrowchecked_func) {
+    for (auto arg : f->args) {
+      if (arg->type->isReference() &&
+          !arg->type_expr->as<TypeExpr>()->lifetime) {
+        sema.error(arg->pos, "missing lifetime annotation (arg)");
+        return;
+      }
+    }
+    if (f->ret_type && f->ret_type->isReference() &&
+        !f->ret_type_expr->as<TypeExpr>()->lifetime) {
+      sema.error(f->ret_type_expr->pos, "missing lifetime annotation (ret)");
+      return;
+    }
+  }
+
+  walk_func_decl(*this, f);
+
+  in_borrowchecked_func = save;
+}
+
 void CodeGenerator::visitFile(File *f) {
   emit("#include <stdlib.h>\n");
   emit("#include <stdio.h>\n");
