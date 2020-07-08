@@ -1309,12 +1309,25 @@ void BorrowChecker::visitVarDecl(VarDecl *v) {
 }
 
 void BorrowChecker::visitFuncDecl(FuncDecl *f) {
-  auto save = in_borrowchecked_func;
-  sema.error(f->pos, "save was {}", save);
+  // Necessary because of the early returns.
+  class BorrowCheckFuncRAII {
+    BorrowChecker &bc;
+    bool save;
+
+  public:
+    BorrowCheckFuncRAII(BorrowChecker &bc) : bc(bc) {
+      save = bc.in_borrowchecked_func;
+    }
+    ~BorrowCheckFuncRAII() { bc.in_borrowchecked_func = save; }
+
+    void set(bool b) { bc.in_borrowchecked_func = b; }
+  };
+
+  BorrowCheckFuncRAII raii(*this);
 
   for (auto arg : f->args) {
     if (arg->type_expr->as<TypeExpr>()->lifetime) {
-      in_borrowchecked_func = true;
+      raii.set(true);
       break;
     }
   }
@@ -1323,20 +1336,18 @@ void BorrowChecker::visitFuncDecl(FuncDecl *f) {
     for (auto arg : f->args) {
       if (arg->type->isReference() &&
           !arg->type_expr->as<TypeExpr>()->lifetime) {
-        sema.error(arg->pos, "missing lifetime annotation (arg)");
+        sema.error(arg->pos, "missing lifetime annotation");
         return;
       }
     }
     if (f->ret_type && f->ret_type->isReference() &&
         !f->ret_type_expr->as<TypeExpr>()->lifetime) {
-      sema.error(f->ret_type_expr->pos, "missing lifetime annotation (ret)");
+      sema.error(f->ret_type_expr->pos, "missing lifetime annotation");
       return;
     }
   }
 
   walk_func_decl(*this, f);
-
-  in_borrowchecked_func = save;
 }
 
 void CodeGenerator::visitFile(File *f) {

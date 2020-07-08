@@ -76,7 +76,15 @@ func move() {
     }
 }
 
-func f(ptr: &.a int) -> &int {
+func missing_annot_ret(ptr: &.a int) -> &int { // ERROR: missing lifetime annotation
+    return ptr
+}
+
+func return_first(a: &.a int, b: &.b int) -> &.a int {
+    return b
+}
+
+func f(ptr: &.a int) -> &.a int {
     return ptr
 }
 
