@@ -81,10 +81,12 @@ func missing_annot_ret(ptr: &.a int) -> &int { // ERROR: missing lifetime annota
 }
 
 func return_first(a: &.a int, b: &.b int) -> &.a int {
-    return b
+    return b // ERROR: lifetime mismatch
 }
 
 func f(ptr: &.a int) -> &.a int {
+    let i = 42
+    return &i // ERROR: todo
     return ptr
 }
 

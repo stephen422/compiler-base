@@ -65,7 +65,7 @@ VarDecl *Expr::getLValueDecl() const {
 
 // Return optional of 'type' member of Decl, or None if this Decl kind doesn't
 // have any.
-std::optional<Type *> Decl::type() const {
+std::optional<Type *> Decl::typeMaybe() const {
   if (kind == DeclKind::var) {
     return as<VarDecl>()->type;
   } else if (kind == DeclKind::struct_) {

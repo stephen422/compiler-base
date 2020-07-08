@@ -6,6 +6,7 @@
 #include "source.h"
 #include "types.h"
 #include <cassert>
+#include <chrono>
 #include <cstdarg>
 
 #define BUFSIZE 1024
@@ -160,7 +161,7 @@ void NameBinding::visitTypeExpr(TypeExpr *t) {
   if (t->subexpr) return;
 
   auto sym = sema.decl_table.find(t->name);
-  if (sym && sym->value->type()) {
+  if (sym && sym->value->typeMaybe()) {
     assert(t->kind == TypeExprKind::value);
     t->decl = sym->value;
   } else {
@@ -431,7 +432,7 @@ Type *TypeChecker::visitDeclRefExpr(DeclRefExpr *d) {
   //
   // For struct and enum names, they are not handled in the namebinding stage
   // and so should be taken care of here.
-  auto opt_type = d->decl->type();
+  auto opt_type = d->decl->typeMaybe();
   assert(
       opt_type.has_value() &&
       "tried to typecheck a non-typed DeclRef (first-class functions TODO?)");
@@ -613,6 +614,10 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
 
 // Get a reference type of a given type, or construct one if it didn't exist in
 // the type table.
+//
+// Derived types are only present in the type table if they occur in the source
+// code.  Trying to push them every time we see one is sufficient to keep this
+// invariant.
 Type *cmp::getReferenceType(Sema &sema, bool mut, Type *type) {
   auto name = getReferenceTypeName(sema.name_table, mut, type->name);
   if (auto found = sema.type_table.find(name)) return found->value;
@@ -725,15 +730,12 @@ Type *TypeChecker::visitTypeExpr(TypeExpr *t) {
     // t->decl should be non-null after the name binding stage.
     // And since we are currently doing single-pass, its type should also be
     // resolved by now.
-    t->type = *t->decl->type();
+    t->type = *t->decl->typeMaybe();
     assert(t->type && "type not resolved in corresponding *Decl");
   } else if (t->kind == TypeExprKind::ref || t->kind == TypeExprKind::var_ref) {
-    // Derived types are only present in the type table if they occur in the
-    // source code.  Trying to push them every time we see one is sufficient
-    // to keep this invariant.
     assert(t->subexpr->type); // TODO: check if triggers
     bool mut = t->kind == TypeExprKind::var_ref;
-    t->type = ::getReferenceType(sema, mut, t->subexpr->type);
+    t->type = getReferenceType(sema, mut, t->subexpr->type);
   } else {
     unreachable();
   }
@@ -1101,8 +1103,8 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
         // For MemberExprs (e.g. v = &m.a), we are essentially borrowing the
         // whole struct, not just the member.
         //
-        // FIXME: We gotta find the root parent, not a parent just one level
-        // above.  Add a test case for this.
+        // FIXME: We gotta find the root parent, not the parent of just one
+        // level above. Add a test case for this.
         v->borrowee = operand->getLValueDecl()->parent;
         operand->getLValueDecl()->parent->borrowed = true;
       } else {
@@ -1114,7 +1116,7 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
   } else if (move && rhs->isLValue()) {
     // Move of an LValue, e.g. 'a <- b' or 'a <- *p' (illegal).
     //
-    // TODO: Invalidate RHS here. Program must still run even without this
+    // @Future: Invalidate RHS here. Program must still run even without this
     // invalidation, because access to the moved out value is forbidden in the
     // semantic phase.
     auto ref_behind = BehindRefVisitor{}.visitExpr(rhs);
@@ -1148,6 +1150,33 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
   // lifetime errors.
   in_return_stmt = true;
   walk_return_stmt(*this, rs);
+
+  // Return statement borrowck.
+  //
+  // At this point, other borrowck errors such as use-after-free would have been
+  // caught in the calls originated from the above visitExpr().
+  if (in_return_stmt && rs->expr->type->isReference()) {
+    if (rs->expr->isLValue()) {
+      assert(!sema.context.func_decl_stack.empty());
+      auto current_func = sema.context.func_decl_stack.back();
+      // TODO: Currently we do simple equality comparison (!=) between the
+      // lifetimes. This may not be sufficient.
+      if (rs->expr->getLValueDecl()->lifetime !=
+          current_func->ret_type_expr->as<TypeExpr>()->lifetime) {
+        sema.error(rs->expr->pos, "lifetime mismatch");
+        return;
+      }
+
+      // TODO: Can functions only return references that are in the args list?
+      // These are fine:
+      //
+      //     let ref = returns_ref()
+      //     return ref
+    } else if (isReferenceExpr(rs->expr)) {
+      // This is almost always a bad idea...
+    }
+  }
+
   in_return_stmt = false;
 }
 
@@ -1163,18 +1192,6 @@ void BorrowChecker::visitExpr(Expr *e) {
   }
 
   AstVisitor<BorrowChecker, void>::visitExpr(e);
-
-  // Return statement borrowck.
-  //
-  // At this point, other borrowck errors such as use-after-free would have been
-  // caught in the calls originated from the above visitExpr().
-  if (in_return_stmt && e->type->isReference()) {
-    if (e->isLValue()) {
-      auto sym = sema.live_list.find(e->getLValueDecl()->borrowee);
-      // TODO right now
-    } else if (isReferenceExpr(e)) {
-    }
-  }
 }
 
 // Rule: a variable of lifetime 'a should only refer to a variable whose
@@ -1283,7 +1300,6 @@ void BorrowChecker::visitUnaryExpr(UnaryExpr *u) {
   case UnaryExprKind::var_ref: // TODO
     visitExpr(u->operand);
     registerBorrow(sema, u->operand->getLValueDecl(), u->pos);
-    break;
   case UnaryExprKind::deref:
     visitExpr(u->operand);
     break;
@@ -1305,6 +1321,10 @@ void BorrowChecker::visitVarDecl(VarDecl *v) {
     borrowCheckAssignment(
         sema, v, v->assign_expr,
         true /* because declarations with an init expr is always a move. */);
+  } else if (v->type_expr) {
+    if (v->type_expr->as<TypeExpr>()->lifetime) {
+      v->lifetime = v->type_expr->as<TypeExpr>()->lifetime;
+    }
   }
 }
 
@@ -1347,7 +1367,9 @@ void BorrowChecker::visitFuncDecl(FuncDecl *f) {
     }
   }
 
+  sema.context.func_decl_stack.push_back(f);
   walk_func_decl(*this, f);
+  sema.context.func_decl_stack.pop_back();
 }
 
 void CodeGenerator::visitFile(File *f) {

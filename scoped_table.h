@@ -23,7 +23,7 @@ template <typename Key, typename T> struct ScopedTable {
   ~ScopedTable();
   T *insert(const Key key, const T &value);
 
-  // find(nullptr) always returns nullptr.
+  // Note that `find(nullptr)` always returns nullptr.
   Symbol *find(const Key key) const;
 
   void print() const;

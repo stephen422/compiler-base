@@ -315,17 +315,17 @@ struct ParenExpr : public UnaryExpr {
 };
 
 struct BinaryExpr : public Expr {
-    Expr *lhs;
-    Token op;
-    Expr *rhs;
+  Expr *lhs;
+  Token op;
+  Expr *rhs;
 
-    BinaryExpr(Expr *lhs_, Token op_, Expr *rhs_)
-        : Expr(ExprKind::binary),
-          lhs(std::move(lhs_)), op(op_), rhs(std::move(rhs_)) {
-        auto pair = get_ast_range({lhs, rhs});
-        pos = pair.first;
-    }
-    void print() const override;
+  BinaryExpr(Expr *lhs_, Token op_, Expr *rhs_)
+      : Expr(ExprKind::binary), lhs(std::move(lhs_)), op(op_),
+        rhs(std::move(rhs_)) {
+    auto pair = get_ast_range({lhs, rhs});
+    pos = pair.first;
+  }
+  void print() const override;
 };
 
 // XXX: can I call this an expression?
@@ -409,7 +409,7 @@ public:
 
   template <typename T> bool is() const { return decl_is<T>(kind); }
 
-  std::optional<Type *> type() const;
+  std::optional<Type *> typeMaybe() const;
 };
 
 enum class VarDeclKind {
@@ -438,15 +438,18 @@ struct VarDecl : public Decl {
   // Mutability of the variable.
   bool mut = false; 
 
-  // If this variable has been moved out.
+  // Whether this variable has been moved out.
   bool moved = false;
 
-  // If this variable has been borrowed.  Used for borrow checking.
+  // Whether this variable has been borrowed.  Used for borrow checking.
   bool borrowed = false;
 
-  // Decl of the var that this var references to.  Null if this variable is not
-  // a reference type. Used for borrow checking.
+  // [References] Decl of the var that this var references to.  Null if this
+  // variable is not a reference type. Used for borrow checking.
   VarDecl *borrowee = nullptr;
+
+  // [References] Lifetime of this variable.
+  Name *lifetime = nullptr;
 
   // Decls for each of the values that are associated to this value.
   // For example, if this value is a struct type, these would be VarDecls for
