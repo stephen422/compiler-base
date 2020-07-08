@@ -70,6 +70,9 @@ func f(a: int, b int, c: &int) -> int { // ERROR: expected .* ':'
 func f(a: int#, b: int, c: &int) -> int { // ERROR: trailing token '#'
 }
 
+func ref(p: &.a int, b: &.b int) -> &.a int {
+}
+
 struct Token {
   pos: int
   a: int

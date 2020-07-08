@@ -550,15 +550,22 @@ Expr *Parser::parseTypeExpr() {
     mut = true;
   }
 
-  // XXX OUTDATED: Encode each type into a unique Name, so that they are easy
-  // to find in the type table in the semantic analysis phase.
   TypeExprKind type_kind = TypeExprKind::none;
+  Name *lifetime = nullptr;
   Expr *subexpr = nullptr;
   std::string text;
   if (tok.kind == Tok::ampersand) {
     expect(Tok::ampersand);
     type_kind = mut ? TypeExprKind::var_ref : TypeExprKind::ref;
 
+    // Lifetime annotation.
+    if (tok.kind == Tok::dot) {
+      next();
+      lifetime = sema.name_table.get_or_add(std::string{tok.text});
+      next();
+    }
+
+    // Base type name.
     subexpr = parseTypeExpr();
     if (subexpr->kind == ExprKind::type) {
       text = getReferenceTypeName(sema.name_table, mut, subexpr->as<TypeExpr>()->name)->text;
@@ -577,7 +584,8 @@ Expr *Parser::parseTypeExpr() {
 
   Name *name = sema.name_table.get_or_add(text);
 
-  return sema.make_node_pos<TypeExpr>(pos, type_kind, name, mut, subexpr);
+  return sema.make_node_pos<TypeExpr>(pos, type_kind, name, mut, lifetime,
+                                      subexpr);
 }
 
 Expr *Parser::parseUnaryExpr() {

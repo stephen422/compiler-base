@@ -338,21 +338,24 @@ enum class TypeExprKind {
 };
 
 struct TypeExpr : public Expr {
-    const TypeExprKind kind = TypeExprKind::none;
-    // Name of the type. TODO: should this contain '&' and '[]'?
-    Name *name = nullptr;
-    // Decl object that represents this type.
-    Decl *decl = nullptr;
-    // Is this type mutable?
-    bool mut = false;
-    // 'T' part of '&T'.  It is Expr rather than TypeExpr mainly so that it can
-    // store BadExpr.  XXX dirty.
-    Expr *subexpr = nullptr;
+  const TypeExprKind kind = TypeExprKind::none;
+  // Name of the type. TODO: should this contain '&' and '[]'?
+  Name *name = nullptr;
+  // Decl object that represents this type.
+  Decl *decl = nullptr;
+  // Is this type mutable?
+  bool mut = false;
+  // Name of the lifetime annotation.
+  Name *lifetime = nullptr;
+  // 'T' part of '&T'.  It is Expr rather than TypeExpr mainly so that it can
+  // store BadExpr.  XXX dirty.
+  Expr *subexpr = nullptr;
 
-    // TODO: incomplete.
-    TypeExpr(TypeExprKind k, Name *n, bool m, Expr *se)
-        : Expr(ExprKind::type), kind(k), name(n), mut(m), subexpr(se) {}
-    void print() const override;
+  // TODO: incomplete.
+  TypeExpr(TypeExprKind k, Name *n, bool m, Name *lt, Expr *se)
+      : Expr(ExprKind::type), kind(k), name(n), mut(m), lifetime(lt),
+        subexpr(se) {}
+  void print() const override;
 };
 
 struct BadExpr : public Expr {
