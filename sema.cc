@@ -196,9 +196,6 @@ void NameBinding::visitVarDecl(VarDecl *v) {
   walk_var_decl(*this, v);
 
   if (!declare<VarDecl>(sema, v->pos, v->name, v)) return;
-  if (!sema.context.func_decl_stack.empty()) {
-    v->local = true;
-  }
 }
 
 void NameBinding::visitFuncDecl(FuncDecl *f) {
@@ -1159,9 +1156,10 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
   // At this point, other borrowck errors such as use-after-free would have been
   // caught in the calls originated from the above visitExpr()(FIXME).
   if (in_return_stmt && rs->expr->type->isReference()) {
+    assert(!sema.context.func_decl_stack.empty());
+    auto current_func = sema.context.func_decl_stack.back();
+
     if (rs->expr->isLValue()) {
-      assert(!sema.context.func_decl_stack.empty());
-      auto current_func = sema.context.func_decl_stack.back();
       // TODO: Currently we do simple equality comparison (!=) between the
       // lifetimes. This may not be sufficient in the future.
       if (rs->expr->getLValueDecl()->lifetime !=
@@ -1178,13 +1176,15 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
       //
       // It's all about the lifetimes.
     } else if (isReferenceExpr(rs->expr)) {
-      // This is almost always a bad idea...
+      // Detect use of a local variable in a reference.
+      auto func_scope_level = sema.live_list.find(current_func)->scope_level;
       auto operand = rs->expr->as<UnaryExpr>()->operand;
-      auto sym = sema.live_list.find(operand->getLValueDecl());
-      if (sym->value->local) {
+      auto operand_level =
+          sema.live_list.find(operand->getLValueDecl())->scope_level;
+      if (operand_level > func_scope_level) {
         sema.error(operand->pos,
                    "cannot return value that references local variable '{}'",
-                   sym->value->name->str());
+                   operand->getLValueDecl()->name->str());
       }
     }
   }
@@ -1379,13 +1379,13 @@ void BorrowChecker::visitFuncDecl(FuncDecl *f) {
     }
   }
 
-  sema.live_list.scope_open();
+  sema.live_list.insert(f, f);
+
   sema.context.func_decl_stack.push_back(f);
 
   walk_func_decl(*this, f);
 
   sema.context.func_decl_stack.pop_back();
-  sema.live_list.scope_close();
 }
 
 void CodeGenerator::visitFile(File *f) {

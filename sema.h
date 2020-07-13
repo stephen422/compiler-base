@@ -70,7 +70,7 @@ struct Sema {
   // XXX: needed?
   ScopedTable<Name *, Type *> type_table;
   // Live variables at the current scope.
-  ScopedTable<VarDecl *, VarDecl *> live_list;
+  ScopedTable<Decl *, Decl *> live_list;
   // TODO: doc
   ScopedTable<const VarDecl *, BorrowMap> borrow_table;
 

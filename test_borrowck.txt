@@ -136,11 +136,12 @@ func stack_ref() -> &int {
     return empty_ref // ERROR: TODO: null borrow
 
     let x = 3
-    return &x  // ERROR: cannot return value that references local variable 'x'
+    return &x // ERROR: cannot return value that references local variable 'x'
 
     let s = StackRef {.a = 3}
     {
-        return &s.a // ERROR: TODO: return lifetime error
+        // TODO: 's.a' or 's' instead of 'a'
+        return &s.a  // ERROR: cannot return value that references local variable 'a'
     }
     {
         // indirect reference to a stack variable
