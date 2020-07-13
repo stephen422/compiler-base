@@ -1160,6 +1160,28 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
     auto current_func = sema.context.func_decl_stack.back();
 
     if (rs->expr->isLValue()) {
+      // For lvalues whose lifetime is implicit and might refer to a local
+      // variable:
+      if (!rs->expr->getLValueDecl()->lifetime) {
+        auto borrowee = rs->expr->getLValueDecl()->borrowee;
+        if (!borrowee) {
+          sema.error(rs->expr->pos, "TODO: null borrow");
+          return;
+        }
+
+        // Detect use of a local variable in a reference.
+        auto func_scope_level = sema.live_list.find(current_func)->scope_level;
+        auto borrowee_level =
+            sema.live_list.find(borrowee)->scope_level;
+        if (borrowee_level > func_scope_level) {
+          sema.error(rs->expr->pos,
+                     "cannot return value that references local variable '{}'",
+                     borrowee->name->str());
+          return;
+        }
+      }
+
+      // For lvalues that have explicit annotated lifetimes:
       // TODO: Currently we do simple equality comparison (!=) between the
       // lifetimes. This may not be sufficient in the future.
       if (rs->expr->getLValueDecl()->lifetime !=
@@ -1177,6 +1199,7 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
       // It's all about the lifetimes.
     } else if (isReferenceExpr(rs->expr)) {
       // Detect use of a local variable in a reference.
+      // @Cleanup: copypaste from above
       auto func_scope_level = sema.live_list.find(current_func)->scope_level;
       auto operand = rs->expr->as<UnaryExpr>()->operand;
       auto operand_level =
@@ -1184,7 +1207,8 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
       if (operand_level > func_scope_level) {
         sema.error(operand->pos,
                    "cannot return value that references local variable '{}'",
-                   operand->getLValueDecl()->name->str());
+                   operand->text(sema.source));
+        return;
       }
     }
   }
