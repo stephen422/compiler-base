@@ -441,6 +441,9 @@ struct VarDecl : public Decl {
   // Whether this variable has been moved out.
   bool moved = false;
 
+  // Whether this variable is a function-local variable.
+  bool local = false;
+
   // Whether this variable has been borrowed.  Used for borrow checking.
   bool borrowed = false;
 

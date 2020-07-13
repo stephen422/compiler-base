@@ -80,14 +80,15 @@ func missing_annot_ret(ptr: &.a int) -> &int { // ERROR: missing lifetime annota
     return ptr
 }
 
-func return_first(a: &.a int, b: &.b int) -> &.a int {
-    return b // ERROR: lifetime mismatch
+func return_ref(ptr: &.a int) -> &.a int {
+    return ptr // ok
+
+    let i = 42
+    return &i // ERROR: cannot return value that references local variable 'i'
 }
 
-func f(ptr: &.a int) -> &.a int {
-    let i = 42
-    return &i // ERROR: todo
-    return ptr
+func return_first(a: &.a int, b: &.b int) -> &.a int {
+    return b // ERROR: lifetime mismatch
 }
 
 func fs(s: S) {
@@ -116,7 +117,7 @@ func multiple_borrows() {
     }
     {
         let x = &a
-        f(&a) // ERROR: cannot borrow 'a' more than once
+        return_ref(&a) // ERROR: cannot borrow 'a' more than once
     }
     {
         let x = &a
@@ -130,10 +131,12 @@ struct StackRef {
 
 func stack_ref() -> &int {
     let empty_ref: &int
+    // This should be caught in the typecheck phase, as a 'use before
+    // initialization' error.
     return empty_ref // ERROR: TODO: null borrow
 
     let x = 3
-    return &x // ERROR: TODO: return lifetime error
+    return &x  // ERROR: cannot return value that references local variable 'x'
 
     let s = StackRef {.a = 3}
     {

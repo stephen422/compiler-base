@@ -196,6 +196,9 @@ void NameBinding::visitVarDecl(VarDecl *v) {
   walk_var_decl(*this, v);
 
   if (!declare<VarDecl>(sema, v->pos, v->name, v)) return;
+  if (!sema.context.func_decl_stack.empty()) {
+    v->local = true;
+  }
 }
 
 void NameBinding::visitFuncDecl(FuncDecl *f) {
@@ -1154,13 +1157,13 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
   // Return statement borrowck.
   //
   // At this point, other borrowck errors such as use-after-free would have been
-  // caught in the calls originated from the above visitExpr().
+  // caught in the calls originated from the above visitExpr()(FIXME).
   if (in_return_stmt && rs->expr->type->isReference()) {
     if (rs->expr->isLValue()) {
       assert(!sema.context.func_decl_stack.empty());
       auto current_func = sema.context.func_decl_stack.back();
       // TODO: Currently we do simple equality comparison (!=) between the
-      // lifetimes. This may not be sufficient.
+      // lifetimes. This may not be sufficient in the future.
       if (rs->expr->getLValueDecl()->lifetime !=
           current_func->ret_type_expr->as<TypeExpr>()->lifetime) {
         sema.error(rs->expr->pos, "lifetime mismatch");
@@ -1172,8 +1175,17 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
       //
       //     let ref = returns_ref()
       //     return ref
+      //
+      // It's all about the lifetimes.
     } else if (isReferenceExpr(rs->expr)) {
       // This is almost always a bad idea...
+      auto operand = rs->expr->as<UnaryExpr>()->operand;
+      auto sym = sema.live_list.find(operand->getLValueDecl());
+      if (sym->value->local) {
+        sema.error(operand->pos,
+                   "cannot return value that references local variable '{}'",
+                   sym->value->name->str());
+      }
     }
   }
 
@@ -1367,9 +1379,13 @@ void BorrowChecker::visitFuncDecl(FuncDecl *f) {
     }
   }
 
+  sema.live_list.scope_open();
   sema.context.func_decl_stack.push_back(f);
+
   walk_func_decl(*this, f);
+
   sema.context.func_decl_stack.pop_back();
+  sema.live_list.scope_close();
 }
 
 void CodeGenerator::visitFile(File *f) {
@@ -1557,7 +1573,7 @@ void CodeGenerator::visitFuncDecl(FuncDecl *f) {
   else
     emit("void");
 
-  emit(" {}(", f->name->str());
+
   if (f->args.empty()) {
     emitCont("void");
   } else {

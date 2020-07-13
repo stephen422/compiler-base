@@ -56,7 +56,7 @@ class Parser;
 // Stores all of the semantic information necessary for semantic analysis
 // phase.
 struct Sema {
-  const Source &source;  // source text
+  const Source &source; // source text
   NameTable name_table; // name table
 
   // Memory pools.  Currently maintains simply a list of malloc()ed pointers for
