@@ -1,3 +1,5 @@
+// -*- swift -*-
+
 struct S {
     ptr: var &int
     ip: &int
@@ -148,4 +150,16 @@ func stack_ref() -> &int {
         return p // ERROR: cannot return value that references local variable 's'
     }
     // TODO: return S {.a = &a}
+}
+
+func lifetime_transfer() {
+    let a = 1
+    var ptr: &int
+
+    {
+        let b = 2
+        ptr = return_first(&b, &a)
+    }
+
+    *ptr // ERROR: 'b' does not live long enough
 }

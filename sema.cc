@@ -1112,7 +1112,11 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
         operand->getLValueDecl()->borrowed = true;
       }
     }
-    assert(v->borrowee && "borrowee still null");
+    // assert(v->borrowee && "borrowee still null");
+    if (!v->borrowee) {
+      sema.error(rhs->pos, "ASSERT: borrowee still null");
+      return;
+    }
   } else if (move && rhs->isLValue()) {
     // Move of an LValue, e.g. 'a <- b' or 'a <- *p' (illegal).
     //
