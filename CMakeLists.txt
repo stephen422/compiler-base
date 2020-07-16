@@ -15,8 +15,8 @@ list(APPEND MY_COMPILE_FLAGS -Wall -Wextra -Wno-unused-parameter
   -fno-omit-frame-pointer)
 list(APPEND MY_LINK_FLAGS -fno-omit-frame-pointer)
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  list(APPEND MY_COMPILE_FLAGS -fdiagnostics-color=always $<$<CONFIG:DEBUG>:-ggdb>)
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  list(APPEND MY_COMPILE_FLAGS -fcolor-diagnostics $<$<CONFIG:DEBUG>:-ggdb>)
 
   if(UNIX AND NOT APPLE)
     # Link to libc++
