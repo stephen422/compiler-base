@@ -53,6 +53,17 @@ struct BasicBlock {
 
 class Parser;
 
+class Lifetime {
+public:
+  // Declaration that first introduced this lifetime.
+  // Can be used for error reports.
+  Decl *decl = nullptr;
+
+  // Level of the scope that this lifetime resides in.
+  // Used to determine inclusion relation between lifetimes.
+  int scope_level;
+};
+
 // Stores all of the semantic information necessary for semantic analysis
 // phase.
 struct Sema {
@@ -63,6 +74,7 @@ struct Sema {
   // batch freeing.
   std::vector<std::unique_ptr<AstNode>> node_pool;
   std::vector<Type *> type_pool;
+  std::vector<Lifetime *> lifetime_pool;
   std::vector<BasicBlock *> basic_block_pool;
 
   // Declarations visible at the current scope.
@@ -71,6 +83,8 @@ struct Sema {
   ScopedTable<Name *, Type *> type_table;
   // Live variables at the current scope.
   ScopedTable<Decl *, Decl *> live_list;
+  // TODO: doc
+  ScopedTable<Decl *, Lifetime *> lifetime_table;
   // TODO: doc
   ScopedTable<const VarDecl *, BorrowMap> borrow_table;
 

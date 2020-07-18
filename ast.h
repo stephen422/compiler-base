@@ -26,6 +26,7 @@ struct StructDecl;
 struct EnumVariantDecl;
 struct EnumDecl;
 struct BadDecl;
+class Lifetime;
 
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
 
@@ -410,6 +411,8 @@ public:
   template <typename T> bool is() const { return decl_is<T>(kind); }
 
   std::optional<Type *> typeMaybe() const;
+
+  Name *name() const;
 };
 
 enum class VarDeclKind {
@@ -447,12 +450,12 @@ struct VarDecl : public Decl {
   // Whether this variable has been borrowed.  Used for borrow checking.
   bool borrowed = false;
 
-  // [References] Decl of the var that this var references to.  Null if this
-  // variable is not a reference type. Used for borrow checking.
-  VarDecl *borrowee = nullptr;
+  // TODO: Deprecate.
+  Name *lifetime_name = nullptr;
 
-  // [References] Lifetime of this variable.
-  Name *lifetime = nullptr;
+  // [References] Lifetime of this variable. Null if this variable is not a
+  // reference type.
+  Lifetime *lifetime = nullptr;
 
   // Decls for each of the values that are associated to this value.
   // For example, if this value is a struct type, these would be VarDecls for
@@ -469,8 +472,8 @@ struct VarDecl : public Decl {
   VarDecl(Name *n, VarDeclKind k, Expr *t, Expr *expr)
       : Decl(DeclKind::var), name(n), kind(k), type_expr(t),
         assign_expr(expr) {}
-  VarDecl(Name *n, Type *t, bool m, VarDecl *bor)
-      : Decl(DeclKind::var), name(n), type(t), mut(m), borrowee(bor) {}
+  VarDecl(Name *n, Type *t, bool m)
+      : Decl(DeclKind::var), name(n), type(t), mut(m) {}
   void print() const override;
 
   void addChild(Name *name, VarDecl *child);
@@ -484,6 +487,7 @@ struct FuncDecl : public Decl {
   std::vector<VarDecl *> args;     // list of parameters
   CompoundStmt *body = nullptr;    // body statements
   Expr *ret_type_expr = nullptr;   // return type expression
+  Lifetime *lifetime = nullptr;    // lifetime of the arguments
 
   FuncDecl(Name *n) : Decl(DeclKind::func), name(n) {}
   size_t args_count() const { return args.size(); }

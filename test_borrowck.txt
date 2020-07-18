@@ -135,7 +135,7 @@ func stack_ref() -> &int {
     let empty_ref: &int
     // This should be caught in the typecheck phase, as a 'use before
     // initialization' error.
-    return empty_ref // ERROR: TODO: null borrow
+    return empty_ref // ERROR: TODO: null lifetime
 
     let x = 3
     return &x // ERROR: cannot return value that references local variable 'x'

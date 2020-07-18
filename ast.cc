@@ -80,6 +80,19 @@ std::optional<Type *> Decl::typeMaybe() const {
   assert(false && "not all decl kinds handled");
 }
 
+Name *Decl::name() const {
+  switch (kind) {
+  case DeclKind::var:
+    return as<VarDecl>()->name;
+  case DeclKind::func:
+    return as<FuncDecl>()->name;
+  case DeclKind::struct_:
+    return as<StructDecl>()->name;
+  default:
+    return nullptr;
+  }
+}
+
 void VarDecl::addChild(Name *name, VarDecl *child) {
   child->parent = this;
   children.push_back({name, child});

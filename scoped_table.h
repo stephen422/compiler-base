@@ -40,7 +40,6 @@ template <typename Key, typename T> struct ScopedTable {
 
 // ref: https://stackoverflow.com/a/12996028
 static inline uint64_t hash(const void *p) {
-  static_assert(sizeof(p) == sizeof(uint64_t));
   uint64_t x = (uint64_t)p;
   x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
   x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
@@ -72,6 +71,8 @@ template <typename Key, typename T> ScopedTable<Key, T>::~ScopedTable() {
 // Insert symbol at the current scope level.
 template <typename Key, typename T>
 T *ScopedTable<Key, T>::insert(const Key key, const T &value) {
+  static_assert(sizeof(Key) == sizeof(uint64_t));
+
   // memory for T is stored inside the symbol
   // TODO: better allocator
   Symbol *head = new Symbol(key, value);

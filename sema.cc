@@ -92,6 +92,9 @@ Sema::~Sema() {
   for (auto t : type_pool) {
     delete t;
   }
+  for (auto lt : lifetime_pool) {
+    delete lt;
+  }
   for (auto b : basic_block_pool) {
     delete b;
   }
@@ -101,6 +104,7 @@ void Sema::scope_open() {
   decl_table.scope_open();
   type_table.scope_open();
   live_list.scope_open();
+  lifetime_table.scope_open();
   borrow_table.scope_open();
 }
 
@@ -108,6 +112,7 @@ void Sema::scope_close() {
   decl_table.scope_close();
   type_table.scope_close();
   live_list.scope_close();
+  lifetime_table.scope_close();
   borrow_table.scope_close();
 }
 
@@ -477,6 +482,14 @@ VarDecl *findFieldInStruct(Name *field_name, Type *struct_type) {
   return found;
 }
 
+// The new lifetime will be automatically destroyed on `scope_close()`.
+Lifetime *start_lifetime(Sema &sema, Decl *decl) {
+  Lifetime *lt = new Lifetime{decl, sema.lifetime_table.curr_scope_level};
+  sema.lifetime_pool.push_back(lt);
+  sema.lifetime_table.insert(decl, lt);
+  return lt;
+}
+
 } // namespace
 
 Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
@@ -585,10 +598,12 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
         // their name, but through the VarDecl of their parent struct value.
         // Their mutability is inherited from the parent value.
         auto field_var_decl = sema.make_node<VarDecl>(
-            m->member_name, field_decl->type, struct_var_decl->mut, nullptr);
+            m->member_name, field_decl->type, struct_var_decl->mut);
         m->decl = {field_var_decl};
 
+        // TODO: abstract this and make_node together into a func.
         assert(sema.live_list.insert(field_var_decl, field_var_decl));
+        start_lifetime(sema, field_var_decl);
         struct_var_decl->addChild(m->member_name, field_var_decl);
       }
     }
@@ -653,7 +668,7 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
       //
       // The '*v' here has to have a valid VarDecl with 'mut' as true.
       bool mut = (u->operand->type->kind == TypeKind::var_ref);
-      u->var_decl = sema.make_node<VarDecl>(nullptr, u->type, mut, nullptr);
+      u->var_decl = sema.make_node<VarDecl>(nullptr, u->type, mut);
       // Temporary VarDecls are _not_ pushed to the scoped decl table, because
       // they are not meant to be accessed later from a different position in
       // the source. In the same sense, they don't have a name that can be used
@@ -771,7 +786,7 @@ Type *TypeChecker::visitVarDecl(VarDecl *v) {
     assert(v->children.empty());
     for (auto field : v->type->getStructDecl()->fields) {
       auto field_var_decl =
-        sema.make_node<VarDecl>(field->name, field->type, v->mut, nullptr);
+        sema.make_node<VarDecl>(field->name, field->type, v->mut);
       v->addChild(field->name, field_var_decl);
     }
   }
@@ -1087,7 +1102,7 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
         assert(false && "TODO: nullify reference in RHS");
       } else {
         // TODO: check multiple borrowing rule
-        v->borrowee = rhs->getLValueDecl()->borrowee;
+        v->lifetime = rhs->getLValueDecl()->lifetime;
         rhs->getLValueDecl()->borrowed = true;
       }
     } else if (isReferenceExpr(rhs)) {
@@ -1105,16 +1120,19 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
         //
         // FIXME: We gotta find the root parent, not the parent of just one
         // level above. Add a test case for this.
-        v->borrowee = operand->getLValueDecl()->parent;
+        v->lifetime =
+            sema.lifetime_table.find(operand->getLValueDecl()->parent)->value;
         operand->getLValueDecl()->parent->borrowed = true;
       } else {
-        v->borrowee = operand->getLValueDecl();
+        v->lifetime = sema.lifetime_table.find(operand->getLValueDecl())->value;
         operand->getLValueDecl()->borrowed = true;
       }
+    } else if (rhs->kind == ExprKind::func_call) {
+      sema.error(rhs->pos, "got here");
+      return;
     }
-    // assert(v->borrowee && "borrowee still null");
-    if (!v->borrowee) {
-      sema.error(rhs->pos, "ASSERT: borrowee still null");
+    if (!v->lifetime) {
+      sema.error(rhs->pos, "ASSERT: lifetime still null");
       return;
     }
   } else if (move && rhs->isLValue()) {
@@ -1164,23 +1182,24 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
     auto current_func = sema.context.func_decl_stack.back();
 
     if (rs->expr->isLValue()) {
-      // For lvalues whose lifetime is implicit and might refer to a local
-      // variable:
-      if (!rs->expr->getLValueDecl()->lifetime) {
-        auto borrowee = rs->expr->getLValueDecl()->borrowee;
-        if (!borrowee) {
-          sema.error(rs->expr->pos, "TODO: null borrow");
+      // For lvalue references whose lifetime is implicit and might refer to a
+      // local variable:
+      if (!rs->expr->getLValueDecl()->lifetime_name) {
+        auto lifetime = rs->expr->getLValueDecl()->lifetime;
+        if (!lifetime) {
+          sema.error(rs->expr->pos, "TODO: null lifetime");
           return;
         }
 
         // Detect use of a local variable in a reference.
-        auto func_scope_level = sema.live_list.find(current_func)->scope_level;
-        auto borrowee_level =
-            sema.live_list.find(borrowee)->scope_level;
+        auto func_scope_level =
+            sema.lifetime_table.find(current_func)->scope_level;
+        auto borrowee_level = rs->expr->getLValueDecl()->lifetime->scope_level;
         if (borrowee_level > func_scope_level) {
-          sema.error(rs->expr->pos,
-                     "cannot return value that references local variable '{}'",
-                     borrowee->name->str());
+          sema.error(
+              rs->expr->pos,
+              "cannot return value that references local variable '{}'",
+              lifetime->decl->name()->str());
           return;
         }
       }
@@ -1188,7 +1207,7 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
       // For lvalues that have explicit annotated lifetimes:
       // TODO: Currently we do simple equality comparison (!=) between the
       // lifetimes. This may not be sufficient in the future.
-      if (rs->expr->getLValueDecl()->lifetime !=
+      if (rs->expr->getLValueDecl()->lifetime_name !=
           current_func->ret_type_expr->as<TypeExpr>()->lifetime) {
         sema.error(rs->expr->pos, "lifetime mismatch");
         return;
@@ -1242,12 +1261,12 @@ void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
   auto var = d->decl->as<VarDecl>();
 
   // at each use of a reference variable, check if its borrowee is alive
-  if (var->borrowee) {
-    auto sym = sema.live_list.find(var->borrowee);
+  if (var->lifetime) {
+    auto sym = sema.lifetime_table.find(var->lifetime->decl);
     // TODO: refactor into find_exact()
-    if (!(sym && sym->value == var->borrowee)) {
+    if (!(sym && sym->value == var->lifetime)) {
       sema.error(d->pos, "'{}' does not live long enough",
-                 var->borrowee->name->str());
+                 var->lifetime->decl->name()->str());
       return;
     }
   }
@@ -1353,8 +1372,12 @@ void BorrowChecker::visitVarDecl(VarDecl *v) {
   walk_var_decl(*this, v);
 
   sema.live_list.insert(v, v);
+  start_lifetime(sema, v);
   for (auto child : v->children) {
+    // FIXME: but... shouldn't have these been already pushed at the time of
+    // their declaration?
     sema.live_list.insert(child.second, child.second);
+    start_lifetime(sema, child.second);
   }
 
   if (v->assign_expr) {
@@ -1363,7 +1386,7 @@ void BorrowChecker::visitVarDecl(VarDecl *v) {
         true /* because declarations with an init expr is always a move. */);
   } else if (v->type_expr) {
     if (v->type_expr->as<TypeExpr>()->lifetime) {
-      v->lifetime = v->type_expr->as<TypeExpr>()->lifetime;
+      v->lifetime_name = v->type_expr->as<TypeExpr>()->lifetime;
     }
   }
 }
@@ -1407,7 +1430,9 @@ void BorrowChecker::visitFuncDecl(FuncDecl *f) {
     }
   }
 
+  // This is used for local variable detection.
   sema.live_list.insert(f, f);
+  start_lifetime(sema, f);
 
   sema.context.func_decl_stack.push_back(f);
 
