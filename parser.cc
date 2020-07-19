@@ -255,6 +255,7 @@ VarDecl *Parser::parseVarDecl(VarDeclKind kind) {
   if (tok.kind != Tok::ident) {
     error_expected("an identifier");
   }
+
   Name *name = sema.name_table.get_or_add(std::string{tok.text});
   next();
 
@@ -440,15 +441,26 @@ EnumDecl *Parser::parseEnumDecl() {
   return sema.make_node_pos<EnumDecl>(pos, name, fields);
 }
 
-bool Parser::isStartOfDecl() const {
-    switch (tok.kind) {
-    case Tok::kw_let:
-    case Tok::kw_var:
-    case Tok::kw_struct:
-        return true;
-    default:
-        return false;
+bool Parser::isStartOfDecl() {
+  switch (tok.kind) {
+  case Tok::kw_let:
+  case Tok::kw_struct:
+    return true;
+  case Tok::kw_var: {
+    // For var, there can be exceptions such as 'var &a'. We need to do some
+    // lookahead here.
+    auto s = save_state();
+    next();
+    if (tok.kind == Tok::ampersand) {
+      restore_state(s);
+      return false;
     }
+    restore_state(s);
+    return true;
+  }
+  default:
+    return false;
+  }
 }
 
 // Parse a declaration.
@@ -719,27 +731,23 @@ Expr *Parser::parseMemberExprMaybe(Expr *expr) {
 }
 
 bool Parser::lookaheadStructDef() {
-    auto s = save_state();
+  auto s = save_state();
 
-    if (tok.kind != Tok::lbrace)
-        goto fail;
+  if (tok.kind != Tok::lbrace) goto fail;
 
-    // empty ({})
-    if (tok.kind == Tok::rbrace)
-        goto success;
-    next();
+  // empty ({})
+  if (tok.kind == Tok::rbrace) goto success;
+  next();
 
-    if (tok.kind != Tok::dot)
-        goto fail;
-
-    goto success;
+  if (tok.kind != Tok::dot) goto fail;
 
 success:
-    restore_state(s);
-    return true;
+  restore_state(s);
+  return true;
+
 fail:
-    restore_state(s);
-    return false;
+  restore_state(s);
+  return false;
 }
 
 // Parse '.memb = expr' part in Struct { .m1 = e1, .m2 = e2, ... }.

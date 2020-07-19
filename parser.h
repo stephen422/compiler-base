@@ -124,7 +124,7 @@ private:
   EnumVariantDecl *parseEnumVariant();
   std::vector<EnumVariantDecl *> parseEnumVariantDeclList();
   EnumDecl *parseEnumDecl();
-  bool isStartOfDecl() const;
+  bool isStartOfDecl();
 
   // Expression parsers
   Expr *parseExpr();
