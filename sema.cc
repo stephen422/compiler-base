@@ -346,7 +346,7 @@ bool typeCheckAssignment(const Type *lhs, const Type *rhs) {
 
 } // namespace
 
-// Assignments should check that the LHS is an l-value.
+// Assignments should check that the LHS is an lvalue.
 // This check cannot be done reliably in the parsing stage because it depends
 // on the actual type of the expression, not just its kind; e.g. (v) or (3).
 //
@@ -360,7 +360,7 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
   // XXX: is this the best way to early-exit?
   if (!lhs_ty || !rhs_ty) return nullptr;
 
-  // L-value check.
+  // Lvalue check.
   if (!as->lhs->isLValue()) {
     sema.error(as->pos, "cannot assign to an rvalue");
     return nullptr;
@@ -658,7 +658,7 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
       u->type = u->operand->type->referee_type;
 
       // Also bind a temporary VarDecl to this expression that respects the
-      // mutability of the reference type.  This way we know if this l-value is
+      // mutability of the reference type.  This way we know if this lvalue is
       // assignable or not.
       //
       // For example,
@@ -997,6 +997,8 @@ void BorrowChecker::visitCompoundStmt(CompoundStmt *cs) {
     sema.scope_close();
 }
 
+namespace {
+
 // Checks if an expr is 'behind' a reference, i.e. it represents an access
 // that goes through the reference.
 class BehindRefVisitor : public AstVisitor<BehindRefVisitor, VarDecl *> {
@@ -1052,7 +1054,8 @@ public:
 // - x = &a
 // - x = S {.m = &a}
 // - f(&a)
-void registerBorrow(Sema &sema, const VarDecl *borrowee, size_t borrowee_pos) {
+// (What about just '&a')?
+void register_borrow_count(Sema &sema, const VarDecl *borrowee, size_t borrowee_pos) {
   int old_borrow_count = 0;
   auto found = sema.borrow_table.find(borrowee);
   if (found) {
@@ -1068,12 +1071,57 @@ void registerBorrow(Sema &sema, const VarDecl *borrowee, size_t borrowee_pos) {
   sema.borrow_table.insert(borrowee, BorrowMap{borrowee, old_borrow_count + 1});
 }
 
+Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
+  if (!ref_expr->type->isReference()) return nullptr;
+
+  if (ref_expr->isLValue()) {
+    // Lvalue reference variable, e.g. 'ptr: &int'.
+    return ref_expr->getLValueDecl()->lifetime;
+  } else if (isReferenceExpr(ref_expr)) {
+    // Explicit reference expression, e.g. '&a'.
+    auto operand = ref_expr->as<UnaryExpr>()->operand;
+    if (operand->kind == ExprKind::member) {
+      // For MemberExprs (e.g. v = &m.a), we are essentially borrowing from the
+      // whole struct, not just the member.
+      //
+      // FIXME: We gotta find the root parent, not the parent of just one level
+      // above. Add a test case for this.
+      return sema.lifetime_table.find(operand->getLValueDecl()->parent)->value;
+    } else {
+      return sema.lifetime_table.find(operand->getLValueDecl())->value;
+    }
+  } else if (ref_expr->kind == ExprKind::func_call) {
+    auto func_call_ex = ref_expr->as<FuncCallExpr>();
+    auto func_decl = func_call_ex->func_decl;
+
+    // Map lifetimes of each args to the annotations, and search for the
+    // return value annotation among them.
+    std::vector<std::pair<Name * /*annotations*/, Lifetime *>> map;
+    for (size_t i = 0; i < func_decl->args.size(); i++) {
+      if (!func_decl->args[i]->type->isReference()) continue;
+
+      map.push_back({func_decl->args[i]->lifetime_name,
+                     lifetime_of_reference(sema, func_call_ex->args[i])});
+    }
+    for (auto const& item : map) {
+      if (item.first == func_decl->ret_lifetime_name) {
+        return item.second;
+      }
+    }
+
+    unreachable();
+    return nullptr;
+  } else {
+    assert(false && "unimplemented");
+  }
+}
+
 void borrowCheckAssignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
   // We don't want to mess with built-in types.
   if (rhs->type->isBuiltinType(sema)) return;
 
   // Pattern-match-like recursion case.
-  // This works because we guarantee that every l-value has a VarDecl.
+  // This works because we guarantee that every lvalue has a VarDecl.
   if (rhs->kind == ExprKind::struct_def) {
     for (auto desig : rhs->as<StructDefExpr>()->desigs) {
       if (isReferenceExpr(desig.init_expr)) {
@@ -1094,7 +1142,7 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
   // Leaf cases of the recursion.
   if (rhs->type->isReference()) {
     if (rhs->isLValue()) {
-      // 'Implicit' copying of a borrow, e.g. 'ref1 = ref2'.
+      // 'Implicit' copying of a borrow, e.g. 'ref1: &int = ref2: &int'.
       //
       // TODO: What about 'ref1 = returns_ref()'?
       // Rewrite it to 'ref1 = { var temp = returns_ref() }' and do a move?
@@ -1102,8 +1150,7 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
         assert(false && "TODO: nullify reference in RHS");
       } else {
         // TODO: check multiple borrowing rule
-        v->lifetime = rhs->getLValueDecl()->lifetime;
-        rhs->getLValueDecl()->borrowed = true;
+        v->lifetime = lifetime_of_reference(sema, rhs);
       }
     } else if (isReferenceExpr(rhs)) {
       // Explicit borrowing statement, e.g. 'a = &b'.
@@ -1120,6 +1167,8 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
         //
         // FIXME: We gotta find the root parent, not the parent of just one
         // level above. Add a test case for this.
+        //
+        // FIXME: copypaste from lifetime_of_reference().
         v->lifetime =
             sema.lifetime_table.find(operand->getLValueDecl()->parent)->value;
         operand->getLValueDecl()->parent->borrowed = true;
@@ -1128,15 +1177,18 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
         operand->getLValueDecl()->borrowed = true;
       }
     } else if (rhs->kind == ExprKind::func_call) {
-      sema.error(rhs->pos, "got here");
-      return;
+      v->lifetime = lifetime_of_reference(sema, rhs);
+    } else {
+      assert(false && "unimplemented");
     }
+
+    // Safety check.
     if (!v->lifetime) {
       sema.error(rhs->pos, "ASSERT: lifetime still null");
       return;
     }
   } else if (move && rhs->isLValue()) {
-    // Move of an LValue, e.g. 'a <- b' or 'a <- *p' (illegal).
+    // Move of a non-reference lvalue, e.g. 'a <- b' or 'a <- *p' (illegal).
     //
     // @Future: Invalidate RHS here. Program must still run even without this
     // invalidation, because access to the moved out value is forbidden in the
@@ -1149,7 +1201,10 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
                  "cannot move out of '{}' because it will invalidate '{}'",
                  rhs->text(sema.source), ref_behind->name->str());
       return;
-    } else if (rhs->getLValueDecl()->borrowed) {
+    // } else if (rhs->getLValueDecl()->borrowed) {
+    } else if (sema.borrow_table.find(rhs->getLValueDecl()) &&
+               sema.borrow_table.find(rhs->getLValueDecl())
+                       ->value.borrow_count > 0) {
       sema.error(rhs->pos, "cannot move out of '{}' because it is borrowed",
                  rhs->text(sema.source));
       return;
@@ -1158,6 +1213,8 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
     rhs->getLValueDecl()->moved = true;
   }
 }
+
+} // namespace
 
 void BorrowChecker::visitAssignStmt(AssignStmt *as) {
   walk_assign_stmt(*this, as);
@@ -1208,7 +1265,7 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
       // TODO: Currently we do simple equality comparison (!=) between the
       // lifetimes. This may not be sufficient in the future.
       if (rs->expr->getLValueDecl()->lifetime_name !=
-          current_func->ret_type_expr->as<TypeExpr>()->lifetime) {
+          current_func->ret_type_expr->as<TypeExpr>()->lifetime_name) {
         sema.error(rs->expr->pos, "lifetime mismatch");
         return;
       }
@@ -1358,7 +1415,7 @@ void BorrowChecker::visitUnaryExpr(UnaryExpr *u) {
   case UnaryExprKind::ref:
   case UnaryExprKind::var_ref: // TODO
     visitExpr(u->operand);
-    registerBorrow(sema, u->operand->getLValueDecl(), u->pos);
+    register_borrow_count(sema, u->operand->getLValueDecl(), u->pos);
   case UnaryExprKind::deref:
     visitExpr(u->operand);
     break;
@@ -1385,8 +1442,8 @@ void BorrowChecker::visitVarDecl(VarDecl *v) {
         sema, v, v->assign_expr,
         true /* because declarations with an init expr is always a move. */);
   } else if (v->type_expr) {
-    if (v->type_expr->as<TypeExpr>()->lifetime) {
-      v->lifetime_name = v->type_expr->as<TypeExpr>()->lifetime;
+    if (v->type_expr->as<TypeExpr>()->lifetime_name) {
+      v->lifetime_name = v->type_expr->as<TypeExpr>()->lifetime_name;
     }
   }
 }
@@ -1399,35 +1456,37 @@ void BorrowChecker::visitFuncDecl(FuncDecl *f) {
 
   public:
     BorrowCheckFuncRAII(BorrowChecker &bc) : bc(bc) {
-      save = bc.in_borrowchecked_func;
+      save = bc.in_annotated_func;
     }
-    ~BorrowCheckFuncRAII() { bc.in_borrowchecked_func = save; }
+    ~BorrowCheckFuncRAII() { bc.in_annotated_func = save; }
 
-    void set(bool b) { bc.in_borrowchecked_func = b; }
+    void set(bool b) { bc.in_annotated_func = b; }
   };
 
   BorrowCheckFuncRAII raii(*this);
 
   for (auto arg : f->args) {
-    if (arg->type_expr->as<TypeExpr>()->lifetime) {
+    if (arg->type_expr->as<TypeExpr>()->lifetime_name) {
       raii.set(true);
       break;
     }
   }
 
-  if (in_borrowchecked_func) {
+  if (in_annotated_func) {
     for (auto arg : f->args) {
       if (arg->type->isReference() &&
-          !arg->type_expr->as<TypeExpr>()->lifetime) {
+          !arg->type_expr->as<TypeExpr>()->lifetime_name) {
         sema.error(arg->pos, "missing lifetime annotation");
         return;
       }
     }
     if (f->ret_type && f->ret_type->isReference() &&
-        !f->ret_type_expr->as<TypeExpr>()->lifetime) {
+        !f->ret_type_expr->as<TypeExpr>()->lifetime_name) {
       sema.error(f->ret_type_expr->pos, "missing lifetime annotation");
       return;
     }
+
+    f->ret_lifetime_name = f->ret_type_expr->as<TypeExpr>()->lifetime_name;
   }
 
   // This is used for local variable detection.

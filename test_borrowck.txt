@@ -159,7 +159,22 @@ func lifetime_transfer() {
     {
         let b = 2
         ptr = return_first(&b, &a)
+        // ptr = return_first(return_first(&b, &a), &a)
+
+        let pb = &b // ERROR: cannot borrow 'b' more than once
+        // TODO: cannot move out of 'b' because ...
     }
 
     *ptr // ERROR: 'b' does not live long enough
+}
+
+func lifetime_coercion() {
+    // TODO.
+
+    // let ptr = max(&a, &b)
+    // In this case, from which one does 'ptr' borrow? Both?
+    // Should we mark both 'a' and 'b' as borrowed then?
+    //
+    // What error should this emit?:
+    // max(max(&a, &b), &b)
 }

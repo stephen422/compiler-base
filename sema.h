@@ -27,6 +27,7 @@ struct Context {
 // Maps a VarDecl to its borrow count in the current scope.
 // To be stored inside a ScopedTable.
 struct BorrowMap {
+  // FIXME: unused.
   const VarDecl *decl = nullptr;
 
   // Number of occasions that this variable was borrowed.
@@ -209,7 +210,7 @@ class BorrowChecker : public AstVisitor<BorrowChecker, void> {
   bool in_return_stmt = false;
 
   // TODO
-  bool in_borrowchecked_func = false;
+  bool in_annotated_func = false;
 
 public:
   BorrowChecker(Sema &s) : sema{s} {}

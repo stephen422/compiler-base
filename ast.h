@@ -245,14 +245,14 @@ struct DeclRefExpr : public Expr {
 };
 
 struct FuncCallExpr : public Expr {
-    Name *func_name = nullptr;
-    std::vector<Expr *> args;
-    FuncDecl *func_decl = nullptr;
+  Name *func_name = nullptr;
+  std::vector<Expr *> args;
+  // Decl of the called function.
+  FuncDecl *func_decl = nullptr;
 
-    FuncCallExpr(Name *name, const std::vector<Expr *> &args)
-        : Expr(ExprKind::func_call), func_name(name),
-          args(args) {}
-    void print() const override;
+  FuncCallExpr(Name *name, const std::vector<Expr *> &args)
+      : Expr(ExprKind::func_call), func_name(name), args(args) {}
+  void print() const override;
 };
 
 // '.memb = expr' part in Struct { ... }.
@@ -346,15 +346,15 @@ struct TypeExpr : public Expr {
   Decl *decl = nullptr;
   // Is this type mutable?
   bool mut = false;
-  // Name of the lifetime annotation.
-  Name *lifetime = nullptr;
+  // Name of the explicit lifetime annotation.
+  Name *lifetime_name = nullptr;
   // 'T' part of '&T'.  It is Expr rather than TypeExpr mainly so that it can
   // store BadExpr.  XXX dirty.
   Expr *subexpr = nullptr;
 
   // TODO: incomplete.
   TypeExpr(TypeExprKind k, Name *n, bool m, Name *lt, Expr *se)
-      : Expr(ExprKind::type), kind(k), name(n), mut(m), lifetime(lt),
+      : Expr(ExprKind::type), kind(k), name(n), mut(m), lifetime_name(lt),
         subexpr(se) {}
   void print() const override;
 };
@@ -448,13 +448,15 @@ struct VarDecl : public Decl {
   bool local = false;
 
   // Whether this variable has been borrowed.  Used for borrow checking.
+  // TODO: Deprecate in favor of borrow_table.
   bool borrowed = false;
 
+  // Name of the explicit lifetime annotation.
   // TODO: Deprecate.
   Name *lifetime_name = nullptr;
 
-  // [References] Lifetime of this variable. Null if this variable is not a
-  // reference type.
+  // [References] Lifetime of the value that this reference refers to. Null if
+  // this variable is not a reference type.
   Lifetime *lifetime = nullptr;
 
   // Decls for each of the values that are associated to this value.
@@ -482,12 +484,12 @@ struct VarDecl : public Decl {
 // Function declaration.  There is no separate function definition: functions
 // should always be defined whenever they are declared.
 struct FuncDecl : public Decl {
-  Name *name = nullptr;            // name of the function
-  Type *ret_type = nullptr;        // return type of the function
-  std::vector<VarDecl *> args;     // list of parameters
-  CompoundStmt *body = nullptr;    // body statements
-  Expr *ret_type_expr = nullptr;   // return type expression
-  Lifetime *lifetime = nullptr;    // lifetime of the arguments
+  Name *name = nullptr;              // name of the function
+  Type *ret_type = nullptr;          // return type of the function
+  std::vector<VarDecl *> args;       // list of parameters
+  CompoundStmt *body = nullptr;      // body statements
+  Expr *ret_type_expr = nullptr;     // return type expression
+  Name *ret_lifetime_name = nullptr; // lifetime annotation of the return value
 
   FuncDecl(Name *n) : Decl(DeclKind::func), name(n) {}
   size_t args_count() const { return args.size(); }
