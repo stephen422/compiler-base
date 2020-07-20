@@ -31,7 +31,8 @@ struct BorrowMap {
   const VarDecl *decl = nullptr;
 
   // Number of occasions that this variable was borrowed.
-  int borrow_count = 0;
+  int immutable_borrow_count = 0;
+  int mutable_borrow_count = 0;
 };
 
 struct BasicBlock {

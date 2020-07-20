@@ -7,7 +7,7 @@ struct S {
 
 func lifetime() {
     var x: &int
-    let a = 42 // to confuse things more...
+    let a = 42 // to confuse things even more...
     {
         let a = 4
         x = &a
@@ -100,16 +100,19 @@ func multiple_borrows() {
     var a = 42
     {
         let x = &a
-        let y = &a // ERROR: cannot borrow 'a' more than once
+        let y = &a // ok
     }
     {
-        // previous borrow should be dropped
-        let x = &a
+        let x = var &a // ok, previous borrow should be dropped
+        let y = &a // ERROR: cannot borrow 'a' as immutable because .* mutable
     }
     {
         let x = &a
-        &a // ERROR: cannot borrow 'a' more than once
-        S {.ptr = var &a} // ERROR: cannot borrow 'a' more than once
+
+        // TODO: This gets parsed as a decl!!!
+        var &a // ERROR: cannot borrow 'a' as mutable because .* immutable
+
+        S {.ptr = var &a} // ERROR: cannot borrow 'a' as mutable because .* immutable
     }
     {
         let s1 = S {.ptr = var &a}
@@ -119,11 +122,11 @@ func multiple_borrows() {
     }
     {
         let x = &a
-        return_ref(&a) // ERROR: cannot borrow 'a' more than once
+        return_ref(&a)
     }
     {
         let x = &a
-        fs(S{.ptr = var &a}) // ERROR: cannot borrow 'a' more than once
+        fs(S{.ptr = var &a}) // ERROR: cannot borrow 'a' as mutable because .* immutable
     }
 }
 
@@ -157,11 +160,11 @@ func lifetime_transfer() {
     var ptr: &int
 
     {
-        let b = 2
+        var b = 2
         ptr = return_first(&b, &a)
-        // ptr = return_first(return_first(&b, &a), &a)
+        ptr = return_first(return_first(&b, &a), &a)
 
-        let pb = &b // ERROR: cannot borrow 'b' more than once
+        let pb = var &b // ERROR: cannot borrow 'b' as mutable because .* immutable
         // TODO: cannot move out of 'b' because ...
     }
 

@@ -1055,20 +1055,35 @@ public:
 // - x = S {.m = &a}
 // - f(&a)
 // (What about just '&a')?
-void register_borrow_count(Sema &sema, const VarDecl *borrowee, size_t borrowee_pos) {
-  int old_borrow_count = 0;
+void register_borrow_count(Sema &sema, const VarDecl *borrowee, bool mut, size_t borrowee_pos) {
+  int immutable_borrow_count_old = 0;
+  int mutable_borrow_count_old = 0;
+
   auto found = sema.borrow_table.find(borrowee);
   if (found) {
-    old_borrow_count = found->value.borrow_count;
+    immutable_borrow_count_old = found->value.immutable_borrow_count;
+    mutable_borrow_count_old = found->value.mutable_borrow_count;
   }
 
-  if (old_borrow_count > 0) {
-    sema.error(borrowee_pos, "cannot borrow '{}' more than once",
+  if (mutable_borrow_count_old > 0) {
+    sema.error(borrowee_pos,
+               "cannot borrow '{}' as immutable because it was borrowed as "
+               "mutable before",
                borrowee->name->str());
     return;
   }
 
-  sema.borrow_table.insert(borrowee, BorrowMap{borrowee, old_borrow_count + 1});
+  if (immutable_borrow_count_old > 0 && mut) {
+    sema.error(borrowee_pos,
+               "cannot borrow '{}' as mutable because it was borrowed as "
+               "immutable before",
+               borrowee->name->str());
+    return;
+  }
+
+  sema.borrow_table.insert(
+      borrowee, BorrowMap{borrowee, immutable_borrow_count_old + (mut ? 0 : 1),
+                          mutable_borrow_count_old + (mut ? 1 : 0)});
 }
 
 Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
@@ -1203,8 +1218,10 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
       return;
     // } else if (rhs->getLValueDecl()->borrowed) {
     } else if (sema.borrow_table.find(rhs->getLValueDecl()) &&
-               sema.borrow_table.find(rhs->getLValueDecl())
-                       ->value.borrow_count > 0) {
+               (sema.borrow_table.find(rhs->getLValueDecl())
+                        ->value.mutable_borrow_count > 0 ||
+                sema.borrow_table.find(rhs->getLValueDecl())
+                        ->value.immutable_borrow_count > 0)) {
       sema.error(rhs->pos, "cannot move out of '{}' because it is borrowed",
                  rhs->text(sema.source));
       return;
@@ -1415,7 +1432,8 @@ void BorrowChecker::visitUnaryExpr(UnaryExpr *u) {
   case UnaryExprKind::ref:
   case UnaryExprKind::var_ref: // TODO
     visitExpr(u->operand);
-    register_borrow_count(sema, u->operand->getLValueDecl(), u->pos);
+    register_borrow_count(sema, u->operand->getLValueDecl(),
+                          u->kind == UnaryExprKind::var_ref, u->pos);
   case UnaryExprKind::deref:
     visitExpr(u->operand);
     break;
