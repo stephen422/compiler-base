@@ -82,6 +82,10 @@ func missing_annot_ret(ptr: &.a int) -> &int { // ERROR: missing lifetime annota
     return ptr
 }
 
+func unknown_annot_ret(ptr: &.a int) -> &.z int { // ERROR: unknown lifetime annotation 'z'
+    return ptr
+}
+
 func return_ref(ptr: &.a int) -> &.a int {
     return ptr // ok
 

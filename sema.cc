@@ -1507,16 +1507,38 @@ void BorrowChecker::visitFuncDecl(FuncDecl *f) {
   }
 
   if (in_annotated_func) {
+    std::vector<Name *> declared_lifetimes;
+
+    // Require that every argument is annotated.
     for (auto arg : f->args) {
       if (arg->type->isReference() &&
           !arg->type_expr->as<TypeExpr>()->lifetime_name) {
         sema.error(arg->pos, "missing lifetime annotation");
         return;
       }
+      declared_lifetimes.push_back(
+          arg->type_expr->as<TypeExpr>()->lifetime_name);
     }
+
+    // Require that return value is annotated.
     if (f->ret_type && f->ret_type->isReference() &&
         !f->ret_type_expr->as<TypeExpr>()->lifetime_name) {
       sema.error(f->ret_type_expr->pos, "missing lifetime annotation");
+      return;
+    }
+
+    // Check if the annotation of the return value was already seen in the args
+    // list.
+    bool seen = false;
+    for (auto l : declared_lifetimes) {
+      if (f->ret_type_expr->as<TypeExpr>()->lifetime_name == l) {
+        seen = true;
+        break;
+      }
+    }
+    if (!seen) {
+      sema.error(f->ret_type_expr->pos, "unknown lifetime annotation '{}'",
+                 f->ret_type_expr->as<TypeExpr>()->lifetime_name->str());
       return;
     }
 
