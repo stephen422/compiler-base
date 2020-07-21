@@ -1072,7 +1072,6 @@ void register_borrow_count(Sema &sema, const VarDecl *borrowee, bool mut, size_t
                borrowee->name->str());
     return;
   }
-
   if (immutable_borrow_count_old > 0 && mut) {
     sema.error(borrowee_pos,
                "cannot borrow '{}' as mutable because it was borrowed as "
@@ -1111,6 +1110,12 @@ Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
 
     // Map lifetimes of each args to the annotations, and search for the
     // return value annotation among them.
+    //
+    // NOTE: lifetime coercion happens here. If multiple lifetimes match to a
+    // single annotated name, find the shortest-living one and use that.
+    //
+    // In the point of view from the inside the function, whether a coercion
+    // happened or not on the callee side is not important.
     std::vector<std::pair<Name * /*annotations*/, Lifetime *>> map;
     for (size_t i = 0; i < func_decl->args.size(); i++) {
       if (!func_decl->args[i]->type->isReference()) continue;
@@ -1118,14 +1123,22 @@ Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
       map.push_back({func_decl->args[i]->lifetime_name,
                      lifetime_of_reference(sema, func_call_ex->args[i])});
     }
-    for (auto const& item : map) {
+
+    Lifetime *shortest_found = nullptr;
+    for (auto const &item : map) {
       if (item.first == func_decl->ret_lifetime_name) {
-        return item.second;
+        if (shortest_found) {
+          if (item.second->scope_level > shortest_found->scope_level) {
+            shortest_found = item.second;
+          }
+        } else {
+          shortest_found = item.second;
+        }
       }
     }
 
-    unreachable();
-    return nullptr;
+    assert(shortest_found);
+    return shortest_found;
   } else {
     assert(false && "unimplemented");
   }
@@ -1381,13 +1394,14 @@ void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
 // ============
 //
 // We are considering adding 'owning pointer' as a language-native type.  This
-// type is essentially the same as Rust's Box<T> or C++'s std::unique_ptr<T>.
+// type is essentially the same as Rust's Box<T> or C++'s std::unique_ptr<T>,
+// with a fixed 'drop' procedure.
 //
-// The language has a stance on assignments which is the opposite to Rust's
-// 'move by default'.  In Rust, all assignments are treated as move, unless the
-// involving types implement 'Copy' trait. This makes transferring of ownership
-// less visible, because it is not easy to see if the type at hand is copyable
-// or not without looking up its declaration.
+// The language has a stance on assignments that is the opposite of Rust's
+// 'move by default'.  In Rust, all assignments are treated as move except for
+// a small subset of types. This makes the transferring of ownerships less
+// obvious, because it is not easy to see if the type at hand is copyable or
+// not without looking up its declaration.
 //
 // In our language, we essentially distinguish moves from copies syntactically.
 // We interpret all assignments as copying, but if the type of the value being
@@ -1396,10 +1410,12 @@ void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
 // allowed on those types, which have a distinct syntax from the usual copy
 // assignment.
 //
-// This design has several advantages: 1. It makes the transfer of ownership
-// more explicitly visible, which is a good thing.  2. It makes the language
-// feel less foreign to people coming from C or C++, as those languages engage
-// the copy-by-default semantics too.
+// This design has several advantages:
+//
+//   1. It makes transfer of ownership explicit and more obvious, which can be
+//      a good thing.
+//   2. It makes the language feel less foreign to people coming from languages
+//      like C or C++ which engage the copy-by-default semantics as well.
 //
 // Function calls
 // ==============

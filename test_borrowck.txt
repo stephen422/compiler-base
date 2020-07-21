@@ -89,8 +89,18 @@ func return_ref(ptr: &.a int) -> &.a int {
     return &i // ERROR: cannot return value that references local variable 'i'
 }
 
-func return_first(a: &.a int, b: &.b int) -> &.a int {
+func max(a: &.a int, b: &.a int) -> &.a int {
+  if *a > *b {
+    return a
+  } else {
+    return b
+  }
+}
+
+func select_first(a: &.a int, b: &.b int) -> &.a int {
     return b // ERROR: lifetime mismatch
+
+    // return max(a, a) // ERROR: lifetime mismatch
 }
 
 func fs(s: S) {
@@ -161,8 +171,9 @@ func lifetime_transfer() {
 
     {
         var b = 2
-        ptr = return_first(&b, &a)
-        ptr = return_first(return_first(&b, &a), &a)
+
+        ptr = select_first(&b, &a)
+        ptr = select_first(select_first(&b, &a), &a)
 
         let pb = var &b // ERROR: cannot borrow 'b' as mutable because .* immutable
         // TODO: cannot move out of 'b' because ...
@@ -180,4 +191,18 @@ func lifetime_coercion() {
     //
     // What error should this emit?:
     // max(max(&a, &b), &b)
+
+    let a = 1
+    var ptr: &int
+
+    {
+        var b = 2
+
+        ptr = max(&a, &b)
+
+        // let pb = var &b // ERROR: cannot borrow 'b' as mutable because .* immutable
+    }
+
+    *ptr // ERROR: 'b' does not live long enough
+
 }
