@@ -57,6 +57,9 @@ func main() {
     (3 + car) // ERROR: incompatible.*binary.*'int'.*'Car'
     (3 + car).wheel // ERROR: incompatible.*binary.*'int'.*'Car'
     (car).wheel
+    let pa: &int
+    let pb: &int
+    // pa < pb // ERROR: nah
 
     // function calls
     car = f()
