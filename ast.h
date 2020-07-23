@@ -455,12 +455,11 @@ struct VarDecl : public Decl {
   // TODO: Deprecate.
   Name *lifetime_name = nullptr;
 
-  // TODO
-  Lifetime *self_lifetime = nullptr;
-
-  // [References] Lifetime of the value that this reference refers to. Null if
-  // this variable is not a reference type.
+  // Lifetime of this variable.
   Lifetime *lifetime = nullptr;
+
+  // [References] Lifetime of the value that this reference borrowed from.
+  Lifetime *borrowee_lifetime = nullptr;
 
   // Decls for each of the values that are associated to this value.
   // For example, if this value is a struct type, these would be VarDecls for
@@ -493,6 +492,9 @@ struct FuncDecl : public Decl {
   CompoundStmt *body = nullptr;      // body statements
   Expr *ret_type_expr = nullptr;     // return type expression
   Name *ret_lifetime_name = nullptr; // lifetime annotation of the return value
+
+  // "Bogus" lifetime that represents the scope of the function body.
+  Lifetime *scope_lifetime = nullptr;
 
   FuncDecl(Name *n) : Decl(DeclKind::func), name(n) {}
   size_t args_count() const { return args.size(); }

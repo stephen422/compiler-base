@@ -97,7 +97,7 @@ struct Sema {
   // Live variables at the current scope.
   ScopedTable<Decl *, Decl *> live_list;
   // Stores lifetimes that are alive at the current position.
-  ScopedTable<Decl *, Lifetime *> lifetime_table;
+  ScopedTable<Lifetime *, Lifetime *> lifetime_table;
   // TODO: doc
   ScopedTable<const VarDecl *, BorrowMap> borrow_table;
 

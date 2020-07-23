@@ -488,7 +488,7 @@ VarDecl *findFieldInStruct(Name *field_name, Type *struct_type) {
 Lifetime *start_lifetime(Sema &sema, Decl *decl) {
   auto lt = sema.make_lifetime(decl);
   lt->scope_level = sema.lifetime_table.curr_scope_level;
-  sema.lifetime_table.insert(decl, lt);
+  sema.lifetime_table.insert(lt, lt);
   return lt;
 }
 
@@ -500,7 +500,7 @@ Lifetime *start_lifetime_of_ref(Sema &sema, Name *annot) {
   auto lt = sema.make_lifetime(static_cast<Name *>(nullptr));
   lt->scope_level = sema.lifetime_table.curr_scope_level;
   lt->lifetime_annot = annot;
-  sema.lifetime_table.insert(nullptr, lt);
+  sema.lifetime_table.insert(lt, lt);
   return lt;
 }
 
@@ -617,7 +617,7 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
 
         // TODO: abstract this and make_node together into a func.
         assert(sema.live_list.insert(field_var_decl, field_var_decl));
-        start_lifetime(sema, field_var_decl);
+        field_var_decl->lifetime = start_lifetime(sema, field_var_decl);
         struct_var_decl->addChild(m->member_name, field_var_decl);
       }
     }
@@ -1107,7 +1107,7 @@ Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
 
   if (ref_expr->isLValue()) {
     // Lvalue reference variable, e.g. 'ptr: &int'.
-    return ref_expr->getLValueDecl()->lifetime;
+    return ref_expr->getLValueDecl()->borrowee_lifetime;
   } else if (isReferenceExpr(ref_expr)) {
     // Explicit reference expression, e.g. '&a'.
     auto operand = ref_expr->as<UnaryExpr>()->operand;
@@ -1117,9 +1117,9 @@ Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
       //
       // FIXME: We gotta find the root parent, not the parent of just one level
       // above. Add a test case for this.
-      return sema.lifetime_table.find(operand->getLValueDecl()->parent)->value;
+      return operand->getLValueDecl()->parent->lifetime;
     } else {
-      return sema.lifetime_table.find(operand->getLValueDecl())->value;
+      return operand->getLValueDecl()->lifetime;
     }
   } else if (ref_expr->kind == ExprKind::func_call) {
     auto func_call_ex = ref_expr->as<FuncCallExpr>();
@@ -1194,7 +1194,7 @@ void borrowcheck_assignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
         assert(false && "TODO: nullify reference in RHS");
       } else {
         // TODO: check multiple borrowing rule
-        v->lifetime = lifetime_of_reference(sema, rhs);
+        v->borrowee_lifetime = lifetime_of_reference(sema, rhs);
       }
     } else if (isReferenceExpr(rhs)) {
       // Explicit borrowing statement, e.g. 'a = &b'.
@@ -1213,21 +1213,20 @@ void borrowcheck_assignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
         // level above. Add a test case for this.
         //
         // FIXME: copypaste from lifetime_of_reference().
-        v->lifetime =
-            sema.lifetime_table.find(operand->getLValueDecl()->parent)->value;
+        v->borrowee_lifetime = operand->getLValueDecl()->parent->lifetime;
         operand->getLValueDecl()->parent->borrowed = true;
       } else {
-        v->lifetime = sema.lifetime_table.find(operand->getLValueDecl())->value;
+        v->borrowee_lifetime = operand->getLValueDecl()->lifetime;
         operand->getLValueDecl()->borrowed = true;
       }
     } else if (rhs->kind == ExprKind::func_call) {
-      v->lifetime = lifetime_of_reference(sema, rhs);
+      v->borrowee_lifetime = lifetime_of_reference(sema, rhs);
     } else {
       assert(false && "unimplemented");
     }
 
     // Safety check.
-    if (!v->lifetime) {
+    if (!v->borrowee_lifetime) {
       sema.error(rhs->pos, "ASSERT: lifetime still null");
       return;
     }
@@ -1291,7 +1290,7 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
       // For lvalue references whose lifetime is implicit and might refer to a
       // local variable:
       if (!rs->expr->getLValueDecl()->lifetime_name) {
-        auto lifetime = rs->expr->getLValueDecl()->lifetime;
+        auto lifetime = rs->expr->getLValueDecl()->borrowee_lifetime;
         if (!lifetime) {
           sema.error(rs->expr->pos, "TODO: null lifetime");
           return;
@@ -1299,8 +1298,11 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
 
         // Detect use of a local variable in a reference.
         auto func_scope_level =
-            sema.lifetime_table.find(current_func)->scope_level;
-        auto borrowee_level = rs->expr->getLValueDecl()->lifetime->scope_level;
+            sema.lifetime_table.find(current_func->scope_lifetime)->scope_level;
+        auto borrowee_level =
+            sema.lifetime_table
+                .find(rs->expr->getLValueDecl()->borrowee_lifetime)
+                ->scope_level;
         if (borrowee_level > func_scope_level) {
           sema.error(
               rs->expr->pos,
@@ -1367,12 +1369,12 @@ void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
   auto var = d->decl->as<VarDecl>();
 
   // at each use of a reference variable, check if its borrowee is alive
-  if (var->lifetime && var->lifetime->kind == Lifetime::exact) {
-    auto sym = sema.lifetime_table.find(var->lifetime->decl);
+  if (var->borrowee_lifetime && var->borrowee_lifetime->kind == Lifetime::exact) {
+    auto sym = sema.lifetime_table.find(var->borrowee_lifetime);
     // TODO: refactor into find_exact()
-    if (!(sym && sym->value == var->lifetime)) {
+    if (!(sym && sym->value == var->borrowee_lifetime)) {
       sema.error(d->pos, "'{}' does not live long enough",
-                 var->lifetime->decl->name()->str());
+                 var->borrowee_lifetime->decl->name()->str());
       return;
     }
   }
@@ -1485,18 +1487,18 @@ void BorrowChecker::visitVarDecl(VarDecl *v) {
   if (v->kind == VarDeclKind::param) {
     if (v->type->isReference()) {
       // gotta set the annotated lifetimes
-      v->lifetime = start_lifetime_of_ref(sema, v->lifetime_name);
-      assert(v->lifetime);
+      v->borrowee_lifetime = start_lifetime_of_ref(sema, v->lifetime_name);
+      assert(v->borrowee_lifetime);
     }
   }
 
   sema.live_list.insert(v, v);
-  start_lifetime(sema, v);
+  v->lifetime = start_lifetime(sema, v);
   for (auto child : v->children) {
     // FIXME: but... shouldn't have these already been pushed at the time of
     // their declaration?
     sema.live_list.insert(child.second, child.second);
-    start_lifetime(sema, child.second);
+    child.second->lifetime = start_lifetime(sema, child.second);
   }
 
   if (v->assign_expr) {
@@ -1575,7 +1577,7 @@ void BorrowChecker::visitFuncDecl(FuncDecl *f) {
 
   // This is used for local variable detection.
   sema.live_list.insert(f, f);
-  start_lifetime(sema, f);
+  f->scope_lifetime = start_lifetime(sema, f);
 
   sema.context.func_decl_stack.push_back(f);
 
