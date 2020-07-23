@@ -69,10 +69,6 @@ public:
   // Annotation of the Annotated lifetimes.
   Name *lifetime_annot;
 
-  // Level of the scope that this lifetime resides in.
-  // Used to determine inclusion relation between lifetimes.
-  int scope_level;
-
   Lifetime(Decl *d) : kind(exact), decl(d) {}
   Lifetime(Name *a) : kind(annotated), lifetime_annot(a) {}
 };

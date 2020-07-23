@@ -487,7 +487,6 @@ VarDecl *findFieldInStruct(Name *field_name, Type *struct_type) {
 // The new lifetime will be automatically destroyed on `scope_close()`.
 Lifetime *start_lifetime(Sema &sema, Decl *decl) {
   auto lt = sema.make_lifetime(decl);
-  lt->scope_level = sema.lifetime_table.curr_scope_level;
   sema.lifetime_table.insert(lt, lt);
   return lt;
 }
@@ -498,7 +497,6 @@ Lifetime *start_lifetime(Sema &sema, Decl *decl) {
 // referee, in which case you can just use `start_lifetime()`.
 Lifetime *start_lifetime_of_ref(Sema &sema, Name *annot) {
   auto lt = sema.make_lifetime(static_cast<Name *>(nullptr));
-  lt->scope_level = sema.lifetime_table.curr_scope_level;
   lt->lifetime_annot = annot;
   sema.lifetime_table.insert(lt, lt);
   return lt;
@@ -651,7 +649,6 @@ Type *cmp::getReferenceType(Sema &sema, bool mut, Type *type) {
   auto name = getReferenceTypeName(sema.name_table, mut, type->name);
   if (auto found = sema.type_table.find(name)) return found->value;
 
-  // FIXME: scope_level
   auto ref_type = makeReferenceType(sema, name, mut, type);
   return *sema.type_table.insert(name, ref_type);
 }
@@ -1141,14 +1138,20 @@ Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
     }
 
     Lifetime *shortest_found = nullptr;
+    int shortest_found_scope_level = 0;
     for (auto const &item : map) {
       if (item.first == func_decl->ret_lifetime_name) {
         if (shortest_found) {
-          if (item.second->scope_level > shortest_found->scope_level) {
+          int item_scope_level = sema.lifetime_table.find(item.second)->scope_level;
+          if (item_scope_level >
+              shortest_found_scope_level) {
             shortest_found = item.second;
+            shortest_found_scope_level = item_scope_level;
           }
         } else {
           shortest_found = item.second;
+          shortest_found_scope_level =
+              sema.lifetime_table.find(item.second)->scope_level;
         }
       }
     }
