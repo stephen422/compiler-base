@@ -159,7 +159,7 @@ func stack_ref() -> &int {
 
     let s = StackRef {.a = 3}
     {
-        return &s.a // ERROR: cannot return value that references local variable 's.a'
+        return &s.a // ERROR: cannot return value that references local variable 's'
     }
     {
         // indirect reference to a stack variable

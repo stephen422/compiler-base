@@ -1133,6 +1133,7 @@ Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
     std::vector<std::pair<Name * /*annotations*/, Lifetime *>> map;
     for (size_t i = 0; i < func_decl->args.size(); i++) {
       if (!func_decl->args[i]->type->isReference()) continue;
+
       map.push_back({func_decl->args[i]->lifetime_name,
                      lifetime_of_reference(sema, func_call_ex->args[i])});
     }
@@ -1283,65 +1284,39 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
   // At this point, other borrowck errors such as use-after-free would have
   // been caught in the walk_return_stmt() call above.
   if (in_return_stmt && rs->expr->type->isReference()) {
-    // TODO: store lifetime_name in lifetime?
-    // auto lifetime = lifetime_of_reference(sema, rs->expr);
+    auto lifetime = lifetime_of_reference(sema, rs->expr);
+    if (!lifetime) {
+      sema.error(rs->expr->pos, "TODO: null lifetime");
+      return;
+    }
 
     assert(!sema.context.func_decl_stack.empty());
     auto current_func = sema.context.func_decl_stack.back();
 
-    if (rs->expr->isLValue()) {
-      // For lvalue references whose lifetime is implicit and might refer to a
-      // local variable:
-      if (!rs->expr->getLValueDecl()->lifetime_name) {
-        auto lifetime = rs->expr->getLValueDecl()->borrowee_lifetime;
-        if (!lifetime) {
-          sema.error(rs->expr->pos, "TODO: null lifetime");
-          return;
-        }
-
-        // Detect use of a local variable in a reference.
-        auto func_scope_level =
-            sema.lifetime_table.find(current_func->scope_lifetime)->scope_level;
-        auto borrowee_level =
-            sema.lifetime_table
-                .find(rs->expr->getLValueDecl()->borrowee_lifetime)
-                ->scope_level;
-        if (borrowee_level > func_scope_level) {
-          sema.error(
-              rs->expr->pos,
-              "cannot return value that references local variable '{}'",
-              lifetime->decl->name()->str());
-          return;
-        }
-      }
-
-      // For lvalues that have explicit annotated lifetimes:
+    if (lifetime->kind == Lifetime::annotated) {
+      // Lifetime mismatch check.
+      //
       // TODO: Currently we do simple equality comparison (!=) between the
       // lifetimes. This may not be sufficient in the future.
-      if (rs->expr->getLValueDecl()->lifetime_name !=
+      assert(lifetime->lifetime_annot);
+      if (lifetime->lifetime_annot !=
           current_func->ret_type_expr->as<TypeExpr>()->lifetime_name) {
-        sema.error(rs->expr->pos, "lifetime mismatch");
+        sema.error(
+            rs->expr->pos, "lifetime mismatch: expected {}, got {}",
+            current_func->ret_type_expr->as<TypeExpr>()->lifetime_name->str(),
+            lifetime->lifetime_annot->str());
         return;
       }
-
-      // TODO: Can functions only return references that are in the args list?
-      // These are fine:
-      //
-      //     let ref = returns_ref()
-      //     return ref
-      //
-      // It's all about the lifetimes.
-    } else if (isReferenceExpr(rs->expr)) {
+    } else {
+      // References to local variable check.
       // Detect use of a local variable in a reference.
-      // @Cleanup: copypaste from above
-      auto func_scope_level = sema.live_list.find(current_func)->scope_level;
-      auto operand = rs->expr->as<UnaryExpr>()->operand;
-      auto operand_level =
-          sema.live_list.find(operand->getLValueDecl())->scope_level;
-      if (operand_level > func_scope_level) {
-        sema.error(operand->pos,
+      auto func_scope_level =
+          sema.lifetime_table.find(current_func->scope_lifetime)->scope_level;
+      auto borrowee_level = sema.lifetime_table.find(lifetime)->scope_level;
+      if (borrowee_level > func_scope_level) {
+        sema.error(rs->expr->pos,
                    "cannot return value that references local variable '{}'",
-                   operand->text(sema.source));
+                   lifetime->decl->name()->str());
         return;
       }
     }
@@ -1510,7 +1485,9 @@ void BorrowChecker::visitVarDecl(VarDecl *v) {
         true /* because declarations with an init expr is always a move. */);
   } else if (v->type_expr) {
     if (v->type_expr->as<TypeExpr>()->lifetime_name) {
-      v->lifetime_name = v->type_expr->as<TypeExpr>()->lifetime_name;
+      assert(v->borrowee_lifetime && "annotations in local VarDecl?");
+      v->borrowee_lifetime->lifetime_annot = v->type_expr->as<TypeExpr>()->lifetime_name;
+      v->lifetime_name = v->type_expr->as<TypeExpr>()->lifetime_name; // FIXME: remove
     }
   }
 }

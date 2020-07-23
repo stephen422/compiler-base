@@ -88,16 +88,23 @@ struct Sema {
 
   // Declarations visible at the current scope.
   ScopedTable<Name *, Decl *> decl_table;
+
   // XXX: needed?
   ScopedTable<Name *, Type *> type_table;
+
   // Live variables at the current scope.
+  // TODO: deprecate.
   ScopedTable<Decl *, Decl *> live_list;
+
   // Stores lifetimes that are alive at the current position.
+  // Note that this variable is not meant to be used directly; use
+  // start_lifetime*() functions to create lifetimes instead.
   ScopedTable<Lifetime *, Lifetime *> lifetime_table;
+
   // TODO: doc
   ScopedTable<const VarDecl *, BorrowMap> borrow_table;
 
-  // TODO.
+  // TODO: organize.
   Context context;
 
   // List of generated errors.
