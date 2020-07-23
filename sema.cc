@@ -1129,7 +1129,8 @@ Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
     // single annotated name, find the shortest-living one and use that.
     //
     // In the point of view from the inside the function, whether a coercion
-    // happened or not on the callee side is not important.
+    // happened or not on the callee side does not affect the result of the
+    // borrowcheck of the function body.
     std::vector<std::pair<Name * /*annotations*/, Lifetime *>> map;
     for (size_t i = 0; i < func_decl->args.size(); i++) {
       if (!func_decl->args[i]->type->isReference()) continue;
@@ -1190,45 +1191,35 @@ void borrowcheck_assignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
   }
 
   // Leaf cases of the recursion.
+
+  // FIXME: This code should be good to be substituted with the above
+  // one-liner, clear up this whole section.
   if (rhs->type->isReference()) {
+
+    v->borrowee_lifetime = lifetime_of_reference(sema, rhs);
+
     if (rhs->isLValue()) {
       // 'Implicit' copying of a borrow, e.g. 'ref1: &int = ref2: &int'.
       if (move) {
         assert(false && "TODO: nullify reference in RHS");
-      } else {
-        // TODO: check multiple borrowing rule
-        v->borrowee_lifetime = lifetime_of_reference(sema, rhs);
       }
     } else if (isReferenceExpr(rhs)) {
       // Explicit borrowing statement, e.g. 'a = &b'.
       //
       // Note that a move assignment with an rvalue RHS is the same as a copy,
       // so both cases are treated in the same code below.
-      //
-      // TODO: check multiple borrowing rule
-      // TODO: mutable and immutable
       auto operand = rhs->as<UnaryExpr>()->operand;
       if (operand->kind == ExprKind::member) {
-        // For MemberExprs (e.g. v = &m.a), we are essentially borrowing the
-        // whole struct, not just the member.
-        //
-        // FIXME: We gotta find the root parent, not the parent of just one
-        // level above. Add a test case for this.
-        //
-        // FIXME: copypaste from lifetime_of_reference().
-        v->borrowee_lifetime = operand->getLValueDecl()->parent->lifetime;
         operand->getLValueDecl()->parent->borrowed = true;
       } else {
-        v->borrowee_lifetime = operand->getLValueDecl()->lifetime;
         operand->getLValueDecl()->borrowed = true;
       }
     } else if (rhs->kind == ExprKind::func_call) {
-      v->borrowee_lifetime = lifetime_of_reference(sema, rhs);
     } else {
       assert(false && "unimplemented");
     }
 
-    // Safety check.
+    // Safety check, remove later.
     if (!v->borrowee_lifetime) {
       sema.error(rhs->pos, "ASSERT: lifetime still null");
       return;

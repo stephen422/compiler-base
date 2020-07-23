@@ -125,7 +125,6 @@ func multiple_borrows() {
     {
         let x = &a
 
-        // TODO: This gets parsed as a decl!!!
         var &a // ERROR: cannot borrow 'a' as mutable because .* immutable
 
         S {.ptr = var &a} // ERROR: cannot borrow 'a' as mutable because .* immutable
@@ -199,8 +198,6 @@ func lifetime_coercion() {
         // Should we mark both 'a' and 'b' as borrowed then?
         ptr = max(&a, &b)
         ptr = max(max(&a, &b), &b)
-
-        // let pb = var &b // ERROR: cannot borrow 'b' as mutable because .* immutable
     }
 
     *ptr // ERROR: 'b' does not live long enough
