@@ -1,12 +1,19 @@
-!!! Idea: Programmable lifetime
+# TODOs
+
+- remove sema.live_list
+- remove visitParenExpr
+- Symbol table: 'name' duplicated in 'Symbol' and the value type
+
+
+# Ideas
+
+## Programmable lifetime
 
   Let the programmer tell the compiler explicitly where a specific type of
   object lives and dies in the code.
   - How would the lifetime annotation look like?
 
-- Remove visitParenExpr
-
-!! Idea: 'match' syntax in function(method) declaration
+## 'match' syntax in function(method) declaration
 
   Similar to how functional languages like Haskell allow function declaration
   to be spread over specific instances of argument patterns, allow methods to
@@ -14,12 +21,12 @@
   calls are defined clearly in syntax.  The performance characteristics of such
   method calls now become clear because they use the same codegen as matches.
 
-!! Idea: Specify lifetime between struct parameters?
+## Specify lifetime between struct parameters?
 
   E.g. Source, Parser, Lexer all in a single Driver struct, but their
   construction/destruction order is guaranteed.
 
-!! Idea: Compiler UI that reports if a function (or an arbitrary snippet of
+## Compiler UI that reports if a function (or an arbitrary snippet of
 code) allocates on the heap or not.
 
   E.g. give it a variable name or a file:line:col, and it should tell you where
@@ -30,12 +37,9 @@ code) allocates on the heap or not.
       analysis result to begin with.
   - Is this a job for a debugger though?
 
-!! Out-of-module extensible structs
+## Out-of-module extensible structs
 
   E.g. enums should be allowed to have user defined methods.
-
-* Compile time health check.
-  - ninja -j1 took ~42s near b8fa151cf.
 
 Q. What's the advantage of separating type table from decl table?
 
@@ -46,14 +50,6 @@ Q. What's the advantage of separating type table from decl table?
   whole lifetime of the compiler?
   Or, we can make some dangling AST nodes with names of 'int', 'bool' and such
   and hold the pointers to the Types in those.  But this seems messy.
-
-- namespace ast
-
-- Clean up struct Decl: use std::variant and declare as_func_decl() methods
-
-- Clarify UnaryExpr: should FuncCallExprs really be UnaryExpr?
-
-- Symbol table: 'name' duplicated in 'Symbol' and the value type
 
 - Simple CLI for displaying symantic informations about a decl on a specific
   file:line location, e.g.
@@ -82,31 +78,12 @@ Q. What's the advantage of separating type table from decl table?
   Maybe we can only check the decl table for each variable use, and name bind
   them later in a separate pass. But I'm not sure that's got any advantage.
 
-
-============================== SOLVED / DEPRECATED =============================
-
 - What about use of declarations that are declared in other files/modules? We
   need multiple passes for this one.  In this case, *every* identifier can
-  potential be a use of a external declaration, and we cannot emit any
+  potentially be a use of a external declaration, and we cannot emit any
   use-before-declaration error in the first pass.
 
   A: This can be prevented by mandating explicit syntax for use of external
   declarations, e.g. 'module.variable', similar to what Go does.  Simple 'a'
   can only refer to either (1) local variables/function args, or (2) file-local
   constants.
-
-- Symbol table: how do I organize this?
-  Some kind of a scoped table with scope_open/scope_close() functions.
-  But, the contents of the table should not just go away with scope_close()
-  because they may be needed in a later pass.
-  So we may need something like a tree of tables whose structure directly
-  mirrors the lexical structure of the source.
-
-  --> VERIFY!!! Can't the decls be just stored in the AST node? What about types?
-  It's clear that after the name binding pass, everything should be stored in
-  the AST node and directly accessible as the consequence of the binding.
-
-  Maybe a simple solution is to make a global Decl memory arena that stores all
-  the declarations, and make the scoped symbol table work with references to
-  those stored objects, and bind those references to AST nodes at the name
-  binding pass.
