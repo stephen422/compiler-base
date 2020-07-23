@@ -482,11 +482,25 @@ VarDecl *findFieldInStruct(Name *field_name, Type *struct_type) {
   return found;
 }
 
+// Make a new lifetime that is declared by `decl` and starts at the current
+// scope.
 // The new lifetime will be automatically destroyed on `scope_close()`.
 Lifetime *start_lifetime(Sema &sema, Decl *decl) {
-  Lifetime *lt = new Lifetime{decl, sema.lifetime_table.curr_scope_level};
-  sema.lifetime_pool.push_back(lt);
+  auto lt = sema.make_lifetime(decl);
+  lt->scope_level = sema.lifetime_table.curr_scope_level;
   sema.lifetime_table.insert(decl, lt);
+  return lt;
+}
+
+// Make a new lifetime of a reference variable, which is annotated by `name`.
+// `annot` is necessary because there is no other way to give information about
+// the lifetime of a reference variable unless we can pinpoint the Decl of the
+// referee, in which case you can just use `start_lifetime()`.
+Lifetime *start_lifetime_of_ref(Sema &sema, Name *annot) {
+  auto lt = sema.make_lifetime(static_cast<Name *>(nullptr));
+  lt->scope_level = sema.lifetime_table.curr_scope_level;
+  lt->lifetime_annot = annot;
+  sema.lifetime_table.insert(nullptr, lt);
   return lt;
 }
 
@@ -1085,6 +1099,9 @@ void register_borrow_count(Sema &sema, const VarDecl *borrowee, bool mut, size_t
                           mutable_borrow_count_old + (mut ? 1 : 0)});
 }
 
+// Find the lifetime of the value that this reference is referring to.
+// Note that this is not about the lifetime of the reference variable *itself*,
+// but about its *referree*.
 Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
   if (!ref_expr->type->isReference()) return nullptr;
 
@@ -1119,7 +1136,6 @@ Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
     std::vector<std::pair<Name * /*annotations*/, Lifetime *>> map;
     for (size_t i = 0; i < func_decl->args.size(); i++) {
       if (!func_decl->args[i]->type->isReference()) continue;
-
       map.push_back({func_decl->args[i]->lifetime_name,
                      lifetime_of_reference(sema, func_call_ex->args[i])});
     }
@@ -1144,7 +1160,7 @@ Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
   }
 }
 
-void borrowCheckAssignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
+void borrowcheck_assignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
   // We don't want to mess with built-in types.
   if (rhs->type->isBuiltinType(sema)) return;
 
@@ -1161,7 +1177,7 @@ void borrowCheckAssignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
             break;
           }
         }
-        borrowCheckAssignment(sema, child, desig.init_expr, move);
+        borrowcheck_assignment(sema, child, desig.init_expr, move);
       }
     }
     return;
@@ -1250,7 +1266,7 @@ void BorrowChecker::visitAssignStmt(AssignStmt *as) {
   walk_assign_stmt(*this, as);
 
   auto lhs_decl = as->lhs->getLValueDecl();
-  borrowCheckAssignment(sema, lhs_decl, as->rhs, as->move);
+  borrowcheck_assignment(sema, lhs_decl, as->rhs, as->move);
 }
 
 void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
@@ -1262,9 +1278,12 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
 
   // Return statement borrowck.
   //
-  // At this point, other borrowck errors such as use-after-free would have been
-  // caught in the calls originated from the above visitExpr()(FIXME).
+  // At this point, other borrowck errors such as use-after-free would have
+  // been caught in the walk_return_stmt() call above.
   if (in_return_stmt && rs->expr->type->isReference()) {
+    // TODO: store lifetime_name in lifetime?
+    // auto lifetime = lifetime_of_reference(sema, rs->expr);
+
     assert(!sema.context.func_decl_stack.empty());
     auto current_func = sema.context.func_decl_stack.back();
 
@@ -1348,7 +1367,7 @@ void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
   auto var = d->decl->as<VarDecl>();
 
   // at each use of a reference variable, check if its borrowee is alive
-  if (var->lifetime) {
+  if (var->lifetime && var->lifetime->kind == Lifetime::exact) {
     auto sym = sema.lifetime_table.find(var->lifetime->decl);
     // TODO: refactor into find_exact()
     if (!(sym && sym->value == var->lifetime)) {
@@ -1450,6 +1469,7 @@ void BorrowChecker::visitUnaryExpr(UnaryExpr *u) {
     visitExpr(u->operand);
     register_borrow_count(sema, u->operand->getLValueDecl(),
                           u->kind == UnaryExprKind::var_ref, u->pos);
+    break;
   case UnaryExprKind::deref:
     visitExpr(u->operand);
     break;
@@ -1462,17 +1482,25 @@ void BorrowChecker::visitUnaryExpr(UnaryExpr *u) {
 void BorrowChecker::visitVarDecl(VarDecl *v) {
   walk_var_decl(*this, v);
 
+  if (v->kind == VarDeclKind::param) {
+    if (v->type->isReference()) {
+      // gotta set the annotated lifetimes
+      v->lifetime = start_lifetime_of_ref(sema, v->lifetime_name);
+      assert(v->lifetime);
+    }
+  }
+
   sema.live_list.insert(v, v);
   start_lifetime(sema, v);
   for (auto child : v->children) {
-    // FIXME: but... shouldn't have these been already pushed at the time of
+    // FIXME: but... shouldn't have these already been pushed at the time of
     // their declaration?
     sema.live_list.insert(child.second, child.second);
     start_lifetime(sema, child.second);
   }
 
   if (v->assign_expr) {
-    borrowCheckAssignment(
+    borrowcheck_assignment(
         sema, v, v->assign_expr,
         true /* because declarations with an init expr is always a move. */);
   } else if (v->type_expr) {
@@ -1530,8 +1558,8 @@ void BorrowChecker::visitFuncDecl(FuncDecl *f) {
     // Check if the annotation of the return value was already seen in the args
     // list.
     bool seen = false;
-    for (auto l : declared_lifetimes) {
-      if (f->ret_type_expr->as<TypeExpr>()->lifetime_name == l) {
+    for (auto lt : declared_lifetimes) {
+      if (f->ret_type_expr->as<TypeExpr>()->lifetime_name == lt) {
         seen = true;
         break;
       }

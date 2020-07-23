@@ -57,13 +57,24 @@ class Parser;
 
 class Lifetime {
 public:
-  // Declaration that first introduced this lifetime.
-  // Can be used for error reports.
+  // There are two kinds of lifetimes:
+  // 1. Exact lifetimes.
+  // 2. Annotated lifetimes.
+  // (TODO doc)
+  enum { exact, annotated } kind;
+
+  // Declaration that first introduced this Exact lifetime.
   Decl *decl = nullptr;
+
+  // Annotation of the Annotated lifetimes.
+  Name *lifetime_annot;
 
   // Level of the scope that this lifetime resides in.
   // Used to determine inclusion relation between lifetimes.
   int scope_level;
+
+  Lifetime(Decl *d) : kind(exact), decl(d) {}
+  Lifetime(Name *a) : kind(annotated), lifetime_annot(a) {}
 };
 
 // Stores all of the semantic information necessary for semantic analysis
@@ -85,7 +96,7 @@ struct Sema {
   ScopedTable<Name *, Type *> type_table;
   // Live variables at the current scope.
   ScopedTable<Decl *, Decl *> live_list;
-  // TODO: doc
+  // Stores lifetimes that are alive at the current position.
   ScopedTable<Decl *, Lifetime *> lifetime_table;
   // TODO: doc
   ScopedTable<const VarDecl *, BorrowMap> borrow_table;
@@ -125,6 +136,11 @@ struct Sema {
     node->pos = range.first;
     node->endpos = range.second;
     return node;
+  }
+  template <typename... Args>
+  Lifetime *make_lifetime(Args &&... args) {
+    lifetime_pool.emplace_back(new Lifetime{std::forward<Args>(args)...});
+    return lifetime_pool.back();
   }
   BasicBlock *makeBasicBlock() {
     BasicBlock *bb = new BasicBlock;

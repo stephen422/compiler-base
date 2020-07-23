@@ -104,7 +104,7 @@ func max(a: &.a int, b: &.a int) -> &.a int {
 func select_first(a: &.a int, b: &.b int) -> &.a int {
     return b // ERROR: lifetime mismatch
 
-    // return max(a, a) // ERROR: lifetime mismatch
+    return max(b, b) // ERROR: lifetime mismatch
 }
 
 func fs(s: S) {
@@ -187,22 +187,16 @@ func lifetime_transfer() {
 }
 
 func lifetime_coercion() {
-    // TODO.
-
-    // let ptr = max(&a, &b)
-    // In this case, from which one does 'ptr' borrow? Both?
-    // Should we mark both 'a' and 'b' as borrowed then?
-    //
-    // What error should this emit?:
-    // max(max(&a, &b), &b)
-
     let a = 1
     var ptr: &int
 
     {
         var b = 2
 
+        // In this case, from which one does 'ptr' borrow? Both?
+        // Should we mark both 'a' and 'b' as borrowed then?
         ptr = max(&a, &b)
+        ptr = max(max(&a, &b), &b)
 
         // let pb = var &b // ERROR: cannot borrow 'b' as mutable because .* immutable
     }

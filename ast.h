@@ -455,6 +455,9 @@ struct VarDecl : public Decl {
   // TODO: Deprecate.
   Name *lifetime_name = nullptr;
 
+  // TODO
+  Lifetime *self_lifetime = nullptr;
+
   // [References] Lifetime of the value that this reference refers to. Null if
   // this variable is not a reference type.
   Lifetime *lifetime = nullptr;
