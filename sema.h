@@ -67,7 +67,7 @@ public:
   Decl *decl = nullptr;
 
   // Annotation of the Annotated lifetimes.
-  Name *lifetime_annot;
+  Name *lifetime_annot = nullptr;
 
   Lifetime(Decl *d) : kind(exact), decl(d) {}
   Lifetime(Name *a) : kind(annotated), lifetime_annot(a) {}

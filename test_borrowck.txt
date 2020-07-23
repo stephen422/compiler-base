@@ -104,6 +104,8 @@ func max(a: &.a int, b: &.a int) -> &.a int {
 func select_first(a: &.a int, b: &.b int) -> &.a int {
     return b // ERROR: lifetime mismatch
 
+    // max(b, b) may return &.b depending on real value, so compiler should
+    // always generate error.
     return max(b, b) // ERROR: lifetime mismatch
 }
 

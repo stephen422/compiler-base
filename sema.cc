@@ -1134,14 +1134,16 @@ Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
     for (size_t i = 0; i < func_decl->args.size(); i++) {
       if (!func_decl->args[i]->type->isReference()) continue;
 
-      map.push_back({func_decl->args[i]->lifetime_name,
+      assert(func_decl->args[i]->borrowee_lifetime->lifetime_annot);
+      // NOTE that it's `borrowee_lifetime`, *not* `lifetime`!
+      map.push_back({func_decl->args[i]->borrowee_lifetime->lifetime_annot,
                      lifetime_of_reference(sema, func_call_ex->args[i])});
     }
 
     Lifetime *shortest_found = nullptr;
     int shortest_found_scope_level = 0;
     for (auto const &item : map) {
-      if (item.first == func_decl->ret_lifetime_name) {
+      if (item.first == func_decl->ret_lifetime_annot) {
         if (shortest_found) {
           int item_scope_level = sema.lifetime_table.find(item.second)->scope_level;
           if (item_scope_level >
@@ -1191,9 +1193,6 @@ void borrowcheck_assignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
   if (rhs->type->isReference()) {
     if (rhs->isLValue()) {
       // 'Implicit' copying of a borrow, e.g. 'ref1: &int = ref2: &int'.
-      //
-      // TODO: What about 'ref1 = returns_ref()'?
-      // Rewrite it to 'ref1 = { var temp = returns_ref() }' and do a move?
       if (move) {
         assert(false && "TODO: nullify reference in RHS");
       } else {
@@ -1300,10 +1299,10 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
       // lifetimes. This may not be sufficient in the future.
       assert(lifetime->lifetime_annot);
       if (lifetime->lifetime_annot !=
-          current_func->ret_type_expr->as<TypeExpr>()->lifetime_name) {
+          current_func->ret_type_expr->as<TypeExpr>()->lifetime_annot) {
         sema.error(
             rs->expr->pos, "lifetime mismatch: expected {}, got {}",
-            current_func->ret_type_expr->as<TypeExpr>()->lifetime_name->str(),
+            current_func->ret_type_expr->as<TypeExpr>()->lifetime_annot->str(),
             lifetime->lifetime_annot->str());
         return;
       }
@@ -1462,14 +1461,6 @@ void BorrowChecker::visitUnaryExpr(UnaryExpr *u) {
 void BorrowChecker::visitVarDecl(VarDecl *v) {
   walk_var_decl(*this, v);
 
-  if (v->kind == VarDeclKind::param) {
-    if (v->type->isReference()) {
-      // gotta set the annotated lifetimes
-      v->borrowee_lifetime = start_lifetime_of_ref(sema, v->lifetime_name);
-      assert(v->borrowee_lifetime);
-    }
-  }
-
   sema.live_list.insert(v, v);
   v->lifetime = start_lifetime(sema, v);
   for (auto child : v->children) {
@@ -1484,10 +1475,14 @@ void BorrowChecker::visitVarDecl(VarDecl *v) {
         sema, v, v->assign_expr,
         true /* because declarations with an init expr is always a move. */);
   } else if (v->type_expr) {
-    if (v->type_expr->as<TypeExpr>()->lifetime_name) {
-      assert(v->borrowee_lifetime && "annotations in local VarDecl?");
-      v->borrowee_lifetime->lifetime_annot = v->type_expr->as<TypeExpr>()->lifetime_name;
-      v->lifetime_name = v->type_expr->as<TypeExpr>()->lifetime_name; // FIXME: remove
+    if (v->type_expr->as<TypeExpr>()->lifetime_annot) {
+      if (v->kind == VarDeclKind::param) {
+        // gotta set the annotated lifetimes
+        v->borrowee_lifetime = start_lifetime_of_ref(
+            sema, v->type_expr->as<TypeExpr>()->lifetime_annot);
+      } else {
+        assert(false && "TODO: annotations in local VarDecl");
+      }
     }
   }
 }
@@ -1510,7 +1505,7 @@ void BorrowChecker::visitFuncDecl(FuncDecl *f) {
   BorrowCheckFuncRAII raii(*this);
 
   for (auto arg : f->args) {
-    if (arg->type_expr->as<TypeExpr>()->lifetime_name) {
+    if (arg->type_expr->as<TypeExpr>()->lifetime_annot) {
       raii.set(true);
       break;
     }
@@ -1522,17 +1517,17 @@ void BorrowChecker::visitFuncDecl(FuncDecl *f) {
     // Require that every argument is annotated.
     for (auto arg : f->args) {
       if (arg->type->isReference() &&
-          !arg->type_expr->as<TypeExpr>()->lifetime_name) {
+          !arg->type_expr->as<TypeExpr>()->lifetime_annot) {
         sema.error(arg->pos, "missing lifetime annotation");
         return;
       }
       declared_lifetimes.push_back(
-          arg->type_expr->as<TypeExpr>()->lifetime_name);
+          arg->type_expr->as<TypeExpr>()->lifetime_annot);
     }
 
     // Require that return value is annotated.
     if (f->ret_type && f->ret_type->isReference() &&
-        !f->ret_type_expr->as<TypeExpr>()->lifetime_name) {
+        !f->ret_type_expr->as<TypeExpr>()->lifetime_annot) {
       sema.error(f->ret_type_expr->pos, "missing lifetime annotation");
       return;
     }
@@ -1541,18 +1536,18 @@ void BorrowChecker::visitFuncDecl(FuncDecl *f) {
     // list.
     bool seen = false;
     for (auto lt : declared_lifetimes) {
-      if (f->ret_type_expr->as<TypeExpr>()->lifetime_name == lt) {
+      if (f->ret_type_expr->as<TypeExpr>()->lifetime_annot == lt) {
         seen = true;
         break;
       }
     }
     if (!seen) {
       sema.error(f->ret_type_expr->pos, "unknown lifetime annotation '{}'",
-                 f->ret_type_expr->as<TypeExpr>()->lifetime_name->str());
+                 f->ret_type_expr->as<TypeExpr>()->lifetime_annot->str());
       return;
     }
 
-    f->ret_lifetime_name = f->ret_type_expr->as<TypeExpr>()->lifetime_name;
+    f->ret_lifetime_annot = f->ret_type_expr->as<TypeExpr>()->lifetime_annot;
   }
 
   // This is used for local variable detection.

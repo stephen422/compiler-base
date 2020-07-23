@@ -347,14 +347,14 @@ struct TypeExpr : public Expr {
   // Is this type mutable?
   bool mut = false;
   // Name of the explicit lifetime annotation.
-  Name *lifetime_name = nullptr;
+  Name *lifetime_annot = nullptr;
   // 'T' part of '&T'.  It is Expr rather than TypeExpr mainly so that it can
   // store BadExpr.  XXX dirty.
   Expr *subexpr = nullptr;
 
   // TODO: incomplete.
   TypeExpr(TypeExprKind k, Name *n, bool m, Name *lt, Expr *se)
-      : Expr(ExprKind::type), kind(k), name(n), mut(m), lifetime_name(lt),
+      : Expr(ExprKind::type), kind(k), name(n), mut(m), lifetime_annot(lt),
         subexpr(se) {}
   void print() const override;
 };
@@ -451,10 +451,6 @@ struct VarDecl : public Decl {
   // TODO: Deprecate in favor of borrow_table.
   bool borrowed = false;
 
-  // Name of the explicit lifetime annotation.
-  // TODO: Deprecate.
-  Name *lifetime_name = nullptr;
-
   // Lifetime of this variable.
   Lifetime *lifetime = nullptr;
 
@@ -486,12 +482,12 @@ struct VarDecl : public Decl {
 // Function declaration.  There is no separate function definition: functions
 // should always be defined whenever they are declared.
 struct FuncDecl : public Decl {
-  Name *name = nullptr;              // name of the function
-  Type *ret_type = nullptr;          // return type of the function
-  std::vector<VarDecl *> args;       // list of parameters
-  CompoundStmt *body = nullptr;      // body statements
-  Expr *ret_type_expr = nullptr;     // return type expression
-  Name *ret_lifetime_name = nullptr; // lifetime annotation of the return value
+  Name *name = nullptr;               // name of the function
+  Type *ret_type = nullptr;           // return type of the function
+  std::vector<VarDecl *> args;        // list of parameters
+  CompoundStmt *body = nullptr;       // body statements
+  Expr *ret_type_expr = nullptr;      // return type expression
+  Name *ret_lifetime_annot = nullptr; // lifetime annotation of the return value
 
   // "Bogus" lifetime that represents the scope of the function body.
   Lifetime *scope_lifetime = nullptr;
