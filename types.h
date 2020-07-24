@@ -101,12 +101,21 @@ struct Type {
 
   std::string str() const { return name->str(); }
 
+  // Returns true if this type is a builtin type.
   bool isBuiltin(Sema &sema) const;
+
+  // Returns true if this type is a reference type.
   bool isReference() const {
     return kind == TypeKind::ref || kind == TypeKind::var_ref;
   }
+
+  // Returns true if this type is a struct.
   bool isStruct() const;
+
+  // Returns true if this type is an enum.
   bool isEnum() const;
+
+  // TODO: remove.
   bool isMemberAccessible() const { return isStruct() || isEnum(); }
 
   StructDecl *getStructDecl();

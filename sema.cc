@@ -1631,20 +1631,20 @@ void CodeGenerator::visitBinaryExpr(BinaryExpr *b) {
 }
 
 // Generate C source representation of a Type.
-std::string CodeGenerator::cStringify(const Type *t) {
-    assert(t);
+std::string c_stringify_type(Sema &sema, const Type *t) {
+  assert(t);
 
-    if (t == sema.context.string_type) {
-        // For now, strings are aliased to char *.  This works as long as
-        // strings are immutable and doesn't contain unicode characters.
-        return "char*";
-    }
-    if (t->kind == TypeKind::ref) {
-        auto base = cStringify(t->referee_type);
-        return base + "*";
-    } else {
-        return t->name->str();
-    }
+  if (t == sema.context.string_type) {
+    // For now, strings are aliased to char *.  This works as long as
+    // strings are immutable and doesn't contain unicode characters.
+    return "char*";
+  }
+  if (t->isReference()) {
+    auto base = c_stringify_type(sema, t->referee_type);
+    return base + "*";
+  } else {
+    return t->name->str();
+  }
 }
 
 void CodeGenerator::visitExprStmt(ExprStmt *e) {
@@ -1700,9 +1700,9 @@ void CodeGenerator::visitBuiltinStmt(BuiltinStmt *b) {
 
 void CodeGenerator::visitVarDecl(VarDecl *v) {
   if (v->kind == VarDeclKind::param) {
-    emit("{} {}", cStringify(v->type), v->name->str());
+    emit("{} {}", c_stringify_type(sema, v->type), v->name->str());
   } else {
-    emit("{} {};\n", cStringify(v->type), v->name->str());
+    emit("{} {};\n", c_stringify_type(sema, v->type), v->name->str());
 
     if (v->assign_expr) {
       emit("{} = ", v->name->str());
@@ -1726,19 +1726,22 @@ void CodeGenerator::visitStructDecl(StructDecl *s) {
 void CodeGenerator::visitFuncDecl(FuncDecl *f) {
   if (f->failed) return;
 
-  if (f->ret_type_expr)
-    emit("{}", cStringify(f->ret_type));
-  else
+  if (f->ret_type_expr) {
+    emit("{}", c_stringify_type(sema, f->ret_type));
+  } else {
     emit("void");
+  }
 
+  emitCont(" {}(", f->name->str());
 
   if (f->args.empty()) {
     emitCont("void");
   } else {
     for (size_t i = 0; i < f->args.size(); i++) {
       visitDecl(f->args[i]);
-      if (i != f->args.size() - 1)
+      if (i != f->args.size() - 1) {
         emitCont(", ");
+      }
     }
   }
   emitCont(") {{\n");

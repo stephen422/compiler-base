@@ -28,3 +28,6 @@ func main() -> int {
   #printf("%s, %d\n", tok.name, tok.pos)
   return 0
 }
+
+func simple() {
+}

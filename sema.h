@@ -266,8 +266,6 @@ class CodeGenerator : public AstVisitor<CodeGenerator, void> {
     ~IndentBlock() { c.indent -= 2; }
   };
 
-  std::string cStringify(const Type *t);
-
 public:
   CodeGenerator(Sema &s) : sema{s} { file = fopen("test_codegen.c", "w"); }
   ~CodeGenerator() { fclose(file); }
