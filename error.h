@@ -1,5 +1,5 @@
-#ifndef ERROR_H
-#define ERROR_H
+#ifndef CMP_ERROR_H
+#define CMP_ERROR_H
 
 #include "source.h"
 #include <regex>

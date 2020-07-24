@@ -1,6 +1,6 @@
 // -*- C++ -*-
-#ifndef LEXER_H
-#define LEXER_H
+#ifndef CMP_LEXER_H
+#define CMP_LEXER_H
 
 #include "source.h"
 

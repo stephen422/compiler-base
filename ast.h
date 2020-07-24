@@ -1,5 +1,5 @@
-#ifndef AST_H
-#define AST_H
+#ifndef CMP_AST_H
+#define CMP_AST_H
 
 #include "types.h"
 #include "lexer.h"

@@ -24,7 +24,7 @@ Type::Type(Name *n, bool mut, Type *bt) : name(n), referee_type(bt) {
   copyable = !mut;
 }
 
-bool Type::isBuiltinType(Sema &sema) const {
+bool Type::isBuiltin(Sema &sema) const {
   return this == sema.context.int_type
       || this == sema.context.char_type
       || this == sema.context.void_type
@@ -1166,7 +1166,7 @@ Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
 
 void borrowcheck_assignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
   // We don't want to mess with built-in types.
-  if (rhs->type->isBuiltinType(sema)) return;
+  if (rhs->type->isBuiltin(sema)) return;
 
   // Pattern-match-like recursion case.
   // This works because we guarantee that every lvalue has a VarDecl.

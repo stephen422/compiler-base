@@ -1,5 +1,5 @@
-#ifndef SEMA_H
-#define SEMA_H
+#ifndef CMP_SEMA_H
+#define CMP_SEMA_H
 
 #include "ast_visitor.h"
 #include "error.h"

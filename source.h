@@ -1,5 +1,5 @@
-#ifndef SOURCE_H
-#define SOURCE_H
+#ifndef CMP_SOURCE_H
+#define CMP_SOURCE_H
 
 #include <string>
 #include <vector>

@@ -1,6 +1,6 @@
 // -*- C++ -*-
-#ifndef DRIVER_H
-#define DRIVER_H
+#ifndef CMP_DRIVER_H
+#define CMP_DRIVER_H
 
 #include "source.h"
 #include "error.h"

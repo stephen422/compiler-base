@@ -1,5 +1,5 @@
-#ifndef SCOPED_TABLE_H
-#define SCOPED_TABLE_H
+#ifndef CMP_SCOPED_TABLE_H
+#define CMP_SCOPED_TABLE_H
 
 #include <array>
 #include <vector>

@@ -1,5 +1,5 @@
-#ifndef AST_VISITOR_H
-#define AST_VISITOR_H
+#ifndef CMP_AST_VISITOR_H
+#define CMP_AST_VISITOR_H
 
 #include "ast.h"
 

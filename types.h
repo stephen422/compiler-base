@@ -1,6 +1,6 @@
 // -*- C++ -*-
-#ifndef TYPES_H
-#define TYPES_H
+#ifndef CMP_TYPES_H
+#define CMP_TYPES_H
 
 #include <cassert>
 #include <optional>
@@ -18,7 +18,6 @@ struct StructDecl;
 struct EnumDecl;
 struct FuncDecl;
 struct Sema;
-
 struct VarDecl;
 struct StructDecl;
 struct EnumDecl;
@@ -30,7 +29,7 @@ struct FuncDecl;
 struct Name {
   std::string text;
 
-  const char *str() const { return text.c_str(); }
+  std::string str() const { return text; }
 };
 
 // 'NameTable' is a hash table of Names queried by their string value.  It
@@ -100,9 +99,9 @@ struct Type {
   // TODO: copyable?
   Type(Name *n, bool mut, Type *bt);
 
-  const char *str() const { return name->str(); }
+  std::string str() const { return name->str(); }
 
-  bool isBuiltinType(Sema &sema) const;
+  bool isBuiltin(Sema &sema) const;
   bool isReference() const {
     return kind == TypeKind::ref || kind == TypeKind::var_ref;
   }
