@@ -1292,7 +1292,7 @@ void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
       if (lifetime->lifetime_annot !=
           current_func->ret_type_expr->as<TypeExpr>()->lifetime_annot) {
         sema.error(
-            rs->expr->pos, "lifetime mismatch: expected {}, got {}",
+            rs->expr->pos, "lifetime mismatch: expected .{}, got .{}",
             current_func->ret_type_expr->as<TypeExpr>()->lifetime_annot->str(),
             lifetime->lifetime_annot->str());
         return;

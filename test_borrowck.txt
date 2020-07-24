@@ -194,8 +194,10 @@ func lifetime_coercion() {
     {
         var b = 2
 
-        // In this case, from which one does 'ptr' borrow? Both?
-        // Should we mark both 'a' and 'b' as borrowed then?
+        // Since the 2 arguments of `max()` have the same lifetime annotation,
+        // the compiler coerces them into the shorter one, which is `b` in
+        // this case.
+        // Therefore `ptr` should have the same referred lifetime as `b`.
         ptr = max(&a, &b)
         ptr = max(max(&a, &b), &b)
     }
