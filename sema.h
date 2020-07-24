@@ -86,15 +86,11 @@ struct Sema {
   std::vector<Lifetime *> lifetime_pool;
   std::vector<BasicBlock *> basic_block_pool;
 
-  // Declarations visible at the current scope.
+  // Declarations visible at the current scope, keyed by their Names.
   ScopedTable<Name *, Decl *> decl_table;
 
   // XXX: needed?
   ScopedTable<Name *, Type *> type_table;
-
-  // Live variables at the current scope.
-  // TODO: deprecate.
-  ScopedTable<Decl *, Decl *> live_list;
 
   // Stores lifetimes that are alive at the current position.
   // Note that this variable is not meant to be used directly; use

@@ -103,7 +103,6 @@ Sema::~Sema() {
 void Sema::scope_open() {
   decl_table.scope_open();
   type_table.scope_open();
-  live_list.scope_open();
   lifetime_table.scope_open();
   borrow_table.scope_open();
 }
@@ -111,7 +110,6 @@ void Sema::scope_open() {
 void Sema::scope_close() {
   decl_table.scope_close();
   type_table.scope_close();
-  live_list.scope_close();
   lifetime_table.scope_close();
   borrow_table.scope_close();
 }
@@ -614,7 +612,6 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
         m->decl = {field_var_decl};
 
         // TODO: abstract this and make_node together into a func.
-        assert(sema.live_list.insert(field_var_decl, field_var_decl));
         field_var_decl->lifetime = start_lifetime(sema, field_var_decl);
         struct_var_decl->addChild(m->member_name, field_var_decl);
       }
@@ -1452,12 +1449,10 @@ void BorrowChecker::visitUnaryExpr(UnaryExpr *u) {
 void BorrowChecker::visitVarDecl(VarDecl *v) {
   walk_var_decl(*this, v);
 
-  sema.live_list.insert(v, v);
   v->lifetime = start_lifetime(sema, v);
   for (auto child : v->children) {
     // FIXME: but... shouldn't have these already been pushed at the time of
     // their declaration?
-    sema.live_list.insert(child.second, child.second);
     child.second->lifetime = start_lifetime(sema, child.second);
   }
 
@@ -1542,7 +1537,6 @@ void BorrowChecker::visitFuncDecl(FuncDecl *f) {
   }
 
   // This is used for local variable detection.
-  sema.live_list.insert(f, f);
   f->scope_lifetime = start_lifetime(sema, f);
 
   sema.context.func_decl_stack.push_back(f);
