@@ -643,8 +643,12 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
 // code.  Trying to push them every time we see one is sufficient to keep this
 // invariant.
 Type *cmp::getReferenceType(Sema &sema, bool mut, Type *type) {
-  auto name = getReferenceTypeName(sema.name_table, mut, type->name);
-  if (auto found = sema.type_table.find(name)) return found->value;
+  auto name = name_of_derived_type(
+      sema.name_table, mut ? TypeExprKind::var_ref : TypeExprKind::ref,
+      type->name);
+  if (auto found = sema.type_table.find(name)) {
+    return found->value;
+  }
 
   auto ref_type = makeReferenceType(sema, name, mut, type);
   return *sema.type_table.insert(name, ref_type);
@@ -759,8 +763,11 @@ Type *TypeChecker::visitTypeExpr(TypeExpr *t) {
     assert(t->subexpr->type); // TODO: check if triggers
     bool mut = t->kind == TypeExprKind::var_ref;
     t->type = getReferenceType(sema, mut, t->subexpr->type);
+  } else if (t->kind == TypeExprKind::ptr) {
+    bool mut = t->kind == TypeExprKind::var_ref;
+    t->type = getReferenceType(sema, mut, t->subexpr->type);
   } else {
-    unreachable();
+    assert(!"unreachable");
   }
 
   return t->type;
@@ -1602,7 +1609,6 @@ void CodeGenerator::visitUnaryExpr(UnaryExpr *u) {
   switch (u->kind) {
   case UnaryExprKind::paren:
     return visitParenExpr(u->as<ParenExpr>());
-    break;
   case UnaryExprKind::ref:
   case UnaryExprKind::var_ref:
     emitCont("&");
@@ -1632,8 +1638,6 @@ void CodeGenerator::visitBinaryExpr(BinaryExpr *b) {
 
 // Generate C source representation of a Type.
 std::string c_stringify_type(Sema &sema, const Type *t) {
-  assert(t);
-
   if (t == sema.context.string_type) {
     // For now, strings are aliased to char *.  This works as long as
     // strings are immutable and doesn't contain unicode characters.

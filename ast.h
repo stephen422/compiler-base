@@ -333,6 +333,7 @@ struct BinaryExpr : public Expr {
 enum class TypeExprKind {
   none,
   value,
+  ptr,
   ref,
   var_ref,
   array,

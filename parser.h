@@ -61,7 +61,8 @@ private:
     std::variant<T *, Error> result;
 };
 
-Name *getReferenceTypeName(NameTable &names, bool mut, Name *referee_name);
+Name *name_of_derived_type(NameTable &names, TypeExprKind kind,
+                           Name *referee_name);
 
 class Parser {
 public:

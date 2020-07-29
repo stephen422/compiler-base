@@ -287,42 +287,38 @@ VarDecl *Parser::parseVarDecl(VarDeclKind kind) {
 // Doesn't account for the enclosing parentheses or braces.
 template <typename T, typename F>
 std::vector<T> Parser::parseCommaSeparatedList(F &&parse_fn) {
-    auto finishers = {Tok::rparen, Tok::rbrace};
-    auto delimiters = {Tok::comma, Tok::newline, Tok::rparen, Tok::rbrace};
-    std::vector<T> list;
+  auto finishers = {Tok::rparen, Tok::rbrace};
+  auto delimiters = {Tok::comma, Tok::newline, Tok::rparen, Tok::rbrace};
+  std::vector<T> list;
 
-    for (;;) {
-        skip_newlines();
-        if (tok.is_any(finishers) || is_eos())
-            break;
+  for (;;) {
+    skip_newlines();
+    if (tok.is_any(finishers) || is_eos()) break;
 
-        auto elem = parse_fn();
-        if (elem)
-            list.push_back(elem);
+    auto elem = parse_fn();
+    if (elem) list.push_back(elem);
 
-        // Determining where each decl ends in a list is a little tricky.  Here,
-        // we stop for any token that is either (1) separator tokens, i.e.
-        // comma, newline, or (2) used to enclose a decl list, i.e.  parentheses
-        // and braces.  This works for both function argument lists and struct
-        // member lists.
-        if (!elem) {
-            skip_until_any(delimiters);
-        } else if (!tok.is_any(delimiters)) {
-            // For cases when a VarDecl succeeds parsing but there is a leftover
-            // token, e.g. 'a: int###', we need to directly check the next token
-            // is the delimiting token, and do an appropriate error report.
-            error(fmt::format("trailing token '{}' after declaration",
-                              tok.str()));
-            skip_until_any(delimiters);
-        }
-
-        // Skip comma if any. This allows trailing comma at the end, e.g.
-        // '(a,)'.
-        if (tok.kind == Tok::comma)
-            next();
+    // Determining where each decl ends in a list is a little tricky.  Here,
+    // we stop for any token that is either (1) separator tokens, i.e.
+    // comma, newline, or (2) used to enclose a decl list, i.e.  parentheses
+    // and braces.  This works for both function argument lists and struct
+    // member lists.
+    if (!elem) {
+      skip_until_any(delimiters);
+    } else if (!tok.is_any(delimiters)) {
+      // For cases when a VarDecl succeeds parsing but there is a leftover
+      // token, e.g. 'a: int###', we need to directly check the next token
+      // is the delimiting token, and do an appropriate error report.
+      error(fmt::format("trailing token '{}' after declaration", tok.str()));
+      skip_until_any(delimiters);
     }
 
-    return list;
+    // Skip comma if any. This allows trailing comma at the end, e.g.
+    // '(a,)'.
+    if (tok.kind == Tok::comma) next();
+  }
+
+  return list;
 }
 
 FuncDecl *Parser::parseFuncDecl() {
@@ -541,10 +537,25 @@ Expr *Parser::parseFuncCallOrDeclRefExpr() {
 }
 
 // Get the Name handle that designates a reference type of a given referee type
-// name.  This function is used to query ready-made reference types from the
-// type table.
-Name *getReferenceTypeName(NameTable &names, bool mut, Name *referee_name) {
-  return names.get_or_add((mut ? "var &" : "&") + referee_name->text);
+// name.  This function is used in the typeck phase to query already-declared
+// reference types from the type table. TODO: looks kinda like an unnecessary
+// step.
+Name *name_of_derived_type(NameTable &names, TypeExprKind kind, Name *referee_name) {
+  std::string prefix;
+  switch (kind) {
+  case TypeExprKind::var_ref:
+    prefix = "var &";
+    break;
+  case TypeExprKind::ref:
+    prefix = "&";
+    break;
+  case TypeExprKind::ptr:
+    prefix = "*";
+    break;
+  default:
+    assert(false && "unreachable");
+  }
+  return names.get_or_add(prefix + referee_name->text);
 }
 
 // Parse a type expression.
@@ -569,18 +580,28 @@ Expr *Parser::parseTypeExpr() {
   if (tok.kind == Tok::ampersand) {
     expect(Tok::ampersand);
     type_kind = mut ? TypeExprKind::var_ref : TypeExprKind::ref;
-
     // Lifetime annotation.
     if (tok.kind == Tok::dot) {
       next();
       lifetime = sema.name_table.get_or_add(std::string{tok.text});
       next();
     }
-
     // Base type name.
     subexpr = parseTypeExpr();
+    // FIXME: unnatural
     if (subexpr->kind == ExprKind::type) {
-      text = getReferenceTypeName(sema.name_table, mut, subexpr->as<TypeExpr>()->name)->text;
+      text = name_of_derived_type(sema.name_table, type_kind,
+                                    subexpr->as<TypeExpr>()->name)
+                 ->text;
+    }
+  } else if (tok.kind == Tok::star) {
+    next();
+    type_kind = TypeExprKind::ptr;
+    subexpr = parseTypeExpr();
+    if (subexpr->kind == ExprKind::type) {
+      text = name_of_derived_type(sema.name_table, type_kind,
+                                    subexpr->as<TypeExpr>()->name)
+                 ->text;
     }
   } else if (is_ident_or_keyword(tok)) {
     type_kind = TypeExprKind::value;

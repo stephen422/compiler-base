@@ -1,0 +1,7 @@
+struct String {
+    buf: *char
+}
+
+func main() -> int {
+    return 0
+}
