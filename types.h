@@ -58,6 +58,7 @@ struct NameTable {
 
 enum class TypeKind {
     value, // built-in, struct
+    ptr,
     ref,
     var_ref,
 };
@@ -86,8 +87,8 @@ struct Type {
   union {
     // Back-reference to the decl object that defines this value type.
     Decl *type_decl = nullptr;
-    // The target type of this reference type.  If this is a non-reference
-    // type, the value should be null.
+    // The target type that this type refers to.  If this is a non-reference or
+    // a non-pointer type, the value should be null.
     Type *referee_type;
   };
 
@@ -97,7 +98,7 @@ struct Type {
   Type(TypeKind k, Name *n, Decl *td) : kind(k), name(n), type_decl(td) {}
   // Reference types.
   // TODO: copyable?
-  Type(Name *n, bool mut, Type *bt);
+  Type(Name *n, TypeKind ptr_kind, Type *referee_type);
 
   std::string str() const { return name->str(); }
 
@@ -121,8 +122,6 @@ struct Type {
   StructDecl *getStructDecl();
   EnumDecl *getEnumDecl();
 };
-
-Type *getReferenceType(Sema &sema, bool mut, Type *type);
 
 } // namespace cmp
 

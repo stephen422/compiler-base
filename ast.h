@@ -329,18 +329,8 @@ struct BinaryExpr : public Expr {
   void print() const override;
 };
 
-// XXX: can I call this an expression?
-enum class TypeExprKind {
-  none,
-  value,
-  ptr,
-  ref,
-  var_ref,
-  array,
-};
-
 struct TypeExpr : public Expr {
-  const TypeExprKind kind = TypeExprKind::none;
+  TypeKind kind = TypeKind::value;
   // Name of the type. TODO: should this contain '&' and '[]'?
   Name *name = nullptr;
   // Decl object that represents this type.
@@ -354,7 +344,7 @@ struct TypeExpr : public Expr {
   Expr *subexpr = nullptr;
 
   // TODO: incomplete.
-  TypeExpr(TypeExprKind k, Name *n, bool m, Name *lt, Expr *se)
+  TypeExpr(TypeKind k, Name *n, bool m, Name *lt, Expr *se)
       : Expr(ExprKind::type), kind(k), name(n), mut(m), lifetime_annot(lt),
         subexpr(se) {}
   void print() const override;

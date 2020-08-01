@@ -540,16 +540,16 @@ Expr *Parser::parseFuncCallOrDeclRefExpr() {
 // name.  This function is used in the typeck phase to query already-declared
 // reference types from the type table. TODO: looks kinda like an unnecessary
 // step.
-Name *name_of_derived_type(NameTable &names, TypeExprKind kind, Name *referee_name) {
+Name *name_of_derived_type(NameTable &names, TypeKind kind, Name *referee_name) {
   std::string prefix;
   switch (kind) {
-  case TypeExprKind::var_ref:
+  case TypeKind::var_ref:
     prefix = "var &";
     break;
-  case TypeExprKind::ref:
+  case TypeKind::ref:
     prefix = "&";
     break;
-  case TypeExprKind::ptr:
+  case TypeKind::ptr:
     prefix = "*";
     break;
   default:
@@ -573,13 +573,13 @@ Expr *Parser::parseTypeExpr() {
     mut = true;
   }
 
-  TypeExprKind type_kind = TypeExprKind::none;
+  TypeKind type_kind = TypeKind::value;
   Name *lifetime = nullptr;
   Expr *subexpr = nullptr;
   std::string text;
   if (tok.kind == Tok::ampersand) {
     expect(Tok::ampersand);
-    type_kind = mut ? TypeExprKind::var_ref : TypeExprKind::ref;
+    type_kind = mut ? TypeKind::var_ref : TypeKind::ref;
     // Lifetime annotation.
     if (tok.kind == Tok::dot) {
       next();
@@ -590,21 +590,22 @@ Expr *Parser::parseTypeExpr() {
     subexpr = parseTypeExpr();
     // FIXME: unnatural
     if (subexpr->kind == ExprKind::type) {
-      text = name_of_derived_type(sema.name_table, type_kind,
-                                    subexpr->as<TypeExpr>()->name)
+      text = name_of_derived_type(sema.name_table,
+                                  mut ? TypeKind::var_ref : TypeKind::ref,
+                                  subexpr->as<TypeExpr>()->name)
                  ->text;
     }
   } else if (tok.kind == Tok::star) {
     next();
-    type_kind = TypeExprKind::ptr;
+    type_kind = TypeKind::ptr;
     subexpr = parseTypeExpr();
     if (subexpr->kind == ExprKind::type) {
-      text = name_of_derived_type(sema.name_table, type_kind,
+      text = name_of_derived_type(sema.name_table, TypeKind::ptr,
                                     subexpr->as<TypeExpr>()->name)
                  ->text;
     }
   } else if (is_ident_or_keyword(tok)) {
-    type_kind = TypeExprKind::value;
+    type_kind = TypeKind::value;
 
     text = tok.text;
     next();

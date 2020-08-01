@@ -19,9 +19,8 @@ template <typename... Args> void Sema::error(size_t pos, Args &&... args) {
   errors.push_back(e);
 }
 
-Type::Type(Name *n, bool mut, Type *bt) : name(n), referee_type(bt) {
-  kind = mut ? TypeKind::var_ref : TypeKind::ref;
-  copyable = !mut;
+Type::Type(Name *n, TypeKind k, Type *rt) : kind(k), name(n), referee_type(rt) {
+  copyable = k == TypeKind::ref;
 }
 
 bool Type::isBuiltin(Sema &sema) const {
@@ -64,8 +63,9 @@ Type *make_value_type(Sema &sema, Name *n, Decl *decl) {
   return t;
 }
 
-Type *makeReferenceType(Sema &sema, Name *n, bool mut, Type *referee_type) {
-  Type *t = new Type(n, mut, referee_type);
+Type *makeReferenceType(Sema &sema, Name *name, TypeKind ptr_kind,
+                        Type *referee_type) {
+  Type *t = new Type(name, ptr_kind, referee_type);
   sema.type_pool.push_back(t);
   return t;
 }
@@ -165,7 +165,7 @@ void NameBinding::visitTypeExpr(TypeExpr *t) {
 
   auto sym = sema.decl_table.find(t->name);
   if (sym && sym->value->typeMaybe()) {
-    assert(t->kind == TypeExprKind::value);
+    assert(t->kind == TypeKind::value);
     t->decl = sym->value;
   } else {
     sema.error(t->pos, "use of undeclared type '{}'", t->name->str());
@@ -642,15 +642,13 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
 // Derived types are only present in the type table if they occur in the source
 // code.  Trying to push them every time we see one is sufficient to keep this
 // invariant.
-Type *cmp::getReferenceType(Sema &sema, bool mut, Type *type) {
-  auto name = name_of_derived_type(
-      sema.name_table, mut ? TypeExprKind::var_ref : TypeExprKind::ref,
-      type->name);
+Type *get_derived_type(Sema &sema, TypeKind kind, Type *type) {
+  auto name = name_of_derived_type(sema.name_table, kind, type->name);
   if (auto found = sema.type_table.find(name)) {
     return found->value;
   }
 
-  auto ref_type = makeReferenceType(sema, name, mut, type);
+  auto ref_type = makeReferenceType(sema, name, kind, type);
   return *sema.type_table.insert(name, ref_type);
 }
 
@@ -712,7 +710,9 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
         }
       }
 
-      u->type = getReferenceType(sema, mut, u->operand->type);
+      auto type_kind = (u->kind == UnaryExprKind::var_ref) ? TypeKind::var_ref
+                                                           : TypeKind::ref;
+      u->type = get_derived_type(sema, type_kind, u->operand->type);
     }
     break;
   }
@@ -753,19 +753,17 @@ Type *TypeChecker::visitBinaryExpr(BinaryExpr *b) {
 Type *TypeChecker::visitTypeExpr(TypeExpr *t) {
   walk_type_expr(*this, t);
 
-  if (t->kind == TypeExprKind::value) {
+  if (t->kind == TypeKind::value) {
     // t->decl should be non-null after the name binding stage.
     // And since we are currently doing single-pass, its type should also be
     // resolved by now.
     t->type = *t->decl->typeMaybe();
     assert(t->type && "type not resolved in corresponding *Decl");
-  } else if (t->kind == TypeExprKind::ref || t->kind == TypeExprKind::var_ref) {
+  } else if (t->kind == TypeKind::ref || t->kind == TypeKind::var_ref) {
     assert(t->subexpr->type); // TODO: check if triggers
-    bool mut = t->kind == TypeExprKind::var_ref;
-    t->type = getReferenceType(sema, mut, t->subexpr->type);
-  } else if (t->kind == TypeExprKind::ptr) {
-    bool mut = t->kind == TypeExprKind::var_ref;
-    t->type = getReferenceType(sema, mut, t->subexpr->type);
+    t->type = get_derived_type(sema, t->kind, t->subexpr->type);
+  } else if (t->kind == TypeKind::ptr) {
+    t->type = get_derived_type(sema, t->kind, t->subexpr->type);
   } else {
     assert(!"unreachable");
   }
