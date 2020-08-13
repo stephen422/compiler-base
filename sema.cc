@@ -1641,8 +1641,10 @@ std::string c_stringify_type(Sema &sema, const Type *t) {
     // For now, strings are aliased to char *.  This works as long as
     // strings are immutable and doesn't contain unicode characters.
     return "char*";
-  }
-  if (t->isReference()) {
+  } else if (t->isReference()) {
+    auto base = c_stringify_type(sema, t->referee_type);
+    return base + "*";
+  } else if (t->kind == TypeKind::ptr) {
     auto base = c_stringify_type(sema, t->referee_type);
     return base + "*";
   } else {
