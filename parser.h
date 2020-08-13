@@ -119,11 +119,13 @@ private:
   VarDecl *parseVarDecl(VarDeclKind kind);
   template <typename T, typename F>
   std::vector<T> parseCommaSeparatedList(F &&parseFn);
+  FuncDecl *parseFuncHeader();
   FuncDecl *parseFuncDecl();
   StructDecl *parseStructDecl();
   EnumVariantDecl *parseEnumVariant();
   std::vector<EnumVariantDecl *> parseEnumVariantDeclList();
   EnumDecl *parseEnumDecl();
+  ExternDecl *parseExternDecl();
   bool isStartOfDecl();
 
   // Expression parsers

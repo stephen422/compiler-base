@@ -292,6 +292,7 @@ public:
   void visitVarDecl(VarDecl *v);
   void visitFuncDecl(FuncDecl *f);
   void visitStructDecl(StructDecl *s);
+  void visitExternDecl(ExternDecl *e);
 };
 
 } // namespace cmp

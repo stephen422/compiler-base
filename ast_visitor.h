@@ -126,6 +126,9 @@ public:
     case DeclKind::bad:
       // do nothing
       break;
+    case DeclKind::extern_:
+      return dis()->visitExternDecl(static_cast<ExternDecl *>(d), args...);
+      break;
     default:
       assert(false);
     }
@@ -149,6 +152,10 @@ public:
   }
   RetTy visitEnumDecl(EnumDecl *e, Args... args) {
     walk_enum_decl(*dis(), e, args...);
+    return RetTy();
+  }
+  RetTy visitExternDecl(ExternDecl *e, Args... args) {
+    walk_extern_decl(*dis(), e, args...);
     return RetTy();
   }
   RetTy visitExpr(Expr *e, Args... args) {
@@ -283,10 +290,13 @@ void walk_var_decl(Visitor &v, VarDecl *var, Args... args) {
 }
 template <typename Visitor, typename... Args>
 void walk_func_decl(Visitor &v, FuncDecl *f, Args... args) {
-    if (f->ret_type_expr) v.visitExpr(f->ret_type_expr, args...);
-    for (auto arg : f->args)
-        v.visitDecl(arg, args...);
+  if (f->ret_type_expr) v.visitExpr(f->ret_type_expr, args...);
+  for (auto arg : f->args) {
+    v.visitDecl(arg, args...);
+  }
+  if (f->body) {
     v.visitCompoundStmt(f->body, args...);
+  }
 }
 template <typename Visitor, typename... Args>
 void walk_struct_decl(Visitor &v, StructDecl *s, Args... args) {
@@ -303,6 +313,10 @@ template <typename Visitor, typename... Args>
 void walk_enum_decl(Visitor &v, EnumDecl *e, Args... args) {
     for (auto var : e->variants)
         v.visitEnumVariantDecl(var, args...);
+}
+template <typename Visitor, typename... Args>
+void walk_extern_decl(Visitor &v, ExternDecl *e, Args... args) {
+  v.visitDecl(e->decl, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_decl_stmt(Visitor &v, DeclStmt *ds, Args... args) {

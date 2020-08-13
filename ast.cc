@@ -207,6 +207,13 @@ void EnumDecl::print() const {
       m->print();
 }
 
+void ExternDecl::print() const {
+    out() << "[ExternDecl]\n";
+
+    PrintScope start;
+    decl->print();
+}
+
 void BinaryExpr::print() const {
     out() << "[BinaryExpr]\n";
 

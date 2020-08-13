@@ -321,13 +321,13 @@ std::vector<T> Parser::parseCommaSeparatedList(F &&parse_fn) {
   return list;
 }
 
-FuncDecl *Parser::parseFuncDecl() {
+FuncDecl *Parser::parseFuncHeader() {
   auto pos = tok.pos;
 
   expect(Tok::kw_func);
 
   Name *name = sema.name_table.get_or_add(std::string{tok.text});
-  auto func = sema.make_node<FuncDecl>(name);
+  auto func = sema.make_node_pos<FuncDecl>(pos, name);
   func->pos = tok.pos;
   next();
 
@@ -346,6 +346,12 @@ FuncDecl *Parser::parseFuncDecl() {
     func->ret_type_expr = parseTypeExpr();
   }
 
+  return func;
+}
+
+FuncDecl *Parser::parseFuncDecl() {
+  auto func = parseFuncHeader();
+
   if (tok.kind != Tok::lbrace) {
     error_expected("'->' or '{'");
     skip_until(Tok::lbrace);
@@ -353,7 +359,6 @@ FuncDecl *Parser::parseFuncDecl() {
 
   // function body
   func->body = parseCompoundStmt();
-  func->pos = pos;
 
   return func;
 }
@@ -437,10 +442,18 @@ EnumDecl *Parser::parseEnumDecl() {
   return sema.make_node_pos<EnumDecl>(pos, name, fields);
 }
 
+ExternDecl *Parser::parseExternDecl() {
+  auto pos = tok.pos;
+  expect(Tok::kw_extern);
+  auto func = parseFuncHeader();
+  return sema.make_node_pos<ExternDecl>(pos, func);
+}
+
 bool Parser::isStartOfDecl() {
   switch (tok.kind) {
   case Tok::kw_let:
   case Tok::kw_struct:
+  case Tok::kw_func:
     return true;
   case Tok::kw_var: {
     // For var, there can be exceptions such as 'var &a'. We need to do some
@@ -462,6 +475,8 @@ bool Parser::isStartOfDecl() {
 // Parse a declaration.
 // Remember to modify isStartOfDecl() accordingly.
 Decl *Parser::parseDecl() {
+  assert(isStartOfDecl());
+
   switch (tok.kind) {
   case Tok::kw_let: {
     next();
@@ -477,6 +492,8 @@ Decl *Parser::parseDecl() {
   case Tok::kw_struct: {
     return parseStructDecl();
   }
+  case Tok::kw_func:
+    return parseFuncDecl();
   default: {
     assert(false && "not a start of a declaration");
   }
@@ -853,6 +870,8 @@ AstNode *Parser::parse_toplevel() {
     return parseStructDecl();
   case Tok::kw_enum:
     return parseEnumDecl();
+  case Tok::kw_extern:
+    return parseExternDecl();
   default:
     error(fmt::format("unexpected '{}' at toplevel", tok.text));
     skip_to_next_line();

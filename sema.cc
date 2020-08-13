@@ -689,9 +689,6 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
   case UnaryExprKind::var_ref:
   case UnaryExprKind::ref: {
     if (visitExpr(u->operand)) {
-      bool mut = false;
-      if (u->kind == UnaryExprKind::var_ref) mut = true;
-
       // Prohibit taking address of an rvalue.
       if (!u->operand->isLValue()) {
         sema.error(u->pos, "cannot take address of an rvalue");
@@ -748,8 +745,8 @@ Type *TypeChecker::visitBinaryExpr(BinaryExpr *b) {
   return b->type;
 }
 
-// Type checking TypeExpr concerns with finding the Type object whose syntactic
-// representation matches the TypeExpr.
+// Type checking TypeExpr is about tagging the TypeExpr with the Type object
+// whose syntactic representation matches the expression.
 Type *TypeChecker::visitTypeExpr(TypeExpr *t) {
   walk_type_expr(*this, t);
 
@@ -758,9 +755,8 @@ Type *TypeChecker::visitTypeExpr(TypeExpr *t) {
     // And since we are currently doing single-pass, its type should also be
     // resolved by now.
     t->type = *t->decl->typeMaybe();
-    assert(t->type && "type not resolved in corresponding *Decl");
+    assert(t->type && "type not resolved after visiting corresponding *Decl");
   } else if (t->kind == TypeKind::ref || t->kind == TypeKind::var_ref) {
-    assert(t->subexpr->type); // TODO: check if triggers
     t->type = get_derived_type(sema, t->kind, t->subexpr->type);
   } else if (t->kind == TypeKind::ptr) {
     t->type = get_derived_type(sema, t->kind, t->subexpr->type);
@@ -808,6 +804,7 @@ Type *TypeChecker::visitVarDecl(VarDecl *v) {
 }
 
 Type *TypeChecker::visitFuncDecl(FuncDecl *f) {
+  // FIXME: broken
   if (f->failed) return nullptr;
   auto err_count = sema.errors.size();
 
@@ -827,9 +824,11 @@ Type *TypeChecker::visitFuncDecl(FuncDecl *f) {
   }
 
   // FIXME: what about type_table?
-  sema.context.func_decl_stack.push_back(f);
-  visitCompoundStmt(f->body);
-  sema.context.func_decl_stack.pop_back();
+  if (f->body) {
+    sema.context.func_decl_stack.push_back(f);
+    visitCompoundStmt(f->body);
+    sema.context.func_decl_stack.pop_back();
+  }
 
   if (sema.errors.size() != err_count) {
     f->failed = true;
@@ -964,6 +963,8 @@ void returnCheckSolve(const std::vector<BasicBlock *> &walklist) {
 BasicBlock *ReturnChecker::visitFuncDecl(FuncDecl *f, BasicBlock *bb) {
   if (f->failed) return nullptr;
   if (!f->ret_type_expr) return nullptr;
+  // For body-less function declarations (e.g. extern).
+  if (!f->body) return nullptr;
 
   auto entry_point = sema.makeBasicBlock();
   auto exit_point = visitCompoundStmt(f->body, entry_point);
@@ -1755,4 +1756,8 @@ void CodeGenerator::visitFuncDecl(FuncDecl *f) {
 
   emit("}}\n");
   emit("\n");
+}
+
+void CodeGenerator::visitExternDecl(ExternDecl *e) {
+  // Do nothing.
 }

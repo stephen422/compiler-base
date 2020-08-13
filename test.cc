@@ -81,7 +81,14 @@ TEST_CASE("Return checking") {
 }
 
 TEST_CASE("Codegen") {
+  SECTION("basic") {
     auto d = Driver::from_path(Path{"../test_codegen.txt"});
     d.compile();
     REQUIRE(d.verify());
+  }
+  SECTION("FFI") {
+    auto d = Driver::from_path(Path{"../test_ffi.txt"});
+    d.compile();
+    REQUIRE(d.verify());
+  }
 }

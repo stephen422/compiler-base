@@ -25,6 +25,7 @@ struct FuncDecl;
 struct StructDecl;
 struct EnumVariantDecl;
 struct EnumDecl;
+struct ExternDecl;
 struct BadDecl;
 class Lifetime;
 
@@ -364,6 +365,7 @@ enum class DeclKind {
   struct_,
   enum_variant,
   enum_,
+  extern_,
   bad,
 };
 
@@ -384,6 +386,9 @@ template <> inline bool decl_is<EnumVariantDecl>(const DeclKind kind) {
 }
 template <> inline bool decl_is<EnumDecl>(const DeclKind kind) {
   return kind == DeclKind::enum_;
+}
+template <> inline bool decl_is<ExternDecl>(const DeclKind kind) {
+  return kind == DeclKind::extern_;
 }
 template <> inline bool decl_is<BadDecl>(const DeclKind kind) {
   return kind == DeclKind::bad;
@@ -519,6 +524,14 @@ struct EnumDecl : public Decl {
 
   EnumDecl(Name *n, std::vector<EnumVariantDecl *> m)
       : Decl(DeclKind::enum_), name(n), variants(m) {}
+  void print() const override;
+};
+
+// Extern declaration.
+struct ExternDecl : public Decl {
+  Decl *decl;
+
+  ExternDecl(Decl *d) : Decl(DeclKind::extern_), decl(d) {}
   void print() const override;
 };
 

@@ -57,6 +57,7 @@ enum class Tok {
     kw_i64,
     kw_float,
     kw_return,
+    kw_extern,
     kw_error,
     KWEND,
     none // not initialized
@@ -111,6 +112,7 @@ constexpr std::pair<std::string_view, Tok> keyword_map[] {
     {"int", Tok::kw_int},
     {"i64", Tok::kw_i64},
     {"return", Tok::kw_return},
+    {"extern", Tok::kw_extern},
     {"error", Tok::kw_error},
 };
 

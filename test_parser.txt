@@ -12,10 +12,10 @@ func main() {
     let car: var & // ERROR: expected type name
     let car: var &Car
     let car: var var var &Car // ERROR: expected '\\n', found 'var'
-    let car: &var Car // TODO: disallow this
+    let car: &var Car // TODO: disallow
     let car: var &Car Sedan // ERROR: expected '\\n', found 'Sedan'
     let car: *Car
-    let car: var *Car // ERROR: hmm
+    let car: var *Car // TODO: disallow
 
     // TODO: Currently there are two ways to declare mutable reference
     // variables: 'var x = &Ty' and 'let x = var &Ty'.  Preferably,
