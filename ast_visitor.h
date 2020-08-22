@@ -172,8 +172,8 @@ public:
     case ExprKind::decl_ref:
       return dis()->visitDeclRefExpr(static_cast<DeclRefExpr *>(e), args...);
       break;
-    case ExprKind::func_call:
-      return dis()->visitFuncCallExpr(static_cast<FuncCallExpr *>(e), args...);
+    case ExprKind::call:
+      return dis()->visitCallExpr(static_cast<CallExpr *>(e), args...);
       break;
     case ExprKind::struct_def:
       return dis()->visitStructDefExpr(static_cast<StructDefExpr *>(e),
@@ -212,7 +212,7 @@ public:
     // nothing to walk
     return RetTy();
   }
-  RetTy visitFuncCallExpr(FuncCallExpr *f, Args... args) {
+  RetTy visitCallExpr(CallExpr *f, Args... args) {
     walk_func_call_expr(*dis(), f, args...);
     return RetTy();
   }
@@ -351,17 +351,17 @@ void walk_if_stmt(Visitor &v, IfStmt *is, Args... args) {
         v.visitCompoundStmt(is->else_body, args...);
 }
 template <typename Visitor, typename... Args>
-void walk_func_call_expr(Visitor &v, FuncCallExpr *f, Args... args) {
-    for (auto arg : f->args) {
-        v.visitExpr(arg, args...);
-    }
+void walk_func_call_expr(Visitor &v, CallExpr *f, Args... args) {
+  for (auto arg : f->args) {
+    v.visitExpr(arg, args...);
+  }
 }
 template <typename Visitor, typename... Args>
 void walk_struct_def_expr(Visitor &v, StructDefExpr *s, Args... args) {
-    v.visitExpr(s->name_expr, args...);
-    for (auto d : s->desigs) {
-        v.visitExpr(d.init_expr, args...);
-    }
+  v.visitExpr(s->name_expr, args...);
+  for (auto d : s->desigs) {
+    v.visitExpr(d.init_expr, args...);
+  }
 }
 template <typename Visitor, typename... Args>
 void walk_member_expr(Visitor &v, MemberExpr *m, Args... args) {

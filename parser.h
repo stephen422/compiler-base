@@ -162,7 +162,7 @@ private:
 
   // Convenience function for make_node_range.
   template <typename T, typename... Args>
-  T *makeNodeHere(size_t pos, Args &&... args) {
+  T *make_node_here(size_t pos, Args &&... args) {
     return sema.make_node_range<T>({pos, last_tok_endpos},
                                    std::forward<Args>(args)...);
   }

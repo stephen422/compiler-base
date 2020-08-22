@@ -545,11 +545,11 @@ Expr *Parser::parseFuncCallOrDeclRefExpr() {
                 next();
         }
         expect(Tok::rparen);
-        return makeNodeHere<FuncCallExpr>(pos, name, args);
+        return make_node_here<CallExpr>(pos, CallExprKind::func, name, args);
     } else {
         // Whether this is a variable or a struct/enum name can only be decided
         // in the type checking stage.
-        return makeNodeHere<DeclRefExpr>(pos, name);
+        return make_node_here<DeclRefExpr>(pos, name);
     }
 }
 
@@ -659,7 +659,7 @@ Expr *Parser::parseUnaryExpr() {
   case Tok::star: {
     next();
     auto expr = parseUnaryExpr();
-    return makeNodeHere<UnaryExpr>(pos, UnaryExprKind::deref, expr);
+    return make_node_here<UnaryExpr>(pos, UnaryExprKind::deref, expr);
   }
   case Tok::kw_var:
   case Tok::ampersand: {
@@ -670,13 +670,13 @@ Expr *Parser::parseUnaryExpr() {
     }
     expect(Tok::ampersand);
     auto expr = parseUnaryExpr();
-    return makeNodeHere<UnaryExpr>(pos, kind, expr);
+    return make_node_here<UnaryExpr>(pos, kind, expr);
   }
   case Tok::lparen: {
     expect(Tok::lparen);
     auto inside_expr = parseExpr();
     expect(Tok::rparen);
-    return makeNodeHere<ParenExpr>(pos, inside_expr);
+    return make_node_here<ParenExpr>(pos, inside_expr);
   }
   // TODO: prefix (++), postfix, sign (+/-)
   default: {
@@ -684,7 +684,7 @@ Expr *Parser::parseUnaryExpr() {
     // means no other expression could be matched either, so just do a
     // really generic report.
     error_expected("an expression");
-    return makeNodeHere<BadExpr>(pos);
+    return make_node_here<BadExpr>(pos);
   }
   }
 }
@@ -763,7 +763,7 @@ Expr *Parser::parseMemberExprMaybe(Expr *expr) {
     Name *member_name = sema.name_table.get_or_add(std::string{tok.text});
     next();
 
-    result = makeNodeHere<MemberExpr>(result->pos, result, member_name);
+    result = make_node_here<MemberExpr>(result->pos, result, member_name);
   }
 
   return result;
@@ -822,7 +822,7 @@ Expr *Parser::parseStructDefMaybe(Expr *expr) {
 
     expect(Tok::rbrace);
 
-    return makeNodeHere<StructDefExpr>(pos, expr, desigs);
+    return make_node_here<StructDefExpr>(pos, expr, desigs);
 }
 
 Expr *Parser::parseExpr() {

@@ -164,7 +164,7 @@ public:
 
   void visitCompoundStmt(CompoundStmt *cs);
   void visitDeclRefExpr(DeclRefExpr *d);
-  void visitFuncCallExpr(FuncCallExpr *f);
+  void visitCallExpr(CallExpr *f);
   void visitTypeExpr(TypeExpr *t);
   void visitVarDecl(VarDecl *v);
   void visitFuncDecl(FuncDecl *f);
@@ -187,7 +187,7 @@ public:
   Type *visitIntegerLiteral(IntegerLiteral *i);
   Type *visitStringLiteral(StringLiteral *s);
   Type *visitDeclRefExpr(DeclRefExpr *d);
-  Type *visitFuncCallExpr(FuncCallExpr *f);
+  Type *visitCallExpr(CallExpr *f);
   Type *visitStructDefExpr(StructDefExpr *s);
   Type *visitMemberExpr(MemberExpr *m);
   Type *visitUnaryExpr(UnaryExpr *u);
@@ -238,7 +238,7 @@ public:
 
   void visitExpr(Expr *e);
   void visitDeclRefExpr(DeclRefExpr *d);
-  void visitFuncCallExpr(FuncCallExpr *f);
+  void visitCallExpr(CallExpr *f);
   void visitStructDefExpr(StructDefExpr *s);
   void visitUnaryExpr(UnaryExpr *u);
 
@@ -276,7 +276,7 @@ public:
   void visitIntegerLiteral(IntegerLiteral *i);
   void visitStringLiteral(StringLiteral *s);
   void visitDeclRefExpr(DeclRefExpr *d);
-  void visitFuncCallExpr(FuncCallExpr *f);
+  void visitCallExpr(CallExpr *f);
   void visitStructDefExpr(StructDefExpr *s);
   void visitMemberExpr(MemberExpr *m);
   void visitUnaryExpr(UnaryExpr *u);

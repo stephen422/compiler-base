@@ -129,25 +129,32 @@ void NameBinding::visitDeclRefExpr(DeclRefExpr *d) {
   d->decl = sym->value;
 }
 
-void NameBinding::visitFuncCallExpr(FuncCallExpr *f) {
+// This also includes type casts.
+void NameBinding::visitCallExpr(CallExpr *f) {
   auto sym = sema.decl_table.find(f->func_name);
   if (!sym) {
     sema.error(f->pos, "undeclared function '{}'", f->func_name->str());
     return;
   }
-  if (!sym->value->is<FuncDecl>()) {
+
+  // Check if it's a type cast.
+  if (sym->value->is<StructDecl>()) {
+    f->kind = CallExprKind::typecast;
+  } else if (!sym->value->is<FuncDecl>()) {
     sema.error(f->pos, "'{}' is not a function", f->func_name->str());
     return;
   }
-  f->func_decl = sym->value->as<FuncDecl>();
-  assert(f->func_decl);
+
+  f->callee_decl = sym->value; // FIXME
+  assert(f->callee_decl);
 
   walk_func_call_expr(*this, f);
 
   // argument count match check
-  if (f->func_decl->args_count() != f->args.size()) {
-    sema.error(f->pos, "'{}' accepts {} arguments, got {}",
-               f->func_name->str(), f->func_decl->args_count(), f->args.size());
+  if (f->kind == CallExprKind::func &&
+      f->callee_decl->as<FuncDecl>()->args_count() != f->args.size()) {
+    sema.error(f->pos, "'{}' accepts {} arguments, got {}", f->func_name->str(),
+               f->callee_decl->as<FuncDecl>()->args_count(), f->args.size());
     return;
   }
 }
@@ -230,8 +237,6 @@ void NameBinding::visitStructDecl(StructDecl *s) {
   sema.decl_table.scope_close();
 }
 
-namespace {
-
 #if 0
 // Generate a name for the anonymous fields in each enum variant structs.
 // For now, these are named "_0", "_1", and so on.
@@ -243,19 +248,17 @@ Name *genAnonymousFieldName(Sema &sema, size_t index) {
 #endif
 
 // Checks if 'expr' is a borrowing expression.
-bool isReferenceExpr(const Expr *expr) {
+static bool is_reference_expr(const Expr *expr) {
   return expr->kind == ExprKind::unary &&
          (expr->as<UnaryExpr>()->kind == UnaryExprKind::ref ||
           expr->as<UnaryExpr>()->kind == UnaryExprKind::var_ref);
 }
 
 // Checks if 'expr' is a dereferencing expression, i.e.. '*expr'.
-bool isDereferenceExpr(const Expr *expr) {
+static bool isDereferenceExpr(const Expr *expr) {
   return expr->kind == ExprKind::unary &&
          expr->as<UnaryExpr>()->kind == UnaryExprKind::deref;
 }
-
-} // namespace
 
 void NameBinding::visitEnumVariantDecl(EnumVariantDecl *v) {
   walk_enum_variant_decl(*this, v);
@@ -359,7 +362,7 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
   if (!lhs_ty || !rhs_ty) return nullptr;
 
   // Lvalue check.
-  if (!as->lhs->isLValue()) {
+  if (!as->lhs->is_lvalue()) {
     sema.error(as->pos, "cannot assign to an rvalue");
     return nullptr;
   }
@@ -443,24 +446,32 @@ Type *TypeChecker::visitDeclRefExpr(DeclRefExpr *d) {
   return d->type;
 }
 
-Type *TypeChecker::visitFuncCallExpr(FuncCallExpr *f) {
+Type *TypeChecker::visitCallExpr(CallExpr *f) {
   walk_func_call_expr(*this, f);
 
-  assert(f->func_decl->ret_type);
-  f->type = f->func_decl->ret_type;
+  if (f->kind == CallExprKind::func) {
+    auto callee_func_decl = f->callee_decl->as<FuncDecl>();
+    assert(callee_func_decl->ret_type);
+    f->type = callee_func_decl->ret_type;
 
-  // check argument type match
-  for (size_t i = 0; i < f->func_decl->args.size(); i++) {
-    if (!f->args[i]->type) return nullptr;
+    // check argument type match
+    for (size_t i = 0; i < callee_func_decl->args.size(); i++) {
+      if (!f->args[i]->type) return nullptr;
 
-    // TODO: proper type comparison
-    if (f->args[i]->type != f->func_decl->args[i]->type) {
-      sema.error(f->args[i]->pos,
-                 "argument type mismatch: expects '{}', got '{}'",
-                 f->func_decl->args[i]->type->name->str(),
-                 f->args[i]->type->name->str());
-      return nullptr;
+      // TODO: proper type comparison
+      if (f->args[i]->type != callee_func_decl->args[i]->type) {
+        sema.error(f->args[i]->pos,
+                   "argument type mismatch: expects '{}', got '{}'",
+                   callee_func_decl->args[i]->type->name->str(),
+                   f->args[i]->type->name->str());
+        return nullptr;
+      }
     }
+  } else if (f->kind == CallExprKind::typecast) {
+    auto callee_struct_decl = f->callee_decl->as<StructDecl>();
+    f->type = callee_struct_decl->type;
+  } else {
+    assert(!"unreachable");
   }
 
   return f->type;
@@ -585,7 +596,7 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
     //    x.a
     //    y.a
     //
-    if (m->struct_expr->isLValue()) {
+    if (m->struct_expr->is_lvalue()) {
       auto struct_var_decl = m->struct_expr->getLValueDecl();
       for (auto field : struct_var_decl->children) {
         if (field.first == m->member_name) {
@@ -690,7 +701,7 @@ Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
   case UnaryExprKind::ref: {
     if (visitExpr(u->operand)) {
       // Prohibit taking address of an rvalue.
-      if (!u->operand->isLValue()) {
+      if (!u->operand->is_lvalue()) {
         sema.error(u->pos, "cannot take address of an rvalue");
         return nullptr;
       }
@@ -1021,7 +1032,7 @@ public:
   VarDecl *visitDeclRefExpr(DeclRefExpr *d) {
     return nullptr;
   }
-  VarDecl *visitFuncCallExpr(FuncCallExpr *f) {
+  VarDecl *visitCallExpr(CallExpr *f) {
     assert(false && "TODO");
   }
   // p.m is the same as (*p).m. If 'p' is not a reference, p.m does not go
@@ -1105,10 +1116,10 @@ void register_borrow_count(Sema &sema, const VarDecl *borrowee, bool mut, size_t
 Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
   if (!ref_expr->type->isReference()) return nullptr;
 
-  if (ref_expr->isLValue()) {
+  if (ref_expr->is_lvalue()) {
     // Lvalue reference variable, e.g. 'ptr: &int'.
     return ref_expr->getLValueDecl()->borrowee_lifetime;
-  } else if (isReferenceExpr(ref_expr)) {
+  } else if (is_reference_expr(ref_expr)) {
     // Explicit reference expression, e.g. '&a'.
     auto operand = ref_expr->as<UnaryExpr>()->operand;
     if (operand->kind == ExprKind::member) {
@@ -1121,9 +1132,9 @@ Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
     } else {
       return operand->getLValueDecl()->lifetime;
     }
-  } else if (ref_expr->kind == ExprKind::func_call) {
-    auto func_call_ex = ref_expr->as<FuncCallExpr>();
-    auto func_decl = func_call_ex->func_decl;
+  } else if (ref_expr->is_func_call()) {
+    auto func_call_ex = ref_expr->as<CallExpr>();
+    auto func_decl = func_call_ex->callee_decl->as<FuncDecl>();
 
     // Map lifetimes of each args to the annotations, and search for the
     // return value annotation among them.
@@ -1178,7 +1189,7 @@ void borrowcheck_assignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
   // This works because we guarantee that every lvalue has a VarDecl.
   if (rhs->kind == ExprKind::struct_def) {
     for (auto desig : rhs->as<StructDefExpr>()->desigs) {
-      if (isReferenceExpr(desig.init_expr)) {
+      if (is_reference_expr(desig.init_expr)) {
         // Find child decl by name.
         VarDecl *child = nullptr;
         for (auto c : v->children) {
@@ -1201,12 +1212,12 @@ void borrowcheck_assignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
 
     v->borrowee_lifetime = lifetime_of_reference(sema, rhs);
 
-    if (rhs->isLValue()) {
+    if (rhs->is_lvalue()) {
       // 'Implicit' copying of a borrow, e.g. 'ref1: &int = ref2: &int'.
       if (move) {
         assert(false && "TODO: nullify reference in RHS");
       }
-    } else if (isReferenceExpr(rhs)) {
+    } else if (is_reference_expr(rhs)) {
       // Explicit borrowing statement, e.g. 'a = &b'.
       //
       // Note that a move assignment with an rvalue RHS is the same as a copy,
@@ -1217,7 +1228,7 @@ void borrowcheck_assignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
       } else {
         operand->getLValueDecl()->borrowed = true;
       }
-    } else if (rhs->kind == ExprKind::func_call) {
+    } else if (rhs->is_func_call()) {
     } else {
       assert(false && "unimplemented");
     }
@@ -1227,7 +1238,7 @@ void borrowcheck_assignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
       sema.error(rhs->pos, "ASSERT: lifetime still null");
       return;
     }
-  } else if (move && rhs->isLValue()) {
+  } else if (move && rhs->is_lvalue()) {
     // Move of a non-reference lvalue, e.g. 'a <- b' or 'a <- *p' (illegal).
     //
     // @Future: Invalidate RHS here. Program must still run even without this
@@ -1322,7 +1333,7 @@ void BorrowChecker::visitExpr(Expr *e) {
   // Use of moved value check.
   // This is a pre-order step so that once a use-after-move error is detected,
   // the traversal stops.
-  if (e->isLValue()) {
+  if (e->is_lvalue()) {
     if (e->getLValueDecl()->moved) {
       sema.error(e->pos, "use of moved value");
       return;
@@ -1417,7 +1428,7 @@ void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
 // function.  If we want to pass in a variable of a non-copyable type, we again
 // need to use a separate syntax; maybe <-var. (TODO)
 //
-void BorrowChecker::visitFuncCallExpr(FuncCallExpr *f) {
+void BorrowChecker::visitCallExpr(CallExpr *f) {
     walk_func_call_expr(*this, f);
 }
 
@@ -1425,7 +1436,7 @@ void BorrowChecker::visitStructDefExpr(StructDefExpr *s) {
   walk_struct_def_expr(*this, s);
 
   for (auto desig : s->desigs) {
-    if (isReferenceExpr(desig.init_expr)) {
+    if (is_reference_expr(desig.init_expr)) {
       // auto rhs_deref = desig.init_expr->as<UnaryExpr>()->operand;
       // TODO: desig.decl->borrowee = rhs_deref->getLValueDecl();
     }
@@ -1572,7 +1583,7 @@ void CodeGenerator::visitDeclRefExpr(DeclRefExpr *d) {
   emitCont("{}", d->name->str());
 }
 
-void CodeGenerator::visitFuncCallExpr(FuncCallExpr *f) {
+void CodeGenerator::visitCallExpr(CallExpr *f) {
   emitCont("{}(", f->func_name->str());
 
   for (size_t i = 0; i < f->args.size(); i++) {

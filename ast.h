@@ -188,7 +188,7 @@ enum class ExprKind {
     integer_literal,
     string_literal,
     decl_ref,
-    func_call,
+    call,
     struct_def,
     member,
     unary,
@@ -213,7 +213,10 @@ struct Expr : public AstNode {
   std::optional<Decl *> declMaybe() const;
 
   // Is this expression an L-value?
-  bool isLValue() const;
+  bool is_lvalue() const;
+
+  // Is this a function call?
+  bool is_func_call() const;
 
   // Get the VarDecl object that binds to this L-value.
   // Be sure to check isLValue() before or otherwise this call will be unsafe.
@@ -245,14 +248,21 @@ struct DeclRefExpr : public Expr {
     void print() const override;
 };
 
-struct FuncCallExpr : public Expr {
+enum class CallExprKind {
+  func,
+  typecast,
+};
+
+// Also includes typecasts.
+struct CallExpr : public Expr {
+  CallExprKind kind;
   Name *func_name = nullptr;
   std::vector<Expr *> args;
-  // Decl of the called function.
-  FuncDecl *func_decl = nullptr;
+  // Decl of the called function or the destination type.
+  Decl *callee_decl = nullptr;
 
-  FuncCallExpr(Name *name, const std::vector<Expr *> &args)
-      : Expr(ExprKind::func_call), func_name(name), args(args) {}
+  CallExpr(CallExprKind kind, Name *name, const std::vector<Expr *> &args)
+      : Expr(ExprKind::call), kind(kind), func_name(name), args(args) {}
   void print() const override;
 };
 
@@ -496,9 +506,9 @@ struct FuncDecl : public Decl {
 
 // Struct declaration.
 struct StructDecl : public Decl {
-  Name *name = nullptr;               // name of the struct
-  Type *type = nullptr;               // type of the struct
-  std::vector<VarDecl *> fields;      // member variables
+  Name *name = nullptr;          // name of the struct
+  Type *type = nullptr;          // type of the struct
+  std::vector<VarDecl *> fields; // member variables
 
   StructDecl(Name *n, std::vector<VarDecl *> m)
       : Decl(DeclKind::struct_), name(n), fields(m) {}
@@ -507,9 +517,9 @@ struct StructDecl : public Decl {
 
 // A variant type in an enum.
 struct EnumVariantDecl : public Decl {
-  Name *name = nullptr;              // name of the variant
-  Type *type = nullptr;              // type of the variant
-  std::vector<Expr *> fields;        // type of the fields
+  Name *name = nullptr;       // name of the variant
+  Type *type = nullptr;       // type of the variant
+  std::vector<Expr *> fields; // type of the fields
 
   EnumVariantDecl(Name *n, std::vector<Expr *> f)
       : Decl(DeclKind::enum_variant), name(n), fields(f) {}
@@ -518,8 +528,8 @@ struct EnumVariantDecl : public Decl {
 
 // Enum declaration.
 struct EnumDecl : public Decl {
-  Name *name = nullptr;                        // name of the enum
-  Type *type = nullptr;                        // type of the enum
+  Name *name = nullptr;                    // name of the enum
+  Type *type = nullptr;                    // type of the enum
   std::vector<EnumVariantDecl *> variants; // variants
 
   EnumDecl(Name *n, std::vector<EnumVariantDecl *> m)

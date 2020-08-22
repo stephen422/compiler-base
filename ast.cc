@@ -54,12 +54,16 @@ std::optional<Decl *> Expr::declMaybe() const {
   return {};
 }
 
-bool Expr::isLValue() const {
+bool Expr::is_lvalue() const {
   return declMaybe().has_value() && (*declMaybe())->is<VarDecl>();
 }
 
+bool Expr::is_func_call() const {
+  return kind == ExprKind::call && as<CallExpr>()->kind == CallExprKind::func;
+}
+
 VarDecl *Expr::getLValueDecl() const {
-  assert(isLValue());
+  assert(is_lvalue());
   return (*declMaybe())->as<VarDecl>();
 }
 
@@ -262,7 +266,7 @@ void DeclRefExpr::print() const {
     std::cout << std::endl;
 }
 
-void FuncCallExpr::print() const {
+void CallExpr::print() const {
     out() << "[FuncCallExpr] "
           << "(Name:";
     printf("%04x", static_cast<uint32_t>(reinterpret_cast<uint64_t>(func_name)));
