@@ -7,6 +7,7 @@ extern func free(a: *char)
 
 func main() -> int {
     let m = malloc(3)
+    [int](m)
     free(m)
     return 0
 }

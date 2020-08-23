@@ -1609,6 +1609,16 @@ void CodeGenerator::visitStructDefExpr(StructDefExpr *s) {
   emitCont("}}");
 }
 
+void CodeGenerator::visitCastExpr(CastExpr *c) {
+  emitCont("(");
+  visitExpr(c->type_expr);
+  emitCont(")");
+
+  emitCont(" (");
+  visitExpr(c->target_expr);
+  emitCont(")");
+}
+
 void CodeGenerator::visitMemberExpr(MemberExpr *m) {
   visitExpr(m->struct_expr);
   emitCont(".");
@@ -1647,7 +1657,7 @@ void CodeGenerator::visitBinaryExpr(BinaryExpr *b) {
 }
 
 // Generate C source representation of a Type.
-std::string c_stringify_type(Sema &sema, const Type *t) {
+static std::string c_stringify_type(Sema &sema, const Type *t) {
   if (t == sema.context.string_type) {
     // For now, strings are aliased to char *.  This works as long as
     // strings are immutable and doesn't contain unicode characters.
@@ -1661,6 +1671,10 @@ std::string c_stringify_type(Sema &sema, const Type *t) {
   } else {
     return t->name->str();
   }
+}
+
+void CodeGenerator::visitTypeExpr(TypeExpr *t) {
+  emitCont("{}", c_stringify_type(sema, t->type));
 }
 
 void CodeGenerator::visitExprStmt(ExprStmt *e) {

@@ -282,10 +282,12 @@ public:
   void visitDeclRefExpr(DeclRefExpr *d);
   void visitCallExpr(CallExpr *f);
   void visitStructDefExpr(StructDefExpr *s);
+  void visitCastExpr(CastExpr *c);
   void visitMemberExpr(MemberExpr *m);
   void visitUnaryExpr(UnaryExpr *u);
   void visitParenExpr(ParenExpr *p);
   void visitBinaryExpr(BinaryExpr *b);
+  void visitTypeExpr(TypeExpr *t);
 
   void visitExprStmt(ExprStmt *e);
   void visitAssignStmt(AssignStmt *a);
