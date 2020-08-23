@@ -22,6 +22,7 @@ func main() -> int {
   var b = 4
   swap(var &a, var &b)
   #printf("%d\n", a)
+  [char](a)
 
   // structs
   let tok = Token {.name = "comma", .pos = 256}

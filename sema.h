@@ -250,7 +250,8 @@ public:
 class CodeGenerator : public AstVisitor<CodeGenerator, void> {
     Sema &sema;
     int indent = 0;
-    FILE *file = nullptr;
+    const char *filename;
+    FILE *file;
 
     template <typename... Args> void emit(Args &&... args) {
         fmt::print(file, "{:{}}", "", indent);
@@ -268,7 +269,9 @@ class CodeGenerator : public AstVisitor<CodeGenerator, void> {
   };
 
 public:
-  CodeGenerator(Sema &s) : sema{s} { file = fopen("test_codegen.c", "w"); }
+  CodeGenerator(Sema &s, const char *fname) : sema{s}, filename(fname) {
+    file = fopen(fname, "w");
+  }
   ~CodeGenerator() { fclose(file); }
   bool success() const { return sema.errors.empty(); }
 
