@@ -1564,65 +1564,65 @@ void BorrowChecker::visitFuncDecl(FuncDecl *f) {
 }
 
 void CodeGenerator::visitFile(File *f) {
-  emit("#include <stdlib.h>\n");
-  emit("#include <stdio.h>\n");
-  emit("\n");
+  emit_indent("#include <stdlib.h>\n");
+  emit_indent("#include <stdio.h>\n");
+  emit_indent("\n");
 
   walk_file(*this, f);
 }
 
 void CodeGenerator::visitIntegerLiteral(IntegerLiteral *i) {
-  emitCont("{}", i->value);
+  emit("{}", i->value);
 }
 
 void CodeGenerator::visitStringLiteral(StringLiteral *s) {
-  emitCont("{}", s->value);
+  emit("{}", s->value);
 }
 
 void CodeGenerator::visitDeclRefExpr(DeclRefExpr *d) {
-  emitCont("{}", d->name->str());
+  emit("{}", d->name->str());
 }
 
 void CodeGenerator::visitCallExpr(CallExpr *f) {
-  emitCont("{}(", f->func_name->str());
+  emit("{}(", f->func_name->str());
 
   for (size_t i = 0; i < f->args.size(); i++) {
     visitExpr(f->args[i]);
     if (i != f->args.size() - 1)
-      emitCont(", ");
+      emit(", ");
   }
 
-  emitCont(")");
+  emit(")");
 }
 
 void CodeGenerator::visitStructDefExpr(StructDefExpr *s) {
-  emitCont("(");
+  emit("(");
   visitExpr(s->name_expr);
-  emitCont(")");
+  emit(")");
 
-  emitCont(" {{");
+  emit(" {{");
   for (const auto desig : s->desigs) {
-    emitCont(".{} = ", desig.name->str());
+    emit(".{} = ", desig.name->str());
     visitExpr(desig.init_expr);
-    emitCont(", ");
+    emit(", ");
   }
-  emitCont("}}");
+  emit("}}");
 }
 
 void CodeGenerator::visitCastExpr(CastExpr *c) {
-  emitCont("(");
+  emit("(");
   visitExpr(c->type_expr);
-  emitCont(")");
+  emit(")");
 
-  emitCont(" (");
+  emit(" (");
   visitExpr(c->target_expr);
-  emitCont(")");
+  emit(")");
 }
 
 void CodeGenerator::visitMemberExpr(MemberExpr *m) {
   visitExpr(m->struct_expr);
-  emitCont(".");
-  emitCont("{}", m->member_name->str());
+  emit(".");
+  emit("{}", m->member_name->str());
 }
 
 void CodeGenerator::visitUnaryExpr(UnaryExpr *u) {
@@ -1631,11 +1631,11 @@ void CodeGenerator::visitUnaryExpr(UnaryExpr *u) {
     return visitParenExpr(u->as<ParenExpr>());
   case UnaryExprKind::ref:
   case UnaryExprKind::var_ref:
-    emitCont("&");
+    emit("&");
     visitExpr(u->operand);
     break;
   case UnaryExprKind::deref:
-    emitCont("*");
+    emit("*");
     visitExpr(u->operand);
     break;
   default:
@@ -1645,14 +1645,14 @@ void CodeGenerator::visitUnaryExpr(UnaryExpr *u) {
 }
 
 void CodeGenerator::visitParenExpr(ParenExpr *p) {
-  emitCont("(");
+  emit("(");
   visitExpr(p->operand);
-  emitCont(")");
+  emit(")");
 }
 
 void CodeGenerator::visitBinaryExpr(BinaryExpr *b) {
   visitExpr(b->lhs);
-  emitCont(" {} ", b->op.str());
+  emit(" {} ", b->op.str());
   visitExpr(b->rhs);
 }
 
@@ -1674,115 +1674,115 @@ static std::string c_stringify_type(Sema &sema, const Type *t) {
 }
 
 void CodeGenerator::visitTypeExpr(TypeExpr *t) {
-  emitCont("{}", c_stringify_type(sema, t->type));
+  emit("{}", c_stringify_type(sema, t->type));
 }
 
 void CodeGenerator::visitExprStmt(ExprStmt *e) {
-  emitIndent();
+  emit_indent("");
   visitExpr(e->expr);
-  emitCont(";\n");
+  emit(";\n");
 }
 
 void CodeGenerator::visitAssignStmt(AssignStmt *a) {
-  emitIndent();
+  emit_indent("");
   visitExpr(a->lhs);
-  emitCont(" = ");
+  emit(" = ");
   visitExpr(a->rhs);
-  emitCont(";\n");
+  emit(";\n");
 }
 
 void CodeGenerator::visitReturnStmt(ReturnStmt *r) {
-  emit("return ");
+  emit_indent("return ");
   visitExpr(r->expr);
-  emitCont(";\n");
+  emit(";\n");
 }
 
 void CodeGenerator::visitIfStmt(IfStmt *i) {
-  emit("if (");
+  emit_indent("if (");
   visitExpr(i->cond);
-  emitCont(") {{\n");
+  emit(") {{\n");
   {
     IndentBlock ib{*this};
     visitCompoundStmt(i->if_body);
   }
-  emit("}}");
+  emit_indent("}}");
 
   if (i->else_body) {
-    emitCont(" else {{\n");
+    emit(" else {{\n");
     {
       IndentBlock ib{*this};
       visitCompoundStmt(i->else_body);
     }
-    emit("}}\n");
+    emit_indent("}}\n");
   } else if (i->else_if) {
-    emitCont(" else ");
+    emit(" else ");
     visitIfStmt(i->else_if);
   } else {
-    emitCont("\n");
+    emit("\n");
   }
 }
 
 void CodeGenerator::visitBuiltinStmt(BuiltinStmt *b) {
   // shed off the #
   b->text.remove_prefix(1);
-  emit("{};\n", b->text);
+  emit_indent("{};\n", b->text);
 }
 
 void CodeGenerator::visitVarDecl(VarDecl *v) {
   if (v->kind == VarDeclKind::param) {
-    emit("{} {}", c_stringify_type(sema, v->type), v->name->str());
+    emit_indent("{} {}", c_stringify_type(sema, v->type), v->name->str());
   } else {
-    emit("{} {};\n", c_stringify_type(sema, v->type), v->name->str());
+    emit_indent("{} {};\n", c_stringify_type(sema, v->type), v->name->str());
 
     if (v->assign_expr) {
-      emit("{} = ", v->name->str());
+      emit_indent("{} = ", v->name->str());
       visitExpr(v->assign_expr);
-      emitCont(";\n");
+      emit(";\n");
     }
   }
 }
 
 void CodeGenerator::visitStructDecl(StructDecl *s) {
-  emit("typedef struct {} {{\n", s->name->str());
+  emit_indent("typedef struct {} {{\n", s->name->str());
   {
     IndentBlock ib{*this};
     for (auto memb : s->fields)
       visitDecl(memb);
   }
-  emit("}} {};\n", s->name->str());
-  emit("\n");
+  emit_indent("}} {};\n", s->name->str());
+  emit_indent("\n");
 }
 
 void CodeGenerator::visitFuncDecl(FuncDecl *f) {
   if (f->failed) return;
 
   if (f->ret_type_expr) {
-    emit("{}", c_stringify_type(sema, f->ret_type));
+    emit_indent("{}", c_stringify_type(sema, f->ret_type));
   } else {
-    emit("void");
+    emit_indent("void");
   }
 
-  emitCont(" {}(", f->name->str());
+  emit(" {}(", f->name->str());
 
   if (f->args.empty()) {
-    emitCont("void");
+    emit("void");
   } else {
     for (size_t i = 0; i < f->args.size(); i++) {
       visitDecl(f->args[i]);
       if (i != f->args.size() - 1) {
-        emitCont(", ");
+        emit(", ");
       }
     }
   }
-  emitCont(") {{\n");
+  emit(") {{\n");
 
   {
     IndentBlock ib{*this};
     visitCompoundStmt(f->body);
   }
 
-  emit("}}\n");
-  emit("\n");
+  emit_indent("}}\n");
+  emit_indent("\n");
 }
 
 void CodeGenerator::visitExternDecl(ExternDecl *e) {

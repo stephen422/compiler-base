@@ -248,19 +248,19 @@ public:
 };
 
 class CodeGenerator : public AstVisitor<CodeGenerator, void> {
-    Sema &sema;
-    int indent = 0;
-    const char *filename;
-    FILE *file;
+  Sema &sema;
+  int indent = 0;
+  const char *filename;
+  FILE *file;
 
-    template <typename... Args> void emit(Args &&... args) {
-        fmt::print(file, "{:{}}", "", indent);
-        fmt::print(file, std::forward<Args>(args)...);
-  }
-  template <typename... Args> void emitCont(Args &&... args) {
+  template <typename... Args> void emit_indent(Args &&...args) {
+    fmt::print(file, "{:{}}", "", indent);
     fmt::print(file, std::forward<Args>(args)...);
   }
-  void emitIndent() { fmt::print(file, "{:{}}", "", indent); };
+
+  template <typename... Args> void emit(Args &&...args) {
+    fmt::print(file, std::forward<Args>(args)...);
+  }
 
   struct IndentBlock {
     CodeGenerator &c;
