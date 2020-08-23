@@ -129,7 +129,6 @@ void NameBinding::visitDeclRefExpr(DeclRefExpr *d) {
   d->decl = sym->value;
 }
 
-// This also includes type casts.
 void NameBinding::visitCallExpr(CallExpr *f) {
   auto sym = sema.decl_table.find(f->func_name);
   if (!sym) {
@@ -137,10 +136,7 @@ void NameBinding::visitCallExpr(CallExpr *f) {
     return;
   }
 
-  // Check if it's a type cast.
-  if (sym->value->is<StructDecl>()) {
-    f->kind = CallExprKind::typecast;
-  } else if (!sym->value->is<FuncDecl>()) {
+  if (!sym->value->is<FuncDecl>()) {
     sema.error(f->pos, "'{}' is not a function", f->func_name->str());
     return;
   }
@@ -467,9 +463,6 @@ Type *TypeChecker::visitCallExpr(CallExpr *f) {
         return nullptr;
       }
     }
-  } else if (f->kind == CallExprKind::typecast) {
-    auto callee_struct_decl = f->callee_decl->as<StructDecl>();
-    f->type = callee_struct_decl->type;
   } else {
     assert(!"unreachable");
   }
@@ -545,6 +538,13 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
 
   s->type = lhs_type;
   return s->type;
+}
+
+Type *TypeChecker::visitCastExpr(CastExpr *c) {
+  walk_cast_expr(*this, c);
+
+  c->type = c->type_expr->type;
+  return c->type;
 }
 
 // MemberExprs cannot be namebinded completely without type checking (e.g.
@@ -1133,8 +1133,8 @@ Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
       return operand->getLValueDecl()->lifetime;
     }
   } else if (ref_expr->is_func_call()) {
-    auto func_call_ex = ref_expr->as<CallExpr>();
-    auto func_decl = func_call_ex->callee_decl->as<FuncDecl>();
+    auto func_call_expr = ref_expr->as<CallExpr>();
+    auto func_decl = func_call_expr->callee_decl->as<FuncDecl>();
 
     // Map lifetimes of each args to the annotations, and search for the
     // return value annotation among them.
@@ -1152,7 +1152,7 @@ Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
       assert(func_decl->args[i]->borrowee_lifetime->lifetime_annot);
       // NOTE that it's `borrowee_lifetime`, *not* `lifetime`!
       map.push_back({func_decl->args[i]->borrowee_lifetime->lifetime_annot,
-                     lifetime_of_reference(sema, func_call_ex->args[i])});
+                     lifetime_of_reference(sema, func_call_expr->args[i])});
     }
 
     Lifetime *shortest_found = nullptr;

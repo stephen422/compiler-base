@@ -129,16 +129,17 @@ private:
   bool isStartOfDecl();
 
   // Expression parsers
-  Expr *parseExpr();
-  Expr *parseUnaryExpr();
-  Expr *parseLiteralExpr();
-  Expr *parseFuncCallOrDeclRefExpr();
-  Expr *parseTypeExpr();
-  Expr *parseBinaryExprRhs(Expr *lhs, int precedence);
-  Expr *parseMemberExprMaybe(Expr *expr);
-  std::optional<StructFieldDesignator> parseStructDefField();
-  bool lookaheadStructDef();
-  Expr *parseStructDefMaybe(Expr *expr);
+  Expr *parse_expr();
+  Expr *parse_unary_expr();
+  Expr *parse_literal_expr();
+  Expr *parse_func_call_or_decl_ref_expr();
+  Expr *parse_cast_expr();
+  Expr *parse_type_expr();
+  Expr *parse_binary_expr_rhs(Expr *lhs, int precedence);
+  Expr *parse_member_expr_maybe(Expr *expr);
+  std::optional<StructFieldDesignator> parse_structdef_field();
+  bool lookahead_structdef();
+  Expr *parse_structdef_maybe(Expr *expr);
 
   // Error handling
   void error(const std::string &msg);
@@ -162,7 +163,7 @@ private:
 
   // Convenience function for make_node_range.
   template <typename T, typename... Args>
-  T *make_node_here(size_t pos, Args &&... args) {
+  T *make_node_range(size_t pos, Args &&... args) {
     return sema.make_node_range<T>({pos, last_tok_endpos},
                                    std::forward<Args>(args)...);
   }

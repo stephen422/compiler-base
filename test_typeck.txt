@@ -113,7 +113,7 @@ func main() {
     *(pcar.wheel) // ERROR: '&Car' is not a struct
 
     // typecasting
-    let i_to_char = string(i)
+    let i_to_char = [string](i)
     i_to_char = 3 // ERROR: cannot assign 'int' type to 'string'
 
     // other constructs that skip typeck

@@ -163,34 +163,26 @@ public:
     case ExprKind::integer_literal:
       return dis()->visitIntegerLiteral(static_cast<IntegerLiteral *>(e),
                                         args...);
-      break;
     case ExprKind::string_literal:
       return dis()->visitStringLiteral(static_cast<StringLiteral *>(e),
                                        args...);
-      // do nothing
-      break;
     case ExprKind::decl_ref:
       return dis()->visitDeclRefExpr(static_cast<DeclRefExpr *>(e), args...);
-      break;
     case ExprKind::call:
       return dis()->visitCallExpr(static_cast<CallExpr *>(e), args...);
-      break;
     case ExprKind::struct_def:
       return dis()->visitStructDefExpr(static_cast<StructDefExpr *>(e),
                                        args...);
-      break;
+    case ExprKind::cast:
+      return dis()->visitCastExpr(static_cast<CastExpr *>(e), args...);
     case ExprKind::member:
       return dis()->visitMemberExpr(static_cast<MemberExpr *>(e), args...);
-      break;
     case ExprKind::unary:
       return dis()->visitUnaryExpr(static_cast<UnaryExpr *>(e), args...);
-      break;
     case ExprKind::binary:
       return dis()->visitBinaryExpr(static_cast<BinaryExpr *>(e), args...);
-      break;
     case ExprKind::type:
       return dis()->visitTypeExpr(static_cast<TypeExpr *>(e), args...);
-      break;
     case ExprKind::bad:
       // do nothing
       break;
@@ -218,6 +210,10 @@ public:
   }
   RetTy visitStructDefExpr(StructDefExpr *s, Args... args) {
     walk_struct_def_expr(*dis(), s, args...);
+    return RetTy();
+  }
+  RetTy visitCastExpr(CastExpr *c, Args... args) {
+    walk_cast_expr(*dis(), c, args...);
     return RetTy();
   }
   RetTy visitMemberExpr(MemberExpr *m, Args... args) {
@@ -362,6 +358,11 @@ void walk_struct_def_expr(Visitor &v, StructDefExpr *s, Args... args) {
   for (auto d : s->desigs) {
     v.visitExpr(d.init_expr, args...);
   }
+}
+template <typename Visitor, typename... Args>
+void walk_cast_expr(Visitor &v, CastExpr *c, Args... args) {
+  v.visitExpr(c->type_expr, args...);
+  v.visitExpr(c->target_expr, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_member_expr(Visitor &v, MemberExpr *m, Args... args) {

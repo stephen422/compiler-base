@@ -190,6 +190,7 @@ enum class ExprKind {
     decl_ref,
     call,
     struct_def,
+    cast,
     member,
     unary,
     binary,
@@ -250,7 +251,6 @@ struct DeclRefExpr : public Expr {
 
 enum class CallExprKind {
   func,
-  typecast,
 };
 
 // Also includes typecasts.
@@ -294,6 +294,16 @@ struct MemberExpr : public Expr {
 
   MemberExpr(Expr *e, Name *m)
       : Expr(ExprKind::member), struct_expr(e), member_name(m) {}
+  void print() const override;
+};
+
+// '[type](expr)'
+struct CastExpr : public Expr {
+  Expr *type_expr = nullptr;
+  Expr *target_expr = nullptr;
+
+  CastExpr(Expr *type, Expr *target)
+      : Expr(ExprKind::cast), type_expr(type), target_expr(target) {}
   void print() const override;
 };
 

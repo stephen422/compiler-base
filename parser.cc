@@ -125,7 +125,7 @@ Stmt *Parser::parse_return_stmt() {
   // optional
   Expr *expr = nullptr;
   if (!is_end_of_stmt()) {
-    expr = parseExpr();
+    expr = parse_expr();
   }
   if (!is_end_of_stmt()) {
     skip_until_end_of_line();
@@ -145,7 +145,7 @@ IfStmt *Parser::parse_if_stmt() {
 
     expect(Tok::kw_if);
 
-    Expr *cond = parseExpr();
+    Expr *cond = parse_expr();
     CompoundStmt *cstmt = parseCompoundStmt();
 
     IfStmt *elseif = nullptr;
@@ -162,7 +162,7 @@ IfStmt *Parser::parse_if_stmt() {
             expect(Tok::lbrace);
 
             // do our best to recover
-            parseExpr();
+            parse_expr();
             if (tok.kind == Tok::lbrace) {
                 cstmt_false = parseCompoundStmt();
             } else {
@@ -192,7 +192,7 @@ DeclStmt *Parser::parseDeclStmt() {
 Stmt *Parser::parseExprOrAssignStmt() {
   auto pos = tok.pos;
 
-  auto lhs = parseExpr();
+  auto lhs = parse_expr();
   // ExprStmt: expression ends with a newline
   if (is_end_of_stmt()) {
     skip_until_end_of_line();
@@ -214,7 +214,7 @@ Stmt *Parser::parseExprOrAssignStmt() {
 
   // At this point, it becomes certain that this is an assignment statement,
   // and so we can safely unwrap for RHS.
-  auto rhs = parseExpr();
+  auto rhs = parse_expr();
   return sema.make_node_pos<AssignStmt>(pos, lhs, rhs, move);
 }
 
@@ -263,12 +263,12 @@ VarDecl *Parser::parseVarDecl(VarDeclKind kind) {
   // '=' comes either first, or after the ': type' part.
   if (tok.kind == Tok::colon) {
     next();
-    auto type_expr = parseTypeExpr();
+    auto type_expr = parse_type_expr();
     v = sema.make_node_pos<VarDecl>(pos, name, kind, type_expr, nullptr);
   }
   if (tok.kind == Tok::equals) {
     next();
-    auto assign_expr = parseExpr();
+    auto assign_expr = parse_expr();
     if (v)
       static_cast<VarDecl *>(v)->assign_expr = assign_expr;
     else
@@ -343,7 +343,7 @@ FuncDecl *Parser::parseFuncHeader() {
   // return type (-> ...)
   if (tok.kind == Tok::arrow) {
     next();
-    func->ret_type_expr = parseTypeExpr();
+    func->ret_type_expr = parse_type_expr();
   }
 
   return func;
@@ -397,7 +397,7 @@ EnumVariantDecl *Parser::parseEnumVariant() {
   std::vector<Expr *> fields;
   if (tok.kind == Tok::lparen) {
     expect(Tok::lparen);
-    fields = parseCommaSeparatedList<Expr *>([this] { return parseTypeExpr(); });
+    fields = parseCommaSeparatedList<Expr *>([this] { return parse_type_expr(); });
     expect(Tok::rparen);
   }
 
@@ -500,7 +500,7 @@ Decl *Parser::parseDecl() {
   }
 }
 
-Expr *Parser::parseLiteralExpr() {
+Expr *Parser::parse_literal_expr() {
   Expr *expr = nullptr;
   // TODO Literals other than integers?
   switch (tok.kind) {
@@ -530,7 +530,7 @@ Expr *Parser::parseLiteralExpr() {
 //
 // TODO: maybe name it parse_ident_start_exprs?
 // TODO: add struct declaration here, e.g. Car {}
-Expr *Parser::parseFuncCallOrDeclRefExpr() {
+Expr *Parser::parse_func_call_or_decl_ref_expr() {
     auto pos = tok.pos;
     assert(tok.kind == Tok::ident);
     auto name = sema.name_table.get_or_add(std::string{tok.text});
@@ -540,17 +540,31 @@ Expr *Parser::parseFuncCallOrDeclRefExpr() {
         expect(Tok::lparen);
         std::vector<Expr *> args;
         while (tok.kind != Tok::rparen) {
-            args.push_back(parseExpr());
+            args.push_back(parse_expr());
             if (tok.kind == Tok::comma)
                 next();
         }
         expect(Tok::rparen);
-        return make_node_here<CallExpr>(pos, CallExprKind::func, name, args);
+        return make_node_range<CallExpr>(pos, CallExprKind::func, name, args);
     } else {
         // Whether this is a variable or a struct/enum name can only be decided
         // in the type checking stage.
-        return make_node_here<DeclRefExpr>(pos, name);
+        return make_node_range<DeclRefExpr>(pos, name);
     }
+}
+
+Expr *Parser::parse_cast_expr() {
+  auto pos = tok.pos;
+
+  expect(Tok::lbracket);
+  auto type_expr = parse_type_expr();
+  expect(Tok::rbracket);
+
+  expect(Tok::lparen);
+  auto target_expr = parse_expr();
+  expect(Tok::rparen);
+
+  return make_node_range<CastExpr>(pos, type_expr, target_expr);
 }
 
 // Get the Name handle that designates a reference type of a given referee type
@@ -581,7 +595,7 @@ Name *name_of_derived_type(NameTable &names, TypeKind kind, Name *referee_name) 
 //
 // type-expression:
 //     ('var'? '&')? ident
-Expr *Parser::parseTypeExpr() {
+Expr *Parser::parse_type_expr() {
   auto pos = tok.pos;
 
   bool mut = false;
@@ -604,7 +618,7 @@ Expr *Parser::parseTypeExpr() {
       next();
     }
     // Base type name.
-    subexpr = parseTypeExpr();
+    subexpr = parse_type_expr();
     // FIXME: unnatural
     if (subexpr->kind == ExprKind::type) {
       text = name_of_derived_type(sema.name_table,
@@ -615,7 +629,7 @@ Expr *Parser::parseTypeExpr() {
   } else if (tok.kind == Tok::star) {
     next();
     type_kind = TypeKind::ptr;
-    subexpr = parseTypeExpr();
+    subexpr = parse_type_expr();
     if (subexpr->kind == ExprKind::type) {
       text = name_of_derived_type(sema.name_table, TypeKind::ptr,
                                     subexpr->as<TypeExpr>()->name)
@@ -639,27 +653,30 @@ Expr *Parser::parseTypeExpr() {
                                       subexpr);
 }
 
-Expr *Parser::parseUnaryExpr() {
+Expr *Parser::parse_unary_expr() {
   auto pos = tok.pos;
 
   switch (tok.kind) {
   case Tok::number:
   case Tok::string: {
-    return parseLiteralExpr();
+    return parse_literal_expr();
   }
   case Tok::ident: {
     // All UnaryExprKinds with postfix operators should go here.
     // TODO: Do proper op precedence parsing for right-hand-side unary
     // operators, e.g. '.', '()' and '{...}'.
-    auto expr = parseFuncCallOrDeclRefExpr();
-    expr = parseMemberExprMaybe(expr);
-    if (lookaheadStructDef()) expr = parseStructDefMaybe(expr);
+    auto expr = parse_func_call_or_decl_ref_expr();
+    expr = parse_member_expr_maybe(expr);
+    if (lookahead_structdef()) expr = parse_structdef_maybe(expr);
     return expr;
+  }
+  case Tok::lbracket: {
+    return parse_cast_expr();
   }
   case Tok::star: {
     next();
-    auto expr = parseUnaryExpr();
-    return make_node_here<UnaryExpr>(pos, UnaryExprKind::deref, expr);
+    auto expr = parse_unary_expr();
+    return make_node_range<UnaryExpr>(pos, UnaryExprKind::deref, expr);
   }
   case Tok::kw_var:
   case Tok::ampersand: {
@@ -669,14 +686,14 @@ Expr *Parser::parseUnaryExpr() {
       kind = UnaryExprKind::var_ref;
     }
     expect(Tok::ampersand);
-    auto expr = parseUnaryExpr();
-    return make_node_here<UnaryExpr>(pos, kind, expr);
+    auto expr = parse_unary_expr();
+    return make_node_range<UnaryExpr>(pos, kind, expr);
   }
   case Tok::lparen: {
     expect(Tok::lparen);
-    auto inside_expr = parseExpr();
+    auto inside_expr = parse_expr();
     expect(Tok::rparen);
-    return make_node_here<ParenExpr>(pos, inside_expr);
+    return make_node_range<ParenExpr>(pos, inside_expr);
   }
   // TODO: prefix (++), postfix, sign (+/-)
   default: {
@@ -684,7 +701,7 @@ Expr *Parser::parseUnaryExpr() {
     // means no other expression could be matched either, so just do a
     // really generic report.
     error_expected("an expression");
-    return make_node_here<BadExpr>(pos);
+    return make_node_range<BadExpr>(pos);
   }
   }
 }
@@ -716,7 +733,7 @@ int binary_op_precedence(const Token &op) {
 // or equal to 'precedence' are seen. Giving it 0 means that this function will
 // keep parsing until no more valid binary operators are seen (which has
 // negative precedence values).
-Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence = 0) {
+Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence = 0) {
   Expr *root = lhs;
 
   while (!is_eos()) {
@@ -731,7 +748,7 @@ Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence = 0) {
     next();
 
     // Parse the second term.
-    Expr *rhs = parseUnaryExpr();
+    Expr *rhs = parse_unary_expr();
 
     // We do not know if this term should associate to left or right; e.g.
     // "(a * b) + c" or "a + (b * c)".  We should look ahead for the next
@@ -741,7 +758,7 @@ Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence = 0) {
     // If the next operator has higher precedence ("a + b * c"), parse the RHS
     // as a single subexpression with elevated minimum precedence. Else ("a * b
     // + c"), just treat it as a unary expression.
-    if (this_prec < next_prec) rhs = parseBinaryExprRhs(rhs, precedence + 1);
+    if (this_prec < next_prec) rhs = parse_binary_expr_rhs(rhs, precedence + 1);
 
     // Create a new root with the old root as its LHS, and the recursion result
     // as RHS.  This implements left associativity.
@@ -754,7 +771,7 @@ Expr *Parser::parseBinaryExprRhs(Expr *lhs, int precedence = 0) {
 // If this expression is a member expression with a dot (.) operator, parse as
 // such. If not, just pass along the original expression. This function is
 // called after the operand expression part is fully parsed.
-Expr *Parser::parseMemberExprMaybe(Expr *expr) {
+Expr *Parser::parse_member_expr_maybe(Expr *expr) {
   Expr *result = expr;
 
   while (tok.kind == Tok::dot) {
@@ -763,13 +780,13 @@ Expr *Parser::parseMemberExprMaybe(Expr *expr) {
     Name *member_name = sema.name_table.get_or_add(std::string{tok.text});
     next();
 
-    result = make_node_here<MemberExpr>(result->pos, result, member_name);
+    result = make_node_range<MemberExpr>(result->pos, result, member_name);
   }
 
   return result;
 }
 
-bool Parser::lookaheadStructDef() {
+bool Parser::lookahead_structdef() {
   auto s = save_state();
 
   if (tok.kind != Tok::lbrace) goto fail;
@@ -790,14 +807,14 @@ fail:
 }
 
 // Parse '.memb = expr' part in Struct { .m1 = e1, .m2 = e2, ... }.
-std::optional<StructFieldDesignator> Parser::parseStructDefField() {
+std::optional<StructFieldDesignator> Parser::parse_structdef_field() {
   if (!expect(Tok::dot)) return {};
   auto name = sema.name_table.get_or_add(std::string{tok.text});
   next();
 
   if (!expect(Tok::equals)) return {};
 
-  auto expr = parseExpr();
+  auto expr = parse_expr();
   if (!expr) return {};
 
   return StructFieldDesignator{name, nullptr, expr};
@@ -806,13 +823,13 @@ std::optional<StructFieldDesignator> Parser::parseStructDefField() {
 // If this expression has a trailing {...}, parse as a struct definition
 // expression.  If not, just pass along the original expression. This function
 // is called after the operand expression part is fully parsed.
-Expr *Parser::parseStructDefMaybe(Expr *expr) {
+Expr *Parser::parse_structdef_maybe(Expr *expr) {
     auto pos = tok.pos;
 
     expect(Tok::lbrace);
 
     auto v = parseCommaSeparatedList<std::optional<StructFieldDesignator>>(
-        [this] { return parseStructDefField(); });
+        [this] { return parse_structdef_field(); });
 
     std::vector<StructFieldDesignator> desigs;
     for (auto opt_field : v) {
@@ -822,14 +839,14 @@ Expr *Parser::parseStructDefMaybe(Expr *expr) {
 
     expect(Tok::rbrace);
 
-    return make_node_here<StructDefExpr>(pos, expr, desigs);
+    return make_node_range<StructDefExpr>(pos, expr, desigs);
 }
 
-Expr *Parser::parseExpr() {
-  auto unary = parseUnaryExpr();
+Expr *Parser::parse_expr() {
+  auto unary = parse_unary_expr();
   if (!unary) return nullptr;
-  auto binary = parseBinaryExprRhs(unary);
-  return parseMemberExprMaybe(binary);
+  auto binary = parse_binary_expr_rhs(unary);
+  return parse_member_expr_maybe(binary);
 }
 
 void Parser::skip_until(Tok kind) {

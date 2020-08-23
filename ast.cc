@@ -305,6 +305,13 @@ void MemberExpr::print() const {
     out() << "'.' " << member_name->text << std::endl;
 }
 
+void CastExpr::print() const {
+    out() << "[CastExpr]" << std::endl;
+    PrintScope start;
+    type_expr->print();
+    target_expr->print();
+}
+
 void TypeExpr::print() const {
     out() << "[TypeExpr] " << name->text << std::endl;
 }

@@ -189,6 +189,7 @@ public:
   Type *visitDeclRefExpr(DeclRefExpr *d);
   Type *visitCallExpr(CallExpr *f);
   Type *visitStructDefExpr(StructDefExpr *s);
+  Type *visitCastExpr(CastExpr *c);
   Type *visitMemberExpr(MemberExpr *m);
   Type *visitUnaryExpr(UnaryExpr *u);
   Type *visitParenExpr(ParenExpr *p);
