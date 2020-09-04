@@ -1,4 +1,4 @@
-IndentWidth: 2
+IndentWidth: 4
 UseTab: Never
-AccessModifierOffset: -2
+AccessModifierOffset: -4
 AllowShortIfStatementsOnASingleLine: true

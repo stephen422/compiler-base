@@ -250,7 +250,6 @@ public:
 class CodeGenerator : public AstVisitor<CodeGenerator, void> {
   Sema &sema;
   int indent = 0;
-  const char *filename;
   FILE *file;
 
   template <typename... Args> void emit_indent(Args &&...args) {
@@ -269,7 +268,7 @@ class CodeGenerator : public AstVisitor<CodeGenerator, void> {
   };
 
 public:
-  CodeGenerator(Sema &s, const char *fname) : sema{s}, filename(fname) {
+  CodeGenerator(Sema &s, const char *fname) : sema{s} {
     file = fopen(fname, "w");
   }
   ~CodeGenerator() { fclose(file); }

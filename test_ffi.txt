@@ -2,12 +2,11 @@ struct String {
     buf: *char
 }
 
-extern func malloc(size: int) -> *char
-extern func free(a: *char)
+extern func malloc(size: int) -> *void
+extern func free(a: *void)
 
 func main() -> int {
     let m = malloc(3)
-    [int](m)
     free(m)
     return 0
 }
