@@ -50,7 +50,7 @@ struct BasicBlock {
 
   // Walk and enumerate all children nodes and itself in post-order.
   // Used to implement the the reverse post-order traversal.
-  void enumerate_post_order(std::vector<BasicBlock *> &walkList);
+  void enumerate_postorder(std::vector<BasicBlock *> &walkList);
 };
 
 class Parser;

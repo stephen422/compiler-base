@@ -202,7 +202,9 @@ struct Type;
 
 struct Expr : public AstNode {
   ExprKind kind;
+
   // Type of the expression.
+  //
   // For expressions that have a Decl, e.g. DeclRefExpr and MemberExpr, their
   // types are stored in decl->type.  For these cases, the value of this
   // pointer should be maintained the same as decl->type, so that expr->type
@@ -211,17 +213,7 @@ struct Expr : public AstNode {
 
   Expr(ExprKind e) : AstNode(AstKind::expr), kind(e), type(nullptr) {}
 
-  std::optional<Decl *> declMaybe() const;
-
-  // Is this expression an L-value?
-  bool is_lvalue() const;
-
-  // Is this a function call?
-  bool is_func_call() const;
-
-  // Get the VarDecl object that binds to this L-value.
-  // Be sure to check isLValue() before or otherwise this call will be unsafe.
-  VarDecl *getLValueDecl() const;
+  std::optional<Decl *> declmaybe() const;
 };
 
 struct IntegerLiteral : public Expr {
@@ -270,7 +262,7 @@ struct CallExpr : public Expr {
 struct StructFieldDesignator {
     Name *name = nullptr;
     VarDecl *decl = nullptr;
-    Expr *init_expr = nullptr;
+    Expr *initexpr = nullptr;
 };
 
 // 'Struct { .m1 = .e1, .m2 = e2, ... }'
@@ -333,7 +325,7 @@ struct ParenExpr : public UnaryExpr {
         : UnaryExpr(UnaryExprKind::paren, inside_expr) {}
     void print() const override;
     // ParenExprs may also have an associated Decl (e.g. (a).m).
-    std::optional<Decl *> decl() const { return operand->declMaybe(); }
+    std::optional<Decl *> decl() const { return operand->declmaybe(); }
 };
 
 struct BinaryExpr : public Expr {
@@ -426,7 +418,7 @@ public:
 
   template <typename T> bool is() const { return decl_is<T>(kind); }
 
-  std::optional<Type *> typeMaybe() const;
+  std::optional<Type *> typemaybe() const;
 
   Name *name() const;
 };
@@ -491,18 +483,16 @@ struct VarDecl : public Decl {
   VarDecl(Name *n, Type *t, bool m)
       : Decl(DeclKind::var), name(n), type(t), mut(m) {}
   void print() const override;
-
-  void addChild(Name *name, VarDecl *child);
 };
 
 // Function declaration.  There is no separate function definition: functions
 // should always be defined whenever they are declared.
 struct FuncDecl : public Decl {
   Name *name = nullptr;               // name of the function
-  Type *ret_type = nullptr;           // return type of the function
+  Type *rettype = nullptr;           // return type of the function
   std::vector<VarDecl *> args;        // list of parameters
   CompoundStmt *body = nullptr;       // body statements
-  Expr *ret_type_expr = nullptr;      // return type expression
+  Expr *rettypeexpr = nullptr;      // return type expression
   Name *ret_lifetime_annot = nullptr; // lifetime annotation of the return value
 
   // "Bogus" lifetime that represents the scope of the function body.
@@ -510,7 +500,6 @@ struct FuncDecl : public Decl {
 
   FuncDecl(Name *n) : Decl(DeclKind::func), name(n) {}
   size_t args_count() const { return args.size(); }
-  bool isVoid(Sema &sema) const;
   void print() const override;
 };
 

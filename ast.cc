@@ -35,7 +35,7 @@ get_ast_range(std::initializer_list<AstNode *> nodes) {
   return {min, max};
 }
 
-std::optional<Decl *> Expr::declMaybe() const {
+std::optional<Decl *> Expr::declmaybe() const {
   switch (kind) {
   case ExprKind::decl_ref:
     return {as<DeclRefExpr>()->decl};
@@ -54,22 +54,9 @@ std::optional<Decl *> Expr::declMaybe() const {
   return {};
 }
 
-bool Expr::is_lvalue() const {
-  return declMaybe().has_value() && (*declMaybe())->is<VarDecl>();
-}
-
-bool Expr::is_func_call() const {
-  return kind == ExprKind::call && as<CallExpr>()->kind == CallExprKind::func;
-}
-
-VarDecl *Expr::getLValueDecl() const {
-  assert(is_lvalue());
-  return (*declMaybe())->as<VarDecl>();
-}
-
 // Return optional of 'type' member of Decl, or None if this Decl kind doesn't
 // have any.
-std::optional<Type *> Decl::typeMaybe() const {
+std::optional<Type *> Decl::typemaybe() const {
   if (kind == DeclKind::var) {
     return as<VarDecl>()->type;
   } else if (kind == DeclKind::struct_) {
@@ -95,15 +82,6 @@ Name *Decl::name() const {
   default:
     return nullptr;
   }
-}
-
-void VarDecl::addChild(Name *name, VarDecl *child) {
-  child->parent = this;
-  children.push_back({name, child});
-}
-
-bool FuncDecl::isVoid(Sema &sema) const {
-  return ret_type == sema.context.void_type;
 }
 
 //
@@ -188,8 +166,8 @@ void FuncDecl::print() const {
     PrintScope start;
     for (auto &p : args)
         p->print();
-    if (ret_type_expr)
-        ret_type_expr->print();
+    if (rettypeexpr)
+        rettypeexpr->print();
     body->print();
 }
 
@@ -294,7 +272,7 @@ void StructDefExpr::print() const {
     for (auto desig : desigs) {
         out() << fmt::format(".{}", desig.name->str()) << std::endl;
         PrintScope start;
-        desig.init_expr->print();
+        desig.initexpr->print();
     }
 }
 

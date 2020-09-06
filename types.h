@@ -27,9 +27,9 @@ struct FuncDecl;
 // There may be multiple occurrences of a string in the source text, but only
 // one instance of the matching Name can reside in the name table.
 struct Name {
-  std::string text;
+    std::string text;
 
-  std::string str() const { return text; }
+    std::string str() const { return text; }
 };
 
 // 'NameTable' is a hash table of Names queried by their string value.  It
@@ -37,23 +37,23 @@ struct Name {
 // up the symbol table using Name instead of raw char * throughout the semantic
 // analysis.
 struct NameTable {
-  Name *get_or_add(const std::string &s) {
-    Name *found = get(s);
-    if (found) {
-      return found;
+    Name *get_or_add(const std::string &s) {
+        Name *found = get(s);
+        if (found) {
+            return found;
+        }
+        auto pair = map.insert({s, {s}});
+        return &pair.first->second;
     }
-    auto pair = map.insert({s, {s}});
-    return &pair.first->second;
-  }
-  Name *get(const std::string &s) {
-    auto found = map.find(s);
-    if (found == map.end()) {
-      return nullptr;
-    } else {
-      return &found->second;
+    Name *get(const std::string &s) {
+        auto found = map.find(s);
+        if (found == map.end()) {
+            return nullptr;
+        } else {
+            return &found->second;
+        }
     }
-  }
-  std::unordered_map<std::string, Name> map;
+    std::unordered_map<std::string, Name> map;
 };
 
 enum class TypeKind {
@@ -75,47 +75,41 @@ enum class TypeKind {
 //
 // TODO: switch to union/variant?
 struct Type {
-  TypeKind kind = TypeKind::value;
-  // Name of the type. TODO: include & or [] in the name?
-  Name *name = nullptr;
-  // Whether this is a builtin type or not.
-  bool builtin = false;
-  // True if this type is copyable, e.g. can be used in the RHS of a regular
-  // assignment statement (=). Precise value will be determined in the type
-  // checking phase.
-  bool copyable = true;
-  union {
-    // Back-reference to the decl object that defines this value type.
-    Decl *type_decl = nullptr;
-    // The target type that this type refers to.  If this is a non-reference or
-    // a non-pointer type, the value should be null.
-    Type *referee_type;
-  };
+    TypeKind kind = TypeKind::value;
+    // Name of the type. TODO: include & or [] in the name?
+    Name *name = nullptr;
+    // Whether this is a builtin type or not.
+    bool builtin = false;
+    // True if this type is copyable, e.g. can be used in the RHS of a regular
+    // assignment statement (=). Precise value will be determined in the type
+    // checking phase.
+    bool copyable = true;
+    union {
+        // Back-reference to the decl object that defines this value type.
+        Decl *type_decl = nullptr;
+        // The target type that this type refers to.  If this is a non-reference
+        // or a non-pointer type, the value should be null.
+        Type *referee_type;
+    };
 
-  // Built-in value types.
-  Type(Name *n) : kind(TypeKind::value), name(n), builtin(true) {}
-  // Struct types.
-  Type(TypeKind k, Name *n, Decl *td) : kind(k), name(n), type_decl(td) {}
-  // Reference types.
-  // TODO: copyable?
-  Type(Name *n, TypeKind ptr_kind, Type *referee_type);
+    // Built-in value types.
+    Type(Name *n) : kind(TypeKind::value), name(n), builtin(true) {}
+    // Struct types.
+    Type(TypeKind k, Name *n, Decl *td) : kind(k), name(n), type_decl(td) {}
+    // Reference types.
+    // TODO: copyable?
+    Type(Name *n, TypeKind ptr_kind, Type *referee_type);
 
-  std::string str() const { return name->str(); }
+    std::string str() const { return name->str(); }
 
-  // Returns true if this type is a builtin type.
-  bool is_builtin(Sema &sema) const;
+    // Returns true if this type is a builtin type.
+    bool is_builtin(Sema &sema) const;
 
-  // Returns true if this type is a struct.
-  bool isStruct() const;
+    // Returns true if this type is an enum.
+    bool isEnum() const;
 
-  // Returns true if this type is an enum.
-  bool isEnum() const;
-
-  // TODO: remove.
-  bool isMemberAccessible() const { return isStruct() || isEnum(); }
-
-  StructDecl *getStructDecl();
-  EnumDecl *getEnumDecl();
+    StructDecl *getStructDecl();
+    EnumDecl *getEnumDecl();
 };
 
 } // namespace cmp

@@ -286,7 +286,7 @@ void walk_var_decl(Visitor &v, VarDecl *var, Args... args) {
 }
 template <typename Visitor, typename... Args>
 void walk_func_decl(Visitor &v, FuncDecl *f, Args... args) {
-  if (f->ret_type_expr) v.visitExpr(f->ret_type_expr, args...);
+  if (f->rettypeexpr) v.visitExpr(f->rettypeexpr, args...);
   for (auto arg : f->args) {
     v.visitDecl(arg, args...);
   }
@@ -356,7 +356,7 @@ template <typename Visitor, typename... Args>
 void walk_struct_def_expr(Visitor &v, StructDefExpr *s, Args... args) {
   v.visitExpr(s->name_expr, args...);
   for (auto d : s->desigs) {
-    v.visitExpr(d.init_expr, args...);
+    v.visitExpr(d.initexpr, args...);
   }
 }
 template <typename Visitor, typename... Args>

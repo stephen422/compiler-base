@@ -343,7 +343,7 @@ FuncDecl *Parser::parseFuncHeader() {
   // return type (-> ...)
   if (tok.kind == Tok::arrow) {
     next();
-    func->ret_type_expr = parse_type_expr();
+    func->rettypeexpr = parse_type_expr();
   }
 
   return func;
