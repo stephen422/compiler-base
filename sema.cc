@@ -244,14 +244,58 @@ static bool isfunccall(const Expr *e) {
            e->as<CallExpr>()->kind == CallExprKind::func;
 }
 
+// Get a Decl object that represents the value of the expression. It could be a
+// VarDecl for a DerefExpr, FuncDecl for a DeclRefExpr, etc.
+// Returns false if `e` is not a kind that contains a decl, e.g. a BinaryExpr.
+static bool getdecl(const Expr *e, Decl **decl) {
+    bool contains = false;
+    Decl *d = NULL;
+
+    switch (e->kind) {
+    case ExprKind::decl_ref:
+        contains = true;
+        d = e->as<DeclRefExpr>()->decl;
+        break;
+    case ExprKind::member:
+        contains = e->as<MemberExpr>()->decl.has_value();
+        if (contains)
+            d = *e->as<MemberExpr>()->decl;
+        break;
+    case ExprKind::unary:
+        if (e->as<UnaryExpr>()->kind == UnaryExprKind::paren) {
+            return getdecl(e->as<UnaryExpr>()->as<ParenExpr>()->operand, decl);
+        } else if (e->as<UnaryExpr>()->kind == UnaryExprKind::deref) {
+            contains = true;
+            d = e->as<UnaryExpr>()->var_decl;
+        }
+        break;
+    default:
+        break;
+    }
+
+    if (decl && contains)
+        *decl = d;
+
+    return contains;
+}
+
+static bool hasdecl(const Expr *e) {
+    return getdecl(e, NULL);
+}
+
 static bool islvalue(const Expr *e) {
-    return e->declmaybe().has_value() && (*e->declmaybe())->is<VarDecl>();
+    Decl *d;
+    bool r = getdecl(e, &d);
+    return r && d->is<VarDecl>();
 }
 
 // Get the VarDecl object that binds to this L-value.
 static VarDecl *lvaluedecl(const Expr *e) {
+    Decl *d;
+
     assert(islvalue(e));
-    return (*e->declmaybe())->as<VarDecl>();
+    assert(getdecl(e, &d));
+    return d->as<VarDecl>();
 }
 
 void NameBinding::visitEnumVariantDecl(EnumVariantDecl *v) {
@@ -393,7 +437,7 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
     //     let s1 = S {...};
     //
     // TODO: there's a copy-paste of this code somewhere else.
-    if (as->rhs->declmaybe() && !rhs_ty->copyable) {
+    if (hasdecl(as->rhs) && !rhs_ty->copyable) {
         sema.error(as->rhs->pos, "cannot copy non-copyable type '{}'",
                    rhs_ty->name->str());
         return nullptr;
@@ -642,9 +686,9 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
         }
     }
 
+#if 0
     if (struct_type->isEnum()) {
         assert(false && "not yet");
-#if 0
     for (auto mem_decl : struct_type->getEnumDecl()->variants) {
       if (m->member_name == mem_decl->name) {
         m->decl = mem_decl;
@@ -652,11 +696,13 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
         break;
       }
     }
-#endif
     }
+#endif
 
-    if (m->decl.has_value()) assert(*m->decl);
+    if (hasdecl(m))
+        assert(*m->decl); // FIXME
     assert(m->type);
+
     return m->type;
 }
 
@@ -802,7 +848,7 @@ Type *TypeChecker::visitVarDecl(VarDecl *v) {
     } else if (v->assign_expr) {
         // Copyability check.
         // FIXME: copy-paste from visitAssignStmt
-        if (v->assign_expr->declmaybe() && v->assign_expr->type &&
+        if (hasdecl(v->assign_expr) && v->assign_expr->type &&
             !v->assign_expr->type->copyable) {
             sema.error(v->assign_expr->pos,
                        "cannot copy non-copyable type '{}'",

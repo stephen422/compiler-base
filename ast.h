@@ -212,8 +212,6 @@ struct Expr : public AstNode {
   Type *type = nullptr;
 
   Expr(ExprKind e) : AstNode(AstKind::expr), kind(e), type(nullptr) {}
-
-  std::optional<Decl *> declmaybe() const;
 };
 
 struct IntegerLiteral : public Expr {
@@ -324,8 +322,6 @@ struct ParenExpr : public UnaryExpr {
     ParenExpr(Expr *inside_expr)
         : UnaryExpr(UnaryExprKind::paren, inside_expr) {}
     void print() const override;
-    // ParenExprs may also have an associated Decl (e.g. (a).m).
-    std::optional<Decl *> decl() const { return operand->declmaybe(); }
 };
 
 struct BinaryExpr : public Expr {

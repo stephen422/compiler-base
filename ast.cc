@@ -35,25 +35,6 @@ get_ast_range(std::initializer_list<AstNode *> nodes) {
   return {min, max};
 }
 
-std::optional<Decl *> Expr::declmaybe() const {
-  switch (kind) {
-  case ExprKind::decl_ref:
-    return {as<DeclRefExpr>()->decl};
-  case ExprKind::member:
-    return as<MemberExpr>()->decl;
-  case ExprKind::unary:
-    if (as<UnaryExpr>()->kind == UnaryExprKind::paren) {
-      return as<UnaryExpr>()->as<ParenExpr>()->decl();
-    } else if (as<UnaryExpr>()->kind == UnaryExprKind::deref) {
-      return {as<UnaryExpr>()->var_decl};
-    }
-    break;
-  default:
-    break;
-  }
-  return {};
-}
-
 // Return optional of 'type' member of Decl, or None if this Decl kind doesn't
 // have any.
 std::optional<Type *> Decl::typemaybe() const {
