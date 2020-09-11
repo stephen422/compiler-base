@@ -244,8 +244,9 @@ static bool isfunccall(const Expr *e) {
            e->as<CallExpr>()->kind == CallExprKind::func;
 }
 
-// Get a Decl object that represents the value of the expression. It could be a
-// VarDecl for a DerefExpr, FuncDecl for a DeclRefExpr, etc.
+// Return the Decl object that represents the value of the expression `e` via
+// `decl`. It could be a VarDecl for a DerefExpr, FuncDecl for a DeclRefExpr,
+// etc.
 // Returns false if `e` is not a kind that contains a decl, e.g. a BinaryExpr.
 static bool getdecl(const Expr *e, Decl **decl) {
     bool contains = false;
@@ -523,16 +524,13 @@ Type *TypeChecker::visitCallExpr(CallExpr *f) {
     return f->type;
 }
 
-// TODO: This should return something like a FieldDecl, not a VarDecl.
-static VarDecl *findFieldInStruct(Name *field_name, Type *struct_type) {
-    VarDecl *found = nullptr;
-    for (auto mem_decl : struct_type->getStructDecl()->fields) {
-        if (field_name == mem_decl->name) {
-            found = mem_decl;
-            break;
-        }
-    }
-    return found;
+// Look up the decl of a field of a struct type that has the matching name.
+// FIXME: This should return something like a FieldDecl, not a VarDecl.
+static VarDecl *findfield(Name *name, Type *struct_ty) {
+    for (VarDecl *field : struct_ty->getStructDecl()->fields)
+        if (name == field->name)
+            return field;
+    return nullptr;
 }
 
 // Make a new lifetime that is declared by `decl` and starts at the current
@@ -559,34 +557,34 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
     walk_struct_def_expr(*this, s);
 
     // check Name is a struct
-    auto lhs_type = s->name_expr->type;
-    if (!lhs_type) return nullptr;
-    if (!isstructtype(lhs_type)) {
+    Type *ty = s->name_expr->type;
+    if (!ty) return nullptr;
+    if (!isstructtype(ty)) {
         sema.error(s->name_expr->pos, "type '{}' is not a struct",
-                   lhs_type->name->str());
+                   ty->name->str());
         return nullptr;
     }
 
-    for (auto &desig : s->desigs) {
+    for (StructFieldDesignator desig : s->desigs) {
         if (!desig.initexpr->type) return nullptr;
 
-        VarDecl *field_decl = findFieldInStruct(desig.name, lhs_type);
-        if (!field_decl) {
+        VarDecl *fd;
+        if (!(fd = findfield(desig.name, ty))) {
             sema.error(desig.initexpr->pos, // FIXME: wrong pos
                        "'{}' is not a member of '{}'", desig.name->str(),
-                       lhs_type->getStructDecl()->name->str());
+                       ty->getStructDecl()->name->str());
             return nullptr;
         }
 
-        if (!typecheck_assign(field_decl->type, desig.initexpr->type)) {
+        if (!typecheck_assign(fd->type, desig.initexpr->type)) {
             sema.error(desig.initexpr->pos, "cannot assign '{}' type to '{}'",
                        desig.initexpr->type->name->str(),
-                       field_decl->type->name->str());
+                       fd->type->name->str());
             return nullptr;
         }
     }
 
-    s->type = lhs_type;
+    s->type = ty;
     return s->type;
 }
 
@@ -597,9 +595,12 @@ Type *TypeChecker::visitCastExpr(CastExpr *c) {
     return c->type;
 }
 
-static void addfield(VarDecl *v, Name *name, VarDecl *child) {
-    child->parent = v;
-    v->children.push_back({name, child});
+static VarDecl *addfield(Sema &sema, VarDecl *v, Name *name, Type *type) {
+    // mutability is inherited from the parent decl
+    VarDecl *fd = sema.make_node<VarDecl>(name, type, v->mut);
+    fd->parent = v;
+    v->children.push_back({name, fd});
+    return fd;
 }
 
 // MemberExprs cannot be namebinded completely without type checking (e.g.
@@ -612,28 +613,24 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
     // if the struct side failed to typecheck, we cannot proceed
     if (!m->struct_expr->type) return nullptr;
 
-    // make sure the LHS is actually a struct
-    auto struct_type = m->struct_expr->type;
-    // FIXME: Enums
-    if (!isstructtype(struct_type)) {
+    Type *lhs_ty = m->struct_expr->type;
+    if (!isstructtype(lhs_ty)) {
         sema.error(m->struct_expr->pos, "type '{}' is not a struct",
-                   struct_type->name->str());
+                   lhs_ty->name->str());
         return nullptr;
     }
 
-    if (isstructtype(struct_type)) {
-        // First of all, make sure that this field name indeed exists in the
-        // struct's type definition.
-        VarDecl *field_decl = findFieldInStruct(m->member_name, struct_type);
-        if (!field_decl) {
+    // TODO: isenum
+    if (isstructtype(lhs_ty)) {
+        VarDecl *fd;
+        if (!(fd = findfield(m->member_name, lhs_ty))) {
             // TODO: pos for member
             sema.error(m->struct_expr->pos, "'{}' is not a member of '{}'",
-                       m->member_name->str(), struct_type->name->str());
+                       m->member_name->str(), lhs_ty->name->str());
             return nullptr;
         }
 
-        // Type inferrence.
-        m->type = field_decl->type;
+        m->type = fd->type;
 
         // If struct_expr is an lvalue, this MemberExpr should also be an lvalue
         // and have a Decl object. We do so by inheriting from one of
@@ -641,10 +638,10 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
         //
         // We need to create a new VarDecl here for each different VarDecl of
         // lhs, because even if with the same struct type and field name,
-        // MemberExprs may be semantically different objects if their LHS are of
-        // different declarations.  For example, 'x.a' and 'y.a' in the
-        // following occupy two different physical memory space and thus need to
-        // be associated to two different Decl objects:
+        // MemberExprs may represent values of different objects in the memory.
+        // This happens when the struct_expr is an lvalue.  For example, 'x.a'
+        // and 'y.a' in the following occupy two different physical memory
+        // space and thus need to be associated to two different Decl objects:
         //
         //    let x = S {.a = ...}
         //    let y = S {.a = ...}
@@ -652,8 +649,8 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
         //    y.a
         //
         if (islvalue(m->struct_expr)) {
-            auto struct_var_decl = lvaluedecl(m->struct_expr);
-            for (auto field : struct_var_decl->children) {
+            VarDecl *lhs_decl = lvaluedecl(m->struct_expr);
+            for (auto field : lhs_decl->children) {
                 if (field.first == m->member_name) {
                     // Field already instantiated into a VarDecl.
                     if (field.second) {
@@ -670,18 +667,9 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
             // only the members that are actually used in the source code are
             // instantiated.
             if (!m->decl) {
-                // These VarDecls do not *need* to have a name other than for
-                // error reporting purposes, because they are not going to be
-                // accessed by their name, but through the VarDecl of their
-                // parent struct value. Their mutability is inherited from the
-                // parent value.
-                auto field_var_decl = sema.make_node<VarDecl>(
-                    m->member_name, field_decl->type, struct_var_decl->mut);
-                m->decl = {field_var_decl};
-
-                // TODO: abstract this and make_node together into a func.
-                field_var_decl->lifetime = start_lifetime(sema, field_var_decl);
-                addfield(struct_var_decl, m->member_name, field_var_decl);
+                m->decl = {addfield(sema, lhs_decl, m->member_name, m->type)};
+                (*m->decl)->as<VarDecl>()->lifetime =
+                    start_lifetime(sema, (*m->decl));
             }
         }
     }
@@ -864,10 +852,8 @@ Type *TypeChecker::visitVarDecl(VarDecl *v) {
     // Populate children decls for structs.
     if (v->type && isstructtype(v->type)) {
         assert(v->children.empty());
-        for (auto field : v->type->getStructDecl()->fields) {
-            auto field_var_decl =
-                sema.make_node<VarDecl>(field->name, field->type, v->mut);
-            addfield(v, field->name, field_var_decl);
+        for (VarDecl *fdesc : v->type->getStructDecl()->fields) {
+            addfield(sema, v, fdesc->name, fdesc->type);
         }
     }
 
