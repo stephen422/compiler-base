@@ -3,6 +3,8 @@
 #define CMP_TYPES_H
 
 #include <cassert>
+#include <cstdlib>
+#include <cstring>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -27,7 +29,7 @@ struct FuncDecl;
 // There may be multiple occurrences of a string in the source text, but only
 // one instance of the matching Name can reside in the name table.
 struct Name {
-    std::string text;
+    const char *text;
 
     std::string str() const { return text; }
 };
@@ -37,12 +39,16 @@ struct Name {
 // up the symbol table using Name instead of raw char * throughout the semantic
 // analysis.
 struct NameTable {
-    Name *get_or_add(const std::string &s) {
-        Name *found = get(s);
-        if (found) {
+    Name *push(const char *s) {
+        return pushlen(s, strlen(s));
+    }
+    Name *pushlen(const char *s, size_t len) {
+        Name *found = get(std::string{s, len});
+        if (found)
             return found;
-        }
-        auto pair = map.insert({s, {s}});
+
+        Name n{strndup(s, len)};
+        auto pair = map.insert({std::string{s, len}, n});
         return &pair.first->second;
     }
     Name *get(const std::string &s) {
@@ -51,6 +57,11 @@ struct NameTable {
             return nullptr;
         } else {
             return &found->second;
+        }
+    }
+    ~NameTable() {
+        for (auto &m : map) {
+            free((void *)m.second.text);
         }
     }
     std::unordered_map<std::string, Name> map;

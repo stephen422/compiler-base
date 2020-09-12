@@ -100,7 +100,7 @@ constexpr std::pair<std::string_view, Tok> symbol_map[] {
     {"comment", Tok::comment},
 };
 
-constexpr std::pair<std::string_view, Tok> keyword_map[] {
+constexpr std::pair<const char *, Tok> keyword_map[] {
     {"func", Tok::kw_func},
     {"struct", Tok::kw_struct},
     {"enum", Tok::kw_enum},
@@ -123,15 +123,16 @@ std::string tokenTypeToString(Tok kind);
 struct Token {
   Tok kind;
   size_t pos;
-  std::string_view text;
+  const char *start;
+  const char *end;
 
-  Token() : kind(Tok::none), pos(0), text() {}
-  Token(Tok kind, size_t pos) : kind(kind), pos(pos), text() {}
-  Token(Tok kind, size_t pos, std::string_view text)
-      : kind(kind), pos(pos), text(text) {}
+  Token() : kind(Tok::none), pos(0), start(NULL), end(NULL) {}
+  Token(Tok kind, size_t pos) : kind(kind), pos(pos), start(NULL), end(NULL) {}
+  Token(Tok kind, size_t pos, const char *s, const char *e)
+      : kind(kind), pos(pos), start(s), end(e) {}
 
   // Get position of one character past the end of the token.
-  size_t endPos() const { return pos + text.size(); }
+  size_t endPos() const { return pos + (end - start); }
 
   bool is_any(std::initializer_list<Tok> &kinds) const;
 

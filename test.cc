@@ -4,6 +4,7 @@
 
 using namespace cmp;
 
+#if 0
 TEST_CASE("String lexing", "[lex_string]") {
     SECTION("no escape chars") {
         Source s{"\"Hello, there!\""};
@@ -37,6 +38,7 @@ TEST_CASE("Comment lexing", "[lex_comment]") {
     auto tok = l.lex();
     REQUIRE(tok.text == "// Hello there");
 }
+#endif
 
 TEST_CASE("Parsing") {
     SECTION("basic") {

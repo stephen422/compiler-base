@@ -59,7 +59,7 @@ Type *make_ref_type(Sema &sema, Name *name, TypeKind ptr_kind,
 }
 
 Type *push_builtin_type_from_name(Sema &s, const std::string &str) {
-  Name *name = s.name_table.get_or_add(str);
+  Name *name = s.name_table.pushlen(str.data(), str.length());
   auto struct_decl = s.make_node<StructDecl>(
       name, std::vector<VarDecl *>() /* FIXME */);
   struct_decl->type = make_builtin_type(s, name);
@@ -1073,7 +1073,7 @@ public:
     VarDecl *visitDeclRefExpr(DeclRefExpr *d) { return nullptr; }
     VarDecl *visitCallExpr(CallExpr *f) { assert(false && "TODO"); }
     // p.m is the same as (*p).m. If 'p' is not a reference, p.m does not go
-    // through anything.
+    // through any indirection.
     // @Cleanup: maybe rewrite p.m as (*p).m in a unified place?
     VarDecl *visitMemberExpr(MemberExpr *m) {
         if (auto v = visitExpr(m->struct_expr)) {
@@ -1219,7 +1219,7 @@ Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
     }
 }
 
-void borrowcheck_assignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
+void borrowcheck_assign(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
     // We don't want to mess with built-in types.
     if (rhs->type->is_builtin(sema)) return;
 
@@ -1236,7 +1236,7 @@ void borrowcheck_assignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
                         break;
                     }
                 }
-                borrowcheck_assignment(sema, child, desig.initexpr, move);
+                borrowcheck_assign(sema, child, desig.initexpr, move);
             }
         }
         return;
@@ -1247,7 +1247,6 @@ void borrowcheck_assignment(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
     // FIXME: This code should be good to be substituted with the above
     // one-liner, clear up this whole section.
     if (isreftype(rhs->type)) {
-
         v->borrowee_lifetime = lifetime_of_reference(sema, rhs);
 
         if (islvalue(rhs)) {
@@ -1313,7 +1312,7 @@ void BorrowChecker::visitAssignStmt(AssignStmt *as) {
     walk_assign_stmt(*this, as);
 
     auto lhs_decl = lvaluedecl(as->lhs);
-    borrowcheck_assignment(sema, lhs_decl, as->rhs, as->move);
+    borrowcheck_assign(sema, lhs_decl, as->rhs, as->move);
 }
 
 void BorrowChecker::visitReturnStmt(ReturnStmt *rs) {
@@ -1519,7 +1518,7 @@ void BorrowChecker::visitVarDecl(VarDecl *v) {
     }
 
     if (v->assign_expr) {
-        borrowcheck_assignment(
+        borrowcheck_assign(
         sema, v, v->assign_expr,
         true /* because declarations with an init expr is always a move. */);
     } else if (v->type_expr) {

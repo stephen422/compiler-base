@@ -30,12 +30,22 @@ bool Token::is_any(std::initializer_list<Tok> &kinds) const {
   return false;
 }
 
+const char *tokstr(const Token tok, char *buf, size_t len) {
+    if (tok.end - tok.start >= (long)len) {
+        fprintf(stderr, "toksrc buffer too small");
+        exit(1);
+    }
+    // memcpy(buf, tok.pos, len);
+    buf[len - 1] = '\0';
+    return buf;
+}
+
 std::string Token::str() const {
   if (kind == Tok::newline)
     return {"\\n"};
   else if (kind == Tok::eos)
     return {"EOF"};
-  return std::string{text};
+  return std::string{start, static_cast<size_t>(end - start)};
 }
 
 // Advances 'look', not 'curr'. 'curr' is used as a manual marking position for
@@ -57,11 +67,11 @@ Token Lexer::lex_ident_or_keyword() {
 
     // Keyword lookup
     for (auto &p : keyword_map) {
-        auto text = p.first;
-        auto kind = p.second;
+        const char *text = p.first;
+        Tok kind = p.second;
 
         // If the remaining source text is shorter than the keyword, skip it.
-        if (static_cast<size_t>(eos() - curr) < text.length()) {
+        if (static_cast<size_t>(eos() - curr) < strlen(text)) {
             continue;
         }
 
@@ -134,8 +144,7 @@ Token Lexer::make_token(Tok kind) {
 }
 
 Token Lexer::make_token_with_literal(Tok kind) {
-    std::string_view text{curr, static_cast<size_t>(look - curr)};
-    return Token{kind, pos(), text};
+    return Token{kind, pos(), curr, look};
 }
 
 Token Lexer::lex() {

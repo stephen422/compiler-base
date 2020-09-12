@@ -9,13 +9,12 @@ namespace cmp {
 template <typename T> using Res = ParserResult<T>;
 
 Parser::Parser(Lexer &l, Sema &sema) : lexer{l}, sema(sema) {
-  // insert keywords in name table
-  for (auto m : keyword_map) {
-    sema.name_table.get_or_add(std::string{m.first});
-  }
+    // insert keywords in name table
+    for (auto m : keyword_map)
+        sema.name_table.push(m.first);
 
-  // set up lookahead and cache
-  next();
+    // set up lookahead and cache
+    next();
 }
 
 void Parser::error(const std::string &msg) {
@@ -28,31 +27,34 @@ void Parser::error_expected(const std::string &msg) {
 }
 
 void Parser::next() {
-  if (tok.kind == Tok::eos) return;
+    if (tok.kind == Tok::eos)
+        return;
 
-  // update cache if necessary
-  if (next_read_pos == token_cache.size()) {
-    auto t = lexer.lex();
+    // update cache if necessary
+    if (next_read_pos == token_cache.size()) {
+        auto t = lexer.lex();
 
-    // If an error beacon is found in a comment, add the error to the parser
-    // error list so that it can be compared to the actual errors later in
-    // the verifying phase.
-    if (t.kind == Tok::comment) {
-      std::string_view marker{"// ERROR: "};
-      auto found = t.text.find(marker);
-      if (found == 0) {
-        // '---' in '// ERROR: ---'
-        std::string regex_string{t.text.substr(marker.length())};
-        sema.beacons.push_back({locate(), regex_string});
-      }
+        // If an error beacon is found in a comment, add the error to the parser
+        // error list so that it can be compared to the actual errors later in
+        // the verifying phase.
+        if (t.kind == Tok::comment) {
+            auto text =
+                std::string{t.start, static_cast<size_t>(t.end - t.start)};
+            std::string_view marker{"// ERROR: "};
+            auto found = text.find(marker);
+            if (found == 0) {
+                // '---' in '// ERROR: ---'
+                std::string regex_string{text.substr(marker.length())};
+                sema.beacons.push_back({locate(), regex_string});
+            }
+        }
+
+        token_cache.push_back(t);
     }
 
-    token_cache.push_back(t);
-  }
-
-  last_tok_endpos = tok.endPos();
-  tok = token_cache[next_read_pos];
-  next_read_pos++;
+    last_tok_endpos = tok.endPos();
+    tok = token_cache[next_read_pos];
+    next_read_pos++;
 }
 
 Parser::State Parser::save_state() {
@@ -71,8 +73,10 @@ bool Parser::expect(Tok kind, const std::string &msg = "") {
     if (tok.kind != kind) {
         std::string s = msg;
         if (msg.empty()) {
-            s = fmt::format("expected '{}', found '{}'",
-                            tokenTypeToString(kind), tok.text);
+            s = fmt::format(
+                "expected '{}', found '{}'", tokenTypeToString(kind),
+                std::string{tok.start,
+                            static_cast<size_t>(tok.end - tok.start)});
         }
         error(s);
         // Don't make progress if the match failed.
@@ -256,7 +260,7 @@ VarDecl *Parser::parseVarDecl(VarDeclKind kind) {
     error_expected("an identifier");
   }
 
-  Name *name = sema.name_table.get_or_add(std::string{tok.text});
+  Name *name = sema.name_table.pushlen(tok.start, tok.end - tok.start);
   next();
 
   VarDecl *v = nullptr;
@@ -326,7 +330,7 @@ FuncDecl *Parser::parseFuncHeader() {
 
   expect(Tok::kw_func);
 
-  Name *name = sema.name_table.get_or_add(std::string{tok.text});
+  Name *name = sema.name_table.pushlen(tok.start, tok.end - tok.start);
   auto func = sema.make_node_pos<FuncDecl>(pos, name);
   func->pos = tok.pos;
   next();
@@ -373,7 +377,7 @@ StructDecl *Parser::parseStructDecl() {
     error_expected("an identifier");
     skip_until(Tok::lbrace);
   } else {
-    name = sema.name_table.get_or_add(std::string{tok.text});
+    name = sema.name_table.pushlen(tok.start, tok.end - tok.start);
     next();
   }
 
@@ -391,7 +395,7 @@ StructDecl *Parser::parseStructDecl() {
 EnumVariantDecl *Parser::parseEnumVariant() {
   auto pos = tok.pos;
 
-  Name *name = sema.name_table.get_or_add(std::string{tok.text});
+  Name *name = sema.name_table.pushlen(tok.start, tok.end - tok.start);
   next();
 
   std::vector<Expr *> fields;
@@ -430,7 +434,7 @@ EnumDecl *Parser::parseEnumDecl() {
 
   if (tok.kind != Tok::ident)
     error_expected("an identifier");
-  Name *name = sema.name_table.get_or_add(std::string{tok.text});
+  Name *name = sema.name_table.pushlen(tok.start, tok.end - tok.start);
   next();
 
   if (!expect(Tok::lbrace))
@@ -505,15 +509,16 @@ Expr *Parser::parse_literal_expr() {
   // TODO Literals other than integers?
   switch (tok.kind) {
   case Tok::number: {
-    std::string s{tok.text};
+    std::string s{tok.start, static_cast<size_t>(tok.end - tok.start)};
     int value = std::stoi(s);
     expr = sema.make_node_range<IntegerLiteral>({tok.pos, tok.endPos()}, value);
     break;
   }
   case Tok::string:
-    expr =
-        sema.make_node_range<StringLiteral>({tok.pos, tok.endPos()}, tok.text);
-    break;
+      expr = sema.make_node_range<StringLiteral>(
+          {tok.pos, tok.endPos()},
+          std::string_view{tok.start, static_cast<size_t>(tok.end - tok.start)});
+      break;
   default:
     assert(false && "non-integer literals not implemented");
   }
@@ -533,7 +538,7 @@ Expr *Parser::parse_literal_expr() {
 Expr *Parser::parse_func_call_or_decl_ref_expr() {
     auto pos = tok.pos;
     assert(tok.kind == Tok::ident);
-    auto name = sema.name_table.get_or_add(std::string{tok.text});
+    auto name = sema.name_table.pushlen(tok.start, tok.end - tok.start);
     next();
 
     if (tok.kind == Tok::lparen) {
@@ -586,7 +591,8 @@ Name *name_of_derived_type(NameTable &names, TypeKind kind, Name *referee_name) 
   default:
     assert(false && "unreachable");
   }
-  return names.get_or_add(prefix + referee_name->text);
+  prefix += referee_name->text;
+  return names.pushlen(prefix.data(), prefix.length());
 }
 
 // Parse a type expression.
@@ -614,7 +620,7 @@ Expr *Parser::parse_type_expr() {
     // Lifetime annotation.
     if (tok.kind == Tok::dot) {
       next();
-      lifetime = sema.name_table.get_or_add(std::string{tok.text});
+      lifetime = sema.name_table.pushlen(tok.start, tok.end - tok.start);
       next();
     }
     // Base type name.
@@ -638,7 +644,7 @@ Expr *Parser::parse_type_expr() {
   } else if (is_ident_or_keyword(tok)) {
     type_kind = TypeKind::value;
 
-    text = tok.text;
+    text = std::string{tok.start, static_cast<size_t>(tok.end - tok.start)};
     next();
 
     subexpr = nullptr;
@@ -647,7 +653,7 @@ Expr *Parser::parse_type_expr() {
     return sema.make_node_pos<BadExpr>(pos);
   }
 
-  Name *name = sema.name_table.get_or_add(text);
+  Name *name = sema.name_table.pushlen(text.data(), text.length());
 
   return sema.make_node_pos<TypeExpr>(pos, type_kind, name, mut, lifetime,
                                       subexpr);
@@ -777,7 +783,7 @@ Expr *Parser::parse_member_expr_maybe(Expr *expr) {
   while (tok.kind == Tok::dot) {
     expect(Tok::dot);
 
-    Name *member_name = sema.name_table.get_or_add(std::string{tok.text});
+    Name *member_name = sema.name_table.pushlen(tok.start, tok.end - tok.start);
     next();
 
     result = make_node_range<MemberExpr>(result->pos, result, member_name);
@@ -809,7 +815,7 @@ fail:
 // Parse '.memb = expr' part in Struct { .m1 = e1, .m2 = e2, ... }.
 std::optional<StructFieldDesignator> Parser::parse_structdef_field() {
   if (!expect(Tok::dot)) return {};
-  auto name = sema.name_table.get_or_add(std::string{tok.text});
+  auto name = sema.name_table.pushlen(tok.start, tok.end - tok.start);
   next();
 
   if (!expect(Tok::equals)) return {};
@@ -890,9 +896,11 @@ AstNode *Parser::parse_toplevel() {
   case Tok::kw_extern:
     return parseExternDecl();
   default:
-    error(fmt::format("unexpected '{}' at toplevel", tok.text));
-    skip_to_next_line();
-    return nullptr;
+      error(fmt::format(
+          "unexpected '{}' at toplevel",
+          std::string{tok.start, static_cast<size_t>(tok.end - tok.start)}));
+      skip_to_next_line();
+      return nullptr;
   }
 }
 
