@@ -252,6 +252,10 @@ BuiltinStmt *Parser::parseBuiltinStmt() {
     return sema.make_node_pos<BuiltinStmt>(start, text);
 }
 
+static Name *push_token(Sema &sema, const Token tok) {
+    return sema.name_table.pushlen(tok.start, tok.end - tok.start);
+}
+
 // Doesn't include 'let' or 'var'.
 VarDecl *Parser::parseVarDecl(VarDeclKind kind) {
   auto pos = tok.pos;
@@ -260,7 +264,7 @@ VarDecl *Parser::parseVarDecl(VarDeclKind kind) {
     error_expected("an identifier");
   }
 
-  Name *name = sema.name_table.pushlen(tok.start, tok.end - tok.start);
+  Name *name = push_token(sema, tok);
   next();
 
   VarDecl *v = nullptr;
@@ -330,7 +334,7 @@ FuncDecl *Parser::parseFuncHeader() {
 
   expect(Tok::kw_func);
 
-  Name *name = sema.name_table.pushlen(tok.start, tok.end - tok.start);
+  Name *name = push_token(sema, tok);
   auto func = sema.make_node_pos<FuncDecl>(pos, name);
   func->pos = tok.pos;
   next();
@@ -377,7 +381,7 @@ StructDecl *Parser::parseStructDecl() {
     error_expected("an identifier");
     skip_until(Tok::lbrace);
   } else {
-    name = sema.name_table.pushlen(tok.start, tok.end - tok.start);
+    name = push_token(sema, tok);
     next();
   }
 
@@ -395,7 +399,7 @@ StructDecl *Parser::parseStructDecl() {
 EnumVariantDecl *Parser::parseEnumVariant() {
   auto pos = tok.pos;
 
-  Name *name = sema.name_table.pushlen(tok.start, tok.end - tok.start);
+  Name *name = push_token(sema, tok);
   next();
 
   std::vector<Expr *> fields;
@@ -434,7 +438,7 @@ EnumDecl *Parser::parseEnumDecl() {
 
   if (tok.kind != Tok::ident)
     error_expected("an identifier");
-  Name *name = sema.name_table.pushlen(tok.start, tok.end - tok.start);
+  Name *name = push_token(sema, tok);
   next();
 
   if (!expect(Tok::lbrace))
@@ -538,7 +542,7 @@ Expr *Parser::parse_literal_expr() {
 Expr *Parser::parse_func_call_or_decl_ref_expr() {
     auto pos = tok.pos;
     assert(tok.kind == Tok::ident);
-    auto name = sema.name_table.pushlen(tok.start, tok.end - tok.start);
+    Name *name = push_token(sema, tok);
     next();
 
     if (tok.kind == Tok::lparen) {
@@ -592,7 +596,7 @@ Name *name_of_derived_type(NameTable &names, TypeKind kind, Name *referee_name) 
     assert(false && "unreachable");
   }
   prefix += referee_name->text;
-  return names.pushlen(prefix.data(), prefix.length());
+  return names.push(prefix.c_str());
 }
 
 // Parse a type expression.
@@ -602,61 +606,61 @@ Name *name_of_derived_type(NameTable &names, TypeKind kind, Name *referee_name) 
 // type-expression:
 //     ('var'? '&')? ident
 Expr *Parser::parse_type_expr() {
-  auto pos = tok.pos;
+    auto pos = tok.pos;
 
-  bool mut = false;
-  if (tok.kind == Tok::kw_var) {
-    next();
-    mut = true;
-  }
-
-  TypeKind type_kind = TypeKind::value;
-  Name *lifetime = nullptr;
-  Expr *subexpr = nullptr;
-  std::string text;
-  if (tok.kind == Tok::ampersand) {
-    expect(Tok::ampersand);
-    type_kind = mut ? TypeKind::var_ref : TypeKind::ref;
-    // Lifetime annotation.
-    if (tok.kind == Tok::dot) {
-      next();
-      lifetime = sema.name_table.pushlen(tok.start, tok.end - tok.start);
-      next();
+    bool mut = false;
+    if (tok.kind == Tok::kw_var) {
+        next();
+        mut = true;
     }
-    // Base type name.
-    subexpr = parse_type_expr();
-    // FIXME: unnatural
-    if (subexpr->kind == ExprKind::type) {
-      text = name_of_derived_type(sema.name_table,
-                                  mut ? TypeKind::var_ref : TypeKind::ref,
-                                  subexpr->as<TypeExpr>()->name)
-                 ->text;
+
+    TypeKind type_kind = TypeKind::value;
+    Name *lt_name = nullptr;
+    Expr *subexpr = nullptr;
+    std::string text;
+    if (tok.kind == Tok::ampersand) {
+        expect(Tok::ampersand);
+        type_kind = mut ? TypeKind::var_ref : TypeKind::ref;
+        // Lifetime annotation.
+        if (tok.kind == Tok::dot) {
+            next();
+            lt_name = push_token(sema, tok);
+            next();
+        }
+        // Base type name.
+        subexpr = parse_type_expr();
+        // FIXME: unnatural
+        if (subexpr->kind == ExprKind::type) {
+            text = name_of_derived_type(sema.name_table,
+                                        mut ? TypeKind::var_ref : TypeKind::ref,
+                                        subexpr->as<TypeExpr>()->name)
+                       ->text;
+        }
+    } else if (tok.kind == Tok::star) {
+        next();
+        type_kind = TypeKind::ptr;
+        subexpr = parse_type_expr();
+        if (subexpr->kind == ExprKind::type) {
+            text = name_of_derived_type(sema.name_table, TypeKind::ptr,
+                                        subexpr->as<TypeExpr>()->name)
+                       ->text;
+        }
+    } else if (is_ident_or_keyword(tok)) {
+        type_kind = TypeKind::value;
+
+        text = std::string{tok.start, static_cast<size_t>(tok.end - tok.start)};
+        next();
+
+        subexpr = nullptr;
+    } else {
+        error_expected("type name");
+        return sema.make_node_pos<BadExpr>(pos);
     }
-  } else if (tok.kind == Tok::star) {
-    next();
-    type_kind = TypeKind::ptr;
-    subexpr = parse_type_expr();
-    if (subexpr->kind == ExprKind::type) {
-      text = name_of_derived_type(sema.name_table, TypeKind::ptr,
-                                    subexpr->as<TypeExpr>()->name)
-                 ->text;
-    }
-  } else if (is_ident_or_keyword(tok)) {
-    type_kind = TypeKind::value;
 
-    text = std::string{tok.start, static_cast<size_t>(tok.end - tok.start)};
-    next();
+    Name *name = sema.name_table.push(text.c_str());
 
-    subexpr = nullptr;
-  } else {
-    error_expected("type name");
-    return sema.make_node_pos<BadExpr>(pos);
-  }
-
-  Name *name = sema.name_table.pushlen(text.data(), text.length());
-
-  return sema.make_node_pos<TypeExpr>(pos, type_kind, name, mut, lifetime,
-                                      subexpr);
+    return sema.make_node_pos<TypeExpr>(pos, type_kind, name, mut, lt_name,
+                                        subexpr);
 }
 
 Expr *Parser::parse_unary_expr() {
@@ -783,7 +787,7 @@ Expr *Parser::parse_member_expr_maybe(Expr *expr) {
   while (tok.kind == Tok::dot) {
     expect(Tok::dot);
 
-    Name *member_name = sema.name_table.pushlen(tok.start, tok.end - tok.start);
+    Name *member_name = push_token(sema, tok);
     next();
 
     result = make_node_range<MemberExpr>(result->pos, result, member_name);
@@ -815,7 +819,7 @@ fail:
 // Parse '.memb = expr' part in Struct { .m1 = e1, .m2 = e2, ... }.
 std::optional<StructFieldDesignator> Parser::parse_structdef_field() {
   if (!expect(Tok::dot)) return {};
-  auto name = sema.name_table.pushlen(tok.start, tok.end - tok.start);
+  Name *name = push_token(sema, tok);
   next();
 
   if (!expect(Tok::equals)) return {};
