@@ -52,7 +52,6 @@ struct AstNode {
   size_t pos = 0;             // start pos of this AST in the source text
   size_t endpos = 0;          // end pos of this AST in the source text
   Pass progress = Pass::none; // latest pass that this node got through
-  bool failed = false;
 
   AstNode() {}
   AstNode(AstKind kind) : kind(kind) {}

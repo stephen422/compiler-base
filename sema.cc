@@ -186,8 +186,6 @@ void NameBinding::visitVarDecl(VarDecl *v) {
 }
 
 void NameBinding::visitFuncDecl(FuncDecl *f) {
-  auto err_count = sema.errors.size();
-
   if (!declare<FuncDecl>(sema, f->pos, f->name, f)) return;
 
   // scope for argument variables
@@ -198,10 +196,6 @@ void NameBinding::visitFuncDecl(FuncDecl *f) {
 
   sema.context.func_decl_stack.pop_back();
   sema.decl_table.scope_close();
-
-  if (sema.errors.size() != err_count) {
-    f->failed = true;
-  }
 }
 
 void NameBinding::visitStructDecl(StructDecl *s) {
@@ -859,10 +853,6 @@ Type *TypeChecker::visitVarDecl(VarDecl *v) {
 }
 
 Type *TypeChecker::visitFuncDecl(FuncDecl *f) {
-    // FIXME: broken
-    if (f->failed) return nullptr;
-    auto err_count = sema.errors.size();
-
     // We need to do return type typecheck before walking the body, so we can't
     // use walk_func_decl() here.
 
@@ -883,10 +873,6 @@ Type *TypeChecker::visitFuncDecl(FuncDecl *f) {
         sema.context.func_decl_stack.push_back(f);
         visitCompoundStmt(f->body);
         sema.context.func_decl_stack.pop_back();
-    }
-
-    if (sema.errors.size() != err_count) {
-        f->failed = true;
     }
 
     // FIXME: necessary?
@@ -1011,7 +997,6 @@ static void returncheck_solve(const std::vector<BasicBlock *> &walklist) {
 }
 
 BasicBlock *ReturnChecker::visitFuncDecl(FuncDecl *f, BasicBlock *bb) {
-    if (f->failed) return nullptr;
     if (!f->rettypeexpr) return nullptr;
     // For body-less function declarations (e.g. extern).
     if (!f->body) return nullptr;
@@ -1798,8 +1783,6 @@ void CodeGenerator::visitStructDecl(StructDecl *s) {
 }
 
 void CodeGenerator::visitFuncDecl(FuncDecl *f) {
-    if (f->failed) return;
-
     if (f->rettypeexpr) {
         emit_indent("{}", c_stringify_type(sema, f->rettype));
     } else {
