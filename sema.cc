@@ -13,67 +13,65 @@
 
 using namespace cmp;
 
-template <typename... Args> void Sema::error(size_t pos, Args &&... args) {
-  auto str = fmt::format(std::forward<Args>(args)...);
-  Error e{source.locate(pos), str};
-  errors.push_back(e);
+template <typename... Args> void Sema::error(size_t pos, Args &&...args) {
+    auto str = fmt::format(std::forward<Args>(args)...);
+    Error e{source.locate(pos), str};
+    errors.push_back(e);
+    fmt::print("{}\n", e.str());
 }
 
 Type::Type(Name *n, TypeKind k, Type *rt) : kind(k), name(n), referee_type(rt) {
-  copyable = k == TypeKind::ref;
+    copyable = k == TypeKind::ref;
 }
 
 bool Type::is_builtin(Sema &sema) const {
-  return this == sema.context.int_type
-      || this == sema.context.char_type
-      || this == sema.context.void_type
-      || this == sema.context.string_type;
+    return this == sema.context.int_type || this == sema.context.char_type ||
+           this == sema.context.void_type || this == sema.context.string_type;
 }
 
 bool Type::isEnum() const {
-  // TODO: should base_type be null too?
-  return kind == TypeKind::value && type_decl &&
-    type_decl->is<EnumDecl>();
+    // TODO: should base_type be null too?
+    return kind == TypeKind::value && type_decl && type_decl->is<EnumDecl>();
 }
 
 StructDecl *Type::getStructDecl() { return type_decl->as<StructDecl>(); }
 EnumDecl *Type::getEnumDecl() { return type_decl->as<EnumDecl>(); }
 
 Type *make_builtin_type(Sema &sema, Name *n) {
-  Type *t = new Type(n);
-  sema.type_pool.push_back(t);
-  return t;
+    Type *t = new Type(n);
+    sema.type_pool.push_back(t);
+    return t;
 }
 
 Type *make_value_type(Sema &sema, Name *n, Decl *decl) {
-  Type *t = new Type(TypeKind::value, n, decl);
-  sema.type_pool.push_back(t);
-  return t;
+    Type *t = new Type(TypeKind::value, n, decl);
+    sema.type_pool.push_back(t);
+    return t;
 }
 
 Type *make_ref_type(Sema &sema, Name *name, TypeKind ptr_kind,
-                        Type *referee_type) {
-  Type *t = new Type(name, ptr_kind, referee_type);
-  sema.type_pool.push_back(t);
-  return t;
+                    Type *referee_type) {
+    Type *t = new Type(name, ptr_kind, referee_type);
+    sema.type_pool.push_back(t);
+    return t;
 }
 
 Type *push_builtin_type_from_name(Sema &s, const std::string &str) {
-  Name *name = s.name_table.pushlen(str.data(), str.length());
-  auto struct_decl = s.make_node<StructDecl>(
-      name, std::vector<VarDecl *>() /* FIXME */);
-  struct_decl->type = make_builtin_type(s, name);
-  s.decl_table.insert(name, struct_decl);
-  return struct_decl->type;
+    Name *name = s.name_table.pushlen(str.data(), str.length());
+    auto struct_decl =
+        s.make_node<StructDecl>(name, std::vector<VarDecl *>() /* FIXME */);
+    struct_decl->type = make_builtin_type(s, name);
+    s.decl_table.insert(name, struct_decl);
+    return struct_decl->type;
 }
 
 // Push Decls for the builtin types into the global scope of decl_table, so
 // that they are visible from any point in the AST.
 void cmp::setup_builtin_types(Sema &s) {
-  s.context.void_type = push_builtin_type_from_name(s, "void");
-  s.context.int_type = push_builtin_type_from_name(s, "int");
-  s.context.char_type = push_builtin_type_from_name(s, "char");
-  s.context.string_type = push_builtin_type_from_name(s, "string");
+    s.context.void_type = push_builtin_type_from_name(s, "void");
+    s.context.int_type = push_builtin_type_from_name(s, "int");
+    s.context.char_type = push_builtin_type_from_name(s, "char");
+    s.context.string_type = push_builtin_type_from_name(s, "string");
 }
 
 Sema::~Sema() {
