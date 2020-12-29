@@ -29,9 +29,9 @@ fn main() {
 fn f(a: int) int { // ERROR: expected.*'->'.*got 'int'
 }
 
-// fn f(a: int, b int, c: int) -> int { // ERROR: expected.*':'
-//     return * // ERROR: expected.*expression
-// }
+fn f(a: int, b int, c: int) -> int { // ERROR: expected.*':'
+    return * // ERROR: expected.*expression
+}
 
 // struct Car // ERROR: expected.*\{
 //     a: i64,

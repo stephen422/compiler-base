@@ -1,4 +1,4 @@
-#include "parser.h"
+include "parser.h"
 #include "sds.h"
 #include "stretchy_buffer.h"
 #include <assert.h>
@@ -14,9 +14,9 @@ static Node *parse_expr(Parser *p);
 static int is_decl_start(Parser *p);
 static Node *parse_decl(Parser *p);
 
-static Name *push_name_from_token(Parser *p, Token tok)
-{
-	return push_name(&p->nametable, p->lexer.src + tok.range.start, tok.range.end - tok.range.start);
+static Name *push_name_from_token(Parser *p, Token tok) {
+    return push_name(&p->nametable, p->lexer.src + tok.range.start,
+                     tok.range.end - tok.range.start);
 }
 
 // FIXME: 'tok' is not really used.
@@ -459,7 +459,7 @@ static void skip_until(Parser *p, TokenType type) {
 }
 
 static void skip_until_end_of_line(Parser *p) {
-    while (p->tok.type != TOK_NEWLINE) {
+    while (!is_eof(p) && p->tok.type != TOK_NEWLINE) {
         next(p);
     }
 }
@@ -735,29 +735,32 @@ static Node *parse_expr(Parser *p) {
     return expr;
 }
 
-static Node *parse_paramdecl(Parser *p)
-{
+// Parse a 'ident: type' decl form that appears on struct declarations or
+// function argument lists.
+static Node *parse_paramdecl(Parser *p) {
     Token tok = expect(p, TOK_IDENT);
     Name *name = push_name_from_token(p, tok);
 
-    if (p->tok.type != TOK_COLON)
-        expect(p, TOK_COLON);
+    if (p->tok.type != TOK_COLON) expect(p, TOK_COLON);
     next(p);
     Node *typeexpr = parse_typeexpr(p);
 
     return make_paramdecl(p, name, typeexpr);
 }
 
-static Node **parse_paramdecllist(Parser *p)
-{
+static Node **parse_paramdecllist(Parser *p) {
     Node **list = NULL;
 
     // assumes enclosed in parentheses
-    while (p->tok.type != TOK_RPAREN) {
+    for (;;) {
+        printf("right here\n");
+
+        skip_newlines(p);
+        if (p->tok.type == TOK_RPAREN || p->tok.type == TOK_RBRACE) break;
+
         Node *node = parse_paramdecl(p);
         sb_push(list, node);
-        if (p->tok.type == TOK_COMMA)
-            next(p);
+        if (p->tok.type == TOK_COMMA) next(p);
     }
 
     return list;
