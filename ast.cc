@@ -251,7 +251,7 @@ void StructDefExpr::print() const {
     name_expr->print();
 
     for (auto desig : desigs) {
-        out() << fmt::format(".{}", desig.name->str()) << std::endl;
+        out() << fmt::format(".{}", desig.name->text) << std::endl;
         PrintScope start;
         desig.initexpr->print();
     }

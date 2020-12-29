@@ -30,8 +30,6 @@ struct FuncDecl;
 // one instance of the matching Name can reside in the name table.
 struct Name {
     const char *text;
-
-    std::string str() const { return text; }
 };
 
 // 'NameTable' is a hash table of Names queried by their string value.  It
@@ -111,7 +109,7 @@ struct Type {
     // TODO: copyable?
     Type(Name *n, TypeKind ptr_kind, Type *referee_type);
 
-    std::string str() const { return name->str(); }
+    std::string str() const { return name->text; }
 
     // Returns true if this type is a builtin type.
     bool is_builtin(Sema &sema) const;
