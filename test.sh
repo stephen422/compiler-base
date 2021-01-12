@@ -20,4 +20,5 @@ test() {
 
 test test/struct.ruse
 test test/struct2.ruse
+test test/typecheck.ruse
 
