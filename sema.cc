@@ -16,7 +16,7 @@ using namespace cmp;
 template <typename... Args> void Sema::error(size_t pos, Args &&...args) {
     auto message = fmt::format(std::forward<Args>(args)...);
     auto loc = source.locate(pos);
-    fmt::print(stderr, "{}:{}:{}: error: {}", loc.filename, loc.line, loc.col,
+    fmt::print(stderr, "{}:{}:{}: error: {}\n", loc.filename, loc.line, loc.col,
                message);
     exit(EXIT_FAILURE);
 }

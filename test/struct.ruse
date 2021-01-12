@@ -1,0 +1,8 @@
+// fail
+
+struct S {
+}
+
+func main() {
+    S {.notthere = 0} // ERROR: 'notthere' is not a member of 'Token'
+}
