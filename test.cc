@@ -42,54 +42,54 @@ TEST_CASE("Comment lexing", "[lex_comment]") {
 
 TEST_CASE("Parsing") {
     SECTION("basic") {
-        auto d = Driver::from_path(Path{"../test_parser.txt"});
+        auto d = Driver::from_path(Path{"../test/test_parser.txt"});
         d.compile();
         REQUIRE(d.verify());
     }
     SECTION("struct") {
-        auto d = Driver::from_path(Path{"../test_struct.txt"});
+        auto d = Driver::from_path(Path{"../test/test_struct.txt"});
         d.compile();
         REQUIRE(d.verify());
     }
     // SECTION("enum") {
-    //   auto d = Driver::from_path(Path{"../test_enum.txt"});
+    //   auto d = Driver::from_path(Path{"../test/test_enum.txt"});
     //   d.compile();
     //   REQUIRE(d.verify());
     // }
 }
 
 TEST_CASE("Name binding") {
-    auto d = Driver::from_path(Path{"../test_namebind.txt"});
+    auto d = Driver::from_path(Path{"../test/test_namebind.txt"});
     d.compile();
     REQUIRE(d.verify());
 }
 
 TEST_CASE("Type checking") {
-    auto d = Driver::from_path(Path{"../test_typeck.txt"});
+    auto d = Driver::from_path(Path{"../test/test_typeck.txt"});
     d.compile();
     REQUIRE(d.verify());
 }
 
 TEST_CASE("Borrow checking") {
-    auto d = Driver::from_path(Path{"../test_borrowck.txt"});
+    auto d = Driver::from_path(Path{"../test/test_borrowck.txt"});
     d.compile();
     REQUIRE(d.verify());
 }
 
 TEST_CASE("Return checking") {
-    auto d = Driver::from_path(Path{"../test_returnck.txt"});
+    auto d = Driver::from_path(Path{"../test/test_returnck.txt"});
     d.compile();
     REQUIRE(d.verify());
 }
 
 TEST_CASE("Codegen") {
   SECTION("basic") {
-    auto d = Driver::from_path(Path{"../test_codegen.txt"});
+    auto d = Driver::from_path(Path{"../test/test_codegen.txt"});
     d.compile();
     REQUIRE(d.verify());
   }
   SECTION("FFI") {
-    auto d = Driver::from_path(Path{"../test_ffi.txt"});
+    auto d = Driver::from_path(Path{"../test/test_ffi.txt"});
     d.compile();
     REQUIRE(d.verify());
   }
