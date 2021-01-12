@@ -1,0 +1,15 @@
+struct Token {
+    pos: int
+    text: string
+}
+
+func main() {
+    var tok = Token {.pos = 3, .text = "hi"}
+
+    struct Inner {
+        a: int
+    }
+
+    let inner: Inner
+    inner.a
+}

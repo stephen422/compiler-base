@@ -1,7 +1,7 @@
 #!/bin/sh
 test() {
 	fail=0
-	grep "fail" $1 >/dev/null && fail=1
+	head -n1 $1 | grep "fail" >/dev/null && fail=1
 	build/cmp $1
 	if [ $? -ne $fail ]
 	then
@@ -13,4 +13,5 @@ test() {
 }
 
 test test/struct.ruse
+test test/struct2.ruse
 
