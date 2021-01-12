@@ -1,14 +1,20 @@
 #!/bin/sh
+
+GREEN="\033[0;32m"
+RED="\033[0;31m"
+RS="\033[0m"
+
 test() {
+
 	fail=0
 	head -n1 $1 | grep "fail" >/dev/null && fail=1
 	build/cmp $1
 	if [ $? -ne $fail ]
 	then
-		echo FAIL $1
+		echo "${RED}FAIL${RS} $1"
 		exit 1
 	else
-		echo PASS $1
+		echo "${GREEN}PASS${RS} $1"
 	fi
 }
 
