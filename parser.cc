@@ -6,8 +6,6 @@
 
 namespace cmp {
 
-template <typename T> using Res = ParserResult<T>;
-
 Parser::Parser(Lexer &l, Sema &sema) : lexer{l}, sema(sema) {
     // insert keywords in name table
     for (auto m : keyword_map)

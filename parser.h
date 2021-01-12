@@ -8,59 +8,6 @@
 
 namespace cmp {
 
-// ParserResult wraps the result of a single parse operation, i.e. the
-// resulting AST node in the successful case, or an error object in the failing
-// case. It also marks the position where the parse operation started (TODO).
-// With these information, it enables several helpful features:
-//
-//   1. it allows the caller to easily recover from the parse failure, using the
-//   marked position info;
-//
-//   2. it enables the parser to proceed and try alternative productions
-//   without being interrupted by an error generated in the failed production;
-//
-//   3. it allows the caller to overwrite the error message with a more
-//   descriptive, context-aware one.
-template <typename T> class ParserResult {
-public:
-    // Uninitialized
-    ParserResult() {}
-
-    // Successful result
-    // U is the more-specific type.
-    template <typename U>
-    ParserResult(U *ptr) : result(ptr) {}
-
-    // Erroneous result
-    ParserResult(const Error &error) : result(error) {}
-
-    // Upcasting
-    template <typename U>
-    ParserResult(ParserResult<U> &&res) {
-        if (res.success()) {
-            result = static_cast<T *>(res.ptr());
-        } else {
-            result = res.error();
-        }
-    }
-
-    // Returns 'res', provided there were no errors; if there were, report them
-    // and cause the compiler to exit.
-    T *unwrap();
-
-    // Get the stored node pointer.
-    T *ptr() const { return std::get<T *>(result); }
-
-    // Get the stored Error object.
-    const Error &error() const { return std::get<Error>(result); }
-
-    // Is this result successful?
-    bool success() { return std::holds_alternative<T *>(result); }
-
-private:
-    std::variant<T *, Error> result;
-};
-
 Name *name_of_derived_type(NameTable &names, TypeKind kind, Name *referee_name);
 
 class Parser {
