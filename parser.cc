@@ -58,7 +58,7 @@ void Parser::next() {
 }
 
 Parser::State Parser::save_state() {
-  return State{tok, last_tok_endpos, next_read_pos, sema.errors.size()};
+    return State{tok, last_tok_endpos, next_read_pos, sema.errors.size()};
 }
 
 void Parser::restore_state(State state) {
@@ -122,23 +122,23 @@ Stmt *Parser::parse_stmt() {
 }
 
 Stmt *Parser::parse_return_stmt() {
-  auto pos = tok.pos;
+    auto pos = tok.pos;
 
-  expect(Tok::kw_return);
+    expect(Tok::kw_return);
 
-  // optional
-  Expr *expr = nullptr;
-  if (!is_end_of_stmt()) {
-    expr = parse_expr();
-  }
-  if (!is_end_of_stmt()) {
+    // optional
+    Expr *expr = nullptr;
+    if (!is_end_of_stmt()) {
+        expr = parse_expr();
+    }
+    if (!is_end_of_stmt()) {
+        skip_until_end_of_line();
+        expect(Tok::newline);
+        return sema.make_node_pos<BadStmt>(pos);
+    }
     skip_until_end_of_line();
     expect(Tok::newline);
-    return sema.make_node_pos<BadStmt>(pos);
-  }
-  skip_until_end_of_line();
-  expect(Tok::newline);
-  return sema.make_node_pos<ReturnStmt>(pos, expr);
+    return sema.make_node_pos<ReturnStmt>(pos, expr);
 }
 
 // Simplest way to represent the if-elseif-else chain is to view the else-if
@@ -180,46 +180,47 @@ IfStmt *Parser::parse_if_stmt() {
 
 // Parse 'let a = ...'
 DeclStmt *Parser::parseDeclStmt() {
-  auto decl = parseDecl();
-  if (!is_end_of_stmt()) {
-    // XXX: remove bad check
-    if (decl && !decl->is<BadDecl>()) expect(Tok::newline);
-    // try to recover
-    skip_until_end_of_line();
-  }
-  return sema.make_node<DeclStmt>(decl);
+    auto decl = parseDecl();
+    if (!is_end_of_stmt()) {
+        // XXX: remove bad check
+        if (decl && !decl->is<BadDecl>())
+            expect(Tok::newline);
+        // try to recover
+        skip_until_end_of_line();
+    }
+    return sema.make_node<DeclStmt>(decl);
 }
 
 // Upon seeing an expression, we don't know yet if it is a simple expression
 // statement or an assignment statement until we see the '=' token and the RHS.
 // This function handles both cases in one go.
 Stmt *Parser::parseExprOrAssignStmt() {
-  auto pos = tok.pos;
+    auto pos = tok.pos;
 
-  auto lhs = parse_expr();
-  // ExprStmt: expression ends with a newline
-  if (is_end_of_stmt()) {
-    skip_until_end_of_line();
-    expect(Tok::newline);
-    return sema.make_node<ExprStmt>(lhs);
-  }
+    auto lhs = parse_expr();
+    // ExprStmt: expression ends with a newline
+    if (is_end_of_stmt()) {
+        skip_until_end_of_line();
+        expect(Tok::newline);
+        return sema.make_node<ExprStmt>(lhs);
+    }
 
-  bool move = false;
-  // AssignStmt: expression is followed by '=' or '<-'
-  // (anything else is treated as an error)
-  if (tok.kind == Tok::reversearrow) {
-    move = true;
-    next();
-  } else if (!expect(Tok::equals, "expected '=' or '\\n' after expression")) {
-    skip_until_end_of_line();
-    expect(Tok::newline);
-    return sema.make_node_pos<BadStmt>(pos);
-  }
+    bool move = false;
+    // AssignStmt: expression is followed by '=' or '<-'
+    // (anything else is treated as an error)
+    if (tok.kind == Tok::reversearrow) {
+        move = true;
+        next();
+    } else if (!expect(Tok::equals, "expected '=' or '\\n' after expression")) {
+        skip_until_end_of_line();
+        expect(Tok::newline);
+        return sema.make_node_pos<BadStmt>(pos);
+    }
 
-  // At this point, it becomes certain that this is an assignment statement,
-  // and so we can safely unwrap for RHS.
-  auto rhs = parse_expr();
-  return sema.make_node_pos<AssignStmt>(pos, lhs, rhs, move);
+    // At this point, it becomes certain that this is an assignment statement,
+    // and so we can safely unwrap for RHS.
+    auto rhs = parse_expr();
+    return sema.make_node_pos<AssignStmt>(pos, lhs, rhs, move);
 }
 
 // Compound statement is a scoped block that consists of multiple statements.
@@ -258,35 +259,36 @@ static Name *push_token(Sema &sema, const Token tok) {
 
 // Doesn't include 'let' or 'var'.
 VarDecl *Parser::parseVarDecl(VarDeclKind kind) {
-  auto pos = tok.pos;
+    auto pos = tok.pos;
 
-  if (tok.kind != Tok::ident) {
-    error_expected("an identifier");
-  }
+    if (tok.kind != Tok::ident) {
+        error_expected("an identifier");
+    }
 
-  Name *name = push_token(sema, tok);
-  next();
-
-  VarDecl *v = nullptr;
-  // '=' comes either first, or after the ': type' part.
-  if (tok.kind == Tok::colon) {
+    Name *name = push_token(sema, tok);
     next();
-    auto type_expr = parse_type_expr();
-    v = sema.make_node_pos<VarDecl>(pos, name, kind, type_expr, nullptr);
-  }
-  if (tok.kind == Tok::equals) {
-    next();
-    auto assign_expr = parse_expr();
-    if (v)
-      static_cast<VarDecl *>(v)->assign_expr = assign_expr;
-    else
-      v = sema.make_node_pos<VarDecl>(pos, name, kind, nullptr, assign_expr);
-  }
-  if (!v) {
-    error_expected("'=' or ':' after var name");
-    v = nullptr;
-  }
-  return v;
+
+    VarDecl *v = nullptr;
+    // '=' comes either first, or after the ': type' part.
+    if (tok.kind == Tok::colon) {
+        next();
+        auto type_expr = parse_type_expr();
+        v = sema.make_node_pos<VarDecl>(pos, name, kind, type_expr, nullptr);
+    }
+    if (tok.kind == Tok::equals) {
+        next();
+        auto assign_expr = parse_expr();
+        if (v)
+            static_cast<VarDecl *>(v)->assign_expr = assign_expr;
+        else
+            v = sema.make_node_pos<VarDecl>(pos, name, kind, nullptr,
+                                            assign_expr);
+    }
+    if (!v) {
+        error_expected("'=' or ':' after var name");
+        v = nullptr;
+    }
+    return v;
 }
 
 // Parses a comma separated list of AST nodes whose type is T*.  Parser
@@ -295,241 +297,248 @@ VarDecl *Parser::parseVarDecl(VarDeclKind kind) {
 // Doesn't account for the enclosing parentheses or braces.
 template <typename T, typename F>
 std::vector<T> Parser::parseCommaSeparatedList(F &&parse_fn) {
-  auto finishers = {Tok::rparen, Tok::rbrace};
-  auto delimiters = {Tok::comma, Tok::newline, Tok::rparen, Tok::rbrace};
-  std::vector<T> list;
+    auto finishers = {Tok::rparen, Tok::rbrace};
+    auto delimiters = {Tok::comma, Tok::newline, Tok::rparen, Tok::rbrace};
+    std::vector<T> list;
 
-  for (;;) {
-    skip_newlines();
-    if (tok.is_any(finishers) || is_eos()) break;
+    for (;;) {
+        skip_newlines();
+        if (tok.is_any(finishers) || is_eos())
+            break;
 
-    auto elem = parse_fn();
-    if (elem) list.push_back(elem);
+        auto elem = parse_fn();
+        if (elem)
+            list.push_back(elem);
 
-    // Determining where each decl ends in a list is a little tricky.  Here,
-    // we stop for any token that is either (1) separator tokens, i.e.
-    // comma, newline, or (2) used to enclose a decl list, i.e.  parentheses
-    // and braces.  This works for both function argument lists and struct
-    // member lists.
-    if (!elem) {
-      skip_until_any(delimiters);
-    } else if (!tok.is_any(delimiters)) {
-      // For cases when a VarDecl succeeds parsing but there is a leftover
-      // token, e.g. 'a: int###', we need to directly check the next token
-      // is the delimiting token, and do an appropriate error report.
-      error(fmt::format("trailing token '{}' after declaration", tok.str()));
-      skip_until_any(delimiters);
+        // Determining where each decl ends in a list is a little tricky.  Here,
+        // we stop for any token that is either (1) separator tokens, i.e.
+        // comma, newline, or (2) used to enclose a decl list, i.e.  parentheses
+        // and braces.  This works for both function argument lists and struct
+        // member lists.
+        if (!elem) {
+            skip_until_any(delimiters);
+        } else if (!tok.is_any(delimiters)) {
+            // For cases when a VarDecl succeeds parsing but there is a leftover
+            // token, e.g. 'a: int###', we need to directly check the next token
+            // is the delimiting token, and do an appropriate error report.
+            error(fmt::format("trailing token '{}' after declaration",
+                              tok.str()));
+            skip_until_any(delimiters);
+        }
+
+        // Skip comma if any. This allows trailing comma at the end, e.g.
+        // '(a,)'.
+        if (tok.kind == Tok::comma)
+            next();
     }
 
-    // Skip comma if any. This allows trailing comma at the end, e.g.
-    // '(a,)'.
-    if (tok.kind == Tok::comma) next();
-  }
-
-  return list;
+    return list;
 }
 
 FuncDecl *Parser::parseFuncHeader() {
-  auto pos = tok.pos;
+    auto pos = tok.pos;
 
-  expect(Tok::kw_func);
+    expect(Tok::kw_func);
 
-  Name *name = push_token(sema, tok);
-  auto func = sema.make_node_pos<FuncDecl>(pos, name);
-  func->pos = tok.pos;
-  next();
-
-  // argument list
-  expect(Tok::lparen);
-  func->args = parseCommaSeparatedList<VarDecl *>(
-      [this] { return parseVarDecl(VarDeclKind::param); });
-  if (!expect(Tok::rparen)) {
-    skip_until(Tok::rparen);
-    expect(Tok::rparen);
-  }
-
-  // return type (-> ...)
-  if (tok.kind == Tok::arrow) {
+    Name *name = push_token(sema, tok);
+    auto func = sema.make_node_pos<FuncDecl>(pos, name);
+    func->pos = tok.pos;
     next();
-    func->rettypeexpr = parse_type_expr();
-  }
 
-  return func;
+    // argument list
+    expect(Tok::lparen);
+    func->args = parseCommaSeparatedList<VarDecl *>(
+        [this] { return parseVarDecl(VarDeclKind::param); });
+    if (!expect(Tok::rparen)) {
+        skip_until(Tok::rparen);
+        expect(Tok::rparen);
+    }
+
+    // return type (-> ...)
+    if (tok.kind == Tok::arrow) {
+        next();
+        func->rettypeexpr = parse_type_expr();
+    }
+
+    return func;
 }
 
 FuncDecl *Parser::parseFuncDecl() {
-  auto func = parseFuncHeader();
+    auto func = parseFuncHeader();
 
-  if (tok.kind != Tok::lbrace) {
-    error_expected("'->' or '{'");
-    skip_until(Tok::lbrace);
-  }
+    if (tok.kind != Tok::lbrace) {
+        error_expected("'->' or '{'");
+        skip_until(Tok::lbrace);
+    }
 
-  // function body
-  func->body = parseCompoundStmt();
+    // function body
+    func->body = parseCompoundStmt();
 
-  return func;
+    return func;
 }
 
 StructDecl *Parser::parseStructDecl() {
-  auto pos = tok.pos;
-  Name *name = nullptr;
+    auto pos = tok.pos;
+    Name *name = nullptr;
 
-  expect(Tok::kw_struct);
+    expect(Tok::kw_struct);
 
-  if (tok.kind != Tok::ident) {
-    error_expected("an identifier");
-    skip_until(Tok::lbrace);
-  } else {
-    name = push_token(sema, tok);
-    next();
-  }
+    if (tok.kind != Tok::ident) {
+        error_expected("an identifier");
+        skip_until(Tok::lbrace);
+    } else {
+        name = push_token(sema, tok);
+        next();
+    }
 
-  if (!expect(Tok::lbrace))
-    skip_until_end_of_line();
+    if (!expect(Tok::lbrace))
+        skip_until_end_of_line();
 
-  auto fields = parseCommaSeparatedList<VarDecl *>(
-      [this] { return parseVarDecl(VarDeclKind::struct_); });
-  expect(Tok::rbrace, "unterminated struct declaration");
-  // TODO: recover
+    auto fields = parseCommaSeparatedList<VarDecl *>(
+        [this] { return parseVarDecl(VarDeclKind::struct_); });
+    expect(Tok::rbrace, "unterminated struct declaration");
+    // TODO: recover
 
-  return sema.make_node_pos<StructDecl>(pos, name, fields);
+    return sema.make_node_pos<StructDecl>(pos, name, fields);
 }
 
 EnumVariantDecl *Parser::parseEnumVariant() {
-  auto pos = tok.pos;
+    auto pos = tok.pos;
 
-  Name *name = push_token(sema, tok);
-  next();
+    Name *name = push_token(sema, tok);
+    next();
 
-  std::vector<Expr *> fields;
-  if (tok.kind == Tok::lparen) {
-    expect(Tok::lparen);
-    fields = parseCommaSeparatedList<Expr *>([this] { return parse_type_expr(); });
-    expect(Tok::rparen);
-  }
+    std::vector<Expr *> fields;
+    if (tok.kind == Tok::lparen) {
+        expect(Tok::lparen);
+        fields = parseCommaSeparatedList<Expr *>(
+            [this] { return parse_type_expr(); });
+        expect(Tok::rparen);
+    }
 
-  return sema.make_node_pos<EnumVariantDecl>(pos, name, fields);
+    return sema.make_node_pos<EnumVariantDecl>(pos, name, fields);
 }
 
 // Doesn't account for the enclosing {}s.
 std::vector<EnumVariantDecl *> Parser::parseEnumVariantDeclList() {
-  std::vector<EnumVariantDecl *> list;
+    std::vector<EnumVariantDecl *> list;
 
-  while (!is_eos()) {
-    skip_newlines();
-    if (tok.kind != Tok::ident)
-      break;
+    while (!is_eos()) {
+        skip_newlines();
+        if (tok.kind != Tok::ident)
+            break;
 
-    auto elem = parseEnumVariant();
-    list.push_back(elem);
+        auto elem = parseEnumVariant();
+        list.push_back(elem);
 
-    expect(Tok::newline);
-    skip_newlines();
-  }
+        expect(Tok::newline);
+        skip_newlines();
+    }
 
-  return list;
+    return list;
 }
 
 EnumDecl *Parser::parseEnumDecl() {
-  auto pos = tok.pos;
+    auto pos = tok.pos;
 
-  expect(Tok::kw_enum);
+    expect(Tok::kw_enum);
 
-  if (tok.kind != Tok::ident)
-    error_expected("an identifier");
-  Name *name = push_token(sema, tok);
-  next();
+    if (tok.kind != Tok::ident)
+        error_expected("an identifier");
+    Name *name = push_token(sema, tok);
+    next();
 
-  if (!expect(Tok::lbrace))
-    skip_until_end_of_line();
-  auto fields = parseEnumVariantDeclList();
-  expect(Tok::rbrace, "unterminated enum declaration");
-  // TODO: recover
+    if (!expect(Tok::lbrace))
+        skip_until_end_of_line();
+    auto fields = parseEnumVariantDeclList();
+    expect(Tok::rbrace, "unterminated enum declaration");
+    // TODO: recover
 
-  return sema.make_node_pos<EnumDecl>(pos, name, fields);
+    return sema.make_node_pos<EnumDecl>(pos, name, fields);
 }
 
 ExternDecl *Parser::parseExternDecl() {
-  auto pos = tok.pos;
-  expect(Tok::kw_extern);
-  auto func = parseFuncHeader();
-  return sema.make_node_pos<ExternDecl>(pos, func);
+    auto pos = tok.pos;
+    expect(Tok::kw_extern);
+    auto func = parseFuncHeader();
+    return sema.make_node_pos<ExternDecl>(pos, func);
 }
 
 bool Parser::isStartOfDecl() {
-  switch (tok.kind) {
-  case Tok::kw_let:
-  case Tok::kw_struct:
-  case Tok::kw_func:
-    return true;
-  case Tok::kw_var: {
-    // For var, there can be exceptions such as 'var &a'. We need to do some
-    // lookahead here.
-    auto s = save_state();
-    next();
-    if (tok.kind == Tok::ampersand) {
-      restore_state(s);
-      return false;
+    switch (tok.kind) {
+    case Tok::kw_let:
+    case Tok::kw_struct:
+    case Tok::kw_func:
+        return true;
+    case Tok::kw_var: {
+        // For var, there can be exceptions such as 'var &a'. We need to do some
+        // lookahead here.
+        auto s = save_state();
+        next();
+        if (tok.kind == Tok::ampersand) {
+            restore_state(s);
+            return false;
+        }
+        restore_state(s);
+        return true;
     }
-    restore_state(s);
-    return true;
-  }
-  default:
-    return false;
-  }
+    default:
+        return false;
+    }
 }
 
 // Parse a declaration.
 // Remember to modify isStartOfDecl() accordingly.
 Decl *Parser::parseDecl() {
-  assert(isStartOfDecl());
+    assert(isStartOfDecl());
 
-  switch (tok.kind) {
-  case Tok::kw_let: {
-    next();
-    auto v = parseVarDecl(VarDeclKind::local);
-    return v;
-  }
-  case Tok::kw_var: {
-    next();
-    auto v = parseVarDecl(VarDeclKind::local);
-    v->mut = true;
-    return v;
-  }
-  case Tok::kw_struct: {
-    return parseStructDecl();
-  }
-  case Tok::kw_func:
-    return parseFuncDecl();
-  default: {
-    assert(false && "not a start of a declaration");
-  }
-  }
+    switch (tok.kind) {
+    case Tok::kw_let: {
+        next();
+        auto v = parseVarDecl(VarDeclKind::local);
+        return v;
+    }
+    case Tok::kw_var: {
+        next();
+        auto v = parseVarDecl(VarDeclKind::local);
+        v->mut = true;
+        return v;
+    }
+    case Tok::kw_struct: {
+        return parseStructDecl();
+    }
+    case Tok::kw_func:
+        return parseFuncDecl();
+    default: {
+        assert(false && "not a start of a declaration");
+    }
+    }
 }
 
 Expr *Parser::parse_literal_expr() {
-  Expr *expr = nullptr;
-  // TODO Literals other than integers?
-  switch (tok.kind) {
-  case Tok::number: {
-    std::string s{tok.start, static_cast<size_t>(tok.end - tok.start)};
-    int value = std::stoi(s);
-    expr = sema.make_node_range<IntegerLiteral>({tok.pos, tok.endPos()}, value);
-    break;
-  }
-  case Tok::string:
-      expr = sema.make_node_range<StringLiteral>(
-          {tok.pos, tok.endPos()},
-          std::string_view{tok.start, static_cast<size_t>(tok.end - tok.start)});
-      break;
-  default:
-    assert(false && "non-integer literals not implemented");
-  }
+    Expr *expr = nullptr;
+    // TODO Literals other than integers?
+    switch (tok.kind) {
+    case Tok::number: {
+        std::string s{tok.start, static_cast<size_t>(tok.end - tok.start)};
+        int value = std::stoi(s);
+        expr = sema.make_node_range<IntegerLiteral>({tok.pos, tok.endPos()},
+                                                    value);
+        break;
+    }
+    case Tok::string:
+        expr = sema.make_node_range<StringLiteral>(
+            {tok.pos, tok.endPos()},
+            std::string_view{tok.start,
+                             static_cast<size_t>(tok.end - tok.start)});
+        break;
+    default:
+        assert(false && "non-integer literals not implemented");
+    }
 
-  next();
+    next();
 
-  return expr;
+    return expr;
 }
 
 // Upon seeing an expression that starts with an identifier, we don't know
@@ -563,40 +572,41 @@ Expr *Parser::parse_func_call_or_decl_ref_expr() {
 }
 
 Expr *Parser::parse_cast_expr() {
-  auto pos = tok.pos;
+    auto pos = tok.pos;
 
-  expect(Tok::lbracket);
-  auto type_expr = parse_type_expr();
-  expect(Tok::rbracket);
+    expect(Tok::lbracket);
+    auto type_expr = parse_type_expr();
+    expect(Tok::rbracket);
 
-  expect(Tok::lparen);
-  auto target_expr = parse_expr();
-  expect(Tok::rparen);
+    expect(Tok::lparen);
+    auto target_expr = parse_expr();
+    expect(Tok::rparen);
 
-  return make_node_range<CastExpr>(pos, type_expr, target_expr);
+    return make_node_range<CastExpr>(pos, type_expr, target_expr);
 }
 
 // Get the Name handle that designates a reference type of a given referee type
 // name.  This function is used in the typeck phase to query already-declared
 // reference types from the type table. TODO: looks kinda like an unnecessary
 // step.
-Name *name_of_derived_type(NameTable &names, TypeKind kind, Name *referee_name) {
-  std::string prefix;
-  switch (kind) {
-  case TypeKind::var_ref:
-    prefix = "var &";
-    break;
-  case TypeKind::ref:
-    prefix = "&";
-    break;
-  case TypeKind::ptr:
-    prefix = "*";
-    break;
-  default:
-    assert(false && "unreachable");
-  }
-  prefix += referee_name->text;
-  return names.push(prefix.c_str());
+Name *name_of_derived_type(NameTable &names, TypeKind kind,
+                           Name *referee_name) {
+    std::string prefix;
+    switch (kind) {
+    case TypeKind::var_ref:
+        prefix = "var &";
+        break;
+    case TypeKind::ref:
+        prefix = "&";
+        break;
+    case TypeKind::ptr:
+        prefix = "*";
+        break;
+    default:
+        assert(false && "unreachable");
+    }
+    prefix += referee_name->text;
+    return names.push(prefix.c_str());
 }
 
 // Parse a type expression.
@@ -664,56 +674,57 @@ Expr *Parser::parse_type_expr() {
 }
 
 Expr *Parser::parse_unary_expr() {
-  auto pos = tok.pos;
+    auto pos = tok.pos;
 
-  switch (tok.kind) {
-  case Tok::number:
-  case Tok::string: {
-    return parse_literal_expr();
-  }
-  case Tok::ident: {
-    // All UnaryExprKinds with postfix operators should go here.
-    // TODO: Do proper op precedence parsing for right-hand-side unary
-    // operators, e.g. '.', '()' and '{...}'.
-    auto expr = parse_func_call_or_decl_ref_expr();
-    expr = parse_member_expr_maybe(expr);
-    if (lookahead_structdef()) expr = parse_structdef_maybe(expr);
-    return expr;
-  }
-  case Tok::lbracket: {
-    return parse_cast_expr();
-  }
-  case Tok::star: {
-    next();
-    auto expr = parse_unary_expr();
-    return make_node_range<UnaryExpr>(pos, UnaryExprKind::deref, expr);
-  }
-  case Tok::kw_var:
-  case Tok::ampersand: {
-    auto kind = UnaryExprKind::ref;
-    if (tok.kind == Tok::kw_var) {
-      expect(Tok::kw_var);
-      kind = UnaryExprKind::var_ref;
+    switch (tok.kind) {
+    case Tok::number:
+    case Tok::string: {
+        return parse_literal_expr();
     }
-    expect(Tok::ampersand);
-    auto expr = parse_unary_expr();
-    return make_node_range<UnaryExpr>(pos, kind, expr);
-  }
-  case Tok::lparen: {
-    expect(Tok::lparen);
-    auto inside_expr = parse_expr();
-    expect(Tok::rparen);
-    return make_node_range<ParenExpr>(pos, inside_expr);
-  }
-  // TODO: prefix (++), postfix, sign (+/-)
-  default: {
-    // Because all expressions start with a unary expression, failing here
-    // means no other expression could be matched either, so just do a
-    // really generic report.
-    error_expected("an expression");
-    return make_node_range<BadExpr>(pos);
-  }
-  }
+    case Tok::ident: {
+        // All UnaryExprKinds with postfix operators should go here.
+        // TODO: Do proper op precedence parsing for right-hand-side unary
+        // operators, e.g. '.', '()' and '{...}'.
+        auto expr = parse_func_call_or_decl_ref_expr();
+        expr = parse_member_expr_maybe(expr);
+        if (lookahead_structdef())
+            expr = parse_structdef_maybe(expr);
+        return expr;
+    }
+    case Tok::lbracket: {
+        return parse_cast_expr();
+    }
+    case Tok::star: {
+        next();
+        auto expr = parse_unary_expr();
+        return make_node_range<UnaryExpr>(pos, UnaryExprKind::deref, expr);
+    }
+    case Tok::kw_var:
+    case Tok::ampersand: {
+        auto kind = UnaryExprKind::ref;
+        if (tok.kind == Tok::kw_var) {
+            expect(Tok::kw_var);
+            kind = UnaryExprKind::var_ref;
+        }
+        expect(Tok::ampersand);
+        auto expr = parse_unary_expr();
+        return make_node_range<UnaryExpr>(pos, kind, expr);
+    }
+    case Tok::lparen: {
+        expect(Tok::lparen);
+        auto inside_expr = parse_expr();
+        expect(Tok::rparen);
+        return make_node_range<ParenExpr>(pos, inside_expr);
+    }
+    // TODO: prefix (++), postfix, sign (+/-)
+    default: {
+        // Because all expressions start with a unary expression, failing here
+        // means no other expression could be matched either, so just do a
+        // really generic report.
+        error_expected("an expression");
+        return make_node_range<BadExpr>(pos);
+    }
+    }
 }
 
 namespace {
@@ -744,90 +755,99 @@ int binary_op_precedence(const Token &op) {
 // keep parsing until no more valid binary operators are seen (which has
 // negative precedence values).
 Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence = 0) {
-  Expr *root = lhs;
+    Expr *root = lhs;
 
-  while (!is_eos()) {
-    int this_prec = binary_op_precedence(tok);
+    while (!is_eos()) {
+        int this_prec = binary_op_precedence(tok);
 
-    // If the upcoming op has lower precedence, finish this subexpression.  It
-    // will be treated as a single term when this function is re-called with
-    // lower precedence.
-    if (this_prec < precedence) return root;
+        // If the upcoming op has lower precedence, finish this subexpression.
+        // It will be treated as a single term when this function is re-called
+        // with lower precedence.
+        if (this_prec < precedence)
+            return root;
 
-    Token op = tok;
-    next();
+        Token op = tok;
+        next();
 
-    // Parse the second term.
-    Expr *rhs = parse_unary_expr();
+        // Parse the second term.
+        Expr *rhs = parse_unary_expr();
 
-    // We do not know if this term should associate to left or right; e.g.
-    // "(a * b) + c" or "a + (b * c)".  We should look ahead for the next
-    // operator that follows this term.
-    int next_prec = binary_op_precedence(tok);
+        // We do not know if this term should associate to left or right; e.g.
+        // "(a * b) + c" or "a + (b * c)".  We should look ahead for the next
+        // operator that follows this term.
+        int next_prec = binary_op_precedence(tok);
 
-    // If the next operator has higher precedence ("a + b * c"), parse the RHS
-    // as a single subexpression with elevated minimum precedence. Else ("a * b
-    // + c"), just treat it as a unary expression.
-    if (this_prec < next_prec) rhs = parse_binary_expr_rhs(rhs, precedence + 1);
+        // If the next operator has higher precedence ("a + b * c"), parse the
+        // RHS as a single subexpression with elevated minimum precedence. Else
+        // ("a * b
+        // + c"), just treat it as a unary expression.
+        if (this_prec < next_prec)
+            rhs = parse_binary_expr_rhs(rhs, precedence + 1);
 
-    // Create a new root with the old root as its LHS, and the recursion result
-    // as RHS.  This implements left associativity.
-    root = sema.make_node<BinaryExpr>(root, op, rhs);
-  }
+        // Create a new root with the old root as its LHS, and the recursion
+        // result as RHS.  This implements left associativity.
+        root = sema.make_node<BinaryExpr>(root, op, rhs);
+    }
 
-  return root;
+    return root;
 }
 
 // If this expression is a member expression with a dot (.) operator, parse as
 // such. If not, just pass along the original expression. This function is
 // called after the operand expression part is fully parsed.
 Expr *Parser::parse_member_expr_maybe(Expr *expr) {
-  Expr *result = expr;
+    Expr *result = expr;
 
-  while (tok.kind == Tok::dot) {
-    expect(Tok::dot);
+    while (tok.kind == Tok::dot) {
+        expect(Tok::dot);
 
-    Name *member_name = push_token(sema, tok);
-    next();
+        Name *member_name = push_token(sema, tok);
+        next();
 
-    result = make_node_range<MemberExpr>(result->pos, result, member_name);
-  }
+        result = make_node_range<MemberExpr>(result->pos, result, member_name);
+    }
 
-  return result;
+    return result;
 }
 
 bool Parser::lookahead_structdef() {
-  auto s = save_state();
+    auto s = save_state();
 
-  if (tok.kind != Tok::lbrace) goto fail;
+    if (tok.kind != Tok::lbrace)
+        goto fail;
 
-  // empty ({})
-  if (tok.kind == Tok::rbrace) goto success;
-  next();
+    // empty ({})
+    if (tok.kind == Tok::rbrace)
+        goto success;
+    next();
 
-  if (tok.kind != Tok::dot) goto fail;
+    if (tok.kind != Tok::dot)
+        goto fail;
 
 success:
-  restore_state(s);
-  return true;
+    restore_state(s);
+    return true;
 
 fail:
-  restore_state(s);
-  return false;
+    restore_state(s);
+    return false;
 }
 
 // Parse '.memb = expr' part in Struct { .m1 = e1, .m2 = e2, ... }.
 std::optional<StructFieldDesignator> Parser::parse_structdef_field() {
-  if (!expect(Tok::dot)) return {};
-  Name *name = push_token(sema, tok);
-  next();
+    if (!expect(Tok::dot))
+        return {};
+    Name *name = push_token(sema, tok);
+    next();
 
-  if (!expect(Tok::equals)) return {};
+    if (!expect(Tok::equals))
+        return {};
 
-  auto expr = parse_expr();
-  if (!expr) return {};
+    auto expr = parse_expr();
+    if (!expr)
+        return {};
 
-  return StructFieldDesignator{name, nullptr, expr};
+    return StructFieldDesignator{name, nullptr, expr};
 }
 
 // If this expression has a trailing {...}, parse as a struct definition
@@ -853,10 +873,11 @@ Expr *Parser::parse_structdef_maybe(Expr *expr) {
 }
 
 Expr *Parser::parse_expr() {
-  auto unary = parse_unary_expr();
-  if (!unary) return nullptr;
-  auto binary = parse_binary_expr_rhs(unary);
-  return parse_member_expr_maybe(binary);
+    auto unary = parse_unary_expr();
+    if (!unary)
+        return nullptr;
+    auto binary = parse_binary_expr_rhs(unary);
+    return parse_member_expr_maybe(binary);
 }
 
 void Parser::skip_until(Tok kind) {
@@ -890,37 +911,38 @@ void Parser::skip_newlines() {
 }
 
 AstNode *Parser::parse_toplevel() {
-  switch (tok.kind) {
-  case Tok::kw_func:
-    return parseFuncDecl();
-  case Tok::kw_struct:
-    return parseStructDecl();
-  case Tok::kw_enum:
-    return parseEnumDecl();
-  case Tok::kw_extern:
-    return parseExternDecl();
-  default:
-      error(fmt::format(
-          "unexpected '{}' at toplevel",
-          std::string{tok.start, static_cast<size_t>(tok.end - tok.start)}));
-      skip_to_next_line();
-      return nullptr;
-  }
+    switch (tok.kind) {
+    case Tok::kw_func:
+        return parseFuncDecl();
+    case Tok::kw_struct:
+        return parseStructDecl();
+    case Tok::kw_enum:
+        return parseEnumDecl();
+    case Tok::kw_extern:
+        return parseExternDecl();
+    default:
+        error(fmt::format(
+            "unexpected '{}' at toplevel",
+            std::string{tok.start, static_cast<size_t>(tok.end - tok.start)}));
+        skip_to_next_line();
+        return nullptr;
+    }
 }
 
 File *Parser::parseFile() {
-  auto file = sema.make_node<File>();
+    auto file = sema.make_node<File>();
 
-  skip_newlines();
-
-  while (!is_eos()) {
-    auto toplevel = parse_toplevel();
-    if (!toplevel) continue;
-    file->toplevels.push_back(toplevel);
     skip_newlines();
-  }
 
-  return file;
+    while (!is_eos()) {
+        auto toplevel = parse_toplevel();
+        if (!toplevel)
+            continue;
+        file->toplevels.push_back(toplevel);
+        skip_newlines();
+    }
+
+    return file;
 }
 
 Ast Parser::parse() {
