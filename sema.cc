@@ -75,137 +75,142 @@ void cmp::setup_builtin_types(Sema &s) {
 }
 
 Sema::~Sema() {
-  for (auto t : type_pool) {
-    delete t;
-  }
-  for (auto lt : lifetime_pool) {
-    delete lt;
-  }
-  for (auto b : basic_block_pool) {
-    delete b;
-  }
+    for (auto t : type_pool) {
+        delete t;
+    }
+    for (auto lt : lifetime_pool) {
+        delete lt;
+    }
+    for (auto b : basic_block_pool) {
+        delete b;
+    }
 }
 
 void Sema::scope_open() {
-  decl_table.scope_open();
-  type_table.scope_open();
-  lifetime_table.scope_open();
-  borrow_table.scope_open();
+    decl_table.scope_open();
+    type_table.scope_open();
+    lifetime_table.scope_open();
+    borrow_table.scope_open();
 }
 
 void Sema::scope_close() {
-  decl_table.scope_close();
-  type_table.scope_close();
-  lifetime_table.scope_close();
-  borrow_table.scope_close();
+    decl_table.scope_close();
+    type_table.scope_close();
+    lifetime_table.scope_close();
+    borrow_table.scope_close();
 }
 
 void NameBinding::visitCompoundStmt(CompoundStmt *cs) {
-  sema.scope_open();
-  walk_compound_stmt(*this, cs);
-  sema.scope_close();
+    sema.scope_open();
+    walk_compound_stmt(*this, cs);
+    sema.scope_close();
 }
 
 void NameBinding::visitDeclRefExpr(DeclRefExpr *d) {
-  auto sym = sema.decl_table.find(d->name);
-  if (!sym) {
-    sema.error(d->pos, "use of undeclared identifier '{}'", d->name->text);
-    return;
-  }
-  d->decl = sym->value;
+    auto sym = sema.decl_table.find(d->name);
+    if (!sym) {
+        sema.error(d->pos, "use of undeclared identifier '{}'", d->name->text);
+        return;
+    }
+    d->decl = sym->value;
 }
 
 void NameBinding::visitCallExpr(CallExpr *f) {
-  auto sym = sema.decl_table.find(f->func_name);
-  if (!sym) {
-    sema.error(f->pos, "undeclared function '{}'", f->func_name->text);
-    return;
-  }
+    auto sym = sema.decl_table.find(f->func_name);
+    if (!sym) {
+        sema.error(f->pos, "undeclared function '{}'", f->func_name->text);
+        return;
+    }
 
-  if (!sym->value->is<FuncDecl>()) {
-    sema.error(f->pos, "'{}' is not a function", f->func_name->text);
-    return;
-  }
+    if (!sym->value->is<FuncDecl>()) {
+        sema.error(f->pos, "'{}' is not a function", f->func_name->text);
+        return;
+    }
 
-  f->callee_decl = sym->value; // FIXME
-  assert(f->callee_decl);
+    f->callee_decl = sym->value; // FIXME
+    assert(f->callee_decl);
 
-  walk_func_call_expr(*this, f);
+    walk_func_call_expr(*this, f);
 
-  // argument count match check
-  if (f->kind == CallExprKind::func &&
-      f->callee_decl->as<FuncDecl>()->args_count() != f->args.size()) {
-    sema.error(f->pos, "'{}' accepts {} arguments, got {}", f->func_name->text,
-               f->callee_decl->as<FuncDecl>()->args_count(), f->args.size());
-    return;
-  }
+    // argument count match check
+    if (f->kind == CallExprKind::func &&
+        f->callee_decl->as<FuncDecl>()->args_count() != f->args.size()) {
+        sema.error(
+            f->pos, "'{}' accepts {} arguments, got {}", f->func_name->text,
+            f->callee_decl->as<FuncDecl>()->args_count(), f->args.size());
+        return;
+    }
 }
 
 void NameBinding::visitTypeExpr(TypeExpr *t) {
-  walk_type_expr(*this, t);
+    walk_type_expr(*this, t);
 
-  // Namebinding for TypeExprs only include linking existing Decls to the
-  // type names used in the expression, not declaring new ones.  The
-  // declaration would be done when visiting VarDecls and StructDecls, etc.
+    // Namebinding for TypeExprs only include linking existing Decls to the
+    // type names used in the expression, not declaring new ones.  The
+    // declaration would be done when visiting VarDecls and StructDecls, etc.
 
-  // For pointers and arrays, proper typechecking will be done in the later
-  // stages.
-  if (t->subexpr) return;
+    // For pointers and arrays, proper typechecking will be done in the later
+    // stages.
+    if (t->subexpr)
+        return;
 
-  auto sym = sema.decl_table.find(t->name);
-  if (sym && sym->value->typemaybe()) {
-    assert(t->kind == TypeKind::value);
-    t->decl = sym->value;
-  } else {
-    sema.error(t->pos, "use of undeclared type '{}'", t->name->text);
-    return;
-  }
+    auto sym = sema.decl_table.find(t->name);
+    if (sym && sym->value->typemaybe()) {
+        assert(t->kind == TypeKind::value);
+        t->decl = sym->value;
+    } else {
+        sema.error(t->pos, "use of undeclared type '{}'", t->name->text);
+        return;
+    }
 }
 
 // Semantically declare a 'name' at 'pos', whose Decl type is T.
 // Returns true if success and otherwise does error handling.
 template <typename T>
 bool declare(Sema &sema, size_t pos, Name *name, T *decl) {
-  auto found = sema.decl_table.find(name);
-  if (found && found->value->is<T>() &&
-      found->scope_level == sema.decl_table.curr_scope_level) {
-    sema.error(pos, "redefinition of '{}'", name->text);
-    return false;
-  }
+    auto found = sema.decl_table.find(name);
+    if (found && found->value->is<T>() &&
+        found->scope_level == sema.decl_table.curr_scope_level) {
+        sema.error(pos, "redefinition of '{}'", name->text);
+        return false;
+    }
 
-  // Creates the binding between the decl and the name.
-  sema.decl_table.insert(name, decl);
+    // Creates the binding between the decl and the name.
+    sema.decl_table.insert(name, decl);
 
-  return true;
+    return true;
 }
 
 void NameBinding::visitVarDecl(VarDecl *v) {
-  walk_var_decl(*this, v);
+    walk_var_decl(*this, v);
 
-  if (!declare<VarDecl>(sema, v->pos, v->name, v)) return;
+    if (!declare<VarDecl>(sema, v->pos, v->name, v))
+        return;
 }
 
 void NameBinding::visitFuncDecl(FuncDecl *f) {
-  if (!declare<FuncDecl>(sema, f->pos, f->name, f)) return;
+    if (!declare<FuncDecl>(sema, f->pos, f->name, f))
+        return;
 
-  // scope for argument variables
-  sema.decl_table.scope_open();
-  sema.context.func_decl_stack.push_back(f);
+    // scope for argument variables
+    sema.decl_table.scope_open();
+    sema.context.func_decl_stack.push_back(f);
 
-  walk_func_decl(*this, f);
+    walk_func_decl(*this, f);
 
-  sema.context.func_decl_stack.pop_back();
-  sema.decl_table.scope_close();
+    sema.context.func_decl_stack.pop_back();
+    sema.decl_table.scope_close();
 }
 
 void NameBinding::visitStructDecl(StructDecl *s) {
-  if (!declare<StructDecl>(sema, s->pos, s->name, s)) return;
+    if (!declare<StructDecl>(sema, s->pos, s->name, s))
+        return;
 
-  // Decl table is used for checking redefinition when parsing the member
-  // list.
-  sema.decl_table.scope_open();
-  walk_struct_decl(*this, s);
-  sema.decl_table.scope_close();
+    // Decl table is used for checking redefinition when parsing the member
+    // list.
+    sema.decl_table.scope_open();
+    walk_struct_decl(*this, s);
+    sema.decl_table.scope_close();
 }
 
 #if 0
@@ -272,9 +277,7 @@ static bool getdecl(const Expr *e, Decl **decl) {
     return contains;
 }
 
-static bool hasdecl(const Expr *e) {
-    return getdecl(e, NULL);
-}
+static bool hasdecl(const Expr *e) { return getdecl(e, NULL); }
 
 static bool islvalue(const Expr *e) {
     Decl *d;
@@ -292,9 +295,9 @@ static VarDecl *lvaluedecl(const Expr *e) {
 }
 
 void NameBinding::visitEnumVariantDecl(EnumVariantDecl *v) {
-  walk_enum_variant_decl(*this, v);
+    walk_enum_variant_decl(*this, v);
 
-  // assert(false && "FIXME");
+    // assert(false && "FIXME");
 #if 0
   // first, declare a struct of this name
   if (!declare<StructDecl>(sema, v->pos, v->name, nullptr)) return;
@@ -324,39 +327,40 @@ void NameBinding::visitEnumVariantDecl(EnumVariantDecl *v) {
 }
 
 void NameBinding::visitEnumDecl(EnumDecl *e) {
-  if (!declare<EnumDecl>(sema, e->pos, e->name, e)) return;
+    if (!declare<EnumDecl>(sema, e->pos, e->name, e))
+        return;
 
-  sema.decl_table.scope_open();
-  sema.context.enum_decl_stack.push_back(e);
+    sema.decl_table.scope_open();
+    sema.context.enum_decl_stack.push_back(e);
 
-  walk_enum_decl(*this, e);
+    walk_enum_decl(*this, e);
 
-  sema.context.enum_decl_stack.pop_back();
-  sema.decl_table.scope_close();
+    sema.context.enum_decl_stack.pop_back();
+    sema.decl_table.scope_close();
 }
 
 // Mutability check for assignment statements.
 static bool mutcheck_assign(Sema &sema, const Expr *lhs) {
-  if (lhs->kind == ExprKind::member) {
-    // For MemberExprs, assignability depends on that of its struct side.
-    return mutcheck_assign(sema, lhs->as<MemberExpr>()->struct_expr);
-  } else if (isderefexpr(lhs)) {
-    auto unary = lhs->as<UnaryExpr>();
-    if (unary->operand->type->kind != TypeKind::var_ref) {
-      sema.error(unary->pos, "'{}' is not a mutable reference",
-                 lvaluedecl(unary->operand)->name->text);
-      return false;
+    if (lhs->kind == ExprKind::member) {
+        // For MemberExprs, assignability depends on that of its struct side.
+        return mutcheck_assign(sema, lhs->as<MemberExpr>()->struct_expr);
+    } else if (isderefexpr(lhs)) {
+        auto unary = lhs->as<UnaryExpr>();
+        if (unary->operand->type->kind != TypeKind::var_ref) {
+            sema.error(unary->pos, "'{}' is not a mutable reference",
+                       lvaluedecl(unary->operand)->name->text);
+            return false;
+        }
+    } else {
+        auto var_decl = lvaluedecl(lhs);
+        if (var_decl && !var_decl->mut) {
+            sema.error(lhs->pos, "'{}' is not declared as mutable",
+                       var_decl->name->text);
+            return false;
+        }
     }
-  } else {
-    auto var_decl = lvaluedecl(lhs);
-    if (var_decl && !var_decl->mut) {
-      sema.error(lhs->pos, "'{}' is not declared as mutable",
-                 var_decl->name->text);
-      return false;
-    }
-  }
 
-  return true;
+    return true;
 }
 
 // Returns true if this type is a reference type.
@@ -398,7 +402,8 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
     auto rhs_ty = as->rhs->type;
 
     // XXX: is this the best way to early-exit?
-    if (!lhs_ty || !rhs_ty) return nullptr;
+    if (!lhs_ty || !rhs_ty)
+        return nullptr;
 
     // Lvalue check.
     if (!islvalue(as->lhs)) {
@@ -419,7 +424,8 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
     // assignment is likely to signify a larger error in the source code than a
     // mutability error (which can mostly be fixed with a single keyword
     // change).
-    if (!mutcheck_assign(sema, as->lhs)) return nullptr;
+    if (!mutcheck_assign(sema, as->lhs))
+        return nullptr;
 
     // Copyability check.
     //
@@ -441,7 +447,8 @@ Type *TypeChecker::visitAssignStmt(AssignStmt *as) {
 
 Type *TypeChecker::visitReturnStmt(ReturnStmt *rs) {
     visitExpr(rs->expr);
-    if (!rs->expr->type) return nullptr;
+    if (!rs->expr->type)
+        return nullptr;
 
     assert(!sema.context.func_decl_stack.empty());
     auto func_decl = sema.context.func_decl_stack.back();
@@ -454,8 +461,7 @@ Type *TypeChecker::visitReturnStmt(ReturnStmt *rs) {
     if (!typecheck_assign(func_decl->rettype, rs->expr->type)) {
         sema.error(rs->expr->pos,
                    "return type mismatch: function returns '{}', but got '{}'",
-                   func_decl->rettype->name->text,
-                   rs->expr->type->name->text);
+                   func_decl->rettype->name->text, rs->expr->type->name->text);
         return nullptr;
     }
 
@@ -498,7 +504,8 @@ Type *TypeChecker::visitCallExpr(CallExpr *f) {
 
         // check argument type match
         for (size_t i = 0; i < callee_func_decl->args.size(); i++) {
-            if (!f->args[i]->type) return nullptr;
+            if (!f->args[i]->type)
+                return nullptr;
 
             // TODO: proper type comparison
             if (f->args[i]->type != callee_func_decl->args[i]->type) {
@@ -550,7 +557,8 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
 
     // check Name is a struct
     Type *ty = s->name_expr->type;
-    if (!ty) return nullptr;
+    if (!ty)
+        return nullptr;
     if (!isstructtype(ty)) {
         sema.error(s->name_expr->pos, "type '{}' is not a struct",
                    ty->name->text);
@@ -558,7 +566,8 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
     }
 
     for (StructFieldDesignator desig : s->desigs) {
-        if (!desig.initexpr->type) return nullptr;
+        if (!desig.initexpr->type)
+            return nullptr;
 
         VarDecl *fd;
         if (!(fd = findfield(desig.name, ty))) {
@@ -570,8 +579,7 @@ Type *TypeChecker::visitStructDefExpr(StructDefExpr *s) {
 
         if (!typecheck_assign(fd->type, desig.initexpr->type)) {
             sema.error(desig.initexpr->pos, "cannot assign '{}' type to '{}'",
-                       desig.initexpr->type->name->text,
-                       fd->type->name->text);
+                       desig.initexpr->type->name->text, fd->type->name->text);
             return nullptr;
         }
     }
@@ -603,7 +611,8 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
     walk_member_expr(*this, m);
 
     // if the struct side failed to typecheck, we cannot proceed
-    if (!m->struct_expr->type) return nullptr;
+    if (!m->struct_expr->type)
+        return nullptr;
 
     Type *lhs_ty = m->struct_expr->type;
     if (!isstructtype(lhs_ty)) {
@@ -782,7 +791,8 @@ Type *TypeChecker::visitParenExpr(ParenExpr *p) {
 Type *TypeChecker::visitBinaryExpr(BinaryExpr *b) {
     walk_binary_expr(*this, b);
 
-    if (!b->lhs->type || !b->rhs->type) return nullptr;
+    if (!b->lhs->type || !b->rhs->type)
+        return nullptr;
 
     if (b->lhs->type != b->rhs->type) {
         sema.error(b->pos,
@@ -856,13 +866,15 @@ Type *TypeChecker::visitFuncDecl(FuncDecl *f) {
     // We need to do return type typecheck before walking the body, so we can't
     // use walk_func_decl() here.
 
-    if (f->rettypeexpr) visitExpr(f->rettypeexpr);
+    if (f->rettypeexpr)
+        visitExpr(f->rettypeexpr);
     for (auto arg : f->args)
         visitDecl(arg);
 
     if (f->rettypeexpr) {
         // XXX: confusing flow
-        if (!f->rettypeexpr->type) return nullptr;
+        if (!f->rettypeexpr->type)
+            return nullptr;
         f->rettype = f->rettypeexpr->type;
     } else {
         f->rettype = sema.context.void_type;
@@ -889,7 +901,8 @@ Type *TypeChecker::visitStructDecl(StructDecl *s) {
         // Containing one or more non-copyable field makes the whole struct a
         // non-copyable type. For instance, a struct that contains a mutable
         // reference as one of its field will be disallowed to be copy-assigned.
-        if (field->type && !field->type->copyable) s->type->copyable = false;
+        if (field->type && !field->type->copyable)
+            s->type->copyable = false;
     }
 
     return s->type;
@@ -997,9 +1010,11 @@ static void returncheck_solve(const std::vector<BasicBlock *> &walklist) {
 }
 
 BasicBlock *ReturnChecker::visitFuncDecl(FuncDecl *f, BasicBlock *bb) {
-    if (!f->rettypeexpr) return nullptr;
+    if (!f->rettypeexpr)
+        return nullptr;
     // For body-less function declarations (e.g. extern).
-    if (!f->body) return nullptr;
+    if (!f->body)
+        return nullptr;
 
     auto entrypoint = sema.makeBasicBlock();
     auto exitpoint = visitCompoundStmt(f->body, entrypoint);
@@ -1029,7 +1044,8 @@ bool BasicBlock::returns() const {
 }
 
 void BasicBlock::enumerate_postorder(std::vector<BasicBlock *> &walklist) {
-    if (walked) return;
+    if (walked)
+        return;
 
     for (auto s : succ) {
         s->enumerate_postorder(walklist);
@@ -1134,7 +1150,8 @@ void register_borrow_count(Sema &sema, const VarDecl *borrowee, bool mut,
 // Note that this is not about the lifetime of the reference variable *itself*,
 // but about its *referree*.
 Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
-    if (!isreftype(ref_expr->type)) return nullptr;
+    if (!isreftype(ref_expr->type))
+        return nullptr;
 
     if (islvalue(ref_expr)) {
         // Lvalue reference variable, e.g. 'ptr: &int'.
@@ -1167,7 +1184,8 @@ Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
         // borrowcheck of the function body.
         std::vector<std::pair<Name * /*annotations*/, Lifetime *>> map;
         for (size_t i = 0; i < func_decl->args.size(); i++) {
-            if (!isreftype(func_decl->args[i]->type)) continue;
+            if (!isreftype(func_decl->args[i]->type))
+                continue;
 
             assert(func_decl->args[i]->borrowee_lifetime->lifetime_annot);
             // NOTE that it's `borrowee_lifetime`, *not* `lifetime`!
@@ -1204,7 +1222,8 @@ Lifetime *lifetime_of_reference(Sema &sema, Expr *ref_expr) {
 
 void borrowcheck_assign(Sema &sema, VarDecl *v, Expr *rhs, bool move) {
     // We don't want to mess with built-in types.
-    if (rhs->type->is_builtin(sema)) return;
+    if (rhs->type->is_builtin(sema))
+        return;
 
     // Pattern-match-like recursion case.
     // This works because we guarantee that every lvalue has a VarDecl.
@@ -1373,7 +1392,8 @@ void BorrowChecker::visitExpr(Expr *e) {
 // lifetime is larger than 'a.
 // In other words, at the point of use, the borrowee should be alive.
 void BorrowChecker::visitDeclRefExpr(DeclRefExpr *d) {
-    if (!d->decl->is<VarDecl>()) return;
+    if (!d->decl->is<VarDecl>())
+        return;
     auto var = d->decl->as<VarDecl>();
 
     // at each use of a reference variable, check if its borrowee is alive
@@ -1572,14 +1592,12 @@ void BorrowChecker::visitFuncDecl(FuncDecl *f) {
             }
         }
         if (!seen) {
-            sema.error(f->rettypeexpr->pos,
-                       "unknown lifetime annotation '{}'",
+            sema.error(f->rettypeexpr->pos, "unknown lifetime annotation '{}'",
                        f->rettypeexpr->as<TypeExpr>()->lifetime_annot->text);
             return;
         }
 
-        f->ret_lifetime_annot =
-            f->rettypeexpr->as<TypeExpr>()->lifetime_annot;
+        f->ret_lifetime_annot = f->rettypeexpr->as<TypeExpr>()->lifetime_annot;
     }
 
     // This is used for local variable detection.
@@ -1617,7 +1635,8 @@ void CodeGenerator::visitCallExpr(CallExpr *f) {
 
     for (size_t i = 0; i < f->args.size(); i++) {
         visitExpr(f->args[i]);
-        if (i != f->args.size() - 1) emit(", ");
+        if (i != f->args.size() - 1)
+            emit(", ");
     }
 
     emit(")");
@@ -1760,8 +1779,7 @@ void CodeGenerator::visitVarDecl(VarDecl *v) {
     if (v->kind == VarDeclKind::param) {
         emit_indent("{} {}", c_stringify_type(sema, v->type), v->name->text);
     } else {
-        emit_indent("{} {};\n", c_stringify_type(sema, v->type),
-                    v->name->text);
+        emit_indent("{} {};\n", c_stringify_type(sema, v->type), v->name->text);
 
         if (v->assign_expr) {
             emit_indent("{} = ", v->name->text);
