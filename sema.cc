@@ -14,10 +14,11 @@
 using namespace cmp;
 
 template <typename... Args> void Sema::error(size_t pos, Args &&...args) {
-    auto str = fmt::format(std::forward<Args>(args)...);
-    Error e{source.locate(pos), str};
-    errors.push_back(e);
-    fmt::print("{}\n", e.str());
+    auto message = fmt::format(std::forward<Args>(args)...);
+    auto loc = source.locate(pos);
+    fmt::print(stderr, "{}:{}:{}: error: {}", loc.filename, loc.line, loc.col,
+               message);
+    exit(EXIT_FAILURE);
 }
 
 Type::Type(Name *n, TypeKind k, Type *rt) : kind(k), name(n), referee_type(rt) {

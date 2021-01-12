@@ -1,6 +1,6 @@
 #include "error.h"
-#include <algorithm>
 #include "fmt/format.h"
+#include <algorithm>
 
 namespace cmp {
 
@@ -11,59 +11,59 @@ std::string Error::str() const {
 // Verify errors against the error beacons embedded in the source text.
 bool verify(const std::string &filename, std::vector<Error> &errors,
             const std::vector<Error> &beacons) {
-  bool success = true;
-  // fmt::print("\033[0;32mtest\033[0m {}:\n", filename);
+    bool success = true;
+    // fmt::print("\033[0;32mtest\033[0m {}:\n", filename);
 
-  // FIXME: Make sure the errors are shorted in ascending order in terms of
-  // line numbers.
-  std::sort(errors.begin(), errors.end(), [](const auto &e1, const auto &e2) {
-    return e1.loc.line < e2.loc.line ||
-           (e1.loc.line == e2.loc.line && e1.loc.col < e2.loc.col);
-  });
+    // FIXME: Make sure the errors are shorted in ascending order in terms of
+    // line numbers.
+    std::sort(errors.begin(), errors.end(), [](const auto &e1, const auto &e2) {
+        return e1.loc.line < e2.loc.line ||
+               (e1.loc.line == e2.loc.line && e1.loc.col < e2.loc.col);
+    });
 
-  auto error_prefix = "got: ";
-  auto beacon_prefix = "expected: ";
+    auto error_prefix = "got: ";
+    auto beacon_prefix = "expected: ";
 
-  size_t i = 0, j = 0;
-  while (i < errors.size() && j < beacons.size()) {
-    auto error = errors[i];
-    auto beacon = beacons[j];
-    if (error.loc.line == beacon.loc.line) {
-      std::regex regex{beacon.message};
-      if (!std::regex_search(error.message, regex)) {
-        success = false;
-        printf("%s%s\n", error_prefix, error.str().c_str());
-        printf("%s%s\n", beacon_prefix, beacon.str().c_str());
-      }
-      i++;
-      j++;
-    } else if (error.loc.line < beacon.loc.line) {
-      success = false;
-      printf("%s%s\n", error_prefix, error.str().c_str());
-      i++;
-    } else {
-      success = false;
-      printf("%s%s\n", beacon_prefix, beacon.str().c_str());
-      j++;
+    size_t i = 0, j = 0;
+    while (i < errors.size() && j < beacons.size()) {
+        auto error = errors[i];
+        auto beacon = beacons[j];
+        if (error.loc.line == beacon.loc.line) {
+            std::regex regex{beacon.message};
+            if (!std::regex_search(error.message, regex)) {
+                success = false;
+                printf("%s%s\n", error_prefix, error.str().c_str());
+                printf("%s%s\n", beacon_prefix, beacon.str().c_str());
+            }
+            i++;
+            j++;
+        } else if (error.loc.line < beacon.loc.line) {
+            success = false;
+            printf("%s%s\n", error_prefix, error.str().c_str());
+            i++;
+        } else {
+            success = false;
+            printf("%s%s\n", beacon_prefix, beacon.str().c_str());
+            j++;
+        }
     }
-  }
-  for (; i < errors.size(); i++) {
-    success = false;
-    printf("%s%s\n", error_prefix, errors[i].str().c_str());
-  }
-  for (; j < beacons.size(); j++) {
-    success = false;
-    printf("%s%s\n", beacon_prefix, beacons[j].str().c_str());
-  }
+    for (; i < errors.size(); i++) {
+        success = false;
+        printf("%s%s\n", error_prefix, errors[i].str().c_str());
+    }
+    for (; j < beacons.size(); j++) {
+        success = false;
+        printf("%s%s\n", beacon_prefix, beacons[j].str().c_str());
+    }
 
-  // fmt::print("{} {}\n",
-  //            success ? "\033[0;32msuccess\033[0m" : "\033[0;31mfail\033[0m",
-  //            filename);
-  if (!success) {
-    printf("%s %s\n", "\033[0;31mfail\033[0m", filename.c_str());
-  }
+    // fmt::print("{} {}\n",
+    //            success ? "\033[0;32msuccess\033[0m" :
+    //            "\033[0;31mfail\033[0m", filename);
+    if (!success) {
+        printf("%s %s\n", "\033[0;31mfail\033[0m", filename.c_str());
+    }
 
-  return success;
+    return success;
 }
 
 } // namespace cmp
