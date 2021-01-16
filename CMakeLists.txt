@@ -4,8 +4,6 @@ project (compiler-base LANGUAGES CXX)
 
 add_executable (cmp main.cc driver.cc sema.cc parser.cc ast.cc lexer.cc source.cc
   format.cc)
-add_executable (cmp-check test_main.cc test.cc driver.cc sema.cc parser.cc ast.cc lexer.cc source.cc
-  format.cc)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "DEBUG")
@@ -50,12 +48,5 @@ endif()
 target_compile_features(cmp PUBLIC cxx_std_17)
 target_compile_options(cmp PRIVATE ${MY_COMPILE_FLAGS})
 target_link_options(cmp PRIVATE ${MY_LINK_FLAGS})
-
-target_compile_features(cmp-check PUBLIC cxx_std_17)
-target_compile_options(cmp-check PRIVATE ${MY_COMPILE_FLAGS})
-target_compile_definitions(cmp-check PRIVATE CATCH_CONFIG_COLOUR_ANSI)
-target_link_options(cmp-check PRIVATE ${MY_LINK_FLAGS})
-
-add_custom_target(check COMMAND ./cmp-check --use-colour yes DEPENDS cmp-check)
 
 set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
