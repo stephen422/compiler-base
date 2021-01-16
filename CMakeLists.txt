@@ -2,9 +2,9 @@ cmake_minimum_required (VERSION 3.8)
 
 project (compiler-base LANGUAGES CXX)
 
-add_executable (cmp main.cc driver.cc sema.cc parser.cc ast.cc lexer.cc error.cc source.cc
+add_executable (cmp main.cc driver.cc sema.cc parser.cc ast.cc lexer.cc source.cc
   format.cc)
-add_executable (cmp-check test_main.cc test.cc driver.cc sema.cc parser.cc ast.cc lexer.cc error.cc source.cc
+add_executable (cmp-check test_main.cc test.cc driver.cc sema.cc parser.cc ast.cc lexer.cc source.cc
   format.cc)
 
 if(NOT CMAKE_BUILD_TYPE)

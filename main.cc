@@ -12,7 +12,6 @@ int main(int argc, char **argv) {
   // free functions?
   auto d1 = Driver::from_path(Path{argv[1]});
   d1.compile();
-  d1.report();
 
   return EXIT_SUCCESS;
 }

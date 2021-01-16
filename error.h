@@ -2,7 +2,6 @@
 #define CMP_ERROR_H
 
 #include "source.h"
-#include <regex>
 
 namespace cmp {
 
@@ -12,11 +11,7 @@ struct Error {
 
     Error() {}
     Error(SourceLoc loc, const std::string &msg) : loc(loc), message(msg) {}
-    std::string str() const;
 };
-
-bool verify(const std::string &filename, std::vector<Error> &errors,
-            const std::vector<Error> &beacons);
 
 } // namespace cmp
 

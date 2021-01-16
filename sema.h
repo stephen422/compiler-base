@@ -5,6 +5,7 @@
 #include "error.h"
 #include "fmt/core.h"
 #include "scoped_table.h"
+#include <memory>
 #include <utility>
 
 namespace cmp {
