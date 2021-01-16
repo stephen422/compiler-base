@@ -7,13 +7,6 @@
 
 namespace cmp {
 
-enum class AstKind {
-    file,
-    stmt,
-    decl,
-    expr,
-};
-
 // Forward-declare stuff so that we don't have to include sema.h.
 struct AstNode;
 struct File;
@@ -31,27 +24,17 @@ class Lifetime;
 
 std::pair<size_t, size_t> get_ast_range(std::initializer_list<AstNode *> nodes);
 
-// Ast is a struct that contains all necessary information for semantic
-// analysis of an AST: namely, the root node and the name table.
-struct Ast {
-    AstNode *root;
-    NameTable &name_table;
-};
-
-enum class Pass {
-    none,
-    parse,
-    namebind,
-    typecheck,
-    // returncheck?
-    codegen,
+enum class AstKind {
+    file,
+    stmt,
+    decl,
+    expr,
 };
 
 struct AstNode {
     const AstKind kind = AstKind::decl; // node kind
     size_t pos = 0;             // start pos of this AST in the source text
     size_t endpos = 0;          // end pos of this AST in the source text
-    Pass progress = Pass::none; // latest pass that this node got through
 
     AstNode() {}
     AstNode(AstKind kind) : kind(kind) {}

@@ -8,11 +8,15 @@ bool Driver::compile() {
     Sema sema{source, errors, beacons};
     Parser parser{lexer, sema};
 
-    auto ast = parser.parse();
-    if (!no_errors())
+    auto node = parser.parse();
+    if (!no_errors()) {
         return false;
+    }
 
     setup_builtin_types(sema);
+
+    CodeGenerator c{sema, "out.qbe"};
+    codegen(c, node);
 
     return true;
 }

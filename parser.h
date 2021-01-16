@@ -41,7 +41,7 @@ public:
   void restore_state(State state);
 
   Parser(Lexer &lexer, Sema &sema);
-  Ast parse();
+  AstNode *parse();
 
 private:
   // Parse the whole file.

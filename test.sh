@@ -25,7 +25,7 @@ test() {
 	fi
 }
 
-test test/struct.ruse
-test test/struct2.ruse
-test test/typecheck.ruse
-
+# test test/struct.ruse
+# test test/struct2.ruse
+# test test/typecheck.ruse
+test test/codegen.ruse

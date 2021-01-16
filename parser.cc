@@ -926,9 +926,8 @@ File *Parser::parseFile() {
     return file;
 }
 
-Ast Parser::parse() {
-    ast = parseFile();
-    return Ast{ast, sema.name_table};
+AstNode *Parser::parse() {
+    return parseFile();
 }
 
 } // namespace cmp

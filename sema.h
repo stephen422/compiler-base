@@ -247,11 +247,15 @@ public:
     void visitFuncDecl(FuncDecl *f);
 };
 
-class CodeGenerator {
+struct CodeGenerator {
     Sema &sema;
     int indent = 0;
     FILE *file;
 
+    CodeGenerator(Sema &s, const char *filename) : sema{s} {
+        file = fopen(filename, "w");
+    }
+    ~CodeGenerator() { fclose(file); }
     template <typename... Args> void emitIndent(Args &&...args) {
         fmt::print(file, "{:{}}", "", indent);
         fmt::print(file, std::forward<Args>(args)...);
@@ -264,13 +268,9 @@ class CodeGenerator {
         IndentBlock(CodeGenerator &c) : c{c} { c.indent += 4; }
         ~IndentBlock() { c.indent -= 4; }
     };
-
-public:
-    CodeGenerator(Sema &s, const char *filename) : sema{s} {
-        file = fopen(filename, "w");
-    }
-    ~CodeGenerator() { fclose(file); }
 };
+
+void codegen(CodeGenerator &c, AstNode *n);
 
 } // namespace cmp
 

@@ -1609,3 +1609,17 @@ void BorrowChecker::visitFuncDecl(FuncDecl *f) {
 
     sema.context.func_decl_stack.pop_back();
 }
+
+void cmp::codegen(CodeGenerator &c, AstNode *n) {
+    switch (n->kind) {
+    case AstKind::file:
+        fmt::print("file\n");
+        break;
+    case AstKind::decl:
+        fmt::print("decl\n");
+        break;
+    default:
+        assert(!"unknown ast kind");
+        break;
+    }
+}
