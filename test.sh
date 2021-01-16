@@ -15,7 +15,7 @@ test() {
 		ret=$(echo ${header} | awk '{ print $3 }')
 	fi
 
-	build/cmp $1
+	build/ruse $1
 	if [ $? -ne $ret ]
 	then
 		echo "${RED}FAIL${RS} $1"

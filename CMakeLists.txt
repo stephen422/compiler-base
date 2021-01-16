@@ -1,8 +1,8 @@
 cmake_minimum_required (VERSION 3.8)
 
-project (compiler-base LANGUAGES CXX)
+project (ruse LANGUAGES CXX)
 
-add_executable (cmp main.cc driver.cc sema.cc parser.cc ast.cc lexer.cc source.cc
+add_executable (ruse main.cc driver.cc sema.cc parser.cc ast.cc lexer.cc source.cc
   format.cc)
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -45,8 +45,8 @@ else()
     "$<$<CONFIG:DEBUG>:-fsanitize=address,undefined>")
 endif()
 
-target_compile_features(cmp PUBLIC cxx_std_17)
-target_compile_options(cmp PRIVATE ${MY_COMPILE_FLAGS})
-target_link_options(cmp PRIVATE ${MY_LINK_FLAGS})
+target_compile_features(ruse PUBLIC cxx_std_17)
+target_compile_options(ruse PRIVATE ${MY_COMPILE_FLAGS})
+target_link_options(ruse PRIVATE ${MY_LINK_FLAGS})
 
 set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
