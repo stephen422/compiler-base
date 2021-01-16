@@ -66,12 +66,6 @@ struct AstNode {
   // Get the text representation of this node.
   std::string_view text(const Source &source) const;
 
-  // AST printing.
-  virtual void print() const = 0;
-  // Convenience ostream for AST printing.
-  // Handles indentation, tree drawing, etc.
-  std::ostream &out() const;
-
   // RAII trick to handle indentation.
   static int indent;
   struct PrintScope {
@@ -83,7 +77,6 @@ struct AstNode {
 // File is simply a group of Toplevels.
 struct File : public AstNode {
     File() : AstNode(AstKind::file) {}
-    void print() const override;
 
     std::vector<AstNode *> toplevels;
 };
@@ -111,14 +104,12 @@ struct Stmt : public AstNode {
 
 struct DeclStmt : public Stmt {
     DeclStmt(Decl *d) : Stmt(StmtKind::decl), decl(d) {}
-    void print() const override;
 
     Decl *decl;
 };
 
 struct ExprStmt : public Stmt {
     ExprStmt(Expr *e) : Stmt(StmtKind::expr), expr(e) {}
-    void print() const override;
 
     Expr *expr;
 };
@@ -131,7 +122,6 @@ struct ExprStmt : public Stmt {
 struct AssignStmt : public Stmt {
   AssignStmt(Expr *l, Expr *r, bool m)
       : Stmt(StmtKind::assign), lhs(l), rhs(r), move(m) {}
-  void print() const override;
 
   Expr *lhs;
   Expr *rhs;
@@ -140,14 +130,12 @@ struct AssignStmt : public Stmt {
 
 struct ReturnStmt : public Stmt {
   ReturnStmt(Expr *e) : Stmt(StmtKind::return_), expr(e) {}
-  void print() const override;
 
   Expr *expr;
 };
 
 struct CompoundStmt : public Stmt {
     CompoundStmt() : Stmt(StmtKind::compound) {}
-    void print() const override;
 
     std::vector<Stmt *> stmts;
 };
@@ -163,7 +151,6 @@ struct IfStmt : public Stmt {
     IfStmt(Expr *e, CompoundStmt *is, IfStmt *ei, CompoundStmt *es)
         : Stmt(StmtKind::if_), cond(e), if_body(is), else_if(ei),
         else_body(es) {}
-    void print() const override;
 };
 
 struct BuiltinStmt : public Stmt {
@@ -171,12 +158,10 @@ struct BuiltinStmt : public Stmt {
 
   BuiltinStmt(std::string_view sv)
       : Stmt(StmtKind::builtin), text(sv) {}
-  void print() const override;
 };
 
 struct BadStmt : public Stmt {
     BadStmt() : Stmt(StmtKind::bad) {}
-    void print() const override;
 };
 
 
@@ -217,7 +202,6 @@ struct IntegerLiteral : public Expr {
     int64_t value;
 
     IntegerLiteral(int64_t v) : Expr(ExprKind::integer_literal), value(v) {}
-    void print() const override;
 };
 
 struct StringLiteral : public Expr {
@@ -225,7 +209,6 @@ struct StringLiteral : public Expr {
 
     StringLiteral(std::string_view sv)
         : Expr(ExprKind::string_literal), value(sv) {}
-    void print() const override;
 };
 
 // A unary expression that references a declaration object, e.g. a variable or
@@ -235,7 +218,6 @@ struct DeclRefExpr : public Expr {
     Decl *decl = nullptr;
 
     DeclRefExpr(Name *n) : Expr(ExprKind::decl_ref), name(n) {}
-    void print() const override;
 };
 
 enum class CallExprKind {
@@ -252,7 +234,6 @@ struct CallExpr : public Expr {
 
   CallExpr(CallExprKind kind, Name *name, const std::vector<Expr *> &args)
       : Expr(ExprKind::call), kind(kind), func_name(name), args(args) {}
-  void print() const override;
 };
 
 // '.memb = expr' part in Struct { ... }.
@@ -269,7 +250,6 @@ struct StructDefExpr : public Expr {
 
     StructDefExpr(Expr *e, const std::vector<StructFieldDesignator> &ds)
         : Expr(ExprKind::struct_def), name_expr(e), desigs(ds) {}
-    void print() const override;
 };
 
 // 'struct.mem'
@@ -283,7 +263,6 @@ struct MemberExpr : public Expr {
 
   MemberExpr(Expr *e, Name *m)
       : Expr(ExprKind::member), struct_expr(e), member_name(m) {}
-  void print() const override;
 };
 
 // '[type](expr)'
@@ -293,7 +272,6 @@ struct CastExpr : public Expr {
 
   CastExpr(Expr *type, Expr *target)
       : Expr(ExprKind::cast), type_expr(type), target_expr(target) {}
-  void print() const override;
 };
 
 enum class UnaryExprKind {
@@ -312,7 +290,6 @@ struct UnaryExpr : public Expr {
 
     UnaryExpr(UnaryExprKind k, Expr *oper)
         : Expr(ExprKind::unary), kind(k), operand(oper) {}
-    void print() const override;
 };
 
 struct ParenExpr : public UnaryExpr {
@@ -320,7 +297,6 @@ struct ParenExpr : public UnaryExpr {
 
     ParenExpr(Expr *inside_expr)
         : UnaryExpr(UnaryExprKind::paren, inside_expr) {}
-    void print() const override;
 };
 
 struct BinaryExpr : public Expr {
@@ -334,7 +310,6 @@ struct BinaryExpr : public Expr {
     auto pair = get_ast_range({lhs, rhs});
     pos = pair.first;
   }
-  void print() const override;
 };
 
 struct TypeExpr : public Expr {
@@ -355,12 +330,10 @@ struct TypeExpr : public Expr {
   TypeExpr(TypeKind k, Name *n, bool m, Name *lt, Expr *se)
       : Expr(ExprKind::type), kind(k), name(n), mut(m), lifetime_annot(lt),
         subexpr(se) {}
-  void print() const override;
 };
 
 struct BadExpr : public Expr {
     BadExpr() : Expr(ExprKind::bad) {}
-    void print() const override;
 };
 
 // Declarations
@@ -477,7 +450,6 @@ struct VarDecl : public Decl {
         assign_expr(expr) {}
   VarDecl(Name *n, Type *t, bool m)
       : Decl(DeclKind::var), name(n), type(t), mut(m) {}
-  void print() const override;
 };
 
 // Function declaration.  There is no separate function definition: functions
@@ -495,7 +467,6 @@ struct FuncDecl : public Decl {
 
   FuncDecl(Name *n) : Decl(DeclKind::func), name(n) {}
   size_t args_count() const { return args.size(); }
-  void print() const override;
 };
 
 // Struct declaration.
@@ -506,7 +477,6 @@ struct StructDecl : public Decl {
 
   StructDecl(Name *n, std::vector<VarDecl *> m)
       : Decl(DeclKind::struct_), name(n), fields(m) {}
-  void print() const override;
 };
 
 // A variant type in an enum.
@@ -517,7 +487,6 @@ struct EnumVariantDecl : public Decl {
 
   EnumVariantDecl(Name *n, std::vector<Expr *> f)
       : Decl(DeclKind::enum_variant), name(n), fields(f) {}
-  void print() const override;
 };
 
 // Enum declaration.
@@ -528,7 +497,6 @@ struct EnumDecl : public Decl {
 
   EnumDecl(Name *n, std::vector<EnumVariantDecl *> m)
       : Decl(DeclKind::enum_), name(n), variants(m) {}
-  void print() const override;
 };
 
 // Extern declaration.
@@ -536,12 +504,10 @@ struct ExternDecl : public Decl {
   Decl *decl;
 
   ExternDecl(Decl *d) : Decl(DeclKind::extern_), decl(d) {}
-  void print() const override;
 };
 
 struct BadDecl : public Decl {
   BadDecl() : Decl(DeclKind::bad) {}
-  void print() const override;
 };
 
 } // namespace cmp
