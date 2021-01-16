@@ -246,57 +246,29 @@ public:
     void visitFuncDecl(FuncDecl *f);
 };
 
-class CodeGenerator : public AstVisitor<CodeGenerator, void> {
+class CodeGenerator {
     Sema &sema;
     int indent = 0;
     FILE *file;
 
-    template <typename... Args> void emit_indent(Args &&...args) {
+    template <typename... Args> void emitIndent(Args &&...args) {
         fmt::print(file, "{:{}}", "", indent);
         fmt::print(file, std::forward<Args>(args)...);
     }
-
     template <typename... Args> void emit(Args &&...args) {
         fmt::print(file, std::forward<Args>(args)...);
     }
-
     struct IndentBlock {
         CodeGenerator &c;
-        IndentBlock(CodeGenerator &c) : c{c} { c.indent += 2; }
-        ~IndentBlock() { c.indent -= 2; }
+        IndentBlock(CodeGenerator &c) : c{c} { c.indent += 4; }
+        ~IndentBlock() { c.indent -= 4; }
     };
 
 public:
-    CodeGenerator(Sema &s, const char *fname) : sema{s} {
-        file = fopen(fname, "w");
+    CodeGenerator(Sema &s, const char *filename) : sema{s} {
+        file = fopen(filename, "w");
     }
     ~CodeGenerator() { fclose(file); }
-    bool success() const { return sema.errors.empty(); }
-
-    void visitFile(File *f);
-
-    void visitIntegerLiteral(IntegerLiteral *i);
-    void visitStringLiteral(StringLiteral *s);
-    void visitDeclRefExpr(DeclRefExpr *d);
-    void visitCallExpr(CallExpr *f);
-    void visitStructDefExpr(StructDefExpr *s);
-    void visitCastExpr(CastExpr *c);
-    void visitMemberExpr(MemberExpr *m);
-    void visitUnaryExpr(UnaryExpr *u);
-    void visitParenExpr(ParenExpr *p);
-    void visitBinaryExpr(BinaryExpr *b);
-    void visitTypeExpr(TypeExpr *t);
-
-    void visitExprStmt(ExprStmt *e);
-    void visitAssignStmt(AssignStmt *a);
-    void visitReturnStmt(ReturnStmt *r);
-    void visitIfStmt(IfStmt *i);
-    void visitBuiltinStmt(BuiltinStmt *b);
-
-    void visitVarDecl(VarDecl *v);
-    void visitFuncDecl(FuncDecl *f);
-    void visitStructDecl(StructDecl *s);
-    void visitExternDecl(ExternDecl *e);
 };
 
 } // namespace cmp

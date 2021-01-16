@@ -33,11 +33,6 @@ bool Driver::compile() {
     if (!no_errors())
         return false;
 
-    CodeGenerator cgen{sema, "out.c"};
-    cgen.visitFile(static_cast<File *>(ast.root));
-    if (!no_errors())
-        return false;
-
     return true;
 }
 
