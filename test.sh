@@ -1,15 +1,22 @@
 #!/bin/sh
 
+set -e
+
 GREEN="\033[0;32m"
 RED="\033[0;31m"
 RS="\033[0m"
 
 test() {
+	local ret=0
+	local header=$(head -n1 $1)
+	echo ${header} | grep -q "fail" && ret=1
+	if echo ${header} | grep -q "exit"
+	then
+		ret=$(echo ${header} | awk '{ print $3 }')
+	fi
 
-	fail=0
-	head -n1 $1 | grep "fail" >/dev/null && fail=1
 	build/cmp $1
-	if [ $? -ne $fail ]
+	if [ $? -ne $ret ]
 	then
 		echo "${RED}FAIL${RS} $1"
 		exit 1
