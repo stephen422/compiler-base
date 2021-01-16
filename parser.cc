@@ -2,7 +2,6 @@
 #include "ast.h"
 #include "fmt/core.h"
 #include <cassert>
-#include <regex>
 
 namespace cmp {
 
@@ -31,22 +30,6 @@ void Parser::next() {
     // update cache if necessary
     if (next_read_pos == token_cache.size()) {
         auto t = lexer.lex();
-
-        // If an error beacon is found in a comment, add the error to the parser
-        // error list so that it can be compared to the actual errors later in
-        // the verifying phase.
-        if (t.kind == Tok::comment) {
-            auto text =
-                std::string{t.start, static_cast<size_t>(t.end - t.start)};
-            std::string_view marker{"// ERROR: "};
-            auto found = text.find(marker);
-            if (found == 0) {
-                // '---' in '// ERROR: ---'
-                std::string regex_string{text.substr(marker.length())};
-                sema.beacons.push_back({locate(), regex_string});
-            }
-        }
-
         token_cache.push_back(t);
     }
 
