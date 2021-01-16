@@ -12,7 +12,7 @@ struct AstNode;
 struct File;
 struct Stmt;
 struct Expr;
-class Decl;
+struct Decl;
 struct VarDecl;
 struct FuncDecl;
 struct StructDecl;
@@ -97,11 +97,10 @@ struct ExprStmt : public Stmt {
     Expr *expr;
 };
 
-// Move or copy assignment statement, e.g. 'a <- b' or 'a[0] = func()'.
-// Non-single-token expressions can come at the RHS as long as they are lvalues,
-// but this is not easily determined at the parsing stage.  As such, parse both
-// LHS and RHS as generic Exprs, and check the assignability at the semantic
-// stage.
+// Assignment statements, such as `a = b` or `a[0] = func()`.
+// Non-single-token expressions can come at the LHS as long as they are lvalues,
+// but this is not easily determined at the parsing stage.  The assignability
+// will be checked at the semantic stage.
 struct AssignStmt : public Stmt {
     AssignStmt(Expr *l, Expr *r, bool m)
         : Stmt(StmtKind::assign), lhs(l), rhs(r), move(m) {}
@@ -357,18 +356,14 @@ template <> inline bool decl_is<BadDecl>(const DeclKind kind) {
 
 // A declaration node.
 //
-// All Decl derived types has a pointer field called 'name'. The value of this
+// All Decl-derived types has a pointer field called 'name'. The value of this
 // pointer serves as a unique integer ID used as the key the symbol table.
-class Decl : public AstNode {
-public:
+struct Decl : public AstNode {
     const DeclKind kind;
 
     Decl(DeclKind d) : AstNode(AstKind::decl), kind(d) {}
-
     template <typename T> bool is() const { return decl_is<T>(kind); }
-
     std::optional<Type *> typemaybe() const;
-
     Name *name() const;
 };
 

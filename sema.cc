@@ -1610,16 +1610,50 @@ void BorrowChecker::visitFuncDecl(FuncDecl *f) {
     sema.context.func_decl_stack.pop_back();
 }
 
+static void codegenDecl(CodeGenerator &c, Decl *d);
+
+static void codegenStmt(CodeGenerator &c, Stmt *s) {
+    switch (s->kind) {
+    case StmtKind::decl:
+        codegenDecl(c, static_cast<DeclStmt *>(s)->decl);
+        break;
+    default:
+        assert(!"unknown stmt kind");
+    }
+}
+
+static void codegenDecl(CodeGenerator &c, Decl *d) {
+    switch (d->kind) {
+    case DeclKind::var:
+        fmt::print("var!\n");
+        break;
+    case DeclKind::func:
+        for (auto body_stmt : static_cast<FuncDecl *>(d)->body->stmts) {
+            codegenStmt(c, body_stmt);
+        }
+        break;
+    default:
+        assert(!"unknown decl kind");
+    }
+}
+
 void cmp::codegen(CodeGenerator &c, AstNode *n) {
     switch (n->kind) {
     case AstKind::file:
-        fmt::print("file\n");
+        c.emit("export function w $main() {{\n");
+        c.emit("@start\n");
+        for (auto toplevel : static_cast<File *>(n)->toplevels) {
+            codegen(c, toplevel);
+        }
+        c.emit("}}\n");
+        break;
+    case AstKind::stmt:
+        codegenStmt(c, static_cast<Stmt *>(n));
         break;
     case AstKind::decl:
-        fmt::print("decl\n");
+        codegenDecl(c, static_cast<Decl *>(n));
         break;
     default:
         assert(!"unknown ast kind");
-        break;
     }
 }

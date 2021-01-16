@@ -14,7 +14,7 @@
 namespace cmp {
 
 struct Type;
-class Decl;
+struct Decl;
 struct VarDecl;
 struct StructDecl;
 struct EnumDecl;
