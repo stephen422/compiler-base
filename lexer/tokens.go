@@ -10,8 +10,8 @@ import (
 
 type Token int
 
-var keywords = map[string]Token  {
-	"fn": FN,
+var keywords = map[string]Token{
+	"fn":  FN,
 	"let": LET,
 	"var": VAR,
 }
@@ -35,9 +35,9 @@ const (
 type Lexer struct {
 	filename string
 	src      []byte
-	look     rune // Lookahead character
-	off      int  // Lookahead character offset
-	rdOff    int  // File reading offset (one character after look)
+	look     rune // lookahead char
+	off      int  // lookahead char offset
+	rdOff    int  // file reading offset (one char after look)
 }
 
 func New(filename string) *Lexer {
