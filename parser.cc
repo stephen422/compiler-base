@@ -81,15 +81,15 @@ bool Parser::is_eos() const { return tok.kind == Tok::eos; }
 // Stmt:
 //     Decl
 //     Expr
-Stmt *Parser::parse_stmt() {
+Stmt *Parser::parseStmt() {
     Stmt *stmt = nullptr;
 
     if (tok.kind == Tok::lbrace) {
         stmt = parseCompoundStmt();
     } else if (tok.kind == Tok::kw_return) {
-        stmt = parse_return_stmt();
+        stmt = parseReturnStmt();
     } else if (tok.kind == Tok::kw_if) {
-        stmt = parse_if_stmt();
+        stmt = parseIfStmt();
     } else if (tok.kind == Tok::hash) {
         stmt = parseBuiltinStmt();
     } else if (isStartOfDecl()) {
@@ -102,7 +102,7 @@ Stmt *Parser::parse_stmt() {
     return stmt;
 }
 
-Stmt *Parser::parse_return_stmt() {
+Stmt *Parser::parseReturnStmt() {
     auto pos = tok.pos;
 
     expect(Tok::kw_return);
@@ -110,7 +110,7 @@ Stmt *Parser::parse_return_stmt() {
     // optional
     Expr *expr = nullptr;
     if (!is_end_of_stmt()) {
-        expr = parse_expr();
+        expr = parseExpr();
     }
     if (!is_end_of_stmt()) {
         skip_until_end_of_line();
@@ -125,12 +125,12 @@ Stmt *Parser::parse_return_stmt() {
 // Simplest way to represent the if-elseif-else chain is to view the else-if
 // clause as simply a separate if statement that is embedded under the else
 // statement.
-IfStmt *Parser::parse_if_stmt() {
+IfStmt *Parser::parseIfStmt() {
     auto pos = tok.pos;
 
     expect(Tok::kw_if);
 
-    Expr *cond = parse_expr();
+    Expr *cond = parseExpr();
     CompoundStmt *cstmt = parseCompoundStmt();
 
     IfStmt *elseif = nullptr;
@@ -140,14 +140,14 @@ IfStmt *Parser::parse_if_stmt() {
         next();
 
         if (tok.kind == Tok::kw_if) {
-            elseif = parse_if_stmt();
+            elseif = parseIfStmt();
         } else if (tok.kind == Tok::lbrace) {
             cstmt_false = parseCompoundStmt();
         } else {
             expect(Tok::lbrace);
 
             // do our best to recover
-            parse_expr();
+            parseExpr();
             if (tok.kind == Tok::lbrace) {
                 cstmt_false = parseCompoundStmt();
             } else {
@@ -178,7 +178,7 @@ DeclStmt *Parser::parseDeclStmt() {
 Stmt *Parser::parseExprOrAssignStmt() {
     auto pos = tok.pos;
 
-    auto lhs = parse_expr();
+    auto lhs = parseExpr();
     // ExprStmt: expression ends with a newline
     if (is_end_of_stmt()) {
         skip_until_end_of_line();
@@ -200,7 +200,7 @@ Stmt *Parser::parseExprOrAssignStmt() {
 
     // At this point, it becomes certain that this is an assignment statement,
     // and so we can safely unwrap for RHS.
-    auto rhs = parse_expr();
+    auto rhs = parseExpr();
     return sema.make_node_pos<AssignStmt>(pos, lhs, rhs, move);
 }
 
@@ -218,7 +218,7 @@ CompoundStmt *Parser::parseCompoundStmt() {
         skip_newlines();
         if (tok.kind == Tok::rbrace)
             break;
-        auto stmt = parse_stmt();
+        auto stmt = parseStmt();
         compound->stmts.push_back(stmt);
     }
 
@@ -258,7 +258,7 @@ VarDecl *Parser::parseVarDecl(VarDeclKind kind) {
     }
     if (tok.kind == Tok::equals) {
         next();
-        auto assign_expr = parse_expr();
+        auto assign_expr = parseExpr();
         if (v)
             static_cast<VarDecl *>(v)->assign_expr = assign_expr;
         else
@@ -496,7 +496,7 @@ Decl *Parser::parseDecl() {
     }
 }
 
-Expr *Parser::parse_literal_expr() {
+Expr *Parser::parseLiteralExpr() {
     Expr *expr = nullptr;
     // TODO Literals other than integers?
     switch (tok.kind) {
@@ -529,7 +529,7 @@ Expr *Parser::parse_literal_expr() {
 //
 // TODO: maybe name it parse_ident_start_exprs?
 // TODO: add struct declaration here, e.g. Car {}
-Expr *Parser::parse_func_call_or_decl_ref_expr() {
+Expr *Parser::parseFuncCallOrDeclRefExpr() {
     auto pos = tok.pos;
     assert(tok.kind == Tok::ident);
     Name *name = push_token(sema, tok);
@@ -539,7 +539,7 @@ Expr *Parser::parse_func_call_or_decl_ref_expr() {
         expect(Tok::lparen);
         std::vector<Expr *> args;
         while (tok.kind != Tok::rparen) {
-            args.push_back(parse_expr());
+            args.push_back(parseExpr());
             if (tok.kind == Tok::comma)
                 next();
         }
@@ -560,7 +560,7 @@ Expr *Parser::parse_cast_expr() {
     expect(Tok::rbracket);
 
     expect(Tok::lparen);
-    auto target_expr = parse_expr();
+    auto target_expr = parseExpr();
     expect(Tok::rparen);
 
     return make_node_range<CastExpr>(pos, type_expr, target_expr);
@@ -654,19 +654,19 @@ Expr *Parser::parse_type_expr() {
                                         subexpr);
 }
 
-Expr *Parser::parse_unary_expr() {
+Expr *Parser::parseUnaryExpr() {
     auto pos = tok.pos;
 
     switch (tok.kind) {
     case Tok::number:
     case Tok::string: {
-        return parse_literal_expr();
+        return parseLiteralExpr();
     }
     case Tok::ident: {
         // All UnaryExprKinds with postfix operators should go here.
         // TODO: Do proper op precedence parsing for right-hand-side unary
         // operators, e.g. '.', '()' and '{...}'.
-        auto expr = parse_func_call_or_decl_ref_expr();
+        auto expr = parseFuncCallOrDeclRefExpr();
         expr = parse_member_expr_maybe(expr);
         if (lookahead_structdef())
             expr = parse_structdef_maybe(expr);
@@ -677,7 +677,7 @@ Expr *Parser::parse_unary_expr() {
     }
     case Tok::star: {
         next();
-        auto expr = parse_unary_expr();
+        auto expr = parseUnaryExpr();
         return make_node_range<UnaryExpr>(pos, UnaryExprKind::deref, expr);
     }
     case Tok::kw_var:
@@ -688,12 +688,12 @@ Expr *Parser::parse_unary_expr() {
             kind = UnaryExprKind::var_ref;
         }
         expect(Tok::ampersand);
-        auto expr = parse_unary_expr();
+        auto expr = parseUnaryExpr();
         return make_node_range<UnaryExpr>(pos, kind, expr);
     }
     case Tok::lparen: {
         expect(Tok::lparen);
-        auto inside_expr = parse_expr();
+        auto inside_expr = parseExpr();
         expect(Tok::rparen);
         return make_node_range<ParenExpr>(pos, inside_expr);
     }
@@ -751,7 +751,7 @@ Expr *Parser::parse_binary_expr_rhs(Expr *lhs, int precedence = 0) {
         next();
 
         // Parse the second term.
-        Expr *rhs = parse_unary_expr();
+        Expr *rhs = parseUnaryExpr();
 
         // We do not know if this term should associate to left or right; e.g.
         // "(a * b) + c" or "a + (b * c)".  We should look ahead for the next
@@ -824,7 +824,7 @@ std::optional<StructFieldDesignator> Parser::parse_structdef_field() {
     if (!expect(Tok::equals))
         return {};
 
-    auto expr = parse_expr();
+    auto expr = parseExpr();
     if (!expr)
         return {};
 
@@ -853,8 +853,8 @@ Expr *Parser::parse_structdef_maybe(Expr *expr) {
     return make_node_range<StructDefExpr>(pos, expr, desigs);
 }
 
-Expr *Parser::parse_expr() {
-    auto unary = parse_unary_expr();
+Expr *Parser::parseExpr() {
+    auto unary = parseUnaryExpr();
     if (!unary)
         return nullptr;
     auto binary = parse_binary_expr_rhs(unary);
@@ -891,7 +891,7 @@ void Parser::skip_newlines() {
         next();
 }
 
-AstNode *Parser::parse_toplevel() {
+AstNode *Parser::parseToplevel() {
     switch (tok.kind) {
     case Tok::kw_func:
         return parseFuncDecl();
@@ -916,9 +916,10 @@ File *Parser::parseFile() {
     skip_newlines();
 
     while (!is_eos()) {
-        auto toplevel = parse_toplevel();
-        if (!toplevel)
+        auto toplevel = parseToplevel();
+        if (!toplevel) {
             continue;
+        }
         file->toplevels.push_back(toplevel);
         skip_newlines();
     }
