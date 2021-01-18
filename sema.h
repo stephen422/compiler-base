@@ -218,35 +218,6 @@ public:
     BasicBlock *visitFuncDecl(FuncDecl *f, BasicBlock *bb);
 };
 
-class BorrowChecker : public AstVisitor<BorrowChecker, void> {
-    Sema &sema;
-
-    // Shows whether the current expression being visited is inside a return
-    // statement, so that the borrow checker knows to check if this expression
-    // borrows from a value declared in the local scope.
-    bool in_return_stmt = false;
-
-    // TODO
-    bool in_annotated_func = false;
-
-public:
-    BorrowChecker(Sema &s) : sema{s} {}
-    bool success() const { return sema.errors.empty(); }
-
-    void visitCompoundStmt(CompoundStmt *cs);
-    void visitAssignStmt(AssignStmt *as);
-    void visitReturnStmt(ReturnStmt *rs);
-
-    void visitExpr(Expr *e);
-    void visitDeclRefExpr(DeclRefExpr *d);
-    void visitCallExpr(CallExpr *f);
-    void visitStructDefExpr(StructDefExpr *s);
-    void visitUnaryExpr(UnaryExpr *u);
-
-    void visitVarDecl(VarDecl *v);
-    void visitFuncDecl(FuncDecl *f);
-};
-
 struct CodeGenerator {
     Sema &sema;
     int indent = 0;
