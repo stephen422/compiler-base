@@ -327,7 +327,29 @@ void NameBinding::visitEnumDecl(EnumDecl *e) {
     sema.decl_table.scope_close();
 }
 
+// Returns true if success and otherwise (e.g. redeclaration) do error handling.
+bool declare(Sema &sema, Name *name, Decl *decl) {
+    auto found = sema.decl_table.find(name);
+    if (found && found->value->kind == decl->kind &&
+        found->scope_level == sema.decl_table.curr_scope_level) {
+        sema.error(decl->pos, "redefinition of '{}'", name->text);
+        return false;
+    }
+
+    sema.decl_table.insert(name, decl);
+    return true;
+}
+
 static void typecheckDecl(Sema &sema, Decl *d);
+
+static void typecheckExpr(Sema &sema, Expr *e) {
+    switch (e->kind) {
+    case ExprKind::integer_literal:
+        break;
+    default:
+        assert(!"unknown expr kind");
+    }
+}
 
 static void typecheckStmt(Sema &sema, Stmt *s) {
     switch (s->kind) {
@@ -341,9 +363,14 @@ static void typecheckStmt(Sema &sema, Stmt *s) {
 
 static void typecheckDecl(Sema &sema, Decl *d) {
     switch (d->kind) {
-    case DeclKind::var:
-        fmt::print("var!\n");
+    case DeclKind::var: {
+        auto v = static_cast<VarDecl *>(d);
+        if (!declare(sema, v->name, v)) {
+            return;
+        }
+        typecheckExpr(sema, v->assign_expr);
         break;
+    }
     case DeclKind::func:
         for (auto body_stmt : static_cast<FuncDecl *>(d)->body->stmts) {
             typecheckStmt(sema, body_stmt);
@@ -1078,9 +1105,9 @@ void BasicBlock::enumerate_postorder(std::vector<BasicBlock *> &walklist) {
     walklist.push_back(this);
 }
 
-static void codegenDecl(CodeGenerator &c, Decl *d);
+static void codegenDecl(QbeGenerator &c, Decl *d);
 
-static void codegenStmt(CodeGenerator &c, Stmt *s) {
+static void codegenStmt(QbeGenerator &c, Stmt *s) {
     switch (s->kind) {
     case StmtKind::decl:
         codegenDecl(c, static_cast<DeclStmt *>(s)->decl);
@@ -1090,10 +1117,11 @@ static void codegenStmt(CodeGenerator &c, Stmt *s) {
     }
 }
 
-static void codegenDecl(CodeGenerator &c, Decl *d) {
+static void codegenDecl(QbeGenerator &c, Decl *d) {
     switch (d->kind) {
     case DeclKind::var:
         fmt::print("var!\n");
+        c.emitIndent("%{} = add 0, %_\n", static_cast<VarDecl *>(d)->name->text);
         break;
     case DeclKind::func:
         for (auto body_stmt : static_cast<FuncDecl *>(d)->body->stmts) {
@@ -1105,16 +1133,18 @@ static void codegenDecl(CodeGenerator &c, Decl *d) {
     }
 }
 
-void cmp::codegen(CodeGenerator &c, AstNode *n) {
+void cmp::codegen(QbeGenerator &c, AstNode *n) {
     switch (n->kind) {
-    case AstKind::file:
+    case AstKind::file: {
         c.emit("export function w $main() {{\n");
         c.emit("@start\n");
+        QbeGenerator::IndentBlock ib{c};
         for (auto toplevel : static_cast<File *>(n)->toplevels) {
             codegen(c, toplevel);
         }
         c.emit("}}\n");
         break;
+    }
     case AstKind::stmt:
         codegenStmt(c, static_cast<Stmt *>(n));
         break;

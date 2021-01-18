@@ -220,15 +220,15 @@ public:
     BasicBlock *visitFuncDecl(FuncDecl *f, BasicBlock *bb);
 };
 
-struct CodeGenerator {
+struct QbeGenerator {
     Sema &sema;
     int indent = 0;
     FILE *file;
 
-    CodeGenerator(Sema &s, const char *filename) : sema{s} {
+    QbeGenerator(Sema &s, const char *filename) : sema{s} {
         file = fopen(filename, "w");
     }
-    ~CodeGenerator() { fclose(file); }
+    ~QbeGenerator() { fclose(file); }
     template <typename... Args> void emitIndent(Args &&...args) {
         fmt::print(file, "{:{}}", "", indent);
         fmt::print(file, std::forward<Args>(args)...);
@@ -237,13 +237,13 @@ struct CodeGenerator {
         fmt::print(file, std::forward<Args>(args)...);
     }
     struct IndentBlock {
-        CodeGenerator &c;
-        IndentBlock(CodeGenerator &c) : c{c} { c.indent += 4; }
+        QbeGenerator &c;
+        IndentBlock(QbeGenerator &c) : c{c} { c.indent += 4; }
         ~IndentBlock() { c.indent -= 4; }
     };
 };
 
-void codegen(CodeGenerator &c, AstNode *n);
+void codegen(QbeGenerator &c, AstNode *n);
 
 } // namespace cmp
 

@@ -93,13 +93,15 @@ T *ScopedTable<Key, T>::insert(const Key key, const T &value) {
 template <typename Key, typename T>
 typename ScopedTable<Key, T>::Symbol *
 ScopedTable<Key, T>::find(const Key key) const {
-    if (!key)
+    if (!key) {
         return nullptr;
+    }
 
     int index = hash(key) % SYMBOL_TABLE_BUCKET_COUNT;
     for (Symbol *s = keys[index]; s; s = s->next) {
-        if (s->key == key)
+        if (s->key == key) {
             return s;
+        }
     }
 
     return nullptr;
