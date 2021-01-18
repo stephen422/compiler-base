@@ -1105,27 +1105,38 @@ void BasicBlock::enumerate_postorder(std::vector<BasicBlock *> &walklist) {
     walklist.push_back(this);
 }
 
-static void codegenDecl(QbeGenerator &c, Decl *d);
+static void codegenDecl(QbeGenerator &q, Decl *d);
 
-static void codegenStmt(QbeGenerator &c, Stmt *s) {
+static void codegenExpr(QbeGenerator &q, Expr *e) {
+    switch (e->kind) {
+    case ExprKind::integer_literal:
+        break;
+    default:
+        assert(!"unknown expr kind");
+    }
+}
+
+static void codegenStmt(QbeGenerator &q, Stmt *s) {
     switch (s->kind) {
     case StmtKind::decl:
-        codegenDecl(c, static_cast<DeclStmt *>(s)->decl);
+        codegenDecl(q, static_cast<DeclStmt *>(s)->decl);
         break;
     default:
         assert(!"unknown stmt kind");
     }
 }
 
-static void codegenDecl(QbeGenerator &c, Decl *d) {
+static void codegenDecl(QbeGenerator &q, Decl *d) {
     switch (d->kind) {
-    case DeclKind::var:
-        fmt::print("var!\n");
-        c.emitIndent("%{} = add 0, %_\n", static_cast<VarDecl *>(d)->name->text);
+    case DeclKind::var: {
+        auto v = static_cast<VarDecl *>(d);
+        codegenExpr(q, v->assign_expr);
+        q.emitIndent("%{} = add 0, %_\n", v->name->text);
         break;
+    }
     case DeclKind::func:
         for (auto body_stmt : static_cast<FuncDecl *>(d)->body->stmts) {
-            codegenStmt(c, body_stmt);
+            codegenStmt(q, body_stmt);
         }
         break;
     default:
@@ -1133,23 +1144,23 @@ static void codegenDecl(QbeGenerator &c, Decl *d) {
     }
 }
 
-void cmp::codegen(QbeGenerator &c, AstNode *n) {
+void cmp::codegen(QbeGenerator &q, AstNode *n) {
     switch (n->kind) {
     case AstKind::file: {
-        c.emit("export function w $main() {{\n");
-        c.emit("@start\n");
-        QbeGenerator::IndentBlock ib{c};
+        q.emit("export function w $main() {{\n");
+        q.emit("@start\n");
+        QbeGenerator::IndentBlock ib{q};
         for (auto toplevel : static_cast<File *>(n)->toplevels) {
-            codegen(c, toplevel);
+            codegen(q, toplevel);
         }
-        c.emit("}}\n");
+        q.emit("}}\n");
         break;
     }
     case AstKind::stmt:
-        codegenStmt(c, static_cast<Stmt *>(n));
+        codegenStmt(q, static_cast<Stmt *>(n));
         break;
     case AstKind::decl:
-        codegenDecl(c, static_cast<Decl *>(n));
+        codegenDecl(q, static_cast<Decl *>(n));
         break;
     default:
         assert(!"unknown ast kind");

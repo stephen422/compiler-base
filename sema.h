@@ -220,8 +220,22 @@ public:
     BasicBlock *visitFuncDecl(FuncDecl *f, BasicBlock *bb);
 };
 
+struct DeclStack {
+    std::vector<Decl *> buf;
+    void push(Decl *d) {
+        buf.push_back(d);
+    }
+    Decl *pop() {
+        assert(!buf.empty());
+        auto d = buf.back();
+        buf.pop_back();
+        return d;
+    }
+};
+
 struct QbeGenerator {
     Sema &sema;
+    DeclStack dclstack;
     int indent = 0;
     FILE *file;
 
