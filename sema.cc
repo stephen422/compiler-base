@@ -327,6 +327,51 @@ void NameBinding::visitEnumDecl(EnumDecl *e) {
     sema.decl_table.scope_close();
 }
 
+static void typecheckDecl(Sema &sema, Decl *d);
+
+static void typecheckStmt(Sema &sema, Stmt *s) {
+    switch (s->kind) {
+    case StmtKind::decl:
+        typecheckDecl(sema, static_cast<DeclStmt *>(s)->decl);
+        break;
+    default:
+        assert(!"unknown stmt kind");
+    }
+}
+
+static void typecheckDecl(Sema &sema, Decl *d) {
+    switch (d->kind) {
+    case DeclKind::var:
+        fmt::print("var!\n");
+        break;
+    case DeclKind::func:
+        for (auto body_stmt : static_cast<FuncDecl *>(d)->body->stmts) {
+            typecheckStmt(sema, body_stmt);
+        }
+        break;
+    default:
+        assert(!"unknown decl kind");
+    }
+}
+
+void cmp::typecheck(Sema &sema, AstNode *n) {
+    switch (n->kind) {
+    case AstKind::file:
+        for (auto toplevel : static_cast<File *>(n)->toplevels) {
+            typecheck(sema, toplevel);
+        }
+        break;
+    case AstKind::stmt:
+        typecheckStmt(sema, static_cast<Stmt *>(n));
+        break;
+    case AstKind::decl:
+        typecheckDecl(sema, static_cast<Decl *>(n));
+        break;
+    default:
+        assert(!"unknown ast kind");
+    }
+}
+
 // Mutability check for assignment statements.
 static bool mutcheck_assign(Sema &sema, const Expr *lhs) {
     if (lhs->kind == ExprKind::member) {
