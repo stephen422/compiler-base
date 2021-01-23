@@ -220,6 +220,9 @@ public:
     BasicBlock *visitFuncDecl(FuncDecl *f, BasicBlock *bb);
 };
 
+// All this does is query the index of the node in the post-tree traversal
+// order.  Keeping that index in the nodes however will make accessing them
+// expensive.
 struct ValStack {
     std::vector<int> buf;
     int next_id{0};
