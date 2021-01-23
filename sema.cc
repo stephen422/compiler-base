@@ -356,6 +356,9 @@ static void typecheckStmt(Sema &sema, Stmt *s) {
     case StmtKind::decl:
         typecheckDecl(sema, static_cast<DeclStmt *>(s)->decl);
         break;
+    case StmtKind::assign:
+        // TODO
+        break;
     default:
         assert(!"unknown stmt kind");
     }
@@ -1124,6 +1127,15 @@ static void codegenStmt(QbeGenerator &q, Stmt *s) {
     case StmtKind::decl:
         codegenDecl(q, static_cast<DeclStmt *>(s)->decl);
         break;
+    case StmtKind::assign: {
+        auto as = static_cast<AssignStmt *>(s);
+        codegenExpr(q, as->rhs);
+        // FIXME: hack, handle non-single-token LHS expr
+        assert(as->lhs->kind == ExprKind::decl_ref);
+        auto lhs_decl = static_cast<DeclRefExpr *>(as->lhs);
+        q.emitIndent("%{} = add 0, %_{}\n", lhs_decl->name->text, q.valstack.pop());
+        break;
+    }
     default:
         assert(!"unknown stmt kind");
     }
