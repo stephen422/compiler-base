@@ -346,6 +346,8 @@ static void typecheckExpr(Sema &sema, Expr *e) {
     switch (e->kind) {
     case ExprKind::integer_literal:
         break;
+    case ExprKind::binary:
+        break;
     default:
         assert(!"unknown expr kind");
     }
@@ -1117,6 +1119,20 @@ static void codegenExpr(QbeGenerator &q, Expr *e) {
                      static_cast<IntegerLiteral *>(e)->value);
         q.valstack.push();
         break;
+    case ExprKind::decl_ref:
+        q.emitIndent("%_{} = add 0, %{}\n", q.valstack.next_id,
+                     static_cast<DeclRefExpr *>(e)->name->text);
+        q.valstack.push();
+        break;
+    case ExprKind::binary: {
+        auto binary = static_cast<BinaryExpr *>(e);
+        codegenExpr(q, binary->lhs);
+        codegenExpr(q, binary->rhs);
+        q.emitIndent("%_{} = add %_{}, %_{}\n", q.valstack.next_id,
+                     q.valstack.pop(), q.valstack.pop());
+        q.valstack.push();
+        break;
+    }
     default:
         assert(!"unknown expr kind");
     }
