@@ -1110,25 +1110,25 @@ void BasicBlock::enumerate_postorder(std::vector<BasicBlock *> &walklist) {
     walklist.push_back(this);
 }
 
-static void codegenDecl(QbeGenerator &q, Decl *d);
+static void codegen_decl(QbeGenerator &q, Decl *d);
 
-static void codegenExpr(QbeGenerator &q, Expr *e) {
+static void codegen_expr(QbeGenerator &q, Expr *e) {
     switch (e->kind) {
     case ExprKind::integer_literal:
-        q.emitIndent("%_{} = add 0, {}\n", q.valstack.next_id,
+        q.emit_indent("%_{} = add 0, {}\n", q.valstack.next_id,
                      static_cast<IntegerLiteral *>(e)->value);
         q.valstack.push();
         break;
     case ExprKind::decl_ref:
-        q.emitIndent("%_{} = add 0, %{}\n", q.valstack.next_id,
+        q.emit_indent("%_{} = add 0, %{}\n", q.valstack.next_id,
                      static_cast<DeclRefExpr *>(e)->name->text);
         q.valstack.push();
         break;
     case ExprKind::binary: {
         auto binary = static_cast<BinaryExpr *>(e);
-        codegenExpr(q, binary->lhs);
-        codegenExpr(q, binary->rhs);
-        q.emitIndent("%_{} = add %_{}, %_{}\n", q.valstack.next_id,
+        codegen_expr(q, binary->lhs);
+        codegen_expr(q, binary->rhs);
+        q.emit_indent("%_{} = add %_{}, %_{}\n", q.valstack.next_id,
                      q.valstack.pop(), q.valstack.pop());
         q.valstack.push();
         break;
@@ -1138,18 +1138,18 @@ static void codegenExpr(QbeGenerator &q, Expr *e) {
     }
 }
 
-static void codegenStmt(QbeGenerator &q, Stmt *s) {
+static void codegen_stmt(QbeGenerator &q, Stmt *s) {
     switch (s->kind) {
     case StmtKind::decl:
-        codegenDecl(q, static_cast<DeclStmt *>(s)->decl);
+        codegen_decl(q, static_cast<DeclStmt *>(s)->decl);
         break;
     case StmtKind::assign: {
         auto as = static_cast<AssignStmt *>(s);
-        codegenExpr(q, as->rhs);
+        codegen_expr(q, as->rhs);
         // FIXME: hack, handle non-single-token LHS expr
         assert(as->lhs->kind == ExprKind::decl_ref);
         auto lhs_decl = static_cast<DeclRefExpr *>(as->lhs);
-        q.emitIndent("%{} = add 0, %_{}\n", lhs_decl->name->text, q.valstack.pop());
+        q.emit_indent("%{} = add 0, %_{}\n", lhs_decl->name->text, q.valstack.pop());
         break;
     }
     default:
@@ -1157,17 +1157,17 @@ static void codegenStmt(QbeGenerator &q, Stmt *s) {
     }
 }
 
-static void codegenDecl(QbeGenerator &q, Decl *d) {
+static void codegen_decl(QbeGenerator &q, Decl *d) {
     switch (d->kind) {
     case DeclKind::var: {
         auto v = static_cast<VarDecl *>(d);
-        codegenExpr(q, v->assign_expr);
-        q.emitIndent("%{} = add 0, %_{}\n", v->name->text, q.valstack.pop());
+        codegen_expr(q, v->assign_expr);
+        q.emit_indent("%{} = add 0, %_{}\n", v->name->text, q.valstack.pop());
         break;
     }
     case DeclKind::func:
         for (auto body_stmt : static_cast<FuncDecl *>(d)->body->stmts) {
-            codegenStmt(q, body_stmt);
+            codegen_stmt(q, body_stmt);
         }
         break;
     default:
@@ -1188,10 +1188,10 @@ void cmp::codegen(QbeGenerator &q, AstNode *n) {
         break;
     }
     case AstKind::stmt:
-        codegenStmt(q, static_cast<Stmt *>(n));
+        codegen_stmt(q, static_cast<Stmt *>(n));
         break;
     case AstKind::decl:
-        codegenDecl(q, static_cast<Decl *>(n));
+        codegen_decl(q, static_cast<Decl *>(n));
         break;
     default:
         assert(!"unknown ast kind");

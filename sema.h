@@ -249,7 +249,7 @@ struct QbeGenerator {
         file = fopen(filename, "w");
     }
     ~QbeGenerator() { fclose(file); }
-    template <typename... Args> void emitIndent(Args &&...args) {
+    template <typename... Args> void emit_indent(Args &&...args) {
         fmt::print(file, "{:{}}", "", indent);
         fmt::print(file, std::forward<Args>(args)...);
     }
