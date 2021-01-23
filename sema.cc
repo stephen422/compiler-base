@@ -1110,6 +1110,9 @@ static void codegenDecl(QbeGenerator &q, Decl *d);
 static void codegenExpr(QbeGenerator &q, Expr *e) {
     switch (e->kind) {
     case ExprKind::integer_literal:
+        q.emitIndent("%_{} = add 0, {}\n", q.valstack.next_id,
+                     static_cast<IntegerLiteral *>(e)->value);
+        q.valstack.push();
         break;
     default:
         assert(!"unknown expr kind");
@@ -1131,7 +1134,7 @@ static void codegenDecl(QbeGenerator &q, Decl *d) {
     case DeclKind::var: {
         auto v = static_cast<VarDecl *>(d);
         codegenExpr(q, v->assign_expr);
-        q.emitIndent("%{} = add 0, %_\n", v->name->text);
+        q.emitIndent("%{} = add 0, %_{}\n", v->name->text, q.valstack.pop());
         break;
     }
     case DeclKind::func:
