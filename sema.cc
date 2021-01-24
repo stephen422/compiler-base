@@ -1179,21 +1179,20 @@ static void codegen_stmt(QbeGenerator &q, Stmt *s) {
         break;
     case StmtKind::if_: {
         auto if_stmt = static_cast<IfStmt *>(s);
-        auto ifelse_id = q.ifelse_id;
-        q.ifelse_id++;
+        auto id = q.ifelse_label_id;
+        q.ifelse_label_id++;
         codegen_expr(q, if_stmt->cond);
-        q.emit_indent("jnz %_{}, @if_{}, @else_{}\n", q.valstack.pop(),
-                      ifelse_id, ifelse_id);
-        q.emit("@if_{}\n", ifelse_id);
+        q.emit_indent("jnz %_{}, @if_{}, @else_{}\n", q.valstack.pop(), id, id);
+        q.emit("@if_{}\n", id);
         codegen_stmt(q, if_stmt->if_body);
-        q.emit_indent("jmp @fi_{}\n", ifelse_id);
-        q.emit("@else_{}\n", ifelse_id);
+        q.emit_indent("jmp @fi_{}\n", id);
+        q.emit("@else_{}\n", id);
         if (if_stmt->else_if) {
             codegen_stmt(q, if_stmt->else_if);
         } else if (if_stmt->else_body) {
             codegen_stmt(q, if_stmt->else_body);
         }
-        q.emit("@fi_{}\n", ifelse_id);
+        q.emit("@fi_{}\n", id);
         break;
     }
     case StmtKind::compound:

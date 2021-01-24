@@ -243,7 +243,7 @@ struct QbeGenerator {
     Sema &sema;
     ValStack valstack;
     int label_id = 0;
-    int ifelse_id = 0;
+    int ifelse_label_id = 0;
     int indent = 0;
     FILE *file;
 
