@@ -17,6 +17,10 @@ bool Driver::compile() {
     typecheck(sema, node);
     QbeGenerator c{sema, "out.qbe"};
     codegen(c, node);
+    fflush(c.file);
+
+    system("$HOME/build/qbe/bin/qbe -o out.s out.qbe");
+    system("gcc -o out out.s");
 
     return true;
 }

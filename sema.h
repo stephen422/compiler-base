@@ -248,7 +248,9 @@ struct QbeGenerator {
     QbeGenerator(Sema &s, const char *filename) : sema{s} {
         file = fopen(filename, "w");
     }
-    ~QbeGenerator() { fclose(file); }
+    ~QbeGenerator() {
+        fclose(file);
+    }
     template <typename... Args> void emit_indent(Args &&...args) {
         fmt::print(file, "{:{}}", "", indent);
         fmt::print(file, std::forward<Args>(args)...);
