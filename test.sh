@@ -27,6 +27,7 @@ test() {
 }
 
 # test test/simple.ruse
+test test/return.ruse
 test test/if.ruse
 # test test/struct.ruse
 # test test/struct2.ruse
