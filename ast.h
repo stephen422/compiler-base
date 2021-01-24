@@ -125,8 +125,9 @@ struct CompoundStmt : public Stmt {
 struct IfStmt : public Stmt {
     Expr *cond;            // conditional expr
     CompoundStmt *if_body; // body for true cond
-    // Views 'else if' clauses as a separate if statement for the false case.
-    // 'elseif' and 'cstmt_false' cannot be non-null at the same time.
+    // Views 'else if' clauses as a separate if statement that is embedeed in
+    // the 'else' clause.  'else_if' and 'else_body' cannot be non-null at the
+    // same time.
     IfStmt *else_if = nullptr;
     CompoundStmt *else_body = nullptr;
 

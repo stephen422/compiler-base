@@ -1133,8 +1133,20 @@ static void codegen_expr(QbeGenerator &q, Expr *e) {
         auto binary = static_cast<BinaryExpr *>(e);
         codegen_expr(q, binary->lhs);
         codegen_expr(q, binary->rhs);
-        q.emit_indent("%_{} =w add %_{}, %_{}\n", q.valstack.next_id,
-                     q.valstack.pop(), q.valstack.pop());
+
+        const char *op_str = NULL;
+        switch (binary->op.kind) {
+        case Tok::plus:
+            op_str = "add";
+            break;
+        case Tok::doubleequals:
+            op_str = "ceqw";
+            break;
+        default:
+            assert(!"unknown binary expr kind");
+        }
+        q.emit_indent("%_{} =w {} %_{}, %_{}\n", q.valstack.next_id, op_str,
+                      q.valstack.pop(), q.valstack.pop());
         q.valstack.push();
         break;
     }
@@ -1160,6 +1172,21 @@ static void codegen_stmt(QbeGenerator &q, Stmt *s) {
     case StmtKind::return_:
         codegen_expr(q, static_cast<ReturnStmt *>(s)->expr);
         q.emit_indent("ret %_{}\n", q.valstack.pop());
+        break;
+    case StmtKind::if_: {
+        auto if_stmt = static_cast<IfStmt *>(s);
+        codegen_expr(q, if_stmt->cond);
+        q.emit_indent("jnz %_{}, @if, @else\n", q.valstack.pop());
+        q.emit("@if\n");
+        codegen_stmt(q, if_stmt->if_body);
+        q.emit("@else\n");
+        codegen_stmt(q, if_stmt->else_body);
+        break;
+    }
+    case StmtKind::compound:
+        for (auto s : static_cast<CompoundStmt *>(s)->stmts) {
+            codegen_stmt(q, s);
+        }
         break;
     default:
         assert(!"unknown stmt kind");

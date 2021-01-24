@@ -18,6 +18,7 @@ void Parser::error(const std::string &msg) {
     auto srcloc = locate();
     sema.errors.push_back({srcloc, msg});
     fmt::print(stderr, "{}:{}:{}: {}\n", srcloc.filename, srcloc.line, srcloc.col, msg);
+    exit(EXIT_FAILURE);
 }
 
 void Parser::error_expected(const std::string &msg) {
@@ -721,6 +722,7 @@ int binary_op_precedence(const Token &op) {
     case Tok::plus:
     case Tok::minus:
         return 1;
+    case Tok::doubleequals:
     case Tok::greaterthan:
     case Tok::lesserthan:
         return 0;

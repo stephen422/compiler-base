@@ -150,8 +150,9 @@ Token Lexer::make_token_with_literal(Tok kind) {
 Token Lexer::lex() {
     skip_whitespace();
 
-    if (curr == eos())
+    if (curr == eos()) {
         return Token{Tok::eos, pos()};
+    }
 
     Token tok;
     switch (*curr) {
@@ -166,7 +167,7 @@ Token Lexer::lex() {
         if (*lookn(1) == '/') {
             tok = lex_comment();
         } else {
-            tok = lex_symbol(); // divide
+            tok = lex_symbol();
         }
         break;
     default:

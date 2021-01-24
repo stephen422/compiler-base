@@ -1,5 +1,9 @@
+// exit 4
 func main() {
-    if a {
+    var a = 4
+    if a == 4 {
+        return a
     } else {
+        return 0
     }
 }

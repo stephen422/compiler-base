@@ -23,9 +23,10 @@ enum class Tok {
     comma,
     colon,
     semicolon,
-    doublequote,
     quote,
+    doublequote,
     equals,
+    doubleequals,
     plus,
     minus,
     star,
@@ -65,38 +66,23 @@ enum class Tok {
 
 // This is under linear search, so it is better to place more frequently used
 // symbols at the top.
-constexpr std::pair<std::string_view, Tok> symbol_map[] {
-    {"\"", Tok::doublequote},
-    {"\n", Tok::newline},
-    {"->", Tok::arrow},
-    {"<-", Tok::reversearrow},
-    {"'", Tok::quote},
-    {"(", Tok::lparen},
-    {")", Tok::rparen},
-    {"{", Tok::lbrace},
-    {"}", Tok::rbrace},
-    {"[", Tok::lbracket},
-    {"]", Tok::rbracket},
-    {"<", Tok::lesserthan},
-    {">", Tok::greaterthan},
-    {".", Tok::dot},
-    {",", Tok::comma},
-    {":", Tok::colon},
-    {";", Tok::semicolon},
-    {"=", Tok::equals},
-    {"+", Tok::plus},
-    {"-", Tok::minus},
-    {"*", Tok::star},
-    {"&", Tok::ampersand},
-    {"^", Tok::caret},
-    {"~", Tok::tilde},
-    {"/", Tok::slash},
-    {"\\", Tok::backslash},
-    {"|", Tok::pipe},
-    {"!", Tok::bang},
-    {"?", Tok::question},
-    {"#", Tok::hash},
-    {"-", Tok::dash},
+constexpr std::pair<std::string_view, Tok> symbol_map[]{
+    {"\"", Tok::doublequote},  {"\n", Tok::newline},
+    {"->", Tok::arrow},        {"<-", Tok::reversearrow},
+    {"==", Tok::doubleequals},        {"'", Tok::quote},
+    {"(", Tok::lparen},        {")", Tok::rparen},
+    {"{", Tok::lbrace},        {"}", Tok::rbrace},
+    {"[", Tok::lbracket},      {"]", Tok::rbracket},
+    {"<", Tok::lesserthan},    {">", Tok::greaterthan},
+    {".", Tok::dot},           {",", Tok::comma},
+    {":", Tok::colon},         {";", Tok::semicolon},
+    {"=", Tok::equals},        {"+", Tok::plus},
+    {"-", Tok::minus},         {"*", Tok::star},
+    {"&", Tok::ampersand},     {"^", Tok::caret},
+    {"~", Tok::tilde},         {"/", Tok::slash},
+    {"\\", Tok::backslash},    {"|", Tok::pipe},
+    {"!", Tok::bang},          {"?", Tok::question},
+    {"#", Tok::hash},          {"-", Tok::dash},
     {"comment", Tok::comment},
 };
 
@@ -121,22 +107,23 @@ std::string tokenTypeToString(Tok kind);
 // Token contains the kind, a view of the text data, and the position in the
 // source of a token.
 struct Token {
-  Tok kind;
-  size_t pos;
-  const char *start;
-  const char *end;
+    Tok kind = Tok::none;
+    size_t pos = 0;
+    const char *start = NULL;
+    const char *end = NULL;
 
-  Token() : kind(Tok::none), pos(0), start(NULL), end(NULL) {}
-  Token(Tok kind, size_t pos) : kind(kind), pos(pos), start(NULL), end(NULL) {}
-  Token(Tok kind, size_t pos, const char *s, const char *e)
-      : kind(kind), pos(pos), start(s), end(e) {}
+    Token() {}
+    Token(Tok kind, size_t pos)
+        : kind(kind), pos(pos), start(NULL), end(NULL) {}
+    Token(Tok kind, size_t pos, const char *s, const char *e)
+        : kind(kind), pos(pos), start(s), end(e) {}
 
-  // Get position of one character past the end of the token.
-  size_t endPos() const { return pos + (end - start); }
+    // Get position of one character past the end of the token.
+    size_t endPos() const { return pos + (end - start); }
 
-  bool is_any(std::initializer_list<Tok> &kinds) const;
+    bool is_any(std::initializer_list<Tok> &kinds) const;
 
-  std::string str() const;
+    std::string str() const;
 };
 
 bool is_ident_or_keyword(const Token tok);
