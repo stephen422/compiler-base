@@ -1,7 +1,5 @@
 #!/bin/sh
 
-set -e
-
 GREEN="\033[0;32m"
 RED="\033[0;31m"
 RS="\033[0m"
@@ -16,6 +14,7 @@ test() {
 	fi
 
 	build/ruse $1
+	./out
 	if [ $? -ne $ret ]
 	then
 		echo "${RED}FAIL${RS} $1"
