@@ -15,7 +15,9 @@ Parser::Parser(Lexer &l, Sema &sema) : lexer{l}, sema(sema) {
 }
 
 void Parser::error(const std::string &msg) {
-    sema.errors.push_back({locate(), msg});
+    auto srcloc = locate();
+    sema.errors.push_back({srcloc, msg});
+    fmt::print(stderr, "{}:{}:{}: {}\n", srcloc.filename, srcloc.line, srcloc.col, msg);
 }
 
 void Parser::error_expected(const std::string &msg) {
@@ -164,8 +166,9 @@ DeclStmt *Parser::parse_decl_stmt() {
     auto decl = parseDecl();
     if (!is_end_of_stmt()) {
         // XXX: remove bad check
-        if (decl && !decl->is<BadDecl>())
+        if (decl && !decl->is<BadDecl>()) {
             expect(Tok::newline);
+        }
         // try to recover
         skip_until_end_of_line();
     }

@@ -340,9 +340,9 @@ bool declare(Sema &sema, Name *name, Decl *decl) {
     return true;
 }
 
-static void typecheckDecl(Sema &sema, Decl *d);
+static void typecheck_decl(Sema &sema, Decl *d);
 
-static void typecheckExpr(Sema &sema, Expr *e) {
+static void typecheck_expr(Sema &sema, Expr *e) {
     switch (e->kind) {
     case ExprKind::integer_literal:
         break;
@@ -353,12 +353,15 @@ static void typecheckExpr(Sema &sema, Expr *e) {
     }
 }
 
-static void typecheckStmt(Sema &sema, Stmt *s) {
+static void typecheck_stmt(Sema &sema, Stmt *s) {
     switch (s->kind) {
     case StmtKind::decl:
-        typecheckDecl(sema, static_cast<DeclStmt *>(s)->decl);
+        typecheck_decl(sema, static_cast<DeclStmt *>(s)->decl);
         break;
     case StmtKind::assign:
+        // TODO
+        break;
+    case StmtKind::if_:
         // TODO
         break;
     default:
@@ -368,19 +371,19 @@ static void typecheckStmt(Sema &sema, Stmt *s) {
     }
 }
 
-static void typecheckDecl(Sema &sema, Decl *d) {
+static void typecheck_decl(Sema &sema, Decl *d) {
     switch (d->kind) {
     case DeclKind::var: {
         auto v = static_cast<VarDecl *>(d);
         if (!declare(sema, v->name, v)) {
             return;
         }
-        typecheckExpr(sema, v->assign_expr);
+        typecheck_expr(sema, v->assign_expr);
         break;
     }
     case DeclKind::func:
         for (auto body_stmt : static_cast<FuncDecl *>(d)->body->stmts) {
-            typecheckStmt(sema, body_stmt);
+            typecheck_stmt(sema, body_stmt);
         }
         break;
     default:
@@ -396,10 +399,10 @@ void cmp::typecheck(Sema &sema, AstNode *n) {
         }
         break;
     case AstKind::stmt:
-        typecheckStmt(sema, static_cast<Stmt *>(n));
+        typecheck_stmt(sema, static_cast<Stmt *>(n));
         break;
     case AstKind::decl:
-        typecheckDecl(sema, static_cast<Decl *>(n));
+        typecheck_decl(sema, static_cast<Decl *>(n));
         break;
     default:
         assert(!"unknown ast kind");
