@@ -1117,12 +1117,12 @@ static void codegen_decl(QbeGenerator &q, Decl *d);
 static void codegen_expr(QbeGenerator &q, Expr *e) {
     switch (e->kind) {
     case ExprKind::integer_literal:
-        q.emit_indent("%_{} = add 0, {}\n", q.valstack.next_id,
+        q.emit_indent("%_{} =w add 0, {}\n", q.valstack.next_id,
                      static_cast<IntegerLiteral *>(e)->value);
         q.valstack.push();
         break;
     case ExprKind::decl_ref:
-        q.emit_indent("%_{} = add 0, %{}\n", q.valstack.next_id,
+        q.emit_indent("%_{} =w add 0, %{}\n", q.valstack.next_id,
                      static_cast<DeclRefExpr *>(e)->name->text);
         q.valstack.push();
         break;
@@ -1130,7 +1130,7 @@ static void codegen_expr(QbeGenerator &q, Expr *e) {
         auto binary = static_cast<BinaryExpr *>(e);
         codegen_expr(q, binary->lhs);
         codegen_expr(q, binary->rhs);
-        q.emit_indent("%_{} = add %_{}, %_{}\n", q.valstack.next_id,
+        q.emit_indent("%_{} =w add %_{}, %_{}\n", q.valstack.next_id,
                      q.valstack.pop(), q.valstack.pop());
         q.valstack.push();
         break;
@@ -1151,7 +1151,7 @@ static void codegen_stmt(QbeGenerator &q, Stmt *s) {
         // FIXME: hack, handle non-single-token LHS expr
         assert(as->lhs->kind == ExprKind::decl_ref);
         auto lhs_decl = static_cast<DeclRefExpr *>(as->lhs);
-        q.emit_indent("%{} = add 0, %_{}\n", lhs_decl->name->text, q.valstack.pop());
+        q.emit_indent("%{} =w add 0, %_{}\n", lhs_decl->name->text, q.valstack.pop());
         break;
     }
     case StmtKind::return_:
@@ -1168,7 +1168,7 @@ static void codegen_decl(QbeGenerator &q, Decl *d) {
     case DeclKind::var: {
         auto v = static_cast<VarDecl *>(d);
         codegen_expr(q, v->assign_expr);
-        q.emit_indent("%{} = add 0, %_{}\n", v->name->text, q.valstack.pop());
+        q.emit_indent("%{} =w add 0, %_{}\n", v->name->text, q.valstack.pop());
         break;
     }
     case DeclKind::func:

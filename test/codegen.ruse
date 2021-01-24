@@ -3,6 +3,6 @@ func main() {
     var b = 3
     var c = 2
     a = 5
-    a = b + c
+    a = a + b + c
     return a
 }
