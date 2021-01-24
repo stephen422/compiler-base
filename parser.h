@@ -45,41 +45,41 @@ public:
 
 private:
     // Parse the whole file.
-    File *parseFile();
+    File *parse_file();
 
     // Parse a toplevel statement.
-    AstNode *parseToplevel();
+    AstNode *parse_toplevel();
 
     // Statement parsers.
-    Stmt *parseStmt();
-    Stmt *parseExprOrAssignStmt();
-    Stmt *parseReturnStmt();
-    IfStmt *parseIfStmt();
-    DeclStmt *parseDeclStmt();
-    CompoundStmt *parseCompoundStmt();
-    BuiltinStmt *parseBuiltinStmt();
+    Stmt *parse_stmt();
+    Stmt *parse_expr_or_assign_stmt();
+    Stmt *parse_return_stmt();
+    IfStmt *parse_if_stmt();
+    DeclStmt *parse_decl_stmt();
+    CompoundStmt *parse_compound_stmt();
+    BuiltinStmt *parse_builtin_stmt();
     bool is_end_of_stmt() const;
     bool is_eos() const;
 
     // Declaration parsers
     Decl *parseDecl();
-    VarDecl *parseVarDecl(VarDeclKind kind);
+    VarDecl *parse_var_decl(VarDeclKind kind);
     template <typename T, typename F>
-    std::vector<T> parseCommaSeparatedList(F &&parseFn);
-    FuncDecl *parseFuncHeader();
-    FuncDecl *parseFuncDecl();
-    StructDecl *parseStructDecl();
-    EnumVariantDecl *parseEnumVariant();
-    std::vector<EnumVariantDecl *> parseEnumVariantDeclList();
-    EnumDecl *parseEnumDecl();
-    ExternDecl *parseExternDecl();
-    bool isStartOfDecl();
+    std::vector<T> parse_comma_separated_list(F &&parseFn);
+    FuncDecl *parse_func_header();
+    FuncDecl *parse_func_decl();
+    StructDecl *parse_struct_decl();
+    EnumVariantDecl *parse_enum_variant();
+    std::vector<EnumVariantDecl *> parse_enum_variant_decl_list();
+    EnumDecl *parse_enum_decl();
+    ExternDecl *parse_extern_decl();
+    bool is_start_of_decl();
 
     // Expression parsers
-    Expr *parseExpr();
-    Expr *parseUnaryExpr();
-    Expr *parseLiteralExpr();
-    Expr *parseFuncCallOrDeclRefExpr();
+    Expr *parse_expr();
+    Expr *parse_unary_expr();
+    Expr *parse_literal_expr();
+    Expr *parse_funccall_or_declref_expr();
     Expr *parse_cast_expr();
     Expr *parse_type_expr();
     Expr *parse_binary_expr_rhs(Expr *lhs, int precedence);
