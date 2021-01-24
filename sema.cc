@@ -362,6 +362,8 @@ static void typecheckStmt(Sema &sema, Stmt *s) {
         // TODO
         break;
     default:
+    case StmtKind::return_:
+        break;
         assert(!"unknown stmt kind");
     }
 }
@@ -1152,6 +1154,10 @@ static void codegen_stmt(QbeGenerator &q, Stmt *s) {
         q.emit_indent("%{} = add 0, %_{}\n", lhs_decl->name->text, q.valstack.pop());
         break;
     }
+    case StmtKind::return_:
+        codegen_expr(q, static_cast<ReturnStmt *>(s)->expr);
+        q.emit_indent("ret %_{}\n", q.valstack.pop());
+        break;
     default:
         assert(!"unknown stmt kind");
     }
