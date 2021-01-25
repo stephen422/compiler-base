@@ -28,7 +28,7 @@ test() {
 test test/simple.ruse
 test test/return.ruse
 test test/if.ruse
-# test test/struct.ruse
 # test test/struct2.ruse
 # test test/typecheck.ruse
 test test/codegen.ruse
+test test/struct.ruse

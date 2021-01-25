@@ -672,8 +672,9 @@ Expr *Parser::parse_unary_expr() {
         // operators, e.g. '.', '()' and '{...}'.
         auto expr = parse_funccall_or_declref_expr();
         expr = parse_member_expr_maybe(expr);
-        if (lookahead_structdef())
+        if (lookahead_structdef()) {
             expr = parse_structdef_maybe(expr);
+        }
         return expr;
     }
     case Tok::lbracket: {
@@ -860,8 +861,9 @@ Expr *Parser::parse_structdef_maybe(Expr *expr) {
 
 Expr *Parser::parse_expr() {
     auto unary = parse_unary_expr();
-    if (!unary)
+    if (!unary) {
         return nullptr;
+    }
     auto binary = parse_binary_expr_rhs(unary);
     return parse_member_expr_maybe(binary);
 }

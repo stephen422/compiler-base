@@ -340,75 +340,6 @@ bool declare(Sema &sema, Name *name, Decl *decl) {
     return true;
 }
 
-static void typecheck_decl(Sema &sema, Decl *d);
-
-static void typecheck_expr(Sema &sema, Expr *e) {
-    switch (e->kind) {
-    case ExprKind::integer_literal:
-        break;
-    case ExprKind::binary:
-        break;
-    default:
-        assert(!"unknown expr kind");
-    }
-}
-
-static void typecheck_stmt(Sema &sema, Stmt *s) {
-    switch (s->kind) {
-    case StmtKind::decl:
-        typecheck_decl(sema, static_cast<DeclStmt *>(s)->decl);
-        break;
-    case StmtKind::assign:
-        // TODO
-        break;
-    case StmtKind::if_:
-        // TODO
-        break;
-    default:
-    case StmtKind::return_:
-        break;
-        assert(!"unknown stmt kind");
-    }
-}
-
-static void typecheck_decl(Sema &sema, Decl *d) {
-    switch (d->kind) {
-    case DeclKind::var: {
-        auto v = static_cast<VarDecl *>(d);
-        if (!declare(sema, v->name, v)) {
-            return;
-        }
-        typecheck_expr(sema, v->assign_expr);
-        break;
-    }
-    case DeclKind::func:
-        for (auto body_stmt : static_cast<FuncDecl *>(d)->body->stmts) {
-            typecheck_stmt(sema, body_stmt);
-        }
-        break;
-    default:
-        assert(!"unknown decl kind");
-    }
-}
-
-void cmp::typecheck(Sema &sema, AstNode *n) {
-    switch (n->kind) {
-    case AstKind::file:
-        for (auto toplevel : static_cast<File *>(n)->toplevels) {
-            typecheck(sema, toplevel);
-        }
-        break;
-    case AstKind::stmt:
-        typecheck_stmt(sema, static_cast<Stmt *>(n));
-        break;
-    case AstKind::decl:
-        typecheck_decl(sema, static_cast<Decl *>(n));
-        break;
-    default:
-        assert(!"unknown ast kind");
-    }
-}
-
 // Mutability check for assignment statements.
 static bool mutcheck_assign(Sema &sema, const Expr *lhs) {
     if (lhs->kind == ExprKind::member) {
@@ -1115,6 +1046,104 @@ void BasicBlock::enumerate_postorder(std::vector<BasicBlock *> &walklist) {
     walklist.push_back(this);
 }
 
+static void typecheck_decl(Sema &sema, Decl *d);
+
+static void typecheck_expr(Sema &sema, Expr *e) {
+    switch (e->kind) {
+    case ExprKind::integer_literal:
+        break;
+    case ExprKind::binary:
+        break;
+    case ExprKind::struct_def: {
+        auto sd = static_cast<StructDefExpr *>(e);
+        Type *ty = sd->name_expr->type;
+        if (!ty) {
+            sema.error(sd->name_expr->pos, "internal: typecheck not implemented");
+        }
+        if (!isstructtype(ty)) {
+            sema.error(sd->name_expr->pos, "type '{}' is not a struct",
+                       ty->name->text);
+        }
+        for (auto desig : sd->desigs) {
+        }
+        break;
+    }
+    default:
+        assert(!"unknown expr kind");
+    }
+}
+
+static void typecheck_stmt(Sema &sema, Stmt *s) {
+    switch (s->kind) {
+    case StmtKind::expr:
+        typecheck_expr(sema, static_cast<ExprStmt *>(s)->expr);
+        break;
+    case StmtKind::decl:
+        typecheck_decl(sema, static_cast<DeclStmt *>(s)->decl);
+        break;
+    case StmtKind::assign:
+        // TODO
+        break;
+    case StmtKind::if_:
+        // TODO
+        break;
+    case StmtKind::return_:
+        break;
+    default:
+        assert(!"unknown stmt kind");
+    }
+}
+
+static void typecheck_decl(Sema &sema, Decl *d) {
+    switch (d->kind) {
+    case DeclKind::var: {
+        auto v = static_cast<VarDecl *>(d);
+        if (!declare(sema, v->name, v)) {
+            return;
+        }
+        typecheck_expr(sema, v->assign_expr);
+        break;
+    }
+    case DeclKind::func:
+        for (auto body_stmt : static_cast<FuncDecl *>(d)->body->stmts) {
+            typecheck_stmt(sema, body_stmt);
+        }
+        break;
+    case DeclKind::struct_: {
+        auto s = static_cast<StructDecl *>(d);
+        if (!declare(sema, s->name, s)) {
+            return;
+        }
+        sema.decl_table.scope_open();
+        for (auto f : s->fields) {
+            typecheck_decl(sema, f);
+        }
+        sema.decl_table.scope_close();
+        break;
+    }
+    default:
+        assert(!"unknown decl kind");
+    }
+}
+
+void cmp::typecheck(Sema &sema, AstNode *n) {
+    switch (n->kind) {
+    case AstKind::file:
+        for (auto toplevel : static_cast<File *>(n)->toplevels) {
+            typecheck(sema, toplevel);
+        }
+        break;
+    case AstKind::stmt:
+        typecheck_stmt(sema, static_cast<Stmt *>(n));
+        break;
+    case AstKind::decl:
+        typecheck_decl(sema, static_cast<Decl *>(n));
+        break;
+    default:
+        assert(!"unknown ast kind");
+    }
+}
+
 static void codegen_decl(QbeGenerator &q, Decl *d);
 
 static void codegen_expr(QbeGenerator &q, Expr *e) {
@@ -1150,6 +1179,9 @@ static void codegen_expr(QbeGenerator &q, Expr *e) {
         q.valstack.push();
         break;
     }
+    case ExprKind::struct_def:
+        // TODO
+        break;
     default:
         assert(!"unknown expr kind");
     }
@@ -1157,6 +1189,9 @@ static void codegen_expr(QbeGenerator &q, Expr *e) {
 
 static void codegen_stmt(QbeGenerator &q, Stmt *s) {
     switch (s->kind) {
+    case StmtKind::expr:
+        codegen_expr(q, static_cast<ExprStmt *>(s)->expr);
+        break;
     case StmtKind::decl:
         codegen_decl(q, static_cast<DeclStmt *>(s)->decl);
         break;
@@ -1222,6 +1257,9 @@ static void codegen_decl(QbeGenerator &q, Decl *d) {
         // analyses are not fully implemented yet.
         q.emit_indent("ret\n");
         break;
+    case DeclKind::struct_: {
+        break;
+    }
     default:
         assert(!"unknown decl kind");
     }

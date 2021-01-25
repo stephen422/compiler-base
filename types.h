@@ -81,8 +81,6 @@ enum class TypeKind {
 // nodes, rather than stored as a by-value member, because their presence may
 // outlive the lexical scope of a single AST node. TODO: say about whether
 // storing them in memory pools or the scoped table.
-//
-// TODO: switch to union/variant?
 struct Type {
     TypeKind kind = TypeKind::value;
     // Name of the type. TODO: include & or [] in the name?
