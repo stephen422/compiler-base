@@ -226,7 +226,11 @@ struct StructFieldDesignator {
 
 // 'Struct { .m1 = .e1, .m2 = e2, ... }'
 struct StructDefExpr : public Expr {
-    Expr *name_expr; // either a DeclRefExpr or a MemberExpr
+    // Either a DeclRefExpr or a MemberExpr.
+    // @Improve: Technically, we might be able to just have this as a Name. It
+    // doesn't make sense all the intermediate Exprs in a MemberExpr has to have
+    // an associated Type.
+    Expr *name_expr;
     std::vector<StructFieldDesignator> desigs;
 
     StructDefExpr(Expr *e, const std::vector<StructFieldDesignator> &ds)
@@ -357,8 +361,14 @@ template <> inline bool decl_is<BadDecl>(const DeclKind kind) {
 
 // A declaration node.
 //
-// All Decl-derived types has a pointer field called 'name'. The value of this
-// pointer serves as a unique integer ID used as the key the symbol table.
+// Decl is different from Type in that it stores metadatas that are unique to
+// each instances of that Type, e.g. initializing expressions for VarDecls, etc.
+// It also encodes declarations of symbols that do not have an associated Type,
+// like functions.
+//
+// All types that derive from Decl has a pointer field called 'name'. The value
+// of this pointer serves as a unique integer ID used as the key the symbol
+// table.
 struct Decl : public AstNode {
     const DeclKind kind;
 
