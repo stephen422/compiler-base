@@ -1,6 +1,7 @@
 // fail
 
 struct S {
+    hi: int
 }
 
 func main() {

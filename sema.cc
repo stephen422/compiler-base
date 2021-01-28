@@ -1088,11 +1088,11 @@ static void typecheck_expr(Sema &sema, Expr *e) {
     }
     case ExprKind::struct_def: {
         auto sd = static_cast<StructDefExpr *>(e);
-
-        assert(sd->name_expr->kind == ExprKind::decl_ref);
+        typecheck_expr(sema, sd->name_expr);
 
         // TODO: should 'name_expr' have a type? I think we should rather have
         // it be just a Name and do a lookup on it.
+        assert(sd->name_expr->decl);
         Type *ty = sd->name_expr->decl->type;
         if (!ty) {
             sema.error(sd->name_expr->pos,
@@ -1103,6 +1103,17 @@ static void typecheck_expr(Sema &sema, Expr *e) {
                        ty->name->text);
         }
         for (auto desig : sd->desigs) {
+            bool match = false;
+            for (auto field :
+                 static_cast<StructDecl *>(sd->name_expr->decl)->fields) {
+                if (desig.name == field->name) {
+                    match = true;
+                    break;
+                }
+            }
+            if (!match) {
+                sema.error(sd->pos, "undeclared field '{}'", desig.name->text);
+            }
         }
         break;
     }
@@ -1137,7 +1148,9 @@ static void typecheck_decl(Sema &sema, Decl *d) {
     case DeclKind::var: {
         auto v = static_cast<VarDecl *>(d);
         declare(sema, v->name, v);
-        typecheck_expr(sema, v->assign_expr);
+        if (v->assign_expr) {
+            typecheck_expr(sema, v->assign_expr);
+        }
         break;
     }
     case DeclKind::func:
@@ -1150,9 +1163,6 @@ static void typecheck_decl(Sema &sema, Decl *d) {
         declare(sema, s->name, s);
 
         s->type = make_value_type(sema, s->name, s);
-
-        // Do pre-order walk so that recursive struct definitions are legal.
-        // walk_struct_decl(*this, s);
 
         sema.decl_table.scope_open();
         for (auto f : s->fields) {
