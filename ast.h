@@ -230,11 +230,12 @@ struct StructDefExpr : public Expr {
     // @Improve: Technically, we might be able to just have this as a Name. It
     // doesn't make sense all the intermediate Exprs in a MemberExpr has to have
     // an associated Type.
-    Expr *name_expr;
+    DeclRefExpr *name_expr;
     std::vector<StructFieldDesignator> desigs;
 
-    StructDefExpr(Expr *e, const std::vector<StructFieldDesignator> &ds)
-        : Expr(ExprKind::struct_def), name_expr(e), desigs(ds) {}
+    StructDefExpr(DeclRefExpr *dre,
+                  const std::vector<StructFieldDesignator> &ds)
+        : Expr(ExprKind::struct_def), name_expr(dre), desigs(ds) {}
 };
 
 // 'struct.mem'

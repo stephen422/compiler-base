@@ -332,6 +332,7 @@ bool declare(Sema &sema, Name *name, Decl *decl) {
     auto found = sema.decl_table.find(name);
     if (found && found->value->kind == decl->kind &&
         found->scope_level == sema.decl_table.curr_scope_level) {
+        assert(false);
         sema.error(decl->pos, "redefinition of '{}'", name->text);
         return false;
     }
@@ -339,6 +340,23 @@ bool declare(Sema &sema, Name *name, Decl *decl) {
     sema.decl_table.insert(name, decl);
     return true;
 }
+
+//
+// Typecheck start.
+//
+
+// Returns true if this type is a reference type.
+static bool isreftype(const Type *ty) {
+    return ty->kind == TypeKind::ref || ty->kind == TypeKind::var_ref;
+}
+
+// Returns true if this type is a reference type.
+static bool isstructtype(const Type *ty) {
+    return ty->kind == TypeKind::value && ty->type_decl &&
+        ty->type_decl->is<StructDecl>();
+}
+
+#if 0
 
 // Mutability check for assignment statements.
 static bool mutcheck_assign(Sema &sema, const Expr *lhs) {
@@ -362,17 +380,6 @@ static bool mutcheck_assign(Sema &sema, const Expr *lhs) {
     }
 
     return true;
-}
-
-// Returns true if this type is a reference type.
-static bool isreftype(const Type *ty) {
-    return ty->kind == TypeKind::ref || ty->kind == TypeKind::var_ref;
-}
-
-// Returns true if this type is a reference type.
-static bool isstructtype(const Type *ty) {
-    return ty->kind == TypeKind::value && ty->type_decl &&
-           ty->type_decl->is<StructDecl>();
 }
 
 // Typecheck assignment statement of 'lhs = rhs'.
@@ -1046,6 +1053,12 @@ void BasicBlock::enumerate_postorder(std::vector<BasicBlock *> &walklist) {
     walklist.push_back(this);
 }
 
+#endif
+
+//
+// Typecheck end.
+//
+
 static void typecheck_decl(Sema &sema, Decl *d);
 
 static void typecheck_expr(Sema &sema, Expr *e) {
@@ -1054,11 +1067,28 @@ static void typecheck_expr(Sema &sema, Expr *e) {
         break;
     case ExprKind::binary:
         break;
+    case ExprKind::decl_ref: {
+        auto d = static_cast<DeclRefExpr *>(e);
+        auto sym = sema.decl_table.find(d->name);
+        if (!sym) {
+            sema.error(d->pos, "use of undeclared identifier '{}'",
+                       d->name->text);
+        }
+        d->decl = sym->value;
+        assert(d->decl);
+        break;
+    }
     case ExprKind::struct_def: {
         auto sd = static_cast<StructDefExpr *>(e);
+
+        assert(sd->name_expr->kind == ExprKind::decl_ref);
+
+        // TODO: should 'name_expr' have a type? I think we should rather have
+        // it be just a Name and do a lookup on it.
         Type *ty = sd->name_expr->type;
         if (!ty) {
-            sema.error(sd->name_expr->pos, "internal: typecheck not implemented");
+            sema.error(sd->name_expr->pos,
+                       "internal: typecheck not implemented");
         }
         if (!isstructtype(ty)) {
             sema.error(sd->name_expr->pos, "type '{}' is not a struct",
@@ -1098,9 +1128,7 @@ static void typecheck_decl(Sema &sema, Decl *d) {
     switch (d->kind) {
     case DeclKind::var: {
         auto v = static_cast<VarDecl *>(d);
-        if (!declare(sema, v->name, v)) {
-            return;
-        }
+        declare(sema, v->name, v);
         typecheck_expr(sema, v->assign_expr);
         break;
     }
@@ -1111,9 +1139,13 @@ static void typecheck_decl(Sema &sema, Decl *d) {
         break;
     case DeclKind::struct_: {
         auto s = static_cast<StructDecl *>(d);
-        if (!declare(sema, s->name, s)) {
-            return;
-        }
+        declare(sema, s->name, s);
+
+        s->type = make_value_type(sema, s->name, s);
+
+        // Do pre-order walk so that recursive struct definitions are legal.
+        // walk_struct_decl(*this, s);
+
         sema.decl_table.scope_open();
         for (auto f : s->fields) {
             typecheck_decl(sema, f);

@@ -800,16 +800,19 @@ Expr *Parser::parse_member_expr_maybe(Expr *expr) {
 bool Parser::lookahead_structdef() {
     auto s = save_state();
 
-    if (tok.kind != Tok::lbrace)
+    if (tok.kind != Tok::lbrace) {
         goto fail;
+    }
 
     // empty ({})
-    if (tok.kind == Tok::rbrace)
+    if (tok.kind == Tok::rbrace) {
         goto success;
+    }
     next();
 
-    if (tok.kind != Tok::dot)
+    if (tok.kind != Tok::dot) {
         goto fail;
+    }
 
 success:
     restore_state(s);
@@ -843,6 +846,11 @@ std::optional<StructFieldDesignator> Parser::parse_structdef_field() {
 Expr *Parser::parse_structdef_maybe(Expr *expr) {
     auto pos = tok.pos;
 
+    if (expr->kind != ExprKind::decl_ref) {
+        error("qualified struct names are not yet supported");
+    }
+    auto declrefexpr = static_cast<DeclRefExpr *>(expr);
+
     expect(Tok::lbrace);
 
     auto v = parse_comma_separated_list<std::optional<StructFieldDesignator>>(
@@ -856,7 +864,7 @@ Expr *Parser::parse_structdef_maybe(Expr *expr) {
 
     expect(Tok::rbrace);
 
-    return make_node_range<StructDefExpr>(pos, expr, desigs);
+    return make_node_range<StructDefExpr>(pos, declrefexpr, desigs);
 }
 
 Expr *Parser::parse_expr() {
