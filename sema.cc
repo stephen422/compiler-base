@@ -1093,7 +1093,7 @@ static void typecheck_expr(Sema &sema, Expr *e) {
 
         // TODO: should 'name_expr' have a type? I think we should rather have
         // it be just a Name and do a lookup on it.
-        Type *ty = sd->name_expr->type;
+        Type *ty = sd->name_expr->decl->type;
         if (!ty) {
             sema.error(sd->name_expr->pos,
                        "internal: typecheck not implemented");

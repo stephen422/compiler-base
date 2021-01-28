@@ -364,19 +364,23 @@ template <> inline bool decl_is<BadDecl>(const DeclKind kind) {
 //
 // Decl is different from Type in that it stores metadatas that are unique to
 // each instances of that Type, e.g. initializing expressions for VarDecls, etc.
-// It also encodes declarations of symbols that do not have an associated Type,
-// like functions.
 //
 // All types that derive from Decl has a pointer field called 'name'. The value
 // of this pointer serves as a unique integer ID used as the key the symbol
 // table.
 struct Decl : public AstNode {
     const DeclKind kind;
+    Name *name = nullptr;
+    // Might be null for symbols that do not have an associated Type like
+    // functions.
+    Type *type = nullptr;
 
     Decl(DeclKind d) : AstNode(AstKind::decl), kind(d) {}
+    Decl(DeclKind d, Name *n) : AstNode(AstKind::decl), kind(d), name(n) {}
+    Decl(DeclKind d, Name *n, Type *t)
+        : AstNode(AstKind::decl), kind(d), name(n), type(t) {}
     template <typename T> bool is() const { return decl_is<T>(kind); }
     std::optional<Type *> typemaybe() const;
-    Name *name() const;
 };
 
 enum class VarDeclKind {
@@ -387,9 +391,6 @@ enum class VarDeclKind {
 
 // Variable declaration.
 struct VarDecl : public Decl {
-    Name *name = nullptr;
-    Type *type = nullptr;
-
     // Whether this VarDecl has been declared as a local variable, as a field
     // inside a struct, or as a parameter for a function.
     // TODO: use separate types for each, e.g. FieldDecl.
@@ -434,16 +435,13 @@ struct VarDecl : public Decl {
     VarDecl *parent = nullptr;
 
     VarDecl(Name *n, VarDeclKind k, Expr *t, Expr *expr)
-        : Decl(DeclKind::var), name(n), kind(k), type_expr(t),
-          assign_expr(expr) {}
-    VarDecl(Name *n, Type *t, bool m)
-        : Decl(DeclKind::var), name(n), type(t), mut(m) {}
+        : Decl(DeclKind::var, n), kind(k), type_expr(t), assign_expr(expr) {}
+    VarDecl(Name *n, Type *t, bool m) : Decl(DeclKind::var, n, t), mut(m) {}
 };
 
 // Function declaration.  There is no separate function definition: functions
 // should always be defined whenever they are declared.
 struct FuncDecl : public Decl {
-    Name *name = nullptr;         // name of the function
     Type *rettype = nullptr;      // return type of the function
     std::vector<VarDecl *> args;  // list of parameters
     CompoundStmt *body = nullptr; // body statements
@@ -454,38 +452,32 @@ struct FuncDecl : public Decl {
     // "Bogus" lifetime that represents the scope of the function body.
     Lifetime *scope_lifetime = nullptr;
 
-    FuncDecl(Name *n) : Decl(DeclKind::func), name(n) {}
+    FuncDecl(Name *n) : Decl(DeclKind::func, n) {}
     size_t args_count() const { return args.size(); }
 };
 
 // Struct declaration.
 struct StructDecl : public Decl {
-    Name *name = nullptr;          // name of the struct
-    Type *type = nullptr;          // type of the struct
     std::vector<VarDecl *> fields; // member variables
 
     StructDecl(Name *n, std::vector<VarDecl *> m)
-        : Decl(DeclKind::struct_), name(n), fields(m) {}
+        : Decl(DeclKind::struct_, n), fields(m) {}
 };
 
 // A variant type in an enum.
 struct EnumVariantDecl : public Decl {
-    Name *name = nullptr;       // name of the variant
-    Type *type = nullptr;       // type of the variant
     std::vector<Expr *> fields; // type of the fields
 
     EnumVariantDecl(Name *n, std::vector<Expr *> f)
-        : Decl(DeclKind::enum_variant), name(n), fields(f) {}
+        : Decl(DeclKind::enum_variant, n), fields(f) {}
 };
 
 // Enum declaration.
 struct EnumDecl : public Decl {
-    Name *name = nullptr;                    // name of the enum
-    Type *type = nullptr;                    // type of the enum
     std::vector<EnumVariantDecl *> variants; // variants
 
     EnumDecl(Name *n, std::vector<EnumVariantDecl *> m)
-        : Decl(DeclKind::enum_), name(n), variants(m) {}
+        : Decl(DeclKind::enum_, n), variants(m) {}
 };
 
 // Extern declaration.
