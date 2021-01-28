@@ -100,6 +100,12 @@ void Sema::scope_close() {
     borrow_table.scope_close();
 }
 
+//
+// Name binding
+//
+
+#if 0
+
 void NameBinding::visitCompoundStmt(CompoundStmt *cs) {
     sema.scope_open();
     walk_compound_stmt(*this, cs);
@@ -326,6 +332,8 @@ void NameBinding::visitEnumDecl(EnumDecl *e) {
     sema.context.enum_decl_stack.pop_back();
     sema.decl_table.scope_close();
 }
+
+#endif
 
 // Returns true if success and otherwise (e.g. redeclaration) do error handling.
 bool declare(Sema &sema, Name *name, Decl *decl) {
