@@ -392,22 +392,6 @@ static bool mutcheck_assign(Sema &sema, const Expr *lhs) {
     return true;
 }
 
-// Typecheck assignment statement of 'lhs = rhs'.
-static bool typecheck_assign(const Type *lhs, const Type *rhs) {
-    // TODO: Typecheck assignment rules so far:
-    //
-    // 1. Reference <- mutable reference.
-    // 2. Exact same match.
-
-    // Allow promotion from mutable to immutable reference.
-    if (lhs->kind == TypeKind::ref && isreftype(rhs)) {
-        // TODO: 'unification'? Ref:
-        // http://smallcultfollowing.com/babysteps/blog/2017/03/25/unification-in-chalk-part-1/
-        return typecheck_assign(lhs->referee_type, rhs->referee_type);
-    }
-    return lhs == rhs;
-}
-
 // Assignments should check that the LHS is an lvalue.
 // This check cannot be done reliably in the parsing stage because it depends
 // on the actual type of the expression, not just its kind; e.g. (v) or (3).
@@ -1073,8 +1057,11 @@ static void typecheck_decl(Sema &sema, Decl *d);
 
 static void typecheck_expr(Sema &sema, Expr *e) {
     switch (e->kind) {
-    case ExprKind::integer_literal:
+    case ExprKind::integer_literal: {
+        auto lit_expr = static_cast<IntegerLiteral *>(e);
+        lit_expr->type = sema.context.int_type;
         break;
+    }
     case ExprKind::decl_ref: {
         auto decl_ref_expr = static_cast<DeclRefExpr *>(e);
         auto sym = sema.decl_table.find(decl_ref_expr->name);
@@ -1170,6 +1157,22 @@ static void typecheck_expr(Sema &sema, Expr *e) {
     }
 }
 
+// Typecheck assignment statement of 'lhs = rhs'.
+static bool typecheck_assign(const Type *lhs, const Type *rhs) {
+    // TODO: Typecheck assignment rules so far:
+    //
+    // 1. Reference <- mutable reference.
+    // 2. Exact same match.
+
+    // Allow promotion from mutable to immutable reference.
+    if (lhs->kind == TypeKind::ref && is_ref_type(rhs)) {
+        // NOTE: this may be related to 'unification'. Ref:
+        // http://smallcultfollowing.com/babysteps/blog/2017/03/25/unification-in-chalk-part-1/
+        return typecheck_assign(lhs->referee_type, rhs->referee_type);
+    }
+    return lhs == rhs;
+}
+
 static void typecheck_stmt(Sema &sema, Stmt *s) {
     switch (s->kind) {
     case StmtKind::expr:
@@ -1178,9 +1181,29 @@ static void typecheck_stmt(Sema &sema, Stmt *s) {
     case StmtKind::decl:
         typecheck_decl(sema, static_cast<DeclStmt *>(s)->decl);
         break;
-    case StmtKind::assign:
-        // TODO
+    case StmtKind::assign: {
+        auto as = static_cast<AssignStmt *>(s);
+        typecheck_expr(sema, as->rhs);
+        typecheck_expr(sema, as->lhs);
+
+        auto lhs_type = as->lhs->type;
+        auto rhs_type = as->rhs->type;
+
+        if (!lhs_type || !rhs_type) {
+            return;
+        }
+        // if (!islvalue(as->lhs)) {
+        //     sema.error(as->pos, "cannot assign to an rvalue");
+        //     return;
+        // }
+        if (!typecheck_assign(lhs_type, rhs_type)) {
+            sema.error(as->pos, "cannot assign '{}' type to '{}'",
+                       rhs_type->name->text, lhs_type->name->text);
+            return;
+        }
+
         break;
+    }
     case StmtKind::if_:
         // TODO
         break;
