@@ -176,6 +176,8 @@ struct Expr : public AstNode {
     // becomes the unified way to retrieve the type of an expression.
     Type *type = nullptr;
 
+    Decl *decl = nullptr;
+
     Expr(ExprKind e) : AstNode(AstKind::expr), kind(e), type(nullptr) {}
 };
 
@@ -240,12 +242,13 @@ struct StructDefExpr : public Expr {
 
 // 'struct.mem'
 struct MemberExpr : public Expr {
-    Expr *struct_expr = nullptr; // 'struct' part
+    // 'struct' part; this is a general Expr because things like func().mem
+    // should be possible.
+    Expr *struct_expr = nullptr;
     Name *member_name = nullptr; // 'mem' part
 
     // MemberExprs may or may not have an associated decl object, depending on
     // 'struct_expr' being l-value or r-value.
-    std::optional<Decl *> decl;
 
     MemberExpr(Expr *e, Name *m)
         : Expr(ExprKind::member), struct_expr(e), member_name(m) {}
@@ -272,7 +275,6 @@ enum class UnaryExprKind {
 struct UnaryExpr : public Expr {
     const UnaryExprKind kind;
     Expr *operand;
-    VarDecl *var_decl = nullptr;
 
     UnaryExpr(UnaryExprKind k, Expr *oper)
         : Expr(ExprKind::unary), kind(k), operand(oper) {}
@@ -302,8 +304,8 @@ struct TypeExpr : public Expr {
     TypeKind kind = TypeKind::value;
     // Name of the type. TODO: should this contain '&' and '[]'?
     Name *name = nullptr;
-    // Decl object that represents this type.
-    Decl *decl = nullptr;
+    // Expr's 'decl' is the Decl object that represents this type.
+
     // Is this type mutable?
     bool mut = false;
     // Name of the explicit lifetime annotation.

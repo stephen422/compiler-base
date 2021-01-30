@@ -250,8 +250,9 @@ static bool getdecl(const Expr *e, Decl **decl) {
         break;
     case ExprKind::member:
         contains = e->as<MemberExpr>()->decl.has_value();
-        if (contains)
+        if (contains) {
             d = *e->as<MemberExpr>()->decl;
+        }
         break;
     case ExprKind::unary:
         if (e->as<UnaryExpr>()->kind == UnaryExprKind::paren) {
@@ -265,8 +266,9 @@ static bool getdecl(const Expr *e, Decl **decl) {
         break;
     }
 
-    if (decl && contains)
+    if (decl && contains) {
         *decl = d;
+    }
 
     return contains;
 }
@@ -354,14 +356,14 @@ bool declare(Sema &sema, Name *name, Decl *decl) {
 //
 
 // Returns true if this type is a reference type.
-static bool isreftype(const Type *ty) {
+static bool is_ref_type(const Type *ty) {
     return ty->kind == TypeKind::ref || ty->kind == TypeKind::var_ref;
 }
 
 // Returns true if this type is a reference type.
-static bool isstructtype(const Type *ty) {
+static bool is_struct_type(const Type *ty) {
     return ty->kind == TypeKind::value && ty->type_decl &&
-        ty->type_decl->is<StructDecl>();
+        ty->type_decl->kind == DeclKind::struct_;
 }
 
 #if 0
@@ -1073,34 +1075,36 @@ static void typecheck_expr(Sema &sema, Expr *e) {
     switch (e->kind) {
     case ExprKind::integer_literal:
         break;
-    case ExprKind::binary:
-        break;
     case ExprKind::decl_ref: {
-        auto d = static_cast<DeclRefExpr *>(e);
-        auto sym = sema.decl_table.find(d->name);
+        auto decl_ref_expr = static_cast<DeclRefExpr *>(e);
+        auto sym = sema.decl_table.find(decl_ref_expr->name);
         if (!sym) {
-            sema.error(d->pos, "undeclared identifier '{}'",
-                       d->name->text);
+            sema.error(decl_ref_expr->pos, "undeclared identifier '{}'",
+                       decl_ref_expr->name->text);
+            return;
         }
-        d->decl = sym->value;
-        assert(d->decl);
+        decl_ref_expr->decl = sym->value;
+        assert(decl_ref_expr->decl);
+        decl_ref_expr->type = decl_ref_expr->decl->type;
         break;
     }
     case ExprKind::struct_def: {
         auto sd = static_cast<StructDefExpr *>(e);
         typecheck_expr(sema, sd->name_expr);
 
-        // TODO: should 'name_expr' have a type? I think we should rather have
-        // it be just a Name and do a lookup on it.
+        // @Cleanup: should 'name_expr' have a type? I think we should rather
+        // have it be just a Name and do a lookup on it.
         assert(sd->name_expr->decl);
         Type *ty = sd->name_expr->decl->type;
         if (!ty) {
             sema.error(sd->name_expr->pos,
                        "internal: typecheck not implemented");
+            return;
         }
-        if (!isstructtype(ty)) {
+        if (!is_struct_type(ty)) {
             sema.error(sd->name_expr->pos, "type '{}' is not a struct",
                        ty->name->text);
+            return;
         }
         for (auto desig : sd->desigs) {
             bool match = false;
@@ -1113,8 +1117,51 @@ static void typecheck_expr(Sema &sema, Expr *e) {
             }
             if (!match) {
                 sema.error(sd->pos, "undeclared field '{}'", desig.name->text);
+                return;
             }
         }
+        break;
+    }
+    case ExprKind::member: {
+        auto mem = static_cast<MemberExpr *>(e);
+        typecheck_expr(sema, mem->struct_expr);
+        assert(mem->struct_expr->type);
+
+        bool match = false;
+        auto parent_type = mem->struct_expr->type;
+        if (!is_struct_type(parent_type)) {
+            sema.error(mem->struct_expr->pos, "type '{}' is not a struct",
+                       parent_type->name->text);
+            return;
+        }
+        for (auto field :
+                 static_cast<StructDecl *>(parent_type->type_decl)->fields) {
+            if (mem->member_name == field->name) {
+                match = true;
+                break;
+            }
+        }
+
+        if (!match) {
+            sema.error(mem->pos, "unknown field '{}' in struct '{}'",
+                       mem->member_name->text, parent_type->name->text);
+            return;
+        }
+        break;
+    }
+    case ExprKind::binary:
+        break;
+    case ExprKind::type: {
+        auto type_expr = static_cast<TypeExpr *>(e);
+        auto sym = sema.decl_table.find(type_expr->name);
+        if (!sym) {
+            sema.error(type_expr->pos, "undeclared identifier '{}'",
+                       type_expr->name->text);
+            return;
+        }
+        type_expr->decl = sym->value;
+        assert(type_expr->decl);
+        type_expr->type = make_value_type(sema, type_expr->name, type_expr->decl);
         break;
     }
     default:
@@ -1150,6 +1197,9 @@ static void typecheck_decl(Sema &sema, Decl *d) {
         declare(sema, v->name, v);
         if (v->assign_expr) {
             typecheck_expr(sema, v->assign_expr);
+        } else if (v->type_expr) {
+            typecheck_expr(sema, v->type_expr);
+            v->type = v->type_expr->type;
         }
         break;
     }
@@ -1208,6 +1258,12 @@ static void codegen_expr(QbeGenerator &q, Expr *e) {
                      static_cast<DeclRefExpr *>(e)->name->text);
         q.valstack.push();
         break;
+    case ExprKind::struct_def:
+        // TODO
+        break;
+    case ExprKind::member:
+        // TODO
+        break;
     case ExprKind::binary: {
         auto binary = static_cast<BinaryExpr *>(e);
         codegen_expr(q, binary->lhs);
@@ -1229,9 +1285,6 @@ static void codegen_expr(QbeGenerator &q, Expr *e) {
         q.valstack.push();
         break;
     }
-    case ExprKind::struct_def:
-        // TODO
-        break;
     default:
         assert(!"unknown expr kind");
     }

@@ -75,7 +75,9 @@ enum class TypeKind {
 // 'Type' represents a type, whether it be a built-in type, a user-defined
 // struct, or a reference to another of those.  Similar to Names, Types are
 // designed to exist as singular instances in the lifetime of the compiler, and
-// are meant to be compared by a simple pointer comparison.
+// are meant to be compared by a simple pointer comparison.  This is a
+// difference with 'Decl', which may exist as many as there are different
+// instances of a variable with different memory locations.
 //
 // Types should be allocated on the heap and stored as a pointer member in AST
 // nodes, rather than stored as a by-value member, because their presence may
@@ -92,10 +94,11 @@ struct Type {
     // checking phase.
     bool copyable = true;
     union {
-        // Back-reference to the decl object that defines this value type.
+        // For value types: back-reference to the decl object that defines this
+        // value type.
         Decl *type_decl = nullptr;
-        // The target type that this type refers to.  If this is a non-reference
-        // or a non-pointer type, the value should be null.
+        // For derived types e.g. pointers: the target type that this type
+        // refers to.
         Type *referee_type;
     };
 
