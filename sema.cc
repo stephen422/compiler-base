@@ -1095,15 +1095,15 @@ static void typecheck_expr(Sema &sema, Expr *e) {
         // @Cleanup: should 'name_expr' have a type? I think we should rather
         // have it be just a Name and do a lookup on it.
         assert(sd->name_expr->decl);
-        Type *ty = sd->name_expr->decl->type;
-        if (!ty) {
+        Type *struct_type = sd->name_expr->decl->type;
+        if (!struct_type) {
             sema.error(sd->name_expr->pos,
                        "internal: typecheck not implemented");
             return;
         }
-        if (!is_struct_type(ty)) {
+        if (!is_struct_type(struct_type)) {
             sema.error(sd->name_expr->pos, "type '{}' is not a struct",
-                       ty->name->text);
+                       struct_type->name->text);
             return;
         }
         for (auto desig : sd->desigs) {
@@ -1116,7 +1116,8 @@ static void typecheck_expr(Sema &sema, Expr *e) {
                 }
             }
             if (!match) {
-                sema.error(sd->pos, "undeclared field '{}'", desig.name->text);
+                sema.error(sd->pos, "unknown field '{}' in struct '{}'",
+                           desig.name->text, struct_type->name->text);
                 return;
             }
         }

@@ -6,11 +6,11 @@ struct S {
 
 func main() {
     var not_a_struct: int
-    not_a_struct.lol
+    not_a_struct.lol //~error: unknown field 'lol' in struct 'int'
 
     var a: S
-    a.lol
+    a.lol //~error: unknown feld 'lol' in struct 'S'
 
     S {.hi = 0}
-    S {.notthere = 0} // ERROR: 'notthere' is not a member of 'Token'
+    S {.notthere = 0} //~error: unknown field 'notthere' in struct 'S'
 }
