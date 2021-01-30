@@ -4,6 +4,8 @@ import sys
 import subprocess
 
 def test(binname, filename):
+    print('test {}'.format(filename), end='')
+
     beacon_list = []
 
     line_number = 1
@@ -46,12 +48,13 @@ def test(binname, filename):
         j = j + 1
 
     if success:
-        print('\033[0;32mpass\033[0m {}'.format(filename))
+        print('\r\033[0;32mpass\033[0m {}'.format(filename))
     else:
-        print('\033[0;31mfail\033[0m {}'.format(filename))
+        print('\r\033[0;31mfail\033[0m {}'.format(filename))
 
 test('build/ruse', 'test/simple.ruse')
 test('build/ruse', 'test/return.ruse')
 test('build/ruse', 'test/if.ruse')
-test('build/ruse', 'test/codegen.ruse')
+test('build/ruse', 'test/typecheck.ruse')
 test('build/ruse', 'test/struct.ruse')
+test('build/ruse', 'test/codegen.ruse')
