@@ -1125,18 +1125,18 @@ static void typecheck_expr(Sema &sema, Expr *e) {
     }
     case ExprKind::member: {
         auto mem = static_cast<MemberExpr *>(e);
-        typecheck_expr(sema, mem->struct_expr);
-        assert(mem->struct_expr->type);
+        typecheck_expr(sema, mem->parent_expr);
+        assert(mem->parent_expr->type);
 
         bool match = false;
-        auto parent_type = mem->struct_expr->type;
+        auto parent_type = mem->parent_expr->type;
         if (!is_struct_type(parent_type)) {
-            sema.error(mem->struct_expr->pos, "type '{}' is not a struct",
+            sema.error(mem->parent_expr->pos, "type '{}' is not a struct",
                        parent_type->name->text);
             return;
         }
         for (auto field :
-                 static_cast<StructDecl *>(parent_type->type_decl)->fields) {
+             static_cast<StructDecl *>(parent_type->type_decl)->fields) {
             if (mem->member_name == field->name) {
                 match = true;
                 break;

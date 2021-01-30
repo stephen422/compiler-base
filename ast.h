@@ -244,14 +244,14 @@ struct StructDefExpr : public Expr {
 struct MemberExpr : public Expr {
     // 'struct' part; this is a general Expr because things like func().mem
     // should be possible.
-    Expr *struct_expr = nullptr;
+    Expr *parent_expr = nullptr;
     Name *member_name = nullptr; // 'mem' part
 
     // MemberExprs may or may not have an associated decl object, depending on
     // 'struct_expr' being l-value or r-value.
 
     MemberExpr(Expr *e, Name *m)
-        : Expr(ExprKind::member), struct_expr(e), member_name(m) {}
+        : Expr(ExprKind::member), parent_expr(e), member_name(m) {}
 };
 
 // '[type](expr)'
