@@ -17,7 +17,7 @@ template <typename... Args> void Sema::error(size_t pos, Args &&...args) {
     auto loc = source.locate(pos);
     fmt::print(stderr, "{}:{}:{}: error: {}\n", loc.filename, loc.line, loc.col,
                message);
-    exit(EXIT_FAILURE);
+    // exit(EXIT_FAILURE);
 }
 
 Type::Type(Name *n, TypeKind k, Type *rt) : kind(k), name(n), referee_type(rt) {
@@ -1079,7 +1079,7 @@ static void typecheck_expr(Sema &sema, Expr *e) {
         auto d = static_cast<DeclRefExpr *>(e);
         auto sym = sema.decl_table.find(d->name);
         if (!sym) {
-            sema.error(d->pos, "use of undeclared identifier '{}'",
+            sema.error(d->pos, "undeclared identifier '{}'",
                        d->name->text);
         }
         d->decl = sym->value;
@@ -1294,8 +1294,10 @@ static void codegen_decl(QbeGenerator &q, Decl *d) {
     switch (d->kind) {
     case DeclKind::var: {
         auto v = static_cast<VarDecl *>(d);
-        codegen_expr(q, v->assign_expr);
-        q.emit_indent("%{} =w add 0, %_{}\n", v->name->text, q.valstack.pop());
+        if (v->assign_expr) {
+            codegen_expr(q, v->assign_expr);
+            q.emit_indent("%{} =w add 0, %_{}\n", v->name->text, q.valstack.pop());
+        }
         break;
     }
     case DeclKind::func:

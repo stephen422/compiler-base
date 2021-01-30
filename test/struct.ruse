@@ -5,5 +5,9 @@ struct S {
 }
 
 func main() {
+    var a: S
+    // a.lol
+
+    S {.hi = 0}
     S {.notthere = 0} // ERROR: 'notthere' is not a member of 'Token'
 }
