@@ -42,7 +42,7 @@ func main() {
     car.engine = car //~error: cannot assign 'Car' type to 'int'
 
     // binary expressions
-    3 + car //~error: incompatible.*binary.*'int'.*'Car'
+    3 + car //~error: incompatible binary op with type 'int' and 'Car'
     (3 + car).wheel //~error: incompatible binary op with type 'int' and 'Car'
     (car).wheel
     let pa: &int
