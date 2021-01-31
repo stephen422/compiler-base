@@ -301,8 +301,8 @@ struct TypeExpr : public Expr {
     bool mut = false;
     // Name of the explicit lifetime annotation.
     Name *lifetime_annot = nullptr;
-    // 'T' part of '&T'.  It is Expr rather than TypeExpr mainly so that it can
-    // store BadExpr.  XXX dirty.
+    // E.g., 'T' part of '*T'.  It is Expr rather than TypeExpr mainly so that
+    // it can store BadExpr.  XXX dirty.
     Expr *subexpr = nullptr;
 
     // TODO: incomplete.

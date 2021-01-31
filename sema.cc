@@ -687,20 +687,6 @@ Type *TypeChecker::visitMemberExpr(MemberExpr *m) {
     return m->type;
 }
 
-// Get or construct a derived type with kind `kind`, from a given type.
-//
-// Derived types are only present in the type table if they occur in the source
-// code.  Trying to push them every time we see one is sufficient to keep this
-// invariant.
-static Type *derivedtype(Sema &sema, TypeKind kind, Type *type) {
-    Name *name = name_of_derived_type(sema.name_table, kind, type->name);
-    if (auto found = sema.type_table.find(name))
-        return found->value;
-
-    Type *derived = make_ref_type(sema, name, kind, type);
-    return *sema.type_table.insert(name, derived);
-}
-
 Type *TypeChecker::visitUnaryExpr(UnaryExpr *u) {
     switch (u->kind) {
     case UnaryExprKind::paren: {
@@ -1054,31 +1040,45 @@ void BasicBlock::enumerate_postorder(std::vector<BasicBlock *> &walklist) {
 // Typecheck end.
 //
 
+// Get or construct a derived type with kind `kind`, from a given type.
+//
+// Derived types are only present in the type table if they occur in the source
+// code.  Trying to push them every time we see one is sufficient to keep this
+// invariant.
+static Type *get_derived_type(Sema &sema, TypeKind kind, Type *type) {
+    Name *name = name_of_derived_type(sema.name_table, kind, type->name);
+    if (auto found = sema.type_table.find(name)) {
+        return found->value;
+    } else {
+        Type *derived = make_ref_type(sema, name, kind, type);
+        return *sema.type_table.insert(name, derived);
+    }
+}
+
 static void typecheck_decl(Sema &sema, Decl *d);
 
 static void typecheck_expr(Sema &sema, Expr *e) {
     switch (e->kind) {
     case ExprKind::integer_literal: {
-        auto lit_expr = static_cast<IntegerLiteral *>(e);
-        lit_expr->type = sema.context.int_type;
+        auto l = static_cast<IntegerLiteral *>(e);
+        l->type = sema.context.int_type;
         break;
-   }
+    }
     case ExprKind::string_literal: {
-        auto lit_expr = static_cast<StringLiteral *>(e);
-        lit_expr->type = sema.context.string_type;
+        auto l = static_cast<StringLiteral *>(e);
+        l->type = sema.context.string_type;
         break;
     }
     case ExprKind::decl_ref: {
-        auto decl_ref_expr = static_cast<DeclRefExpr *>(e);
-        auto sym = sema.decl_table.find(decl_ref_expr->name);
+        auto dre = static_cast<DeclRefExpr *>(e);
+        auto sym = sema.decl_table.find(dre->name);
         if (!sym) {
-            sema.error(decl_ref_expr->loc, "undeclared identifier '{}'",
-                       decl_ref_expr->name->text);
+            sema.error(dre->loc, "undeclared identifier '{}'", dre->name->text);
             return;
         }
-        decl_ref_expr->decl = sym->value;
-        assert(decl_ref_expr->decl);
-        decl_ref_expr->type = decl_ref_expr->decl->type;
+        dre->decl = sym->value;
+        assert(dre->decl);
+        dre->type = dre->decl->type;
         break;
     }
     case ExprKind::struct_def: {
@@ -1153,11 +1153,11 @@ static void typecheck_expr(Sema &sema, Expr *e) {
         break;
     }
     case ExprKind::unary: {
-        auto unary_expr = static_cast<UnaryExpr *>(e);
-        switch (unary_expr->kind) {
+        auto u = static_cast<UnaryExpr *>(e);
+        switch (u->kind) {
         case UnaryExprKind::paren:
-            typecheck_expr(sema, unary_expr->operand);
-            unary_expr->type = unary_expr->operand->type;
+            typecheck_expr(sema, u->operand);
+            u->type = u->operand->type;
             break;
         default:
             assert(!"unknown unary expr kind");
@@ -1165,40 +1165,54 @@ static void typecheck_expr(Sema &sema, Expr *e) {
         break;
     }
     case ExprKind::binary: {
-        auto binary_expr = static_cast<BinaryExpr *>(e);
-        typecheck_expr(sema, binary_expr->lhs);
-        typecheck_expr(sema, binary_expr->rhs);
+        auto b = static_cast<BinaryExpr *>(e);
+        typecheck_expr(sema, b->lhs);
+        typecheck_expr(sema, b->rhs);
 
-        auto lhs_type = binary_expr->lhs->type;
-        auto rhs_type = binary_expr->rhs->type;
+        auto lhs_type = b->lhs->type;
+        auto rhs_type = b->rhs->type;
 
         if (!lhs_type || !rhs_type) {
             return;
         }
         if (lhs_type != rhs_type) {
-            sema.error(binary_expr->loc,
-                       "incompatible binary op with type '{}' and '{}'",
+            sema.error(b->loc, "incompatible binary op with type '{}' and '{}'",
                        lhs_type->name->text, rhs_type->name->text);
             return;
         }
         break;
     }
     case ExprKind::type: {
-        auto type_expr = static_cast<TypeExpr *>(e);
-        auto sym = sema.decl_table.find(type_expr->name);
-        if (!sym) {
-            sema.error(type_expr->loc, "undeclared identifier '{}'",
-                       type_expr->name->text);
-            return;
+        auto t = static_cast<TypeExpr *>(e);
+
+        // Namebinding for TypeExprs only include linking existing Decls to the
+        // type names used in the expression, not declaring new ones.  The
+        // declaration would be done when visiting VarDecls and StructDecls,
+        // etc.
+
+        if (t->subexpr) {
+            typecheck_expr(sema, t->subexpr);
         }
-        type_expr->decl = sym->value;
-        assert(type_expr->decl);
-        if (type_expr->decl->type) {
-            // builtin types, or user types that have showed up before
-            type_expr->type = type_expr->decl->type;
+
+        if (t->kind == TypeKind::value) {
+            // This is the very first point a new value type is encountered.
+            auto sym = sema.decl_table.find(t->name);
+            if (!sym) {
+                sema.error(t->loc, "undefined type '{}'", t->name->text);
+                return;
+            }
+            t->decl = sym->value;
+            assert(t->decl);
+
+            // Builtin types, or user types that have showed up before.
+            t->type = t->decl->type;
+            assert(t->type &&
+                   "type not resolved after visiting corresponding *Decl");
+        } else if (t->kind == TypeKind::ref || t->kind == TypeKind::var_ref ||
+                   t->kind == TypeKind::ptr) {
+            t->type = get_derived_type(sema, t->kind, t->subexpr->type);
         } else {
-            type_expr->type =
-                make_value_type(sema, type_expr->name, type_expr->decl);
+            t->type = make_value_type(sema, t->name, t->decl);
         }
         break;
     }

@@ -47,7 +47,7 @@ func main() {
     (car).wheel
     let pa: *int
     let pb: *int
-    // pa < pb //~error: nah
+    pa < pb //~error: nah
 
     // function calls
     car = f()
