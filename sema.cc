@@ -351,20 +351,6 @@ bool declare(Sema &sema, Name *name, Decl *decl) {
 // Typecheck start.
 //
 
-static bool is_pointer_type(const Type *ty) {
-    return ty->kind == TypeKind::ref || ty->kind == TypeKind::var_ref;
-}
-
-static bool is_struct_type(const Type *ty) {
-    return ty->kind == TypeKind::value && ty->type_decl &&
-        ty->type_decl->kind == DeclKind::struct_;
-}
-
-static bool is_builtin_type(const Type *ty, Sema &sema) {
-    return ty == sema.context.int_type || ty == sema.context.char_type ||
-           ty == sema.context.void_type || ty == sema.context.string_type;
-}
-
 #if 0
 
 // Mutability check for assignment statements.
@@ -1038,6 +1024,36 @@ void BasicBlock::enumerate_postorder(std::vector<BasicBlock *> &walklist) {
 // Typecheck end.
 //
 
+static bool is_pointer_type(const Type *ty) {
+    return ty->kind == TypeKind::ref || ty->kind == TypeKind::var_ref;
+}
+
+static bool is_struct_type(const Type *ty) {
+    return ty->kind == TypeKind::value && ty->type_decl &&
+        ty->type_decl->kind == DeclKind::struct_;
+}
+
+static bool is_builtin_type(const Type *ty, Sema &sema) {
+    return ty == sema.context.int_type || ty == sema.context.char_type ||
+        ty == sema.context.void_type || ty == sema.context.string_type;
+}
+
+static bool is_lvalue(const Expr *e) {
+    switch (e->kind) {
+    case ExprKind::decl_ref:
+    case ExprKind::member:
+    case ExprKind::unary:
+        if (e->decl && e->decl->kind == DeclKind::var) {
+            return true;
+        }
+        break;
+    default:
+        break;
+    }
+
+    return false;
+}
+
 // Get or construct a derived type with kind `kind`, from a given type.
 //
 // Derived types are only present in the type table if they occur in the source
@@ -1054,6 +1070,67 @@ static Type *get_derived_type(Sema &sema, TypeKind kind, Type *type) {
 }
 
 static void typecheck_decl(Sema &sema, Decl *d);
+static void typecheck_expr(Sema &sema, Expr *e);
+
+static void typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
+    switch (u->kind) {
+    case UnaryExprKind::paren:
+        typecheck_expr(sema, u->operand);
+        u->type = u->operand->type;
+        break;
+    case UnaryExprKind::deref: {
+        typecheck_expr(sema, u->operand);
+        if (!u->operand->type) {
+            return;
+        }
+        if (!is_pointer_type(u->operand->type)) {
+            sema.error(u->operand->loc, "dereferenced a non-pointer type '{}'",
+                       u->operand->type->name->text);
+            return;
+        }
+        u->type = u->operand->type->referee_type;
+
+        // Also bind a temporary VarDecl to this expression that respects
+        // the mutability of the reference type (TODO).  This way we know if
+        // this lvalue is assignable or not. For example,
+        //
+        //     let v: var &int = ...
+        //     *v = 3
+        //
+        // The '*v' here has to have a valid VarDecl with 'mut' as true.
+        bool mut = (u->operand->type->kind == TypeKind::var_ref);
+        u->decl = sema.make_node<VarDecl>(nullptr, u->type, mut);
+
+        // Temporary VarDecls are not pushed to the scoped decl table,
+        // because they are not meant to be accessed later from another
+        // source location.  And therefore they also don't have a name that
+        // can be used to query them.
+        break;
+    }
+    case UnaryExprKind::var_ref:
+    case UnaryExprKind::ref: {
+        typecheck_expr(sema, u->operand);
+        if (!u->operand->type) {
+            return;
+        }
+
+        // Prohibit taking address of an rvalue.
+        if (!is_lvalue(u->operand)) {
+            sema.error(u->loc, "cannot take address of an rvalue");
+            return;
+        }
+
+        // TODO: Prohibit mutable reference of an immutable variable.
+
+        auto type_kind = (u->kind == UnaryExprKind::var_ref) ? TypeKind::var_ref
+                                                             : TypeKind::ref;
+        u->type = get_derived_type(sema, type_kind, u->operand->type);
+        break;
+    }
+    default:
+        assert(!"unknown unary expr kind");
+    }
+}
 
 static void typecheck_expr(Sema &sema, Expr *e) {
     switch (e->kind) {
@@ -1150,48 +1227,9 @@ static void typecheck_expr(Sema &sema, Expr *e) {
         mem->type = found_field_vardecl->type;
         break;
     }
-    case ExprKind::unary: {
-        auto u = static_cast<UnaryExpr *>(e);
-        switch (u->kind) {
-        case UnaryExprKind::paren:
-            typecheck_expr(sema, u->operand);
-            u->type = u->operand->type;
-            break;
-        case UnaryExprKind::deref: {
-            typecheck_expr(sema, u->operand);
-            if (!u->operand->type) {
-                return;
-            }
-            if (!is_pointer_type(u->operand->type)) {
-                sema.error(u->operand->loc,
-                           "dereferenced a non-pointer type '{}'",
-                           u->operand->type->name->text);
-                return;
-            }
-            u->type = u->operand->type->referee_type;
-
-            // Also bind a temporary VarDecl to this expression that respects
-            // the mutability of the reference type (TODO).  This way we know if
-            // this lvalue is assignable or not. For example,
-            //
-            //     let v: var &int = ...
-            //     *v = 3
-            //
-            // The '*v' here has to have a valid VarDecl with 'mut' as true.
-            bool mut = (u->operand->type->kind == TypeKind::var_ref);
-            u->decl = sema.make_node<VarDecl>(nullptr, u->type, mut);
-
-            // Temporary VarDecls are not pushed to the scoped decl table,
-            // because they are not meant to be accessed later from another
-            // source location.  And therefore they also don't have a name that
-            // can be used to query them.
-            break;
-        }
-        default:
-            assert(!"unknown unary expr kind");
-        }
+    case ExprKind::unary:
+        typecheck_unary_expr(sema, static_cast<UnaryExpr *>(e));
         break;
-    }
     case ExprKind::binary: {
         auto b = static_cast<BinaryExpr *>(e);
         typecheck_expr(sema, b->lhs);
