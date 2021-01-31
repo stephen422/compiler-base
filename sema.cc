@@ -1127,19 +1127,24 @@ static void typecheck_expr(Sema &sema, Expr *e) {
                        parent_type->name->text);
             return;
         }
+
+        VarDecl *found_field_vardecl = nullptr;
         for (auto field :
              static_cast<StructDecl *>(parent_type->type_decl)->fields) {
             if (mem->member_name == field->name) {
+                found_field_vardecl = field;
                 match = true;
                 break;
             }
         }
-
         if (!match) {
             sema.error(mem->pos, "unknown field '{}' in struct '{}'",
                        mem->member_name->text, parent_type->name->text);
             return;
         }
+
+        assert(found_field_vardecl->type);
+        mem->type = found_field_vardecl->type;
         break;
     }
     case ExprKind::binary:
@@ -1166,6 +1171,8 @@ static void typecheck_expr(Sema &sema, Expr *e) {
     default:
         assert(!"unknown expr kind");
     }
+
+    // No more work is supposed to be done here.
 }
 
 // Typecheck assignment statement of 'lhs = rhs'.
@@ -1300,6 +1307,11 @@ static void codegen_expr(QbeGenerator &q, Expr *e) {
     case ExprKind::member:
         // TODO
         break;
+    case ExprKind::unary: {
+        // TODO
+        assert(!"not implemented");
+        break;
+    }
     case ExprKind::binary: {
         auto binary = static_cast<BinaryExpr *>(e);
         codegen_expr(q, binary->lhs);

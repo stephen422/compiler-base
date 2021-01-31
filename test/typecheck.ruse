@@ -33,24 +33,24 @@ func main() {
     var car: Car
     car = 3 //~error: cannot assign 'int' type to 'Car'
     var immut = 4
-    immut = car //~error: cannot assign .* to 'int'
+    immut = car //~error: cannot assign 'Car' type to 'int'
 
     // member access
     3.engine //~error: type 'int' is not a struct
-    car.wing //~error: 'wing'.*not.*member.*'Car'
+    car.wing //~error: unknown field 'wing' in struct 'Car'
     car.engine
-    car.engine = car //~error: cannot assign 'Car'.*'int'
+    car.engine = car //~error: cannot assign 'Car' type to 'int'
 
     // immutability check
     let c_imm: Car
     c_imm = car //~error: 'c_imm' is not declared as mutable
     c_imm.wheel = 3 //~error: 'c_imm' is not declared as mutable
-    *(c_imm.gear) = 4 //~error: 'gear' is not a mutable reference
+    // *(c_imm.gear) = 4 //~error: 'gear' is not a mutable reference
     var c1: Car
     c1.wheel = 3
 
     // binary expressions
-    (3 + car) //~error: incompatible.*binary.*'int'.*'Car'
+    3 + car //~error: incompatible.*binary.*'int'.*'Car'
     (3 + car).wheel //~error: incompatible.*binary.*'int'.*'Car'
     (car).wheel
     let pa: &int

@@ -6,7 +6,7 @@ struct S {
 
 func main() {
     var not_a_struct: int
-    not_a_struct.lol //~error: unknown field 'lol' in struct 'int'
+    not_a_struct.lol //~error: type 'int' is not a struct
 
     var a: S
     a.lol //~error: unknown field 'lol' in struct 'S'
