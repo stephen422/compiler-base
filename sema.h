@@ -118,7 +118,7 @@ struct Sema {
     void scope_open();
     void scope_close();
 
-    template <typename... Args> void error(size_t pos, Args &&...args);
+    template <typename... Args> void error(SourceLoc loc, Args &&...args);
 
     template <typename T, typename... Args> T *make_node(Args &&...args) {
         node_pool.emplace_back(new T{std::forward<Args>(args)...});
@@ -135,8 +135,9 @@ struct Sema {
     T *make_node_range(std::pair<size_t, size_t> range, Args &&...args) {
         auto node = make_node<T>(std::forward<Args>(args)...);
         node->pos = range.first;
-        node->loc = source.locate(range.first);
         node->endpos = range.second;
+        node->loc = source.locate(range.first);
+        node->endloc = source.locate(range.second);
         return node;
     }
     template <typename... Args> Lifetime *make_lifetime(Args &&...args) {

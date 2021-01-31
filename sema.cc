@@ -12,11 +12,12 @@
 
 using namespace cmp;
 
-template <typename... Args> void Sema::error(size_t pos, Args &&...args) {
+template <typename... Args> void Sema::error(SourceLoc loc, Args &&...args) {
     auto message = fmt::format(std::forward<Args>(args)...);
-    auto loc = source.locate(pos);
     fmt::print(stderr, "{}:{}:{}: error: {}\n", loc.filename, loc.line, loc.col,
                message);
+    // Not exiting here makes the compiler go as far as it can and report all of
+    // the errors it encounters.
     // exit(EXIT_FAILURE);
 }
 
@@ -338,7 +339,7 @@ bool declare(Sema &sema, Name *name, Decl *decl) {
     if (found && found->value->kind == decl->kind &&
         found->scope_level == sema.decl_table.curr_scope_level) {
         assert(false);
-        sema.error(decl->pos, "redefinition of '{}'", name->text);
+        sema.error(decl->loc, "redefinition of '{}'", name->text);
         return false;
     }
 
@@ -1071,7 +1072,7 @@ static void typecheck_expr(Sema &sema, Expr *e) {
         auto decl_ref_expr = static_cast<DeclRefExpr *>(e);
         auto sym = sema.decl_table.find(decl_ref_expr->name);
         if (!sym) {
-            sema.error(decl_ref_expr->pos, "undeclared identifier '{}'",
+            sema.error(decl_ref_expr->loc, "undeclared identifier '{}'",
                        decl_ref_expr->name->text);
             return;
         }
@@ -1089,12 +1090,12 @@ static void typecheck_expr(Sema &sema, Expr *e) {
         assert(sd->name_expr->decl);
         Type *struct_type = sd->name_expr->decl->type;
         if (!struct_type) {
-            sema.error(sd->name_expr->pos,
+            sema.error(sd->name_expr->loc,
                        "internal: typecheck not implemented");
             return;
         }
         if (!is_struct_type(struct_type)) {
-            sema.error(sd->name_expr->pos, "type '{}' is not a struct",
+            sema.error(sd->name_expr->loc, "type '{}' is not a struct",
                        struct_type->name->text);
             return;
         }
@@ -1108,7 +1109,7 @@ static void typecheck_expr(Sema &sema, Expr *e) {
                 }
             }
             if (!match) {
-                sema.error(sd->pos, "unknown field '{}' in struct '{}'",
+                sema.error(sd->loc, "unknown field '{}' in struct '{}'",
                            desig.name->text, struct_type->name->text);
                 return;
             }
@@ -1118,12 +1119,16 @@ static void typecheck_expr(Sema &sema, Expr *e) {
     case ExprKind::member: {
         auto mem = static_cast<MemberExpr *>(e);
         typecheck_expr(sema, mem->parent_expr);
-        assert(mem->parent_expr->type);
+
+        // don't propagate errors
+        if (!mem->parent_expr->type) {
+            return;
+        }
 
         bool match = false;
         auto parent_type = mem->parent_expr->type;
         if (!is_struct_type(parent_type)) {
-            sema.error(mem->parent_expr->pos, "type '{}' is not a struct",
+            sema.error(mem->parent_expr->loc, "type '{}' is not a struct",
                        parent_type->name->text);
             return;
         }
@@ -1138,7 +1143,7 @@ static void typecheck_expr(Sema &sema, Expr *e) {
             }
         }
         if (!match) {
-            sema.error(mem->pos, "unknown field '{}' in struct '{}'",
+            sema.error(mem->loc, "unknown field '{}' in struct '{}'",
                        mem->member_name->text, parent_type->name->text);
             return;
         }
@@ -1171,7 +1176,7 @@ static void typecheck_expr(Sema &sema, Expr *e) {
             return;
         }
         if (lhs_type != rhs_type) {
-            sema.error(binary_expr->pos,
+            sema.error(binary_expr->loc,
                        "incompatible binary op with type '{}' and '{}'",
                        lhs_type->name->text, rhs_type->name->text);
             return;
@@ -1182,7 +1187,7 @@ static void typecheck_expr(Sema &sema, Expr *e) {
         auto type_expr = static_cast<TypeExpr *>(e);
         auto sym = sema.decl_table.find(type_expr->name);
         if (!sym) {
-            sema.error(type_expr->pos, "undeclared identifier '{}'",
+            sema.error(type_expr->loc, "undeclared identifier '{}'",
                        type_expr->name->text);
             return;
         }
@@ -1240,11 +1245,11 @@ static void typecheck_stmt(Sema &sema, Stmt *s) {
             return;
         }
         // if (!islvalue(as->lhs)) {
-        //     sema.error(as->pos, "cannot assign to an rvalue");
+        //     sema.error(as->loc, "cannot assign to an rvalue");
         //     return;
         // }
         if (!typecheck_assign(lhs_type, rhs_type)) {
-            sema.error(as->pos, "cannot assign '{}' type to '{}'",
+            sema.error(as->loc, "cannot assign '{}' type to '{}'",
                        rhs_type->name->text, lhs_type->name->text);
             return;
         }
