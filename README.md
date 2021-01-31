@@ -11,7 +11,13 @@ $ make
 $ make check
 ```
 
-Look into `test_*.txt` files for some examples.
+Look into `test/*.ruse` files for some code examples.
+
+## check
+
+```
+$ ./check.py
+```
 
 ## todo
 
