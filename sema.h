@@ -118,8 +118,6 @@ struct Sema {
     void scope_open();
     void scope_close();
 
-    template <typename... Args> void error(SourceLoc loc, Args &&...args);
-
     template <typename T, typename... Args> T *make_node(Args &&...args) {
         node_pool.emplace_back(new T{std::forward<Args>(args)...});
         return static_cast<T *>(node_pool.back().get());

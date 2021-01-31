@@ -12,7 +12,7 @@
 
 using namespace cmp;
 
-template <typename... Args> void Sema::error(SourceLoc loc, Args &&...args) {
+template <typename... Args> static void error(SourceLoc loc, Args &&...args) {
     auto message = fmt::format(std::forward<Args>(args)...);
     fmt::print(stderr, "{}:{}:{}: error: {}\n", loc.filename, loc.line, loc.col,
                message);
@@ -332,20 +332,6 @@ void NameBinding::visitEnumDecl(EnumDecl *e) {
 }
 
 #endif
-
-// Returns true if success and otherwise (e.g. redeclaration) do error handling.
-bool declare(Sema &sema, Name *name, Decl *decl) {
-    auto found = sema.decl_table.find(name);
-    if (found && found->value->kind == decl->kind &&
-        found->scope_level == sema.decl_table.curr_scope_level) {
-        assert(false);
-        sema.error(decl->loc, "redefinition of '{}'", name->text);
-        return false;
-    }
-
-    sema.decl_table.insert(name, decl);
-    return true;
-}
 
 //
 // Typecheck start.
@@ -1054,6 +1040,20 @@ static bool is_lvalue(const Expr *e) {
     return false;
 }
 
+// Returns true if success and otherwise (e.g. redeclaration) do error handling.
+bool declare(Sema &sema, Name *name, Decl *decl) {
+    auto found = sema.decl_table.find(name);
+    if (found && found->value->kind == decl->kind &&
+        found->scope_level == sema.decl_table.curr_scope_level) {
+        assert(false);
+        error(decl->loc, "redefinition of '{}'", name->text);
+        return false;
+    }
+
+    sema.decl_table.insert(name, decl);
+    return true;
+}
+
 // Get or construct a derived type with kind `kind`, from a given type.
 //
 // Derived types are only present in the type table if they occur in the source
@@ -1069,8 +1069,9 @@ static Type *get_derived_type(Sema &sema, TypeKind kind, Type *type) {
     }
 }
 
-static void typecheck_decl(Sema &sema, Decl *d);
 static void typecheck_expr(Sema &sema, Expr *e);
+static void typecheck_stmt(Sema &sema, Stmt *s);
+static void typecheck_decl(Sema &sema, Decl *d);
 
 static void typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
     switch (u->kind) {
@@ -1084,8 +1085,8 @@ static void typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
             return;
         }
         if (!is_pointer_type(u->operand->type)) {
-            sema.error(u->operand->loc, "dereferenced a non-pointer type '{}'",
-                       u->operand->type->name->text);
+            error(u->operand->loc, "dereferenced a non-pointer type '{}'",
+                  u->operand->type->name->text);
             return;
         }
         u->type = u->operand->type->referee_type;
@@ -1116,7 +1117,7 @@ static void typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
 
         // Prohibit taking address of an rvalue.
         if (!is_lvalue(u->operand)) {
-            sema.error(u->loc, "cannot take address of an rvalue");
+            error(u->loc, "cannot take address of an rvalue");
             return;
         }
 
@@ -1148,7 +1149,7 @@ static void typecheck_expr(Sema &sema, Expr *e) {
         auto dre = static_cast<DeclRefExpr *>(e);
         auto sym = sema.decl_table.find(dre->name);
         if (!sym) {
-            sema.error(dre->loc, "undeclared identifier '{}'", dre->name->text);
+            error(dre->loc, "undeclared identifier '{}'", dre->name->text);
             return;
         }
         dre->decl = sym->value;
@@ -1165,13 +1166,12 @@ static void typecheck_expr(Sema &sema, Expr *e) {
         assert(sd->name_expr->decl);
         Type *struct_type = sd->name_expr->decl->type;
         if (!struct_type) {
-            sema.error(sd->name_expr->loc,
-                       "internal: typecheck not implemented");
+            error(sd->name_expr->loc, "internal: typecheck not implemented");
             return;
         }
         if (!is_struct_type(struct_type)) {
-            sema.error(sd->name_expr->loc, "type '{}' is not a struct",
-                       struct_type->name->text);
+            error(sd->name_expr->loc, "type '{}' is not a struct",
+                  struct_type->name->text);
             return;
         }
         for (auto desig : sd->desigs) {
@@ -1184,8 +1184,8 @@ static void typecheck_expr(Sema &sema, Expr *e) {
                 }
             }
             if (!match) {
-                sema.error(sd->loc, "unknown field '{}' in struct '{}'",
-                           desig.name->text, struct_type->name->text);
+                error(sd->loc, "unknown field '{}' in struct '{}'",
+                      desig.name->text, struct_type->name->text);
                 return;
             }
         }
@@ -1203,8 +1203,8 @@ static void typecheck_expr(Sema &sema, Expr *e) {
         bool match = false;
         auto parent_type = mem->parent_expr->type;
         if (!is_struct_type(parent_type)) {
-            sema.error(mem->parent_expr->loc, "type '{}' is not a struct",
-                       parent_type->name->text);
+            error(mem->parent_expr->loc, "type '{}' is not a struct",
+                  parent_type->name->text);
             return;
         }
 
@@ -1218,8 +1218,8 @@ static void typecheck_expr(Sema &sema, Expr *e) {
             }
         }
         if (!match) {
-            sema.error(mem->loc, "unknown field '{}' in struct '{}'",
-                       mem->member_name->text, parent_type->name->text);
+            error(mem->loc, "unknown field '{}' in struct '{}'",
+                  mem->member_name->text, parent_type->name->text);
             return;
         }
 
@@ -1242,8 +1242,8 @@ static void typecheck_expr(Sema &sema, Expr *e) {
             return;
         }
         if (lhs_type != rhs_type) {
-            sema.error(b->loc, "incompatible binary op with type '{}' and '{}'",
-                       lhs_type->name->text, rhs_type->name->text);
+            error(b->loc, "incompatible binary op with type '{}' and '{}'",
+                  lhs_type->name->text, rhs_type->name->text);
             return;
         }
         break;
@@ -1264,7 +1264,7 @@ static void typecheck_expr(Sema &sema, Expr *e) {
             // This is the very first point a new value type is encountered.
             auto sym = sema.decl_table.find(t->name);
             if (!sym) {
-                sema.error(t->loc, "undefined type '{}'", t->name->text);
+                error(t->loc, "undefined type '{}'", t->name->text);
                 return;
             }
             t->decl = sym->value;
@@ -1289,20 +1289,19 @@ static void typecheck_expr(Sema &sema, Expr *e) {
     // No more work is supposed to be done here.
 }
 
-// Typecheck assignment statement of 'lhs = rhs'.
-static bool typecheck_assign(const Type *lhs, const Type *rhs) {
+static bool typecheck_assignable(const Type *to, const Type *from) {
     // TODO: Typecheck assignment rules so far:
     //
-    // 1. Reference <- mutable reference.
+    // 1. Pointer <- mutable pointer.
     // 2. Exact same match.
 
-    // Allow promotion from mutable to immutable reference.
-    if (lhs->kind == TypeKind::ref && is_pointer_type(rhs)) {
+    // Allow promotion from mutable to immutable pointer.
+    if (to->kind == TypeKind::ref && is_pointer_type(from)) {
         // NOTE: this may be related to 'unification'. Ref:
         // http://smallcultfollowing.com/babysteps/blog/2017/03/25/unification-in-chalk-part-1/
-        return typecheck_assign(lhs->referee_type, rhs->referee_type);
+        return typecheck_assignable(to->referee_type, from->referee_type);
     }
-    return lhs == rhs;
+    return to == from;
 }
 
 static void typecheck_stmt(Sema &sema, Stmt *s) {
@@ -1325,12 +1324,12 @@ static void typecheck_stmt(Sema &sema, Stmt *s) {
             return;
         }
         // if (!islvalue(as->lhs)) {
-        //     sema.error(as->loc, "cannot assign to an rvalue");
+        //     error(as->loc, "cannot assign to an rvalue");
         //     return;
         // }
-        if (!typecheck_assign(lhs_type, rhs_type)) {
-            sema.error(as->loc, "cannot assign '{}' type to '{}'",
-                       rhs_type->name->text, lhs_type->name->text);
+        if (!typecheck_assignable(lhs_type, rhs_type)) {
+            error(as->loc, "cannot assign '{}' type to '{}'",
+                  rhs_type->name->text, lhs_type->name->text);
             return;
         }
 

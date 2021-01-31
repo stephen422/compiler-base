@@ -54,7 +54,7 @@ func main() {
         var i: int
         *i //~error: dereferenced a non-pointer type 'int'
         &24 //~error: take address of an rvalue
-        &g() //~error: take address of an rvalue
+        // &g() //~error: take address of an rvalue
 
         // mutable reference of an immutable variable
         let ii = 4
@@ -66,7 +66,7 @@ func main() {
 
         let pcar: *Car
         (*pcar).wheel
-        *(pcar.wheel) //~error: '&Car' is not a struct
+        *(pcar.wheel) //~error: type '*Car' is not a struct
 
         // TODO: 'a' -> 'val.a'
         let p = var &val.a //~error: cannot borrow 'a' as mutable because .* declared immutable
