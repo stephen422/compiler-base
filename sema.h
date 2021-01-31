@@ -128,12 +128,14 @@ struct Sema {
     T *make_node_pos(size_t pos, Args &&...args) {
         auto node = make_node<T>(std::forward<Args>(args)...);
         node->pos = pos;
+        node->loc = source.locate(pos);
         return node;
     }
     template <typename T, typename... Args>
     T *make_node_range(std::pair<size_t, size_t> range, Args &&...args) {
         auto node = make_node<T>(std::forward<Args>(args)...);
         node->pos = range.first;
+        node->loc = source.locate(range.first);
         node->endpos = range.second;
         return node;
     }

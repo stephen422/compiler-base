@@ -24,11 +24,6 @@ Type::Type(Name *n, TypeKind k, Type *rt) : kind(k), name(n), referee_type(rt) {
     copyable = k == TypeKind::ref;
 }
 
-bool Type::is_builtin(Sema &sema) const {
-    return this == sema.context.int_type || this == sema.context.char_type ||
-           this == sema.context.void_type || this == sema.context.string_type;
-}
-
 bool Type::isEnum() const {
     // TODO: should base_type be null too?
     return kind == TypeKind::value && type_decl && type_decl->is<EnumDecl>();
@@ -364,6 +359,11 @@ static bool is_ref_type(const Type *ty) {
 static bool is_struct_type(const Type *ty) {
     return ty->kind == TypeKind::value && ty->type_decl &&
         ty->type_decl->kind == DeclKind::struct_;
+}
+
+static bool is_builtin_type(const Type *ty, Sema &sema) {
+    return ty == sema.context.int_type || ty == sema.context.char_type ||
+           ty == sema.context.void_type || ty == sema.context.string_type;
 }
 
 #if 0
@@ -1061,7 +1061,7 @@ static void typecheck_expr(Sema &sema, Expr *e) {
         auto lit_expr = static_cast<IntegerLiteral *>(e);
         lit_expr->type = sema.context.int_type;
         break;
-    }
+   }
     case ExprKind::string_literal: {
         auto lit_expr = static_cast<StringLiteral *>(e);
         lit_expr->type = sema.context.string_type;
@@ -1154,7 +1154,13 @@ static void typecheck_expr(Sema &sema, Expr *e) {
         }
         type_expr->decl = sym->value;
         assert(type_expr->decl);
-        type_expr->type = make_value_type(sema, type_expr->name, type_expr->decl);
+        if (type_expr->decl->type) {
+            // builtin types, or user types that have showed up before
+            type_expr->type = type_expr->decl->type;
+        } else {
+            type_expr->type =
+                make_value_type(sema, type_expr->name, type_expr->decl);
+        }
         break;
     }
     default:
@@ -1226,6 +1232,7 @@ static void typecheck_decl(Sema &sema, Decl *d) {
         declare(sema, v->name, v);
         if (v->assign_expr) {
             typecheck_expr(sema, v->assign_expr);
+            v->type = v->assign_expr->type;
         } else if (v->type_expr) {
             typecheck_expr(sema, v->type_expr);
             v->type = v->type_expr->type;

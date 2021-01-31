@@ -35,6 +35,7 @@ struct AstNode {
     const AstKind kind = AstKind::decl; // node kind
     size_t pos = 0;             // start pos of this AST in the source text
     size_t endpos = 0;          // end pos of this AST in the source text
+    SourceLoc loc;
 
     AstNode() {}
     AstNode(AstKind kind) : kind(kind) {}
