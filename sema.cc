@@ -1147,8 +1147,30 @@ static void typecheck_expr(Sema &sema, Expr *e) {
         mem->type = found_field_vardecl->type;
         break;
     }
-    case ExprKind::binary:
+    case ExprKind::unary: {
+        auto unary_expr = static_cast<UnaryExpr *>(e);
+        // TODO
         break;
+    }
+    case ExprKind::binary: {
+        auto binary_expr = static_cast<BinaryExpr *>(e);
+        typecheck_expr(sema, binary_expr->lhs);
+        typecheck_expr(sema, binary_expr->rhs);
+
+        auto lhs_type = binary_expr->lhs->type;
+        auto rhs_type = binary_expr->rhs->type;
+
+        if (!lhs_type || !rhs_type) {
+            return;
+        }
+        if (lhs_type != rhs_type) {
+            sema.error(binary_expr->pos,
+                       "incompatible binary op with type '{}' and '{}'",
+                       lhs_type->name->text, rhs_type->name->text);
+            return;
+        }
+        break;
+    }
     case ExprKind::type: {
         auto type_expr = static_cast<TypeExpr *>(e);
         auto sym = sema.decl_table.find(type_expr->name);

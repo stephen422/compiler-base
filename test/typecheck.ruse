@@ -41,17 +41,9 @@ func main() {
     car.engine
     car.engine = car //~error: cannot assign 'Car' type to 'int'
 
-    // immutability check
-    let c_imm: Car
-    c_imm = car //~error: 'c_imm' is not declared as mutable
-    c_imm.wheel = 3 //~error: 'c_imm' is not declared as mutable
-    // *(c_imm.gear) = 4 //~error: 'gear' is not a mutable reference
-    var c1: Car
-    c1.wheel = 3
-
     // binary expressions
     3 + car //~error: incompatible.*binary.*'int'.*'Car'
-    (3 + car).wheel //~error: incompatible.*binary.*'int'.*'Car'
+    (3 + car).wheel //~error: incompatible binary op with type 'int' and 'Car'
     (car).wheel
     let pa: &int
     let pb: &int
@@ -111,6 +103,14 @@ func main() {
     // typecasting
     let i_to_char = [string](i)
     i_to_char = 3 //~error: cannot assign 'int' type to 'string'
+
+    // immutability check
+    // let c_imm: Car
+    // c_imm = car //~error: 'c_imm' is not declared as mutable
+    // c_imm.wheel = 3 //~error: 'c_imm' is not declared as mutable
+    // *(c_imm.gear) = 4 //~error: 'gear' is not a mutable reference
+    // var c1: Car
+    // c1.wheel = 3
 
     // other constructs that skip typeck
     #printf("hello, world\n")
