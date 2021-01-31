@@ -1159,9 +1159,13 @@ static void typecheck_expr(Sema &sema, Expr *e) {
         auto sd = static_cast<StructDefExpr *>(e);
         typecheck_expr(sema, sd->name_expr);
 
-        // @Cleanup: should 'name_expr' have a type? I think we should rather
-        // have it be just a Name and do a lookup on it.
-        assert(sd->name_expr->decl);
+        // @Cleanup: It doesn't make sense that 'name_expr' should have a type,
+        // but then we need this kludgy error check below. I think eventually we
+        // should rather have it just be a Name and do a lookup on it.
+        if (!sd->name_expr->decl || !sd->name_expr->decl->type) {
+            return;
+        }
+
         Type *struct_type = sd->name_expr->decl->type;
         if (!struct_type) {
             error(sd->name_expr->loc, "internal: typecheck not implemented");
