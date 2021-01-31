@@ -84,6 +84,7 @@ func main() {
         *mut_ptr = 3
         mut_ptr = var &i //~error: 'mut_ptr' is not declared as mutable
     }
+    Val {.a = 4} //~error: undeclared identifier 'Val'
 
     // function calls
     car = f()

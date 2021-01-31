@@ -1339,9 +1339,11 @@ static void typecheck_stmt(Sema &sema, Stmt *s) {
     case StmtKind::return_:
         break;
     case StmtKind::compound:
+        sema.scope_open();
         for (auto stmt : static_cast<CompoundStmt *>(s)->stmts) {
             typecheck_stmt(sema, stmt);
         }
+        sema.scope_close();
         break;
     default:
         assert(!"unknown stmt kind");
