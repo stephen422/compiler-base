@@ -1069,6 +1069,21 @@ static Type *get_derived_type(Sema &sema, TypeKind kind, Type *type) {
     }
 }
 
+static bool typecheck_assignable(const Type *to, const Type *from) {
+    // TODO: Typecheck assignment rules so far:
+    //
+    // 1. Pointer <- mutable pointer.
+    // 2. Exact same match.
+
+    // Allow promotion from mutable to immutable pointer.
+    if (to->kind == TypeKind::ref && is_pointer_type(from)) {
+        // NOTE: this may be related to 'unification'. Ref:
+        // http://smallcultfollowing.com/babysteps/blog/2017/03/25/unification-in-chalk-part-1/
+        return typecheck_assignable(to->referee_type, from->referee_type);
+    }
+    return to == from;
+}
+
 static void typecheck_expr(Sema &sema, Expr *e);
 static void typecheck_stmt(Sema &sema, Stmt *s);
 static void typecheck_decl(Sema &sema, Decl *d);
@@ -1155,6 +1170,9 @@ static void typecheck_expr(Sema &sema, Expr *e) {
         de->type = de->decl->type;
         break;
     }
+    case ExprKind::call:
+        // TODO
+        break;
     case ExprKind::struct_def: {
         auto sd = static_cast<StructDefExpr *>(e);
         typecheck_expr(sema, sd->name_expr);
@@ -1176,21 +1194,36 @@ static void typecheck_expr(Sema &sema, Expr *e) {
                   struct_type->name->text);
             return;
         }
-        for (auto desig : sd->desigs) {
-            bool match = false;
+        for (auto term : sd->terms) {
+            VarDecl *found_field_vardecl = nullptr;
             for (auto field :
                  static_cast<StructDecl *>(sd->name_expr->decl)->fields) {
-                if (desig.name == field->name) {
-                    match = true;
+                if (term.name == field->name) {
+                    found_field_vardecl = field;
                     break;
                 }
             }
-            if (!match) {
+            if (!found_field_vardecl) {
                 error(sd->loc, "unknown field '{}' in struct '{}'",
-                      desig.name->text, struct_type->name->text);
+                      term.name->text, struct_type->name->text);
+                return;
+            }
+
+            typecheck_expr(sema, term.initexpr);
+            // don't propagate error
+            if (!term.initexpr->type) {
+                return;
+            }
+            if (!typecheck_assignable(found_field_vardecl->type,
+                                      term.initexpr->type)) {
+                error(term.initexpr->loc, "cannot assign '{}' type to '{}'",
+                      term.initexpr->type->name->text,
+                      found_field_vardecl->type->name->text);
                 return;
             }
         }
+
+        sd->type = struct_type;
         break;
     }
     case ExprKind::member: {
@@ -1202,7 +1235,6 @@ static void typecheck_expr(Sema &sema, Expr *e) {
             return;
         }
 
-        bool match = false;
         auto parent_type = mem->parent_expr->type;
         if (!is_struct_type(parent_type)) {
             error(mem->parent_expr->loc, "type '{}' is not a struct",
@@ -1215,11 +1247,10 @@ static void typecheck_expr(Sema &sema, Expr *e) {
              static_cast<StructDecl *>(parent_type->type_decl)->fields) {
             if (mem->member_name == field->name) {
                 found_field_vardecl = field;
-                match = true;
                 break;
             }
         }
-        if (!match) {
+        if (!found_field_vardecl) {
             error(mem->loc, "unknown field '{}' in struct '{}'",
                   mem->member_name->text, parent_type->name->text);
             return;
@@ -1289,21 +1320,6 @@ static void typecheck_expr(Sema &sema, Expr *e) {
     }
 
     // No more work is supposed to be done here.
-}
-
-static bool typecheck_assignable(const Type *to, const Type *from) {
-    // TODO: Typecheck assignment rules so far:
-    //
-    // 1. Pointer <- mutable pointer.
-    // 2. Exact same match.
-
-    // Allow promotion from mutable to immutable pointer.
-    if (to->kind == TypeKind::ref && is_pointer_type(from)) {
-        // NOTE: this may be related to 'unification'. Ref:
-        // http://smallcultfollowing.com/babysteps/blog/2017/03/25/unification-in-chalk-part-1/
-        return typecheck_assignable(to->referee_type, from->referee_type);
-    }
-    return to == from;
 }
 
 static void typecheck_stmt(Sema &sema, Stmt *s) {

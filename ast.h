@@ -219,7 +219,7 @@ struct CallExpr : public Expr {
 };
 
 // '.memb = expr' part in Struct { ... }.
-struct StructFieldDesignator {
+struct StructDefTerm {
     Name *name = nullptr;
     VarDecl *decl = nullptr;
     Expr *initexpr = nullptr;
@@ -232,11 +232,11 @@ struct StructDefExpr : public Expr {
     // doesn't make sense all the intermediate Exprs in a MemberExpr has to have
     // an associated Type.
     DeclRefExpr *name_expr;
-    std::vector<StructFieldDesignator> desigs;
+    std::vector<StructDefTerm> terms;
 
     StructDefExpr(DeclRefExpr *dre,
-                  const std::vector<StructFieldDesignator> &ds)
-        : Expr(ExprKind::struct_def), name_expr(dre), desigs(ds) {}
+                  const std::vector<StructDefTerm> &t)
+        : Expr(ExprKind::struct_def), name_expr(dre), terms(t) {}
 };
 
 // 'struct.mem'

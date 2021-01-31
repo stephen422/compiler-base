@@ -349,7 +349,7 @@ void walk_func_call_expr(Visitor &v, CallExpr *f, Args... args) {
 template <typename Visitor, typename... Args>
 void walk_struct_def_expr(Visitor &v, StructDefExpr *s, Args... args) {
   v.visitExpr(s->name_expr, args...);
-  for (auto d : s->desigs) {
+  for (auto d : s->terms) {
     v.visitExpr(d.initexpr, args...);
   }
 }

@@ -824,7 +824,7 @@ fail:
 }
 
 // Parse '.memb = expr' part in Struct { .m1 = e1, .m2 = e2, ... }.
-std::optional<StructFieldDesignator> Parser::parse_structdef_field() {
+std::optional<StructDefTerm> Parser::parse_structdef_field() {
     if (!expect(Tok::dot))
         return {};
     Name *name = push_token(sema, tok);
@@ -837,7 +837,7 @@ std::optional<StructFieldDesignator> Parser::parse_structdef_field() {
     if (!expr)
         return {};
 
-    return StructFieldDesignator{name, nullptr, expr};
+    return StructDefTerm{name, nullptr, expr};
 }
 
 // If this expression has a trailing {...}, parse as a struct definition
@@ -853,10 +853,10 @@ Expr *Parser::parse_structdef_maybe(Expr *expr) {
 
     expect(Tok::lbrace);
 
-    auto v = parse_comma_separated_list<std::optional<StructFieldDesignator>>(
+    auto v = parse_comma_separated_list<std::optional<StructDefTerm>>(
         [this] { return parse_structdef_field(); });
 
-    std::vector<StructFieldDesignator> desigs;
+    std::vector<StructDefTerm> desigs;
     for (auto opt_field : v) {
         assert(opt_field.has_value());
         desigs.push_back(*opt_field);

@@ -84,7 +84,7 @@ private:
     Expr *parse_type_expr();
     Expr *parse_binary_expr_rhs(Expr *lhs, int precedence);
     Expr *parse_member_expr_maybe(Expr *expr);
-    std::optional<StructFieldDesignator> parse_structdef_field();
+    std::optional<StructDefTerm> parse_structdef_field();
     bool lookahead_structdef();
     Expr *parse_structdef_maybe(Expr *expr);
 

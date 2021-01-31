@@ -19,6 +19,7 @@ func main() {
             a: int
         }
         Inner {.a = 3}
+        Inner {.a = S {.hi = 0}} //~error: cannot assign 'S' type to 'int'
     }
     Inner {.a = 3} //~error: undeclared identifier 'Inner'
 }
