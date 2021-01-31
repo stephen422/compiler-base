@@ -1062,6 +1062,11 @@ static void typecheck_expr(Sema &sema, Expr *e) {
         lit_expr->type = sema.context.int_type;
         break;
     }
+    case ExprKind::string_literal: {
+        auto lit_expr = static_cast<StringLiteral *>(e);
+        lit_expr->type = sema.context.string_type;
+        break;
+    }
     case ExprKind::decl_ref: {
         auto decl_ref_expr = static_cast<DeclRefExpr *>(e);
         auto sym = sema.decl_table.find(decl_ref_expr->name);
