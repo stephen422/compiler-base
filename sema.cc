@@ -351,12 +351,10 @@ bool declare(Sema &sema, Name *name, Decl *decl) {
 // Typecheck start.
 //
 
-// Returns true if this type is a reference type.
-static bool is_ref_type(const Type *ty) {
+static bool is_pointer_type(const Type *ty) {
     return ty->kind == TypeKind::ref || ty->kind == TypeKind::var_ref;
 }
 
-// Returns true if this type is a reference type.
 static bool is_struct_type(const Type *ty) {
     return ty->kind == TypeKind::value && ty->type_decl &&
         ty->type_decl->kind == DeclKind::struct_;
@@ -1159,6 +1157,36 @@ static void typecheck_expr(Sema &sema, Expr *e) {
             typecheck_expr(sema, u->operand);
             u->type = u->operand->type;
             break;
+        case UnaryExprKind::deref: {
+            typecheck_expr(sema, u->operand);
+            if (!u->operand->type) {
+                return;
+            }
+            if (!is_pointer_type(u->operand->type)) {
+                sema.error(u->operand->loc,
+                           "dereferenced a non-pointer type '{}'",
+                           u->operand->type->name->text);
+                return;
+            }
+            u->type = u->operand->type->referee_type;
+
+            // Also bind a temporary VarDecl to this expression that respects
+            // the mutability of the reference type (TODO).  This way we know if
+            // this lvalue is assignable or not. For example,
+            //
+            //     let v: var &int = ...
+            //     *v = 3
+            //
+            // The '*v' here has to have a valid VarDecl with 'mut' as true.
+            bool mut = (u->operand->type->kind == TypeKind::var_ref);
+            u->decl = sema.make_node<VarDecl>(nullptr, u->type, mut);
+
+            // Temporary VarDecls are not pushed to the scoped decl table,
+            // because they are not meant to be accessed later from another
+            // source location.  And therefore they also don't have a name that
+            // can be used to query them.
+            break;
+        }
         default:
             assert(!"unknown unary expr kind");
         }
@@ -1231,7 +1259,7 @@ static bool typecheck_assign(const Type *lhs, const Type *rhs) {
     // 2. Exact same match.
 
     // Allow promotion from mutable to immutable reference.
-    if (lhs->kind == TypeKind::ref && is_ref_type(rhs)) {
+    if (lhs->kind == TypeKind::ref && is_pointer_type(rhs)) {
         // NOTE: this may be related to 'unification'. Ref:
         // http://smallcultfollowing.com/babysteps/blog/2017/03/25/unification-in-chalk-part-1/
         return typecheck_assign(lhs->referee_type, rhs->referee_type);
@@ -1274,6 +1302,11 @@ static void typecheck_stmt(Sema &sema, Stmt *s) {
         // TODO
         break;
     case StmtKind::return_:
+        break;
+    case StmtKind::compound:
+        for (auto stmt : static_cast<CompoundStmt *>(s)->stmts) {
+            typecheck_stmt(sema, stmt);
+        }
         break;
     default:
         assert(!"unknown stmt kind");

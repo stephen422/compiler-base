@@ -49,25 +49,10 @@ func main() {
     let pb: *int
     pa < pb //~error: nah
 
-    // function calls
-    car = f()
-    var i: int
-    i = f() //~error: cannot assign 'Car'.*'int'
-    f() + g() //~error: incompatible.*binary.*'Car'.*'int'
-    f().engine
-    f().engine = 3 //~error: cannot assign .* rvalue
-    f().wing //~error: 'wing'.*not.*member.*'Car'
-    h(3, 4) //~error: argument type mismatch
-    void_ret()
-    i = void_ret() //~error: cannot assign 'void' .* 'int'
-    
-    // paren expr
-    (f()).engine
-    i = 3 + 4
-
     // ref and deref
     {
-        *i //~error: dereference.*'int'
+        var i: int
+        *i //~error: dereferenced a non-pointer type 'int'
         &24 //~error: take address of an rvalue
         &g() //~error: take address of an rvalue
 
@@ -78,6 +63,10 @@ func main() {
             a: int
         }
         let val = Val {.a = 3}
+
+        let pcar: *Car
+        (*pcar).wheel
+        *(pcar.wheel) //~error: '&Car' is not a struct
 
         // TODO: 'a' -> 'val.a'
         let p = var &val.a //~error: cannot borrow 'a' as mutable because .* declared immutable
@@ -96,9 +85,21 @@ func main() {
         mut_ptr = var &i //~error: 'mut_ptr' is not declared as mutable
     }
 
-    let pcar: *Car
-    (*pcar).wheel
-    *(pcar.wheel) //~error: '&Car' is not a struct
+    // function calls
+    car = f()
+    var i: int
+    i = f() //~error: cannot assign 'Car'.*'int'
+    f() + g() //~error: incompatible.*binary.*'Car'.*'int'
+    f().engine
+    f().engine = 3 //~error: cannot assign .* rvalue
+    f().wing //~error: 'wing'.*not.*member.*'Car'
+    h(3, 4) //~error: argument type mismatch
+    void_ret()
+    i = void_ret() //~error: cannot assign 'void' .* 'int'
+    
+    // paren expr
+    (f()).engine
+    i = 3 + 4
 
     // typecasting
     let i_to_char = [string](i)

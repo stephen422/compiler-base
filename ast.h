@@ -117,9 +117,9 @@ struct ReturnStmt : public Stmt {
 };
 
 struct CompoundStmt : public Stmt {
-    CompoundStmt() : Stmt(StmtKind::compound) {}
-
     std::vector<Stmt *> stmts;
+
+    CompoundStmt() : Stmt(StmtKind::compound) {}
 };
 
 struct IfStmt : public Stmt {
