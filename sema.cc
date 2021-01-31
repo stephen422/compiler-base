@@ -1136,25 +1136,23 @@ static void typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
 static void typecheck_expr(Sema &sema, Expr *e) {
     switch (e->kind) {
     case ExprKind::integer_literal: {
-        auto l = static_cast<IntegerLiteral *>(e);
-        l->type = sema.context.int_type;
+        static_cast<IntegerLiteral *>(e)->type = sema.context.int_type;
         break;
     }
     case ExprKind::string_literal: {
-        auto l = static_cast<StringLiteral *>(e);
-        l->type = sema.context.string_type;
+        static_cast<StringLiteral *>(e)->type = sema.context.string_type;
         break;
     }
     case ExprKind::decl_ref: {
-        auto dre = static_cast<DeclRefExpr *>(e);
-        auto sym = sema.decl_table.find(dre->name);
+        auto de = static_cast<DeclRefExpr *>(e);
+        auto sym = sema.decl_table.find(de->name);
         if (!sym) {
-            error(dre->loc, "undeclared identifier '{}'", dre->name->text);
+            error(de->loc, "undeclared identifier '{}'", de->name->text);
             return;
         }
-        dre->decl = sym->value;
-        assert(dre->decl);
-        dre->type = dre->decl->type;
+        de->decl = sym->value;
+        assert(de->decl);
+        de->type = de->decl->type;
         break;
     }
     case ExprKind::struct_def: {
@@ -1278,7 +1276,7 @@ static void typecheck_expr(Sema &sema, Expr *e) {
                    t->kind == TypeKind::ptr) {
             t->type = get_derived_type(sema, t->kind, t->subexpr->type);
         } else {
-            t->type = make_value_type(sema, t->name, t->decl);
+            assert(!"unknown type kind");
         }
         break;
     }

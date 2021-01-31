@@ -54,9 +54,14 @@ def test(binname, filename):
     else:
         print('\033[0;31mfail\033[0m {}'.format(filename))
 
-test('build/ruse', 'test/simple.ruse')
-test('build/ruse', 'test/return.ruse')
-test('build/ruse', 'test/if.ruse')
-test('build/ruse', 'test/typecheck.ruse')
-test('build/ruse', 'test/struct.ruse')
-test('build/ruse', 'test/codegen.ruse')
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        test('build/ruse', sys.argv[1])
+        sys.exit(0)
+
+    test('build/ruse', 'test/simple.ruse')
+    test('build/ruse', 'test/return.ruse')
+    test('build/ruse', 'test/if.ruse')
+    test('build/ruse', 'test/typecheck.ruse')
+    test('build/ruse', 'test/struct.ruse')
+    test('build/ruse', 'test/codegen.ruse')
