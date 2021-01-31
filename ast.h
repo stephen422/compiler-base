@@ -281,13 +281,6 @@ struct UnaryExpr : public Expr {
         : Expr(ExprKind::unary), kind(k), operand(oper) {}
 };
 
-struct ParenExpr : public UnaryExpr {
-    // The 'inside' expression is stored in UnaryExpr::operand.
-
-    ParenExpr(Expr *inside_expr)
-        : UnaryExpr(UnaryExprKind::paren, inside_expr) {}
-};
-
 struct BinaryExpr : public Expr {
     Expr *lhs;
     Token op;

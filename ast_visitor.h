@@ -223,8 +223,6 @@ public:
   RetTy visitUnaryExpr(UnaryExpr *u, Args... args) {
     switch (u->kind) {
     case UnaryExprKind::paren:
-      return dis()->visitParenExpr(static_cast<ParenExpr *>(u), args...);
-      break;
     case UnaryExprKind::ref:
     case UnaryExprKind::var_ref:
     case UnaryExprKind::deref:
@@ -234,10 +232,6 @@ public:
       assert(false && "inexhaustive kind");
       break;
     }
-    return RetTy();
-  }
-  RetTy visitParenExpr(ParenExpr *p, Args... args) {
-    walk_paren_expr(*dis(), p, args...);
     return RetTy();
   }
   RetTy visitBinaryExpr(BinaryExpr *b, Args... args) {
@@ -367,10 +361,6 @@ void walk_cast_expr(Visitor &v, CastExpr *c, Args... args) {
 template <typename Visitor, typename... Args>
 void walk_member_expr(Visitor &v, MemberExpr *m, Args... args) {
     v.visitExpr(m->parent_expr, args...);
-}
-template <typename Visitor, typename... Args>
-void walk_paren_expr(Visitor &v, ParenExpr *p, Args... args) {
-    v.visitExpr(p->operand, args...);
 }
 template <typename Visitor, typename... Args>
 void walk_binary_expr(Visitor &v, BinaryExpr *b, Args... args) {

@@ -196,7 +196,6 @@ public:
     Type *visitCastExpr(CastExpr *c);
     Type *visitMemberExpr(MemberExpr *m);
     Type *visitUnaryExpr(UnaryExpr *u);
-    Type *visitParenExpr(ParenExpr *p);
     Type *visitBinaryExpr(BinaryExpr *b);
     Type *visitTypeExpr(TypeExpr *t);
 

@@ -1149,7 +1149,6 @@ static void typecheck_expr(Sema &sema, Expr *e) {
     }
     case ExprKind::unary: {
         auto unary_expr = static_cast<UnaryExpr *>(e);
-        // TODO
         break;
     }
     case ExprKind::binary: {

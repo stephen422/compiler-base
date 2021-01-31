@@ -700,7 +700,7 @@ Expr *Parser::parse_unary_expr() {
         expect(Tok::lparen);
         auto inside_expr = parse_expr();
         expect(Tok::rparen);
-        return make_node_range<ParenExpr>(pos, inside_expr);
+        return make_node_range<UnaryExpr>(pos, UnaryExprKind::paren, inside_expr);
     }
     // TODO: prefix (++), postfix, sign (+/-)
     default: {
