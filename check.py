@@ -40,13 +40,26 @@ def test(binname, filename):
                 success = False
                 print('line {}: expected: {}'.format(this_beacon[0], this_beacon[1]))
                 print('line {}: got:      {}'.format(this_error[0], this_error[1]))
+            i = i + 1
+            j = j + 1
         elif this_error[0] < this_beacon[0]:
             success = False
             print('line {}: got:      {}'.format(this_error[0], this_error[1]))
+            i = i + 1
         else:
             success = False
             print('line {}: expected: {}'.format(this_beacon[0], this_beacon[1]))
+            j = j + 1
+    # handle any remaining
+    while i < len(error_list):
+        success = False
+        this_error = error_list[i]
+        print('line {}: got:      {}'.format(this_error[0], this_error[1]))
         i = i + 1
+    while j < len(beacon_list):
+        success = False
+        this_beacon = error_list[j]
+        print('line {}: expected: {}'.format(this_beacon[0], this_beacon[1]))
         j = j + 1
 
     if success:
