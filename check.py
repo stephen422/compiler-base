@@ -4,8 +4,6 @@ import sys
 import subprocess
 
 def test(binname, filename):
-    print('test {}'.format(filename), end='')
-
     beacon_list = []
 
     line_number = 1
@@ -22,6 +20,10 @@ def test(binname, filename):
     error_list = []
 
     r = subprocess.run([binname, filename], stdout=None, stderr=subprocess.PIPE, text=True)
+    if r.returncode != 0 and r.returncode != -1:
+        print('\033[0;31mabort\033[0m {}'.format(filename))
+        return
+
     for line in r.stderr.splitlines():
         line_number = int(line.split(':')[1])
         error_string = line.split(':')[4].strip()
@@ -48,9 +50,9 @@ def test(binname, filename):
         j = j + 1
 
     if success:
-        print('\r\033[0;32mpass\033[0m {}'.format(filename))
+        print('\033[0;32mpass\033[0m {}'.format(filename))
     else:
-        print('\r\033[0;31mfail\033[0m {}'.format(filename))
+        print('\033[0;31mfail\033[0m {}'.format(filename))
 
 test('build/ruse', 'test/simple.ruse')
 test('build/ruse', 'test/return.ruse')
