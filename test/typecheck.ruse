@@ -1,7 +1,7 @@
 struct Car {
     engine: int,
     wheel: int,
-    // gear: &int,
+    gear: *int,
 }
 
 func void_ret() {
@@ -22,7 +22,7 @@ func g() -> int {
     return 98
 }
 
-func h(a: int, b: &int) -> int {
+func h(a: int, b: *int) -> int {
     return 1
 }
 
@@ -45,8 +45,8 @@ func main() {
     3 + car //~error: incompatible binary op with type 'int' and 'Car'
     (3 + car).wheel //~error: incompatible binary op with type 'int' and 'Car'
     (car).wheel
-    let pa: &int
-    let pb: &int
+    let pa: *int
+    let pb: *int
     // pa < pb //~error: nah
 
     // function calls
@@ -85,18 +85,18 @@ func main() {
         // (*p).a //~error: 'p' is an immutable reference
         // (*m.a).b //~error: 'm.a' is an immutable reference
 
-        var imm_ptr: &int
+        var imm_ptr: *int
         imm_ptr = var &i
         *imm_ptr = 3 //~error: 'imm_ptr' is not a mutable reference
         *(imm_ptr) = 3 //~error: 'imm_ptr' is not a mutable reference
         *imm_ptr = car //~error: cannot assign 'Car' type to 'int'
         imm_ptr = &i
-        let mut_ptr: var &int
+        let mut_ptr: var *int
         *mut_ptr = 3
         mut_ptr = var &i //~error: 'mut_ptr' is not declared as mutable
     }
 
-    let pcar: &Car
+    let pcar: *Car
     (*pcar).wheel
     *(pcar.wheel) //~error: '&Car' is not a struct
 
@@ -117,7 +117,7 @@ func main() {
 }
 
 struct NonCopy {
-    a: var &int,
+    a: var *int,
 }
 
 func copyable() {

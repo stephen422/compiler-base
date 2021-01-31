@@ -460,7 +460,7 @@ bool Parser::is_start_of_decl() {
         // lookahead here.
         auto s = save_state();
         next();
-        if (tok.kind == Tok::ampersand) {
+        if (tok.kind == Tok::star) {
             restore_state(s);
             return false;
         }
@@ -571,18 +571,18 @@ Expr *Parser::parse_cast_expr() {
 }
 
 // Get the Name handle that designates a reference type of a given referee type
-// name.  This function is used in the typeck phase to query already-declared
-// reference types from the type table. TODO: looks kinda like an unnecessary
-// step.
+// name.  This function is used in the typechecking phase to query
+// already-declared reference types from the type table. TODO: looks kinda like
+// an unnecessary step.
 Name *name_of_derived_type(NameTable &names, TypeKind kind,
                            Name *referee_name) {
     std::string prefix;
     switch (kind) {
     case TypeKind::var_ref:
-        prefix = "var &";
+        prefix = "var *";
         break;
     case TypeKind::ref:
-        prefix = "&";
+        prefix = "*";
         break;
     case TypeKind::ptr:
         prefix = "*";
@@ -613,8 +613,8 @@ Expr *Parser::parse_type_expr() {
     Name *lt_name = nullptr;
     Expr *subexpr = nullptr;
     std::string text;
-    if (tok.kind == Tok::ampersand) {
-        expect(Tok::ampersand);
+    if (tok.kind == Tok::star) {
+        next();
         type_kind = mut ? TypeKind::var_ref : TypeKind::ref;
         // Lifetime annotation.
         if (tok.kind == Tok::dot) {
