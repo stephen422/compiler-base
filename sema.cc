@@ -1085,7 +1085,7 @@ static void typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
             return;
         }
         if (!is_pointer_type(u->operand->type)) {
-            error(u->operand->loc, "dereferenced a non-pointer type '{}'",
+            error(u->loc, "dereferenced a non-pointer type '{}'",
                   u->operand->type->name->text);
             return;
         }

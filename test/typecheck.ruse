@@ -53,8 +53,8 @@ func main() {
     {
         var i: int
         *i //~error: dereferenced a non-pointer type 'int'
-        &24 //~error: take address of an rvalue
-        // &g() //~error: take address of an rvalue
+        &24 //~error: cannot take address of an rvalue
+        // &g() //~error: cannot take address of an rvalue
 
         // mutable reference of an immutable variable
         let ii = 4

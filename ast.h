@@ -198,7 +198,6 @@ struct StringLiteral : public Expr {
 // a function.
 struct DeclRefExpr : public Expr {
     Name *name = nullptr;
-    Decl *decl = nullptr;
 
     DeclRefExpr(Name *n) : Expr(ExprKind::decl_ref), name(n) {}
 };
