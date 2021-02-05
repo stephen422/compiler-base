@@ -174,7 +174,7 @@ public:
     void visitEnumDecl(EnumDecl *e);
 };
 
-void typecheck(Sema &sema, AstNode *n);
+bool typecheck(Sema &sema, AstNode *n);
 
 // Type checking pass.
 class TypeChecker : public AstVisitor<TypeChecker, Type *> {

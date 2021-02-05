@@ -85,7 +85,7 @@ enum class TypeKind {
 // storing them in memory pools or the scoped table.
 struct Type {
     TypeKind kind = TypeKind::value;
-    // Name of the type. TODO: include & or [] in the name?
+    // Name of the type. TODO: include * or [] in the name?
     Name *name = nullptr;
     // Whether this is a builtin type or not.
     bool builtin = false;

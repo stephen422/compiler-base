@@ -101,10 +101,6 @@ func main() {
     (f()).engine
     i = 3 + 4
 
-    // typecasting
-    let i_to_char = [string](i)
-    i_to_char = 3 //~error: cannot assign 'int' type to 'string'
-
     // immutability check
     // let c_imm: Car
     // c_imm = car //~error: 'c_imm' is not declared as mutable
@@ -114,7 +110,7 @@ func main() {
     // c1.wheel = 3
 
     // other constructs that skip typeck
-    #printf("hello, world\n")
+    // #printf("hello, world\n")
 }
 
 struct NonCopy {
