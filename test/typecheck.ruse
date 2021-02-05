@@ -86,20 +86,20 @@ func main() {
     }
 
     // function calls
-    car = f()
-    var i: int
-    i = f() //~error: cannot assign 'Car'.*'int'
-    f() + g() //~error: incompatible.*binary.*'Car'.*'int'
-    f().engine
-    f().engine = 3 //~error: cannot assign .* rvalue
-    f().wing //~error: 'wing'.*not.*member.*'Car'
-    h(3, 4) //~error: argument type mismatch
-    void_ret()
-    i = void_ret() //~error: cannot assign 'void' .* 'int'
+    // car = f()
+    // var i: int
+    // i = f() //~error: cannot assign 'Car'.*'int'
+    // f() + g() //~error: incompatible.*binary.*'Car'.*'int'
+    // f().engine
+    // f().engine = 3 //~error: cannot assign .* rvalue
+    // f().wing //~error: 'wing'.*not.*member.*'Car'
+    // h(3, 4) //~error: argument type mismatch
+    // void_ret()
+    // i = void_ret() //~error: cannot assign 'void' .* 'int'
     
     // paren expr
-    (f()).engine
-    i = 3 + 4
+    // (f()).engine
+    // i = 3 + 4
 
     // immutability check
     // let c_imm: Car

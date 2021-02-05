@@ -58,7 +58,7 @@ def test(binname, filename):
         i = i + 1
     while j < len(beacon_list):
         success = False
-        this_beacon = error_list[j]
+        this_beacon = beacon_list[j]
         print('line {}: expected: {}'.format(this_beacon[0], this_beacon[1]))
         j = j + 1
 
