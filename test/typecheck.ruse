@@ -96,7 +96,7 @@ func main() {
     // h(3, 4) //~error: argument type mismatch
     // void_ret()
     // i = void_ret() //~error: cannot assign 'void' .* 'int'
-    
+
     // paren expr
     // (f()).engine
     // i = 3 + 4

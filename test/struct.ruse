@@ -14,6 +14,8 @@ func main() {
     S {.hi = 0}
     S {.notthere = 0} //~error: unknown field 'notthere' in struct 'S'
 
+    let def = S {.hi = 0}
+
     {
         struct Inner {
             a: int

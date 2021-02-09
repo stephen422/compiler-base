@@ -111,9 +111,9 @@ struct AssignStmt : public Stmt {
 };
 
 struct ReturnStmt : public Stmt {
-    ReturnStmt(Expr *e) : Stmt(StmtKind::return_), expr(e) {}
-
     Expr *expr;
+
+    ReturnStmt(Expr *e) : Stmt(StmtKind::return_), expr(e) {}
 };
 
 struct CompoundStmt : public Stmt {
@@ -320,6 +320,7 @@ struct BadExpr : public Expr {
 enum class DeclKind {
     var,
     func,
+    field,
     struct_,
     enum_variant,
     enum_,
@@ -424,7 +425,6 @@ struct VarDecl : public Decl {
     // former corresponds to the singular memory entity that each field of this
     // particular struct instance symbolizes.
     std::vector<std::pair<Name *, VarDecl *>> children;
-    VarDecl *parent = nullptr;
 
     VarDecl(Name *n, VarDeclKind k, Expr *t, Expr *expr)
         : Decl(DeclKind::var, n), kind(k), type_expr(t), assign_expr(expr) {}
@@ -448,11 +448,22 @@ struct FuncDecl : public Decl {
     size_t args_count() const { return args.size(); }
 };
 
+struct FieldDecl : public Decl {
+    Expr *type_expr = nullptr;
+
+    // Byte alignment of this field in the struct.  Only valid for struct
+    // fields.
+    long alignment = 0;
+
+    FieldDecl(Name *n, Expr *texpr)
+        : Decl(DeclKind::field, n), type_expr(texpr) {}
+};
+
 // Struct declaration.
 struct StructDecl : public Decl {
-    std::vector<VarDecl *> fields; // member variables
+    std::vector<FieldDecl *> fields;
 
-    StructDecl(Name *n, std::vector<VarDecl *> m)
+    StructDecl(Name *n, std::vector<FieldDecl *> m)
         : Decl(DeclKind::struct_, n), fields(m) {}
 };
 

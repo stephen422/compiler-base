@@ -296,10 +296,9 @@ std::vector<T> Parser::parse_comma_separated_list(F &&parse_fn) {
             list.push_back(elem);
 
         // Determining where each decl ends in a list is a little tricky.  Here,
-        // we stop for any token that is either (1) separator tokens, i.e.
-        // comma, newline, or (2) used to enclose a decl list, i.e.  parentheses
-        // and braces.  This works for both function argument lists and struct
-        // member lists.
+        // we stop for any token that is either (1) separator tokens like comma
+        // or newline, or (2) closing tokens like parentheses and braces.  This
+        // works for both function argument lists and struct fields.
         if (!elem) {
             skip_until_any(delimiters);
         } else if (!tok.is_any(delimiters)) {
@@ -379,8 +378,12 @@ StructDecl *Parser::parse_struct_decl() {
     if (!expect(Tok::lbrace))
         skip_until_end_of_line();
 
-    auto fields = parse_comma_separated_list<VarDecl *>(
-        [this] { return parse_var_decl(VarDeclKind::struct_); });
+    auto fields = parse_comma_separated_list<FieldDecl *>([this] {
+        // FIXME: Creates a throwaway VarDecl.
+        auto var_decl = parse_var_decl(VarDeclKind::struct_);
+        return sema.make_node_pos<FieldDecl>(var_decl->pos, var_decl->name,
+                                             var_decl->type_expr);
+    });
     expect(Tok::rbrace, "unterminated struct declaration");
     // TODO: recover
 

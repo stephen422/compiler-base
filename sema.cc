@@ -55,7 +55,7 @@ Type *make_ref_type(Sema &sema, Name *name, TypeKind ptr_kind,
 Type *push_builtin_type_from_name(Sema &s, const std::string &str) {
     Name *name = s.name_table.pushlen(str.data(), str.length());
     auto struct_decl =
-        s.make_node<StructDecl>(name, std::vector<VarDecl *>() /* FIXME */);
+        s.make_node<StructDecl>(name, std::vector<FieldDecl *>() /* FIXME */);
     struct_decl->type = make_builtin_type(s, name);
     s.decl_table.insert(name, struct_decl);
     return struct_decl->type;
@@ -1187,15 +1187,15 @@ static bool typecheck_expr(Sema &sema, Expr *e) {
             return false;
         }
         for (auto term : sd->terms) {
-            VarDecl *found_field_vardecl = nullptr;
+            FieldDecl *found_field_decl = nullptr;
             for (auto field :
                  static_cast<StructDecl *>(sd->name_expr->decl)->fields) {
                 if (term.name == field->name) {
-                    found_field_vardecl = field;
+                    found_field_decl = field;
                     break;
                 }
             }
-            if (!found_field_vardecl) {
+            if (!found_field_decl) {
                 error(sd->loc, "unknown field '{}' in struct '{}'",
                       term.name->text, struct_type->name->text);
                 return false;
@@ -1203,11 +1203,11 @@ static bool typecheck_expr(Sema &sema, Expr *e) {
 
             if (!typecheck_expr(sema, term.initexpr)) return false;
 
-            if (!typecheck_assignable(found_field_vardecl->type,
+            if (!typecheck_assignable(found_field_decl->type,
                                       term.initexpr->type)) {
                 error(term.initexpr->loc, "cannot assign '{}' type to '{}'",
                       term.initexpr->type->name->text,
-                      found_field_vardecl->type->name->text);
+                      found_field_decl->type->name->text);
                 return false;
             }
         }
@@ -1226,22 +1226,23 @@ static bool typecheck_expr(Sema &sema, Expr *e) {
             return false;
         }
 
-        VarDecl *found_field_vardecl = nullptr;
+        FieldDecl *found_field_decl = nullptr;
         for (auto field :
              static_cast<StructDecl *>(parent_type->type_decl)->fields) {
             if (mem->member_name == field->name) {
-                found_field_vardecl = field;
+                found_field_decl = field;
                 break;
             }
         }
-        if (!found_field_vardecl) {
+        if (!found_field_decl) {
             error(mem->loc, "unknown field '{}' in struct '{}'",
                   mem->member_name->text, parent_type->name->text);
             return false;
         }
+        assert(!"TODO: mem->decl = new temporary vardecl");
 
-        assert(found_field_vardecl->type);
-        mem->type = found_field_vardecl->type;
+        assert(found_field_decl->type);
+        mem->type = found_field_decl->type;
         break;
     }
     case ExprKind::unary:
@@ -1333,7 +1334,7 @@ static bool typecheck_stmt(Sema &sema, Stmt *s) {
         // TODO
         break;
     case StmtKind::return_:
-        break;
+        return typecheck_expr(sema, static_cast<ReturnStmt *>(s)->expr);
     case StmtKind::compound: {
         bool all_success = true;
         sema.scope_open();
@@ -1377,6 +1378,17 @@ static bool typecheck_decl(Sema &sema, Decl *d) {
         }
         return all_success;
     }
+    case DeclKind::field: {
+        auto f = static_cast<FieldDecl *>(d);
+        // field redeclaration check
+        if (!declare(sema, f->name, f)) {
+            return false;
+        }
+
+        if (!typecheck_expr(sema, f->type_expr)) return false;
+        f->type = f->type_expr->type;
+        break;
+    }
     case DeclKind::struct_: {
         auto s = static_cast<StructDecl *>(d);
         if (!declare(sema, s->name, s)) {
@@ -1387,8 +1399,8 @@ static bool typecheck_decl(Sema &sema, Decl *d) {
 
         sema.decl_table.scope_open();
         bool all_success = true;
-        for (auto f : s->fields) {
-            if (!typecheck_decl(sema, f)) {
+        for (auto field : s->fields) {
+            if (!typecheck_decl(sema, field)) {
                 all_success = false;
             }
         }
@@ -1441,9 +1453,13 @@ static void codegen_expr(QbeGenerator &q, Expr *e) {
     case ExprKind::struct_def:
         // TODO
         break;
-    case ExprKind::member:
-        // TODO
+    case ExprKind::member: {
+        auto mem = static_cast<MemberExpr *>(e);
+        assert(mem->decl);
+        // TODO Respect byte alignment of the field.
+        assert(!"not implemented");
         break;
+    }
     case ExprKind::unary: {
         // TODO
         assert(!"not implemented");
@@ -1489,7 +1505,8 @@ static void codegen_stmt(QbeGenerator &q, Stmt *s) {
         // FIXME: hack, handle non-single-token LHS expr
         assert(as->lhs->kind == ExprKind::decl_ref);
         auto lhs_decl = static_cast<DeclRefExpr *>(as->lhs);
-        q.emit_indent("%{} =w add 0, %_{}\n", lhs_decl->name->text, q.valstack.pop());
+        q.emit_indent("%{} =w add 0, %_{}\n", lhs_decl->name->text,
+                      q.valstack.pop());
         break;
     }
     case StmtKind::return_:
@@ -1532,22 +1549,47 @@ static void codegen_decl(QbeGenerator &q, Decl *d) {
     switch (d->kind) {
     case DeclKind::var: {
         auto v = static_cast<VarDecl *>(d);
-        if (v->assign_expr) {
+        // FIXME
+        if (v->assign_expr && v->assign_expr->kind != ExprKind::struct_def) {
             codegen_expr(q, v->assign_expr);
-            q.emit_indent("%{} =w add 0, %_{}\n", v->name->text, q.valstack.pop());
+            q.emit_indent("%{} =w add 0, %_{}\n", v->name->text,
+                          q.valstack.pop());
         }
         break;
     }
     case DeclKind::func:
-        for (auto body_stmt : static_cast<FuncDecl *>(d)->body->stmts) {
-            codegen_stmt(q, body_stmt);
+        q.emit("export function w $main() {{\n");
+        q.emit("@start\n");
+
+        {
+            QbeGenerator::IndentBlock ib{q};
+
+            for (auto body_stmt : static_cast<FuncDecl *>(d)->body->stmts) {
+                codegen_stmt(q, body_stmt);
+            }
+            // Analyses in the earlier passes should make sure that this ret is
+            // not reachable.  This is only here to make QBE work meanwhile
+            // those analyses are not fully implemented yet.
+            q.emit_indent("ret\n");
         }
-        // Analyses in the earlier passes should make sure that this ret is not
-        // reachable.  This is only here to make QBE work meanwhile those
-        // analyses are not fully implemented yet.
-        q.emit_indent("ret\n");
+
+        q.emit("}}\n");
         break;
     case DeclKind::struct_: {
+        auto s = static_cast<StructDecl *>(d);
+
+        // Calculate alignment and padding.
+        // FIXME: alignment is always 4
+        for (size_t i = 0; i < s->fields.size(); i++) {
+            s->fields[i]->alignment = i * 4;
+        }
+
+        q.emit_indent("type :{} = {{", s->name->text);
+        for (auto field : s->fields) {
+            q.emit("w, ");
+        }
+        q.emit("}}\n");
+        q.emit("\n");
         break;
     }
     default:
@@ -1558,13 +1600,9 @@ static void codegen_decl(QbeGenerator &q, Decl *d) {
 void cmp::codegen(QbeGenerator &q, AstNode *n) {
     switch (n->kind) {
     case AstKind::file: {
-        q.emit("export function w $main() {{\n");
-        q.emit("@start\n");
-        QbeGenerator::IndentBlock ib{q};
         for (auto toplevel : static_cast<File *>(n)->toplevels) {
             codegen(q, toplevel);
         }
-        q.emit("}}\n");
         break;
     }
     case AstKind::stmt:
