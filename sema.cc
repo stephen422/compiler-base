@@ -1238,11 +1238,22 @@ static bool typecheck_expr(Sema &sema, Expr *e) {
             return false;
         }
 
-        // @Review: We might wanna look up the temporary vardecl by constructing
-        // its name, e.g. "s.mem".  Or we could use some kind of hierarchical
-        // nametables, but I think this might be too complicated.
-        auto name = name_of_member_expr(sema, mem);
-        assert(!"TODO: mem->decl = namebind temporary vardecl");
+        // If parent is an lvalue, bind a VarDecl to this MemberExpr as well.
+        // @Review: We could also name the field vardecls by constructing its
+        // name, e.g. "s.mem", but I suspect this would be cleaner.
+        if (mem->parent_expr->decl) {
+            assert(mem->parent_expr->decl->kind == DeclKind::var);
+            auto parent_var_decl =
+                static_cast<VarDecl *>(mem->parent_expr->decl);
+            for (auto child : parent_var_decl->children) {
+                if (child->name == mem->member_name) {
+                    mem->decl = child;
+                    break;
+                }
+            }
+            // Field match is already checked above so this shouldn't fail.
+            assert(mem->decl && "struct member failed to namebind");
+        }
 
         assert(matched_field->type);
         mem->type = matched_field->type;
@@ -1356,7 +1367,8 @@ static bool typecheck_stmt(Sema &sema, Stmt *s) {
     return true;
 }
 
-static VarDecl *addfield(Sema &sema, VarDecl *parent, Name *name, Type *type) {
+static VarDecl *instantiate_field(Sema &sema, VarDecl *parent, Name *name,
+                                  Type *type) {
     auto field = sema.make_node<VarDecl>(name, type, parent->mut);
     // field->parent = v;
     parent->children.push_back(field);
@@ -1371,10 +1383,12 @@ static bool typecheck_decl(Sema &sema, Decl *d) {
             return false;
         }
         if (v->assign_expr) {
-            if (!typecheck_expr(sema, v->assign_expr)) return false;
+            if (!typecheck_expr(sema, v->assign_expr))
+                return false;
             v->type = v->assign_expr->type;
         } else if (v->type_expr) {
-            if (!typecheck_expr(sema, v->type_expr)) return false;
+            if (!typecheck_expr(sema, v->type_expr))
+                return false;
             v->type = v->type_expr->type;
         }
 
@@ -1382,7 +1396,8 @@ static bool typecheck_decl(Sema &sema, Decl *d) {
         if (is_struct_type(v->type)) {
             auto struct_decl = static_cast<StructDecl *>(v->type->type_decl);
             for (auto field : struct_decl->fields) {
-                auto child = addfield(sema, v, field->name, field->type);
+                auto child =
+                    instantiate_field(sema, v, field->name, field->type);
                 // recurse into all descendant fields
                 // @Perf: might be expensive?
                 typecheck_decl(sema, child);
