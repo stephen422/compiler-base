@@ -417,14 +417,13 @@ struct VarDecl : public Decl {
 
     // Decls for each of the values that are associated to this value.
     // For example, if this value is a struct type, these would be VarDecls for
-    // each of its field.  The values are keyed using Names and are subject
-    // under linear search.
+    // each of its field.
     //
     // Note that these are different from the 'fields' field of StructDecl:
-    // while the latter is simply a description of the struct declaration, the
-    // former corresponds to the singular memory entity that each field of this
-    // particular struct instance symbolizes.
-    std::vector<std::pair<Name *, VarDecl *>> children;
+    // while they are simply the definitions of the struct fields, these
+    // represent the instantiated entities that consumes actual space in the
+    // memory.
+    std::vector<VarDecl *> children;
 
     VarDecl(Name *n, VarDeclKind k, Expr *t, Expr *expr)
         : Decl(DeclKind::var, n), kind(k), type_expr(t), assign_expr(expr) {}

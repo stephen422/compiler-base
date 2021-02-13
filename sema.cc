@@ -557,14 +557,6 @@ Type *TypeChecker::visitCastExpr(CastExpr *c) {
     return c->type;
 }
 
-static VarDecl *addfield(Sema &sema, VarDecl *v, Name *name, Type *type) {
-    // mutability is inherited from the parent decl
-    VarDecl *fd = sema.make_node<VarDecl>(name, type, v->mut);
-    fd->parent = v;
-    v->children.push_back({name, fd});
-    return fd;
-}
-
 // MemberExprs cannot be namebinded completely without type checking (e.g.
 // func().mem).  So we defer their namebinding to the type checking phase,
 // which is done here.
@@ -1016,7 +1008,7 @@ static bool is_pointer_type(const Type *ty) {
 
 static bool is_struct_type(const Type *ty) {
     return ty->kind == TypeKind::value && ty->type_decl &&
-        ty->type_decl->kind == DeclKind::struct_;
+           ty->type_decl->kind == DeclKind::struct_;
 }
 
 static bool is_builtin_type(const Type *ty, Sema &sema) {
@@ -1144,6 +1136,12 @@ static bool typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
     return true;
 }
 
+static Name *name_of_member_expr(Sema &sema, MemberExpr *mem) {
+    auto text = std::string{mem->parent_expr->decl->name->text} + "." +
+                mem->member_name->text;
+    return sema.name_table.push(text.c_str());
+}
+
 static bool typecheck_expr(Sema &sema, Expr *e) {
     switch (e->kind) {
     case ExprKind::integer_literal: {
@@ -1187,15 +1185,15 @@ static bool typecheck_expr(Sema &sema, Expr *e) {
             return false;
         }
         for (auto term : sd->terms) {
-            FieldDecl *found_field_decl = nullptr;
+            FieldDecl *matched_field = nullptr;
             for (auto field :
                  static_cast<StructDecl *>(sd->name_expr->decl)->fields) {
                 if (term.name == field->name) {
-                    found_field_decl = field;
+                    matched_field = field;
                     break;
                 }
             }
-            if (!found_field_decl) {
+            if (!matched_field) {
                 error(sd->loc, "unknown field '{}' in struct '{}'",
                       term.name->text, struct_type->name->text);
                 return false;
@@ -1203,11 +1201,11 @@ static bool typecheck_expr(Sema &sema, Expr *e) {
 
             if (!typecheck_expr(sema, term.initexpr)) return false;
 
-            if (!typecheck_assignable(found_field_decl->type,
+            if (!typecheck_assignable(matched_field->type,
                                       term.initexpr->type)) {
                 error(term.initexpr->loc, "cannot assign '{}' type to '{}'",
                       term.initexpr->type->name->text,
-                      found_field_decl->type->name->text);
+                      matched_field->type->name->text);
                 return false;
             }
         }
@@ -1226,23 +1224,28 @@ static bool typecheck_expr(Sema &sema, Expr *e) {
             return false;
         }
 
-        FieldDecl *found_field_decl = nullptr;
+        FieldDecl *matched_field = nullptr;
         for (auto field :
              static_cast<StructDecl *>(parent_type->type_decl)->fields) {
             if (mem->member_name == field->name) {
-                found_field_decl = field;
+                matched_field = field;
                 break;
             }
         }
-        if (!found_field_decl) {
+        if (!matched_field) {
             error(mem->loc, "unknown field '{}' in struct '{}'",
                   mem->member_name->text, parent_type->name->text);
             return false;
         }
-        assert(!"TODO: mem->decl = new temporary vardecl");
 
-        assert(found_field_decl->type);
-        mem->type = found_field_decl->type;
+        // @Review: We might wanna look up the temporary vardecl by constructing
+        // its name, e.g. "s.mem".  Or we could use some kind of hierarchical
+        // nametables, but I think this might be too complicated.
+        auto name = name_of_member_expr(sema, mem);
+        assert(!"TODO: mem->decl = namebind temporary vardecl");
+
+        assert(matched_field->type);
+        mem->type = matched_field->type;
         break;
     }
     case ExprKind::unary:
@@ -1353,6 +1356,13 @@ static bool typecheck_stmt(Sema &sema, Stmt *s) {
     return true;
 }
 
+static VarDecl *addfield(Sema &sema, VarDecl *parent, Name *name, Type *type) {
+    auto field = sema.make_node<VarDecl>(name, type, parent->mut);
+    // field->parent = v;
+    parent->children.push_back(field);
+    return field;
+}
+
 static bool typecheck_decl(Sema &sema, Decl *d) {
     switch (d->kind) {
     case DeclKind::var: {
@@ -1366,6 +1376,17 @@ static bool typecheck_decl(Sema &sema, Decl *d) {
         } else if (v->type_expr) {
             if (!typecheck_expr(sema, v->type_expr)) return false;
             v->type = v->type_expr->type;
+        }
+
+        //  For struct types, instantiate all of its fields.
+        if (is_struct_type(v->type)) {
+            auto struct_decl = static_cast<StructDecl *>(v->type->type_decl);
+            for (auto field : struct_decl->fields) {
+                auto child = addfield(sema, v, field->name, field->type);
+                // recurse into all descendant fields
+                // @Perf: might be expensive?
+                typecheck_decl(sema, child);
+            }
         }
         break;
     }
