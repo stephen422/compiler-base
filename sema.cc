@@ -25,14 +25,6 @@ Type::Type(Name *n, TypeKind k, Type *rt) : kind(k), name(n), referee_type(rt) {
     copyable = k == TypeKind::ref;
 }
 
-bool Type::isEnum() const {
-    // TODO: should base_type be null too?
-    return kind == TypeKind::value && type_decl && type_decl->is<EnumDecl>();
-}
-
-StructDecl *Type::getStructDecl() { return type_decl->as<StructDecl>(); }
-EnumDecl *Type::getEnumDecl() { return type_decl->as<EnumDecl>(); }
-
 Type *make_builtin_type(Sema &sema, Name *n) {
     Type *t = new Type(n);
     sema.type_pool.push_back(t);
@@ -1237,6 +1229,8 @@ static bool typecheck_expr(Sema &sema, Expr *e) {
                   mem->member_name->text, parent_type->name->text);
             return false;
         }
+        // For querying offsets in struct later.
+        mem->field_decl = matched_field;
 
         // If parent is an lvalue, bind a VarDecl to this MemberExpr as well.
         // @Review: We could also name the field vardecls by constructing its
@@ -1492,8 +1486,9 @@ static void codegen_expr(QbeGenerator &q, Expr *e) {
     case ExprKind::member: {
         auto mem = static_cast<MemberExpr *>(e);
         assert(mem->decl);
+        fmt::print("{}, alignment={}\n", mem->decl->name->text,
+                   mem->field_decl->alignment);
         // TODO Respect byte alignment of the field.
-        assert(!"not implemented");
         break;
     }
     case ExprKind::unary: {

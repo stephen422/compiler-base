@@ -15,6 +15,7 @@ struct Expr;
 struct Decl;
 struct VarDecl;
 struct FuncDecl;
+struct FieldDecl;
 struct StructDecl;
 struct EnumVariantDecl;
 struct EnumDecl;
@@ -246,7 +247,10 @@ struct MemberExpr : public Expr {
     Expr *parent_expr = nullptr;
     Name *member_name = nullptr; // 'mem' part
 
-    // MemberExprs may or may not have an associated decl object, depending on
+    // Back-reference to the FieldDecl. Only valid for struct fields.
+    FieldDecl *field_decl = nullptr;
+
+    // MemberExprs may or may not have an associated VarDecl, depending on
     // 'struct_expr' being l-value or r-value.
 
     MemberExpr(Expr *e, Name *m)
@@ -386,7 +390,7 @@ enum class VarDeclKind {
 struct VarDecl : public Decl {
     // Whether this VarDecl has been declared as a local variable, as a field
     // inside a struct, or as a parameter for a function.
-    // TODO: use separate types for each, e.g. FieldDecl.
+    // TODO: necessary?
     const VarDeclKind kind = VarDeclKind::local;
 
     // TypeExpr of the variable.  Declared as Expr to accommodate for BadExpr.

@@ -109,17 +109,6 @@ struct Type {
     // Reference types.
     // TODO: copyable?
     Type(Name *n, TypeKind ptr_kind, Type *referee_type);
-
-    std::string str() const { return name->text; }
-
-    // Returns true if this type is a builtin type.
-    bool is_builtin(Sema &sema) const;
-
-    // Returns true if this type is an enum.
-    bool isEnum() const;
-
-    StructDecl *getStructDecl();
-    EnumDecl *getEnumDecl();
 };
 
 } // namespace cmp
