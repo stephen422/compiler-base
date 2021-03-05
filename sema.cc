@@ -58,7 +58,9 @@ Type *push_builtin_type_from_name(Sema &s, const std::string &str) {
 void cmp::setup_builtin_types(Sema &s) {
     s.context.void_type = push_builtin_type_from_name(s, "void");
     s.context.int_type = push_builtin_type_from_name(s, "int");
+    s.context.int_type->size = 4;
     s.context.char_type = push_builtin_type_from_name(s, "char");
+    s.context.char_type->size = 1;
     s.context.string_type = push_builtin_type_from_name(s, "string");
 }
 
@@ -1387,6 +1389,12 @@ static bool typecheck_decl(Sema &sema, Decl *d) {
             v->type = v->type_expr->type;
         }
 
+        if (!sema.context.func_decl_stack.empty()) {
+            auto current_func = sema.context.func_decl_stack.back();
+            v->local_id = current_func->local_id_counter;
+            current_func->local_id_counter++;
+        }
+
         //  For struct types, instantiate all of its fields.
         if (is_struct_type(v->type)) {
             auto struct_decl = static_cast<StructDecl *>(v->type->type_decl);
@@ -1401,12 +1409,15 @@ static bool typecheck_decl(Sema &sema, Decl *d) {
         break;
     }
     case DeclKind::func: {
+        auto f = static_cast<FuncDecl *>(d);
         bool all_success = true;
-        for (auto body_stmt : static_cast<FuncDecl *>(d)->body->stmts) {
+        sema.context.func_decl_stack.push_back(f);
+        for (auto body_stmt : f->body->stmts) {
             if (!typecheck_stmt(sema, body_stmt)) {
                 all_success = false;
             }
         }
+        sema.context.func_decl_stack.pop_back();
         return all_success;
     }
     case DeclKind::field: {
@@ -1490,6 +1501,7 @@ static void codegen_expr(QbeGenerator &q, Expr *e) {
         fmt::print("{}, alignment={}\n", mem->decl->name->text,
                    mem->field_decl->alignment);
         // TODO Respect byte alignment of the field.
+        assert(!"not implemented");
         break;
     }
     case ExprKind::unary: {
@@ -1581,7 +1593,13 @@ static void codegen_decl(QbeGenerator &q, Decl *d) {
     switch (d->kind) {
     case DeclKind::var: {
         auto v = static_cast<VarDecl *>(d);
-        // FIXME
+
+        if (!q.sema.context.func_decl_stack.empty()) {
+            assert(v->type->size);
+            q.emit_indent("%A{} =l alloc8 {}\n", v->local_id, v->type->size);
+            fmt::print("{}, size={}\n", v->name->text, v->type->size);
+        }
+
         if (v->assign_expr && v->assign_expr->kind != ExprKind::struct_def) {
             codegen_expr(q, v->assign_expr);
             q.emit_indent("%{} =w add 0, %_{}\n", v->name->text,
@@ -1589,14 +1607,16 @@ static void codegen_decl(QbeGenerator &q, Decl *d) {
         }
         break;
     }
-    case DeclKind::func:
+    case DeclKind::func: {
+        auto f = static_cast<FuncDecl *>(d);
         q.emit("export function w $main() {{\n");
         q.emit("@start\n");
 
+        q.sema.context.func_decl_stack.push_back(f);
         {
             QbeGenerator::IndentBlock ib{q};
 
-            for (auto body_stmt : static_cast<FuncDecl *>(d)->body->stmts) {
+            for (auto body_stmt : f->body->stmts) {
                 codegen_stmt(q, body_stmt);
             }
             // Analyses in the earlier passes should make sure that this ret is
@@ -1604,17 +1624,22 @@ static void codegen_decl(QbeGenerator &q, Decl *d) {
             // those analyses are not fully implemented yet.
             q.emit_indent("ret\n");
         }
+        q.sema.context.func_decl_stack.pop_back();
 
         q.emit("}}\n");
         break;
+    }
     case DeclKind::struct_: {
         auto s = static_cast<StructDecl *>(d);
 
         // Calculate alignment and padding.
         // FIXME: alignment is always 4
+        size_t alignment = 0;
         for (size_t i = 0; i < s->fields.size(); i++) {
-            s->fields[i]->alignment = i * 4;
+            s->fields[i]->alignment = alignment;
+            alignment += 4;
         }
+        s->type->size = alignment;
 
         q.emit_indent("type :{} = {{", s->name->text);
         for (auto field : s->fields) {

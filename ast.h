@@ -372,8 +372,8 @@ struct Decl : public AstNode {
     // functions.
     Type *type = nullptr;
 
-    Decl(DeclKind d) : AstNode(AstKind::decl), kind(d) {}
-    Decl(DeclKind d, Name *n) : AstNode(AstKind::decl), kind(d), name(n) {}
+    Decl(DeclKind d) : Decl(d, nullptr, nullptr) {}
+    Decl(DeclKind d, Name *n) : Decl(d, n, nullptr) {}
     Decl(DeclKind d, Name *n, Type *t)
         : AstNode(AstKind::decl), kind(d), name(n), type(t) {}
     template <typename T> bool is() const { return decl_is<T>(kind); }
@@ -419,6 +419,8 @@ struct VarDecl : public Decl {
     // [References] Lifetime of the value that this reference borrowed from.
     Lifetime *borrowee_lifetime = nullptr;
 
+    long local_id = 0;
+
     // Decls for each of the values that are associated to this value.
     // For example, if this value is a struct type, these would be VarDecls for
     // each of its field.
@@ -443,9 +445,9 @@ struct FuncDecl : public Decl {
     Expr *rettypeexpr = nullptr;  // return type expression
     Name *ret_lifetime_annot =
         nullptr; // lifetime annotation of the return value
-
     // "Bogus" lifetime that represents the scope of the function body.
     Lifetime *scope_lifetime = nullptr;
+    long local_id_counter = 0;
 
     FuncDecl(Name *n) : Decl(DeclKind::func, n) {}
     size_t args_count() const { return args.size(); }

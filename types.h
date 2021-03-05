@@ -101,6 +101,8 @@ struct Type {
         // refers to.
         Type *referee_type;
     };
+    // Memory size of this type in bytes.
+    long size = 0;
 
     // Built-in value types.
     Type(Name *n) : kind(TypeKind::value), name(n), builtin(true) {}
