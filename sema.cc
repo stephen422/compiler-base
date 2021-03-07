@@ -1596,8 +1596,13 @@ static void codegen_decl(QbeGenerator &q, Decl *d) {
 
         if (!q.sema.context.func_decl_stack.empty()) {
             assert(v->type->size);
-            q.emit_indent("%A{} =l alloc8 {}\n", v->local_id, v->type->size);
-            fmt::print("{}, size={}\n", v->name->text, v->type->size);
+            q.emit_indent("%A{} =l ", v->local_id);
+            if (v->type->size < 8) {
+                q.emit("alloc4");
+            } else {
+                q.emit("alloc8");
+            }
+            q.emit(" {}\n", v->type->size);
         }
 
         if (v->assign_expr && v->assign_expr->kind != ExprKind::struct_def) {
