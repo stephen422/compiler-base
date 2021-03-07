@@ -1268,6 +1268,7 @@ static bool typecheck_expr(Sema &sema, Expr *e) {
                   lhs_type->name->text, rhs_type->name->text);
             return false;
         }
+        b->type = lhs_type;
         break;
     }
     case ExprKind::type: {
