@@ -495,7 +495,8 @@ static bool typecheck_decl(Sema &sema, Decl *d) {
             for (auto field : struct_decl->fields) {
                 auto child =
                     instantiate_field(sema, v, field->name, field->type);
-                // recurse into all descendant fields
+                // Recurse into all descendant fields.  This is mostly to set
+                // the type of the fields.
                 // @Perf: might be expensive?
                 typecheck_decl(sema, child);
             }
@@ -574,18 +575,56 @@ bool cmp::typecheck(Sema &sema, AstNode *n) {
 
 static void codegen_decl(QbeGenerator &q, Decl *d);
 
-static void codegen_expr(QbeGenerator &q, Expr *e) {
+// 'value' denotes whether the caller that contains the use of this expression
+// requires the actual value of it, or just the address (for lvalues).
+static void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
     switch (e->kind) {
     case ExprKind::integer_literal:
         q.emit_indent("%_{} =w add 0, {}\n", q.valstack.next_id,
                      static_cast<IntegerLiteral *>(e)->value);
         q.valstack.push();
         break;
-    case ExprKind::decl_ref:
-        q.emit_indent("%_{} =w add 0, %{}\n", q.valstack.next_id,
-                     static_cast<DeclRefExpr *>(e)->name->text);
-        q.valstack.push();
+    case ExprKind::decl_ref: {
+        auto dre = static_cast<DeclRefExpr *>(e);
+        // This generates a load on 'a':
+        //   ... = a
+        // But this does not:
+        //   ... = a.mem
+        //   ... = *a
+        //   ... = a[3]
+        //
+        // Whether a load should be generated or not is determined at the use of
+        // the expression.  When we reach the statement that actually uses an
+        // expression, we could query for the type of the expression, and only
+        // generate load for lvalues or something.  All we have to do for each
+        // expression is to get the address ready (if it has one) on the
+        // valstack.
+        //
+        // However, this way we have to do the load/no-load check for all
+        // possible positions that can use an expression and it could complicate
+        // things.  Maybe just paying the price of generating unused loads and
+        // pushing the actual value of the expression on the valstack could be
+        // much simpler implementation-wise.
+        //
+        // Outputting values when the expression is converted from an lvalue to
+        // an rvalue also sounds good, but this doesn't work considering that
+        // expressions may be used without being converted to rvalues in
+        // advance.
+        if (dre->decl->kind == DeclKind::var) {
+            auto var = static_cast<VarDecl *>(dre->decl);
+            if (value) {
+                q.emit_indent("%_{} =w loadw %A{}\n", q.valstack.next_id,
+                              var->local_id);
+            } else {
+                q.emit_indent("%_{} =l add 0, %A{}\n", q.valstack.next_id,
+                              var->local_id);
+            }
+            q.valstack.push();
+        } else {
+            assert(!"not implemented");
+        }
         break;
+    }
     case ExprKind::struct_def:
         // TODO
         break;
@@ -595,7 +634,25 @@ static void codegen_expr(QbeGenerator &q, Expr *e) {
         fmt::print("{}, alignment={}\n", mem->decl->name->text,
                    mem->field_decl->alignment);
         // TODO Respect byte alignment of the field.
-        assert(!"not implemented");
+        //
+        // We can't handle all code generation at this end without recursing
+        // into the parent expression, because we have cases like these:
+        //
+        //   ... = (*p).memb
+        //   ... = f().memb
+        //
+        // So we have to recurse into things, at which point the question of
+        // whether to generate values or addresses still stands.
+        codegen_expr_explicit(q, mem->parent_expr, false);
+
+        q.emit_indent("%_{} =l add %_{}, {}\n", q.valstack.next_id,
+                      q.valstack.pop(), mem->field_decl->alignment);
+        if (value) {
+            q.emit_indent("%_{} =w loadw %_{}\n", q.valstack.next_id + 1,
+                          q.valstack.next_id);
+            q.valstack.next_id++;
+        }
+        q.valstack.push();
         break;
     }
     case ExprKind::unary: {
@@ -605,8 +662,8 @@ static void codegen_expr(QbeGenerator &q, Expr *e) {
     }
     case ExprKind::binary: {
         auto binary = static_cast<BinaryExpr *>(e);
-        codegen_expr(q, binary->lhs);
-        codegen_expr(q, binary->rhs);
+        codegen_expr_explicit(q, binary->lhs, true);
+        codegen_expr_explicit(q, binary->rhs, true);
 
         const char *op_str = NULL;
         switch (binary->op.kind) {
@@ -627,6 +684,14 @@ static void codegen_expr(QbeGenerator &q, Expr *e) {
     default:
         assert(!"unknown expr kind");
     }
+}
+
+static void codegen_expr(QbeGenerator &q, Expr *e) {
+    codegen_expr_explicit(q, e, true);
+}
+
+static void codegen_expr_addr(QbeGenerator &q, Expr *e) {
+    codegen_expr_explicit(q, e, false);
 }
 
 static void codegen_stmt(QbeGenerator &q, Stmt *s) {
@@ -701,8 +766,7 @@ static void codegen_decl(QbeGenerator &q, Decl *d) {
 
         if (v->assign_expr && v->assign_expr->kind != ExprKind::struct_def) {
             codegen_expr(q, v->assign_expr);
-            q.emit_indent("%{} =w add 0, %_{}\n", v->name->text,
-                          q.valstack.pop());
+            q.emit_indent("storew %_{}, %A{}\n", q.valstack.pop(), v->local_id);
         }
         break;
     }
