@@ -220,10 +220,12 @@ public:
     BasicBlock *visitFuncDecl(FuncDecl *f, BasicBlock *bb);
 };
 
-// All this does is query the index of the node in the post-tree traversal
-// order.  Keeping that index in the nodes however will make accessing them
-// expensive.
-struct ValStack {
+// ValStack is a means for sibling AST nodes to communicate information in the
+// codegen stage.  It caches the handle ID of a value that is produced by a node
+// to a FIFO stack, so that later-traversed nodes can use that value by
+// generating loads or arithmetic instructions with it.  This ID could otherwise
+// be kept in the nodes themselves, but that will make the access expensive.
+struct Valstack {
     std::vector<int> buf;
     int next_id{0};
 
@@ -241,7 +243,7 @@ struct ValStack {
 
 struct QbeGenerator {
     Sema &sema;
-    ValStack valstack;
+    Valstack valstack;
     int label_id = 0;
     int ifelse_label_id = 0;
     int indent = 0;
