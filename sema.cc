@@ -705,11 +705,12 @@ static void codegen_stmt(QbeGenerator &q, Stmt *s) {
     case StmtKind::assign: {
         auto as = static_cast<AssignStmt *>(s);
         codegen_expr(q, as->rhs);
-        // FIXME: hack, handle non-single-token LHS expr
-        assert(as->lhs->kind == ExprKind::decl_ref);
-        auto lhs_decl = static_cast<DeclRefExpr *>(as->lhs);
-        q.emit_indent("%{} =w add 0, %_{}\n", lhs_decl->name->text,
-                      q.valstack.pop());
+        auto rhs_val_id = q.valstack.pop();
+
+        codegen_expr_addr(q, as->lhs);
+        auto lhs_addr_id = q.valstack.pop();
+
+        q.emit_indent("storew %_{}, %_{}\n", rhs_val_id, lhs_addr_id);
         break;
     }
     case StmtKind::return_:
