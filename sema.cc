@@ -435,9 +435,22 @@ static bool typecheck_stmt(Sema &sema, Stmt *s) {
 
         break;
     }
-    case StmtKind::if_:
-        // TODO
+    case StmtKind::if_: {
+        auto if_stmt = static_cast<IfStmt *>(s);
+        if (!typecheck_expr(sema, if_stmt->cond)) return false;
+
+        if (!typecheck_stmt(sema, if_stmt->if_body)) return false;
+        if (if_stmt->else_if_stmt) {
+            if (!typecheck_stmt(sema, if_stmt->else_if_stmt)) {
+                return false;
+            }
+        } else if (if_stmt->else_body) {
+            if (!typecheck_stmt(sema, if_stmt->else_body)) {
+                return false;
+            }
+        }
         break;
+    }
     case StmtKind::return_:
         return typecheck_expr(sema, static_cast<ReturnStmt *>(s)->expr);
     case StmtKind::compound: {
@@ -731,8 +744,8 @@ static void codegen_stmt(QbeGenerator &q, Stmt *s) {
         codegen_stmt(q, if_stmt->if_body);
         q.emit_indent("jmp @fi_{}\n", id);
         q.emit("@else_{}\n", id);
-        if (if_stmt->else_if) {
-            codegen_stmt(q, if_stmt->else_if);
+        if (if_stmt->else_if_stmt) {
+            codegen_stmt(q, if_stmt->else_if_stmt);
         } else if (if_stmt->else_body) {
             codegen_stmt(q, if_stmt->else_body);
         }

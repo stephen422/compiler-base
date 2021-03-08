@@ -335,8 +335,8 @@ template <typename Visitor, typename... Args>
 void walk_if_stmt(Visitor &v, IfStmt *is, Args... args) {
     v.visitExpr(is->cond, args...);
     v.visitCompoundStmt(is->if_body, args...);
-    if (is->else_if)
-        v.visitIfStmt(is->else_if, args...);
+    if (is->else_if_stmt)
+        v.visitIfStmt(is->else_if_stmt, args...);
     else if (is->else_body)
         v.visitCompoundStmt(is->else_body, args...);
 }

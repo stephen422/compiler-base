@@ -129,11 +129,11 @@ struct IfStmt : public Stmt {
     // Views 'else if' clauses as a separate if statement that is embedeed in
     // the 'else' clause.  'else_if' and 'else_body' cannot be non-null at the
     // same time.
-    IfStmt *else_if = nullptr;
+    IfStmt *else_if_stmt = nullptr;
     CompoundStmt *else_body = nullptr;
 
     IfStmt(Expr *e, CompoundStmt *is, IfStmt *ei, CompoundStmt *es)
-        : Stmt(StmtKind::if_), cond(e), if_body(is), else_if(ei),
+        : Stmt(StmtKind::if_), cond(e), if_body(is), else_if_stmt(ei),
           else_body(es) {}
 };
 
