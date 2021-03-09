@@ -11,7 +11,9 @@ int main(int argc, char **argv) {
   // XXX: We don't even need to declare Driver variables, why not make these
   // free functions?
   auto d1 = Driver::from_path(Path{argv[1]});
-  d1.compile();
+  if (!d1.compile()) {
+      return EXIT_FAILURE;
+  }
 
   return EXIT_SUCCESS;
 }

@@ -508,10 +508,7 @@ static bool typecheck_decl(Sema &sema, Decl *d) {
             for (auto field : struct_decl->fields) {
                 auto child =
                     instantiate_field(sema, v, field->name, field->type);
-                // Recurse into all descendant fields.  This is mostly to set
-                // the type of the fields.
-                // @Perf: might be expensive?
-                typecheck_decl(sema, child);
+                // FIXME: should we typecheck_decl() children here?
             }
         }
         break;
