@@ -20,8 +20,8 @@ def test(binname, filename):
     error_list = []
 
     r = subprocess.run([binname, filename], stdout=None, stderr=subprocess.PIPE, text=True)
-    if r.returncode != 0 and r.returncode != -1:
-        print('\033[0;31mabort\033[0m {}'.format(filename))
+    if r.returncode != 0 and r.returncode != 1:
+        print('\033[0;31mabort\033[0m {} ({})'.format(filename, r.returncode))
         return
 
     for line in r.stderr.splitlines():
