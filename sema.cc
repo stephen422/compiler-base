@@ -272,12 +272,13 @@ static bool typecheck_expr(Sema &sema, Expr *e) {
                   struct_type->name->text);
             return false;
         }
-        for (auto term : sde->terms) {
+        for (auto &term : sde->terms) {
             FieldDecl *matched_field = nullptr;
             for (auto field :
                  static_cast<StructDecl *>(sde->name_expr->decl)->fields) {
                 if (term.name == field->name) {
                     matched_field = field;
+                    term.field_decl = matched_field;
                     break;
                 }
             }
@@ -645,8 +646,8 @@ static void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
     case ExprKind::member: {
         auto mem = static_cast<MemberExpr *>(e);
         assert(mem->decl);
-        fmt::print("{}, alignment={}\n", mem->decl->name->text,
-                   mem->field_decl->alignment);
+        fmt::print("{}, offset={}\n", mem->decl->name->text,
+                   mem->field_decl->offset);
         // TODO Respect byte alignment of the field.
         //
         // We can't handle all code generation at this end without recursing
@@ -660,7 +661,7 @@ static void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
         codegen_expr_explicit(q, mem->parent_expr, false);
 
         q.emit_indent("%_{} =l add %_{}, {}\n", q.valstack.next_id,
-                      q.valstack.pop(), mem->field_decl->alignment);
+                      q.valstack.pop(), mem->field_decl->offset);
         if (value) {
             q.emit_indent("%_{} =w loadw %_{}\n", q.valstack.next_id + 1,
                           q.valstack.next_id);
@@ -777,31 +778,46 @@ static void codegen_decl(QbeGenerator &q, Decl *d) {
                 q.emit("alloc8");
             }
             q.emit(" {}\n", v->type->size);
-        }
 
-        if (v->assign_expr) {
-            if (v->assign_expr->kind == ExprKind::struct_def) {
-                auto sde = static_cast<StructDefExpr *>(v->assign_expr);
-                for (auto term : sde->terms) {
-                    // find the matching child vardecl
-                    VarDecl *child_decl = nullptr;
-                    for (auto child : v->children) {
-                        if (child->name == term.name) {
-                            child_decl = child;
-                            break;
+            if (v->assign_expr) {
+                // FIXME: shouldn't this be done in codegen_expr?
+                if (v->assign_expr->kind == ExprKind::struct_def) {
+                    auto sde = static_cast<StructDefExpr *>(v->assign_expr);
+                    for (auto term : sde->terms) {
+                        // find the matching child vardecl
+                        VarDecl *child_decl = nullptr;
+                        for (auto child : v->children) {
+                            if (child->name == term.name) {
+                                child_decl = child;
+                                break;
+                            }
                         }
-                    }
-                    assert(child_decl);
+                        assert(child_decl);
 
-                    fmt::print("{}: local_id={}\n", term.name->text,
-                               child_decl->local_id);
+                        // Don't stack allocate here but just calculate the
+                        // right offsetted memory position.
+                        assert(term.field_decl);
+                        q.emit_indent("%A{} =l add %A{}, {}\n",
+                                      child_decl->local_id, v->local_id,
+                                      term.field_decl->offset);
+                        q.valstack.push();
+
+                        codegen_expr(q, term.initexpr);
+                        fmt::print("{}: local_id={}\n", term.name->text,
+                                   child_decl->local_id);
+                        q.emit_indent("storew %_{}, %A{}\n", q.valstack.pop(),
+                                      child_decl->local_id);
+                    }
+                } else {
+                    codegen_expr(q, v->assign_expr);
+                    q.emit_indent("storew %_{}, %A{}\n", q.valstack.pop(),
+                                  v->local_id);
                 }
-            } else {
-                codegen_expr(q, v->assign_expr);
-                q.emit_indent("storew %_{}, %A{}\n", q.valstack.pop(),
-                              v->local_id);
             }
+        } else {
+            assert(!"vardecl outside function?");
         }
+
         break;
     }
     case DeclKind::func: {
@@ -829,14 +845,14 @@ static void codegen_decl(QbeGenerator &q, Decl *d) {
     case DeclKind::struct_: {
         auto s = static_cast<StructDecl *>(d);
 
-        // Calculate alignment and padding.
+        // Calculate offset and padding.
         // FIXME: alignment is always 4
-        size_t alignment = 0;
+        size_t offset = 0;
         for (size_t i = 0; i < s->fields.size(); i++) {
-            s->fields[i]->alignment = alignment;
-            alignment += 4;
+            s->fields[i]->offset = offset;
+            offset += 4;
         }
-        s->type->size = alignment;
+        s->type->size = offset;
 
         q.emit_indent("type :{} = {{", s->name->text);
         for (auto field : s->fields) {

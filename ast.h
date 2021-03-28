@@ -222,8 +222,8 @@ struct CallExpr : public Expr {
 // '.memb = expr' part in Struct { ... }.
 struct StructDefTerm {
     Name *name = nullptr;
-    VarDecl *decl = nullptr;
     Expr *initexpr = nullptr;
+    FieldDecl *field_decl = nullptr;
 };
 
 // 'Struct { .m1 = .e1, .m2 = e2, ... }'
@@ -421,7 +421,7 @@ struct VarDecl : public Decl {
 
     // ID of the VarDecl that is local inside the current scope.  Used for
     // codegen to easily designate the address to which we have to store the
-    // value of an expression.
+    // temporary value of an expression.
     long local_id = 0;
 
     // Decls for each of the values that are associated to this value.
@@ -459,9 +459,8 @@ struct FuncDecl : public Decl {
 struct FieldDecl : public Decl {
     Expr *type_expr = nullptr;
 
-    // Byte alignment of this field in the struct.  Only valid for struct
-    // fields.
-    long alignment = 0;
+    // Byte offset of this field in the struct.
+    long offset = 0;
 
     FieldDecl(Name *n, Expr *texpr)
         : Decl(DeclKind::field, n), type_expr(texpr) {}

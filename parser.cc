@@ -840,7 +840,7 @@ std::optional<StructDefTerm> Parser::parse_structdef_field() {
     if (!expr)
         return {};
 
-    return StructDefTerm{name, nullptr, expr};
+    return StructDefTerm{name, expr};
 }
 
 // If this expression has a trailing {...}, parse as a struct definition
