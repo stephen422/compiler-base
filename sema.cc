@@ -256,33 +256,33 @@ static bool typecheck_expr(Sema &sema, Expr *e) {
         assert(!"not implemented");
         break;
     case ExprKind::struct_def: {
-        auto sd = static_cast<StructDefExpr *>(e);
-        if (!typecheck_expr(sema, sd->name_expr)) return false;
+        auto sde = static_cast<StructDefExpr *>(e);
+        if (!typecheck_expr(sema, sde->name_expr)) return false;
 
         // @Cleanup: It doesn't make sense that 'name_expr' should have a type,
         // but then we need this kludgy error check below. I think eventually we
         // should rather have it just be a Name and do a lookup on it.
-        if (!sd->name_expr->decl || !sd->name_expr->decl->type) {
+        if (!sde->name_expr->decl || !sde->name_expr->decl->type) {
             return false;
         }
 
-        Type *struct_type = sd->name_expr->decl->type;
+        Type *struct_type = sde->name_expr->decl->type;
         if (!is_struct_type(struct_type)) {
-            error(sd->name_expr->loc, "type '{}' is not a struct",
+            error(sde->name_expr->loc, "type '{}' is not a struct",
                   struct_type->name->text);
             return false;
         }
-        for (auto term : sd->terms) {
+        for (auto term : sde->terms) {
             FieldDecl *matched_field = nullptr;
             for (auto field :
-                 static_cast<StructDecl *>(sd->name_expr->decl)->fields) {
+                 static_cast<StructDecl *>(sde->name_expr->decl)->fields) {
                 if (term.name == field->name) {
                     matched_field = field;
                     break;
                 }
             }
             if (!matched_field) {
-                error(sd->loc, "unknown field '{}' in struct '{}'",
+                error(sde->loc, "unknown field '{}' in struct '{}'",
                       term.name->text, struct_type->name->text);
                 return false;
             }
@@ -298,7 +298,7 @@ static bool typecheck_expr(Sema &sema, Expr *e) {
             }
         }
 
-        sd->type = struct_type;
+        sde->type = struct_type;
         break;
     }
     case ExprKind::member: {
@@ -496,19 +496,23 @@ static bool typecheck_decl(Sema &sema, Decl *d) {
             v->type = v->type_expr->type;
         }
 
+        // For struct types, instantiate all of its fields.
+        if (is_struct_type(v->type)) {
+            auto struct_decl = static_cast<StructDecl *>(v->type->type_decl);
+            for (auto field : struct_decl->fields) {
+                instantiate_field(sema, v, field->name, field->type);
+                // FIXME: should we typecheck_decl() children here?
+            }
+        }
+
+        // If we are in a function, give this decl a local_id.
         if (!sema.context.func_decl_stack.empty()) {
             auto current_func = sema.context.func_decl_stack.back();
             v->local_id = current_func->local_id_counter;
             current_func->local_id_counter++;
-        }
-
-        //  For struct types, instantiate all of its fields.
-        if (is_struct_type(v->type)) {
-            auto struct_decl = static_cast<StructDecl *>(v->type->type_decl);
-            for (auto field : struct_decl->fields) {
-                auto child =
-                    instantiate_field(sema, v, field->name, field->type);
-                // FIXME: should we typecheck_decl() children here?
+            for (auto child : v->children) {
+                child->local_id = current_func->local_id_counter;
+                current_func->local_id_counter++;
             }
         }
         break;
@@ -775,9 +779,28 @@ static void codegen_decl(QbeGenerator &q, Decl *d) {
             q.emit(" {}\n", v->type->size);
         }
 
-        if (v->assign_expr && v->assign_expr->kind != ExprKind::struct_def) {
-            codegen_expr(q, v->assign_expr);
-            q.emit_indent("storew %_{}, %A{}\n", q.valstack.pop(), v->local_id);
+        if (v->assign_expr) {
+            if (v->assign_expr->kind == ExprKind::struct_def) {
+                auto sde = static_cast<StructDefExpr *>(v->assign_expr);
+                for (auto term : sde->terms) {
+                    // find the matching child vardecl
+                    VarDecl *child_decl = nullptr;
+                    for (auto child : v->children) {
+                        if (child->name == term.name) {
+                            child_decl = child;
+                            break;
+                        }
+                    }
+                    assert(child_decl);
+
+                    fmt::print("{}: local_id={}\n", term.name->text,
+                               child_decl->local_id);
+                }
+            } else {
+                codegen_expr(q, v->assign_expr);
+                q.emit_indent("storew %_{}, %A{}\n", q.valstack.pop(),
+                              v->local_id);
+            }
         }
         break;
     }

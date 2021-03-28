@@ -419,6 +419,9 @@ struct VarDecl : public Decl {
     // [References] Lifetime of the value that this reference borrowed from.
     Lifetime *borrowee_lifetime = nullptr;
 
+    // ID of the VarDecl that is local inside the current scope.  Used for
+    // codegen to easily designate the address to which we have to store the
+    // value of an expression.
     long local_id = 0;
 
     // Decls for each of the values that are associated to this value.

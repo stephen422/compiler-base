@@ -5,9 +5,9 @@ struct S {
 
 func main() {
     // this should not generate any code
-    // let s = S {.a = 3}
-    let s: S
-    s.b = 4
+    let s = S {.a = 3, .b = 4}
+    // let s: S
+    // s.b = 4
 
     return s.b
 }
