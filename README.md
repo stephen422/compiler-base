@@ -21,4 +21,4 @@ $ ./check.py
 
 ## todo
 
-* simplify error handling
+* comment QBE code with what's going on
