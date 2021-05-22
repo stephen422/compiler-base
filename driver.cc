@@ -17,7 +17,7 @@ bool Driver::compile() {
     if (!typecheck(sema, node)) {
         return false;
     }
-    QbeGenerator c{sema, "out.qbe"};
+    QbeGenerator c{sema.context, "out.qbe"};
     codegen(c, node);
     fflush(c.file);
 

@@ -769,7 +769,7 @@ static void codegen_decl(QbeGenerator &q, Decl *d) {
     case DeclKind::var: {
         auto v = static_cast<VarDecl *>(d);
 
-        if (!q.sema.context.func_decl_stack.empty()) {
+        if (!q.context.func_decl_stack.empty()) {
             assert(v->type->size);
             q.emit_indent("%A{} =l ", v->local_id);
             if (v->type->size < 8) {
@@ -795,7 +795,7 @@ static void codegen_decl(QbeGenerator &q, Decl *d) {
                         assert(child_decl);
 
                         // Don't stack allocate here but just calculate the
-                        // right offsetted memory position.
+                        // right offsetted memory location.
                         assert(term.field_decl);
                         q.emit_indent("%A{} =l add %A{}, {}\n",
                                       child_decl->local_id, v->local_id,
@@ -825,7 +825,7 @@ static void codegen_decl(QbeGenerator &q, Decl *d) {
         q.emit("export function w $main() {{\n");
         q.emit("@start\n");
 
-        q.sema.context.func_decl_stack.push_back(f);
+        q.context.func_decl_stack.push_back(f);
         {
             QbeGenerator::IndentBlock ib{q};
 
@@ -837,7 +837,7 @@ static void codegen_decl(QbeGenerator &q, Decl *d) {
             // those analyses are not fully implemented yet.
             q.emit_indent("ret\n");
         }
-        q.sema.context.func_decl_stack.pop_back();
+        q.context.func_decl_stack.pop_back();
 
         q.emit("}}\n");
         break;
