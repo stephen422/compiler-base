@@ -21,4 +21,6 @@ $ ./check.py
 
 ## todo
 
+* function call
 * comment QBE code with what's going on
+* inner struct (struct2.ruse)

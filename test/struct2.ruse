@@ -1,10 +1,10 @@
 struct Token {
     pos: int
-    text: string
+    data: int
 }
 
 func main() {
-    var tok = Token {.pos = 3, .text = "hi"}
+    var tok = Token {.pos = 3, .data = 42}
 
     struct Inner {
         a: int

@@ -606,6 +606,9 @@ void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
                      static_cast<IntegerLiteral *>(e)->value);
         q.valstack.push();
         break;
+    case ExprKind::string_literal:
+        assert(!"not implemented");
+        break;
     case ExprKind::decl_ref: {
         auto dre = static_cast<DeclRefExpr *>(e);
         // This generates a load on 'a':
@@ -793,6 +796,7 @@ void codegen_decl(QbeGenerator &q, Decl *d) {
                     for (auto term : sde->terms) {
                         // find the matching child vardecl
                         VarDecl *child_decl = nullptr;
+                        // TODO: make this into a function
                         for (auto child : v->children) {
                             if (child->name == term.name) {
                                 child_decl = child;
