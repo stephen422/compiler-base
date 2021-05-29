@@ -90,21 +90,23 @@ void Sema::scope_close() {
     borrow_table.scope_close();
 }
 
-static bool is_pointer_type(const Type *ty) {
+namespace {
+
+bool is_pointer_type(const Type *ty) {
     return ty->kind == TypeKind::ref || ty->kind == TypeKind::var_ref;
 }
 
-static bool is_struct_type(const Type *ty) {
+bool is_struct_type(const Type *ty) {
     return ty->kind == TypeKind::value && ty->type_decl &&
            ty->type_decl->kind == DeclKind::struct_;
 }
 
-static bool is_builtin_type(const Type *ty, Sema &sema) {
+bool is_builtin_type(const Type *ty, Sema &sema) {
     return ty == sema.context.int_type || ty == sema.context.char_type ||
         ty == sema.context.void_type || ty == sema.context.string_type;
 }
 
-static bool is_lvalue(const Expr *e) {
+bool is_lvalue(const Expr *e) {
     switch (e->kind) {
     case ExprKind::decl_ref:
     case ExprKind::member:
@@ -133,12 +135,13 @@ bool declare(Sema &sema, Name *name, Decl *decl) {
     return true;
 }
 
+
 // Get or construct a derived type with kind `kind`, from a given type.
 //
 // Derived types are only present in the type table if they occur in the source
 // code.  Trying to push them every time we see one is sufficient to keep this
 // invariant.
-static Type *get_derived_type(Sema &sema, TypeKind kind, Type *type) {
+Type *get_derived_type(Sema &sema, TypeKind kind, Type *type) {
     Name *name = name_of_derived_type(sema.name_table, kind, type->name);
     if (auto found = sema.type_table.find(name)) {
         return found->value;
@@ -148,7 +151,7 @@ static Type *get_derived_type(Sema &sema, TypeKind kind, Type *type) {
     }
 }
 
-static bool typecheck_assignable(const Type *to, const Type *from) {
+bool typecheck_assignable(const Type *to, const Type *from) {
     // TODO: Typecheck assignment rules so far:
     //
     // 1. Pointer <- mutable pointer.
@@ -163,11 +166,11 @@ static bool typecheck_assignable(const Type *to, const Type *from) {
     return to == from;
 }
 
-static bool typecheck_expr(Sema &sema, Expr *e);
-static bool typecheck_stmt(Sema &sema, Stmt *s);
-static bool typecheck_decl(Sema &sema, Decl *d);
+bool typecheck_expr(Sema &sema, Expr *e);
+bool typecheck_stmt(Sema &sema, Stmt *s);
+bool typecheck_decl(Sema &sema, Decl *d);
 
-static bool typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
+bool typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
     switch (u->kind) {
     case UnaryExprKind::paren:
         if (!typecheck_expr(sema, u->operand)) return false;
@@ -224,13 +227,13 @@ static bool typecheck_unary_expr(Sema &sema, UnaryExpr *u) {
     return true;
 }
 
-static Name *name_of_member_expr(Sema &sema, MemberExpr *mem) {
+Name *name_of_member_expr(Sema &sema, MemberExpr *mem) {
     auto text = std::string{mem->parent_expr->decl->name->text} + "." +
                 mem->member_name->text;
     return sema.name_table.push(text.c_str());
 }
 
-static bool typecheck_expr(Sema &sema, Expr *e) {
+bool typecheck_expr(Sema &sema, Expr *e) {
     switch (e->kind) {
     case ExprKind::integer_literal: {
         static_cast<IntegerLiteral *>(e)->type = sema.context.int_type;
@@ -410,7 +413,7 @@ static bool typecheck_expr(Sema &sema, Expr *e) {
     return true;
 }
 
-static bool typecheck_stmt(Sema &sema, Stmt *s) {
+bool typecheck_stmt(Sema &sema, Stmt *s) {
     switch (s->kind) {
     case StmtKind::expr:
         return typecheck_expr(sema, static_cast<ExprStmt *>(s)->expr);
@@ -472,7 +475,7 @@ static bool typecheck_stmt(Sema &sema, Stmt *s) {
     return true;
 }
 
-static VarDecl *instantiate_field(Sema &sema, VarDecl *parent, Name *name,
+VarDecl *instantiate_field(Sema &sema, VarDecl *parent, Name *name,
                                   Type *type) {
     auto field = sema.make_node<VarDecl>(name, type, parent->mut);
     // field->parent = v;
@@ -480,7 +483,7 @@ static VarDecl *instantiate_field(Sema &sema, VarDecl *parent, Name *name,
     return field;
 }
 
-static bool typecheck_decl(Sema &sema, Decl *d) {
+bool typecheck_decl(Sema &sema, Decl *d) {
     switch (d->kind) {
     case DeclKind::var: {
         auto v = static_cast<VarDecl *>(d);
@@ -566,6 +569,8 @@ static bool typecheck_decl(Sema &sema, Decl *d) {
     return true;
 }
 
+} // namespace
+
 bool cmp::typecheck(Sema &sema, AstNode *n) {
     switch (n->kind) {
     case AstKind::file: {
@@ -588,11 +593,13 @@ bool cmp::typecheck(Sema &sema, AstNode *n) {
     return true;
 }
 
-static void codegen_decl(QbeGenerator &q, Decl *d);
+namespace {
+
+void codegen_decl(QbeGenerator &q, Decl *d);
 
 // 'value' denotes whether the caller that contains the use of this expression
 // requires the actual value of it, or just the address (for lvalues).
-static void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
+void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
     switch (e->kind) {
     case ExprKind::integer_literal:
         q.emit_indent("%_{} =w add 0, {}\n", q.valstack.next_id,
@@ -701,15 +708,15 @@ static void codegen_expr_explicit(QbeGenerator &q, Expr *e, bool value) {
     }
 }
 
-static void codegen_expr(QbeGenerator &q, Expr *e) {
+void codegen_expr(QbeGenerator &q, Expr *e) {
     codegen_expr_explicit(q, e, true);
 }
 
-static void codegen_expr_addr(QbeGenerator &q, Expr *e) {
+void codegen_expr_addr(QbeGenerator &q, Expr *e) {
     codegen_expr_explicit(q, e, false);
 }
 
-static void codegen_stmt(QbeGenerator &q, Stmt *s) {
+void codegen_stmt(QbeGenerator &q, Stmt *s) {
     switch (s->kind) {
     case StmtKind::expr:
         codegen_expr(q, static_cast<ExprStmt *>(s)->expr);
@@ -764,7 +771,7 @@ static void codegen_stmt(QbeGenerator &q, Stmt *s) {
     }
 }
 
-static void codegen_decl(QbeGenerator &q, Decl *d) {
+void codegen_decl(QbeGenerator &q, Decl *d) {
     switch (d->kind) {
     case DeclKind::var: {
         auto v = static_cast<VarDecl *>(d);
@@ -866,6 +873,8 @@ static void codegen_decl(QbeGenerator &q, Decl *d) {
         assert(!"unknown decl kind");
     }
 }
+
+} // namespace
 
 void cmp::codegen(QbeGenerator &q, AstNode *n) {
     switch (n->kind) {
